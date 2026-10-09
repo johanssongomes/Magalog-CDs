@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Save, CheckCircle2, FileSpreadsheet, Server, Plus, Trash2, X, Edit3, Filter, ChevronRight, ClipboardList, AlertTriangle, Calendar, FileText } from 'lucide-react'
+import { 
+  Save, CheckCircle2, FileSpreadsheet, Server, Plus, Trash2, X, Edit3, 
+  Filter, ChevronRight, ClipboardList, AlertTriangle, Calendar, FileText,
+  Bold, Italic, List, ListOrdered, CheckSquare, Maximize2, Minimize2, User, Clock, Flag, Tag, HelpCircle
+} from 'lucide-react'
+
 
 
 export type DataType = 'text' | 'percentage' | 'number' | 'decimal' | 'currency'
@@ -367,18 +372,47 @@ export const PerformancePage: React.FC = () => {
 
   // Modal para Formulário de Plano de Ação e Ocorrências por dia
   const [isActionModalOpen, setIsActionModalOpen] = useState(false)
+  const [isActionModalExpanded, setIsActionModalExpanded] = useState(false)
   const [actionModalCellKey, setActionModalCellKey] = useState('')
   const [actionModalTitle, setActionModalTitle] = useState('')
   const [actionModalDate, setActionModalDate] = useState('')
+  
   const [ocorrenciasInput, setOcorrenciasInput] = useState('')
   const [planoAcaoInput, setPlanoAcaoInput] = useState('')
   const [responsavelInput, setResponsavelInput] = useState('')
   const [prazoInput, setPrazoInput] = useState('')
+  const [prioridadeInput, setPrioridadeInput] = useState<'baixa' | 'media' | 'alta' | 'critica'>('media')
+  const [statusAcaoInput, setStatusAcaoInput] = useState<'pendente' | 'em_andamento' | 'concluido'>('pendente')
+
+  const ocorrenciasRef = useRef<HTMLTextAreaElement>(null)
+  const planoAcaoRef = useRef<HTMLTextAreaElement>(null)
+
+  const insertFormatting = (
+    ref: React.RefObject<HTMLTextAreaElement | null>,
+    setValue: React.Dispatch<React.SetStateAction<string>>,
+    prefix: string,
+    suffix: string = ''
+  ) => {
+    const textarea = ref.current
+    if (!textarea) return
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const text = textarea.value
+    const selectedText = text.substring(start, end)
+    const replacement = `${prefix}${selectedText || 'texto'}${suffix}`
+    const newText = text.substring(0, start) + replacement + text.substring(end)
+    setValue(newText)
+    setTimeout(() => {
+      textarea.focus()
+      textarea.setSelectionRange(start + prefix.length, end + prefix.length)
+    }, 50)
+  }
 
   const handleOpenActionModal = (catName: string, dateLabel: string, cellKey: string) => {
     setActionModalCellKey(cellKey)
     setActionModalTitle(catName)
     setActionModalDate(dateLabel)
+    setIsActionModalExpanded(false)
 
     // Tentar ler JSON de ação salvo ou converter texto simples
     const rawVal = data[cellKey] || ''
@@ -389,17 +423,23 @@ export const PerformancePage: React.FC = () => {
         setPlanoAcaoInput(parsed.planoAcao || '')
         setResponsavelInput(parsed.responsavel || '')
         setPrazoInput(parsed.prazo || '')
+        setPrioridadeInput(parsed.prioridade || 'media')
+        setStatusAcaoInput(parsed.statusAcao || 'pendente')
       } catch (e) {
         setOcorrenciasInput('')
         setPlanoAcaoInput(rawVal)
         setResponsavelInput('')
         setPrazoInput('')
+        setPrioridadeInput('media')
+        setStatusAcaoInput('pendente')
       }
     } else {
       setOcorrenciasInput('')
       setPlanoAcaoInput(rawVal)
       setResponsavelInput('')
       setPrazoInput('')
+      setPrioridadeInput('media')
+      setStatusAcaoInput('pendente')
     }
 
     setIsActionModalOpen(true)
@@ -413,7 +453,9 @@ export const PerformancePage: React.FC = () => {
       ocorrencias: ocorrenciasInput,
       planoAcao: planoAcaoInput,
       responsavel: responsavelInput,
-      prazo: prazoInput
+      prazo: prazoInput,
+      prioridade: prioridadeInput,
+      statusAcao: statusAcaoInput
     })
 
     saveCell(actionModalCellKey, payload)
@@ -1532,114 +1574,278 @@ export const PerformancePage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Interativo de Ocorrências & Plano de Ação */}
+      {/* Modal Interativo e Robusto de Ocorrências & Plano de Ação */}
       {isActionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 space-y-5 animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-3 md:p-6 transition-all duration-300">
+          <div
+            className={`bg-white rounded-2xl border border-slate-200 shadow-2xl w-full flex flex-col transition-all duration-300 ${
+              isActionModalExpanded
+                ? 'h-[96vh] max-w-6xl'
+                : 'max-w-3xl max-h-[90vh]'
+            }`}
+          >
             {/* Header do Modal */}
-            <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/80 rounded-t-2xl shrink-0">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700 border border-amber-200">
+                <div className="p-2.5 rounded-xl bg-amber-500 text-white shadow-md shadow-amber-500/20">
                   <ClipboardList size={22} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    Plano de Ação & Ocorrências
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-extrabold text-slate-900">
+                      Plano de Ação & Ocorrências
+                    </h3>
+                    <span className="text-xs font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
+                      {actionModalTitle}
+                    </span>
+                  </div>
                   <p className="text-xs text-slate-500 flex items-center gap-2 mt-0.5 font-medium">
-                    <span className="font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded">{actionModalTitle}</span>
-                    <span>•</span>
                     <span className="flex items-center gap-1 font-mono font-bold text-slate-700">
-                      <Calendar size={13} className="text-amber-600" /> {actionModalDate}
+                      <Calendar size={13} className="text-amber-600" /> Data de Registro: {actionModalDate}
                     </span>
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => setIsActionModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
 
-            {/* Form */}
-            <form onSubmit={handleSaveActionModal} className="space-y-4">
-              {/* Descrição de Ocorrências */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                  <AlertTriangle size={14} className="text-rose-500" />
-                  <span>1. Descrição das Ocorrências / Causa Raiz</span>
-                </label>
-                <textarea
-                  rows={3}
-                  value={ocorrenciasInput}
-                  onChange={e => setOcorrenciasInput(e.target.value)}
-                  placeholder="Descreva o que ocorreu no dia (ex: Atraso de fornecedor, falta de insumos, gargalo na eclusa...)"
-                  className="w-full px-3 py-2 rounded-xl text-xs border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-medium placeholder:text-slate-400"
-                />
-              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsActionModalExpanded(!isActionModalExpanded)}
+                  title={isActionModalExpanded ? 'Restaurar Tamanho Normal' : 'Expandir Formulário (Tela Cheia)'}
+                  className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 transition-colors"
+                >
+                  {isActionModalExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                </button>
 
-              {/* Plano de Ação */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                  <FileText size={14} className="text-amber-600" />
-                  <span>2. Plano de Ação Proposto</span>
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  value={planoAcaoInput}
-                  onChange={e => setPlanoAcaoInput(e.target.value)}
-                  placeholder="Descreva as ações para contornar ou solucionar o problema..."
-                  className="w-full px-3 py-2 rounded-xl text-xs border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-medium placeholder:text-slate-400"
-                />
-              </div>
-
-              {/* Responsável e Prazo */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                    Responsável:
-                  </label>
-                  <input
-                    type="text"
-                    value={responsavelInput}
-                    onChange={e => setResponsavelInput(e.target.value)}
-                    placeholder="Ex: João Silva"
-                    className="w-full px-3 py-1.5 rounded-lg text-xs border border-slate-300 focus:ring-1 focus:ring-amber-500 bg-white font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                    Prazo de Conclusão:
-                  </label>
-                  <input
-                    type="text"
-                    value={prazoInput}
-                    onChange={e => setPrazoInput(e.target.value)}
-                    placeholder="Ex: Até 05/Out ou Imediato"
-                    className="w-full px-3 py-1.5 rounded-lg text-xs border border-slate-300 focus:ring-1 focus:ring-amber-500 bg-white font-medium"
-                  />
-                </div>
-              </div>
-
-              {/* Botões de Ação */}
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsActionModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+                  className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
                 >
-                  Cancelar
+                  <X size={20} />
                 </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/20 active:scale-95 transition-all flex items-center gap-1.5"
-                >
-                  <Save size={14} />
-                  Salvar Plano de Ação
-                </button>
+              </div>
+            </div>
+
+            {/* Form Corpo */}
+            <form onSubmit={handleSaveActionModal} className="flex flex-col flex-1 overflow-hidden p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto space-y-5 pr-1">
+                
+                {/* Meta Bar: Status e Prioridade */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                      <Flag size={12} className="text-amber-600" /> Nível de Prioridade
+                    </label>
+                    <select
+                      value={prioridadeInput}
+                      onChange={e => setPrioridadeInput(e.target.value as any)}
+                      className="w-full px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    >
+                      <option value="baixa">🟢 Baixa</option>
+                      <option value="media">🟡 Média</option>
+                      <option value="alta">🟠 Alta</option>
+                      <option value="critica">🔴 Crítica</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                      <Clock size={12} className="text-blue-600" /> Status do Plano
+                    </label>
+                    <select
+                      value={statusAcaoInput}
+                      onChange={e => setStatusAcaoInput(e.target.value as any)}
+                      className="w-full px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    >
+                      <option value="pendente">⏳ Pendente</option>
+                      <option value="em_andamento">🚀 Em Andamento</option>
+                      <option value="concluido">✅ Concluído</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                      <User size={12} className="text-emerald-600" /> Responsável
+                    </label>
+                    <input
+                      type="text"
+                      value={responsavelInput}
+                      onChange={e => setResponsavelInput(e.target.value)}
+                      placeholder="Ex: João Silva (Gerente OP)"
+                      className="w-full px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-300 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                      <Calendar size={12} className="text-purple-600" /> Prazo de Resolução
+                    </label>
+                    <input
+                      type="text"
+                      value={prazoInput}
+                      onChange={e => setPrazoInput(e.target.value)}
+                      placeholder="Ex: Até 05/Out ou Imediato"
+                      className="w-full px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-300 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Bloco 1: Descrição de Ocorrências / Causa Raiz */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                      <AlertTriangle size={15} className="text-rose-500" />
+                      <span>1. Descrição das Ocorrências, Análises e Causa Raiz</span>
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-medium">Use a barra abaixo para formatar o texto</span>
+                  </div>
+
+                  {/* Toolbar de Formatação Ocorrências */}
+                  <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-t-xl border border-slate-300 border-b-0">
+                    <button
+                      type="button"
+                      onClick={() => insertFormatting(ocorrenciasRef, setOcorrenciasInput, '**', '**')}
+                      title="Negrito (**texto**)"
+                      className="p-1.5 rounded hover:bg-white text-slate-700 hover:text-black transition-colors"
+                    >
+                      <Bold size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => insertFormatting(ocorrenciasRef, setOcorrenciasInput, '_', '_')}
+                      title="Itálico (_texto_)"
+                      className="p-1.5 rounded hover:bg-white text-slate-700 hover:text-black transition-colors"
+                    >
+                      <Italic size={13} />
+                    </button>
+                    <div className="h-4 w-px bg-slate-300 mx-0.5" />
+                    <button
+                      type="button"
+                      onClick={() => insertFormatting(ocorrenciasRef, setOcorrenciasInput, '\n- ')}
+                      title="Item de Lista (- Item)"
+                      className="p-1.5 rounded hover:bg-white text-slate-700 hover:text-black transition-colors"
+                    >
+                      <List size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => insertFormatting(ocorrenciasRef, setOcorrenciasInput, '\n1. ')}
+                      title="Lista Numerada (1. Item)"
+                      className="p-1.5 rounded hover:bg-white text-slate-700 hover:text-black transition-colors"
+                    >
+                      <ListOrdered size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => insertFormatting(ocorrenciasRef, setOcorrenciasInput, '\n[ ] ')}
+                      title="Caixa de Seleção ([ ] Tarefa)"
+                      className="p-1.5 rounded hover:bg-white text-slate-700 hover:text-black transition-colors"
+                    >
+                      <CheckSquare size={13} />
+                    </button>
+                  </div>
+
+                  <textarea
+                    ref={ocorrenciasRef}
+                    rows={isActionModalExpanded ? 6 : 4}
+                    value={ocorrenciasInput}
+                    onChange={e => setOcorrenciasInput(e.target.value)}
+                    placeholder="Descreva detalhadamente o que causou o desvio do indicador (ex: Atraso na entrega dos fornecedores, quebra de equipamento, falta de efetivo no turno...)"
+                    className="w-full px-3.5 py-2.5 rounded-b-xl text-xs border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-sans leading-relaxed text-slate-800 placeholder:text-slate-400 shadow-inner"
+                  />
+                </div>
+
+                {/* Bloco 2: Plano de Ação Proposto */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                      <FileText size={15} className="text-amber-600" />
+                      <span>2. Plano de Ação Proposto e Contra-Medidas</span>
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-medium">Use a barra abaixo para formatar o texto</span>
+                  </div>
+
+                  {/* Toolbar de Formatação Plano de Ação */}
+                  <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-t-xl border border-slate-300 border-b-0">
+                    <button
+                      type="button"
+                      onClick={() => insertFormatting(planoAcaoRef, setPlanoAcaoInput, '**', '**')}
+                      title="Negrito (**texto**)"
+                      className="p-1.5 rounded hover:bg-white text-slate-700 hover:text-black transition-colors"
+                    >
+                      <Bold size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => insertFormatting(planoAcaoRef, setPlanoAcaoInput, '_', '_')}
+                      title="Itálico (_texto_)"
+                      className="p-1.5 rounded hover:bg-white text-slate-700 hover:text-black transition-colors"
+                    >
+                      <Italic size={13} />
+                    </button>
+                    <div className="h-4 w-px bg-slate-300 mx-0.5" />
+                    <button
+                      type="button"
+                      onClick={() => insertFormatting(planoAcaoRef, setPlanoAcaoInput, '\n- ')}
+                      title="Item de Lista (- Item)"
+                      className="p-1.5 rounded hover:bg-white text-slate-700 hover:text-black transition-colors"
+                    >
+                      <List size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => insertFormatting(planoAcaoRef, setPlanoAcaoInput, '\n1. ')}
+                      title="Lista Numerada (1. Item)"
+                      className="p-1.5 rounded hover:bg-white text-slate-700 hover:text-black transition-colors"
+                    >
+                      <ListOrdered size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => insertFormatting(planoAcaoRef, setPlanoAcaoInput, '\n[ ] ')}
+                      title="Caixa de Seleção ([ ] Tarefa)"
+                      className="p-1.5 rounded hover:bg-white text-slate-700 hover:text-black transition-colors"
+                    >
+                      <CheckSquare size={13} />
+                    </button>
+                  </div>
+
+                  <textarea
+                    ref={planoAcaoRef}
+                    rows={isActionModalExpanded ? 8 : 5}
+                    required
+                    value={planoAcaoInput}
+                    onChange={e => setPlanoAcaoInput(e.target.value)}
+                    placeholder="Especifique as etapas do plano de ação (ex: 1. Remanejar 5 conferentes do setor X; 2. Notificar transportadora Y; 3. Reavaliar meta...)"
+                    className="w-full px-3.5 py-2.5 rounded-b-xl text-xs border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-sans leading-relaxed text-slate-800 placeholder:text-slate-400 shadow-inner"
+                  />
+                </div>
+
+              </div>
+
+              {/* Footer e Botões */}
+              <div className="flex items-center justify-between pt-4 border-t border-slate-200 shrink-0">
+                <div className="text-[11px] text-slate-500 font-medium hidden sm:block">
+                  💡 Os dados são salvos em tempo real e sincronizados na nuvem Supabase.
+                </div>
+
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setIsActionModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-600/20 active:scale-95 transition-all flex items-center gap-2"
+                  >
+                    <Save size={15} />
+                    Salvar Plano de Ação
+                  </button>
+                </div>
               </div>
             </form>
           </div>
