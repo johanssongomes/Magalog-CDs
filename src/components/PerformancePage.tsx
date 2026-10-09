@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { 
   Save, CheckCircle2, FileSpreadsheet, Server, Plus, Trash2, X, Edit3, 
   Filter, ChevronRight, ClipboardList, AlertTriangle, Calendar, FileText,
-  Bold, Italic, List, ListOrdered, CheckSquare, Maximize2, Minimize2, User, Clock, Flag, Tag, HelpCircle
+  Bold, Italic, List, ListOrdered, CheckSquare, Maximize2, Minimize2, User, Clock, Flag, Tag, HelpCircle, Type
 } from 'lucide-react'
 
 
@@ -383,6 +383,8 @@ export const PerformancePage: React.FC = () => {
   const [prazoInput, setPrazoInput] = useState('')
   const [prioridadeInput, setPrioridadeInput] = useState<'baixa' | 'media' | 'alta' | 'critica'>('media')
   const [statusAcaoInput, setStatusAcaoInput] = useState<'pendente' | 'em_andamento' | 'concluido'>('pendente')
+  const [ocorrenciasFontSize, setOcorrenciasFontSize] = useState<number>(14)
+  const [planoAcaoFontSize, setPlanoAcaoFontSize] = useState<number>(14)
 
   const ocorrenciasRef = useRef<HTMLTextAreaElement>(null)
   const planoAcaoRef = useRef<HTMLTextAreaElement>(null)
@@ -441,6 +443,8 @@ export const PerformancePage: React.FC = () => {
         setPrazoInput(parsed.prazo || '')
         setPrioridadeInput(parsed.prioridade || 'media')
         setStatusAcaoInput(parsed.statusAcao || 'pendente')
+        setOcorrenciasFontSize(parsed.ocorrenciasFontSize || 14)
+        setPlanoAcaoFontSize(parsed.planoAcaoFontSize || 14)
       } catch (e) {
         setOcorrenciasInput('')
         setPlanoAcaoInput(rawVal)
@@ -448,6 +452,8 @@ export const PerformancePage: React.FC = () => {
         setPrazoInput('')
         setPrioridadeInput('media')
         setStatusAcaoInput('pendente')
+        setOcorrenciasFontSize(14)
+        setPlanoAcaoFontSize(14)
       }
     } else {
       setOcorrenciasInput('')
@@ -456,6 +462,8 @@ export const PerformancePage: React.FC = () => {
       setPrazoInput('')
       setPrioridadeInput('media')
       setStatusAcaoInput('pendente')
+      setOcorrenciasFontSize(14)
+      setPlanoAcaoFontSize(14)
     }
 
     setIsActionModalOpen(true)
@@ -465,16 +473,34 @@ export const PerformancePage: React.FC = () => {
     e.preventDefault()
     if (!actionModalCellKey) return
 
-    const payload = JSON.stringify({
-      ocorrencias: ocorrenciasInput,
-      planoAcao: planoAcaoInput,
-      responsavel: responsavelInput,
-      prazo: prazoInput,
-      prioridade: prioridadeInput,
-      statusAcao: statusAcaoInput
-    })
+    const hasText = Boolean(
+      (ocorrenciasInput && ocorrenciasInput.trim() !== '') ||
+      (planoAcaoInput && planoAcaoInput.trim() !== '')
+    )
 
-    saveCell(actionModalCellKey, payload)
+    if (!hasText) {
+      saveCell(actionModalCellKey, '')
+    } else {
+      const payload = JSON.stringify({
+        ocorrencias: ocorrenciasInput,
+        planoAcao: planoAcaoInput,
+        responsavel: responsavelInput,
+        prazo: prazoInput,
+        prioridade: prioridadeInput,
+        statusAcao: statusAcaoInput,
+        ocorrenciasFontSize,
+        planoAcaoFontSize
+      })
+
+      saveCell(actionModalCellKey, payload)
+    }
+
+    setIsActionModalOpen(false)
+  }
+
+  const handleClearActionModal = () => {
+    if (!actionModalCellKey) return
+    saveCell(actionModalCellKey, '')
     setIsActionModalOpen(false)
   }
 
@@ -1318,15 +1344,17 @@ export const PerformancePage: React.FC = () => {
                       {/* Sub-row Label Cell */}
                       <td className={`p-2 border-r border-slate-200 pl-3 text-[11px] ${
                         sub.id === 'plano_acao' 
-                          ? 'bg-amber-50/70 font-bold text-amber-900 flex items-center justify-between' 
+                          ? 'bg-amber-50/50 font-bold text-amber-900' 
                           : 'bg-white font-medium text-slate-700'
                       }`}>
-                        <span>{sub.label}</span>
-                        {sub.id === 'plano_acao' && (
-                          <span className="text-[9px] px-1.5 py-0.2 bg-amber-200/80 text-amber-900 rounded font-extrabold uppercase ml-1">
-                            Ação
-                          </span>
-                        )}
+                        <div className="flex items-center justify-between gap-1.5 whitespace-nowrap">
+                          <span>{sub.label}</span>
+                          {sub.id === 'plano_acao' && (
+                            <span className="text-[9px] px-1.5 py-0.5 bg-amber-200/80 text-amber-900 rounded font-extrabold uppercase shrink-0">
+                              Ação
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Days Input Cells */}
@@ -1718,7 +1746,7 @@ export const PerformancePage: React.FC = () => {
                   </div>
 
                   {/* Toolbar de Formatação Ocorrências */}
-                  <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-t-xl border border-slate-300 border-b-0">
+                  <div className="flex items-center gap-1.5 p-1.5 bg-slate-100 rounded-t-xl border border-slate-300 border-b-0 flex-wrap">
                     <button
                       type="button"
                       onClick={() => insertFormatting(ocorrenciasRef, setOcorrenciasInput, '**', '**')}
@@ -1760,6 +1788,40 @@ export const PerformancePage: React.FC = () => {
                     >
                       <CheckSquare size={13} />
                     </button>
+
+                    {/* Botões A- e A+ para Ajuste do Tamanho do Texto */}
+                    <div className="flex items-center gap-1 ml-auto bg-white border border-slate-300 rounded-lg p-0.5 shadow-2xs">
+                      <span className="text-[10px] font-bold text-slate-500 pl-1">Tamanho:</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newSize = Math.max(ocorrenciasFontSize - 2, 12)
+                          setOcorrenciasFontSize(newSize)
+                          setTimeout(() => adjustTextareaHeight(ocorrenciasRef.current), 50)
+                        }}
+                        disabled={ocorrenciasFontSize <= 12}
+                        className="px-2 py-0.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded disabled:opacity-30 transition-colors"
+                        title="Diminuir tamanho do texto (A-)"
+                      >
+                        A-
+                      </button>
+                      <span className="text-[11px] font-extrabold text-amber-700 px-1 font-mono min-w-[32px] text-center">
+                        {ocorrenciasFontSize}px
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newSize = Math.min(ocorrenciasFontSize + 2, 26)
+                          setOcorrenciasFontSize(newSize)
+                          setTimeout(() => adjustTextareaHeight(ocorrenciasRef.current), 50)
+                        }}
+                        disabled={ocorrenciasFontSize >= 26}
+                        className="px-2 py-0.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded disabled:opacity-30 transition-colors"
+                        title="Aumentar tamanho do texto (A+)"
+                      >
+                        A+
+                      </button>
+                    </div>
                   </div>
 
                   <textarea
@@ -1770,8 +1832,9 @@ export const PerformancePage: React.FC = () => {
                       setOcorrenciasInput(e.target.value)
                       adjustTextareaHeight(e.target)
                     }}
+                    style={{ fontSize: `${ocorrenciasFontSize}px`, lineHeight: '1.5' }}
                     placeholder="Descreva detalhadamente o que causou o desvio do indicador (ex: Atraso na entrega dos fornecedores, quebra de equipamento, falta de efetivo no turno...)"
-                    className="w-full px-4 py-3 rounded-b-xl text-xs sm:text-sm border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-sans leading-relaxed text-slate-800 placeholder:text-slate-400 shadow-inner resize-y overflow-hidden min-h-[160px] transition-all"
+                    className="w-full px-4 py-3 rounded-b-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-sans text-slate-800 placeholder:text-slate-400 shadow-inner resize-y overflow-hidden min-h-[160px] transition-all"
                   />
                 </div>
 
@@ -1786,7 +1849,7 @@ export const PerformancePage: React.FC = () => {
                   </div>
 
                   {/* Toolbar de Formatação Plano de Ação */}
-                  <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-t-xl border border-slate-300 border-b-0">
+                  <div className="flex items-center gap-1.5 p-1.5 bg-slate-100 rounded-t-xl border border-slate-300 border-b-0 flex-wrap">
                     <button
                       type="button"
                       onClick={() => insertFormatting(planoAcaoRef, setPlanoAcaoInput, '**', '**')}
@@ -1828,19 +1891,53 @@ export const PerformancePage: React.FC = () => {
                     >
                       <CheckSquare size={13} />
                     </button>
+
+                    {/* Botões A- e A+ para Ajuste do Tamanho do Texto */}
+                    <div className="flex items-center gap-1 ml-auto bg-white border border-slate-300 rounded-lg p-0.5 shadow-2xs">
+                      <span className="text-[10px] font-bold text-slate-500 pl-1">Tamanho:</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newSize = Math.max(planoAcaoFontSize - 2, 12)
+                          setPlanoAcaoFontSize(newSize)
+                          setTimeout(() => adjustTextareaHeight(planoAcaoRef.current), 50)
+                        }}
+                        disabled={planoAcaoFontSize <= 12}
+                        className="px-2 py-0.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded disabled:opacity-30 transition-colors"
+                        title="Diminuir tamanho do texto (A-)"
+                      >
+                        A-
+                      </button>
+                      <span className="text-[11px] font-extrabold text-amber-700 px-1 font-mono min-w-[32px] text-center">
+                        {planoAcaoFontSize}px
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newSize = Math.min(planoAcaoFontSize + 2, 26)
+                          setPlanoAcaoFontSize(newSize)
+                          setTimeout(() => adjustTextareaHeight(planoAcaoRef.current), 50)
+                        }}
+                        disabled={planoAcaoFontSize >= 26}
+                        className="px-2 py-0.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded disabled:opacity-30 transition-colors"
+                        title="Aumentar tamanho do texto (A+)"
+                      >
+                        A+
+                      </button>
+                    </div>
                   </div>
 
                   <textarea
                     ref={planoAcaoRef}
                     rows={8}
-                    required
                     value={planoAcaoInput}
                     onChange={e => {
                       setPlanoAcaoInput(e.target.value)
                       adjustTextareaHeight(e.target)
                     }}
+                    style={{ fontSize: `${planoAcaoFontSize}px`, lineHeight: '1.5' }}
                     placeholder="Especifique as etapas do plano de ação (ex: 1. Remanejar 5 conferentes do setor X; 2. Notificar transportadora Y; 3. Reavaliar meta...)"
-                    className="w-full px-4 py-3 rounded-b-xl text-xs sm:text-sm border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-sans leading-relaxed text-slate-800 placeholder:text-slate-400 shadow-inner resize-y overflow-hidden min-h-[200px] transition-all"
+                    className="w-full px-4 py-3 rounded-b-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-sans text-slate-800 placeholder:text-slate-400 shadow-inner resize-y overflow-hidden min-h-[200px] transition-all"
                   />
                 </div>
 
@@ -1853,6 +1950,17 @@ export const PerformancePage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2 ml-auto">
+                  {actionModalCellKey && Boolean(data[actionModalCellKey]) && (
+                    <button
+                      type="button"
+                      onClick={handleClearActionModal}
+                      className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors flex items-center gap-1.5"
+                      title="Limpar todos os campos e voltar o status para pendente/cinza"
+                    >
+                      <Trash2 size={13} />
+                      Limpar Ação
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setIsActionModalOpen(false)}
