@@ -284,14 +284,13 @@ export const PerformancePage: React.FC = () => {
     if (saved) {
       try {
         const parsed: IndicatorCategory[] = JSON.parse(saved)
-        // Atualizar/Mesclar schema de DEFAULT_CATEGORIES para garantir que novos metaGroupDefault entrem em vigor
         return parsed.map(c => {
           const defaultMatch = DEFAULT_CATEGORIES.find(d => d.id === c.id)
           if (defaultMatch) {
             return {
               ...c,
               metaGroupDefault: defaultMatch.metaGroupDefault,
-              subRows: defaultMatch.subRows || c.subRows
+              subRows: (c.subRows && c.subRows.length > 0) ? c.subRows : defaultMatch.subRows
             }
           }
           return c
@@ -579,7 +578,7 @@ export const PerformancePage: React.FC = () => {
                     return { 
                       ...c, 
                       metaGroupDefault: defMatch.metaGroupDefault,
-                      subRows: defMatch.subRows || c.subRows
+                      subRows: (c.subRows && c.subRows.length > 0) ? c.subRows : defMatch.subRows
                     }
                   }
                   return c
@@ -655,10 +654,11 @@ export const PerformancePage: React.FC = () => {
   }, [])
 
   const saveCell = async (cellKey: string, value: string) => {
-    setData(prev => ({
-      ...prev,
-      [cellKey]: value
-    }))
+    setData(prev => {
+      const updated = { ...prev, [cellKey]: value }
+      localStorage.setItem('magalog_performance_data', JSON.stringify(updated))
+      return updated
+    })
 
     // Salvar diretamente no Supabase (funciona na Vercel e no Local)
     try {
@@ -680,7 +680,6 @@ export const PerformancePage: React.FC = () => {
       console.error('Erro ao salvar no Supabase:', err)
     }
 
-    localStorage.setItem('magalog_performance_data', JSON.stringify({ ...data, [cellKey]: value }))
     setSavedStatus(true)
     setTimeout(() => setSavedStatus(false), 2000)
   }
