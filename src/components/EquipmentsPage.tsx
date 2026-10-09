@@ -1,27 +1,128 @@
 import React, { useState } from 'react'
 import { 
   FolderKanban, Plus, Filter, Search, Cpu, CheckCircle2, AlertTriangle, 
-  Wrench, Battery, Edit3, Trash2, X, LayoutDashboard, BarChart3, Clock, Truck, ShieldAlert
+  Wrench, Battery, Edit3, Trash2, X, LayoutDashboard, BarChart3, Clock, Truck, ShieldAlert, DollarSign
 } from 'lucide-react'
+
+export type FinancialType = 'CAPEX' | 'OPEX'
+
+export interface MaintenanceRecord {
+  id: string
+  date: string
+  description: string
+  cost: number
+  provider: string
+  type: 'Preventiva' | 'Corretiva'
+}
 
 export interface Equipment {
   id: string
   code: string
   name: string
   category: 'Coletora RF' | 'Empilhadeira' | 'Transpaleteira' | 'Scanner / Leitor' | 'Impressora Térmica'
+  financialType: FinancialType
+  cost: number // Custo de Aquisição (CAPEX) ou Valor da Locação Mensal (OPEX)
+  maintenanceCost: number // Custo acumulado de manutenções
   unit: string
   status: 'Operacional' | 'Manutenção' | 'Reservado'
   battery: number
   lastCheck: string
+  maintenances?: MaintenanceRecord[]
 }
 
 const INITIAL_EQUIPMENTS: Equipment[] = [
-  { id: '1', code: 'EQP-COL-01', name: 'Coletora Zebra TC21 #01', category: 'Coletora RF', unit: 'CD Louveira', status: 'Operacional', battery: 94, lastCheck: '09/Out 08:30' },
-  { id: '2', code: 'EQP-COL-02', name: 'Coletora Zebra TC21 #02', category: 'Coletora RF', unit: 'CD Louveira', status: 'Operacional', battery: 82, lastCheck: '09/Out 07:15' },
-  { id: '3', code: 'EQP-EMP-05', name: 'Empilhadeira Retrátil Toyota #05', category: 'Empilhadeira', unit: 'CD Cabreúva', status: 'Manutenção', battery: 15, lastCheck: '08/Out 16:40' },
-  { id: '4', code: 'EQP-TRN-12', name: 'Transpaleteira Elétrica Still #12', category: 'Transpaleteira', unit: 'CD Extrema', status: 'Operacional', battery: 100, lastCheck: '09/Out 06:00' },
-  { id: '5', code: 'EQP-SCN-08', name: 'Leitor Honeywell Xenon 1950', category: 'Scanner / Leitor', unit: 'CD Louveira', status: 'Operacional', battery: 67, lastCheck: '09/Out 09:10' },
-  { id: '6', code: 'EQP-IMP-03', name: 'Impressora Zebra ZT411', category: 'Impressora Térmica', unit: 'CD Cabreúva', status: 'Reservado', battery: 100, lastCheck: '07/Out 14:20' }
+  { 
+    id: '1', 
+    code: 'EQP-COL-01', 
+    name: 'Coletora Zebra TC21 #01', 
+    category: 'Coletora RF', 
+    financialType: 'CAPEX', 
+    cost: 4500.00,
+    maintenanceCost: 350.00,
+    unit: 'CD Louveira', 
+    status: 'Operacional', 
+    battery: 94, 
+    lastCheck: '09/Out 08:30',
+    maintenances: [
+      { id: 'm1', date: '15/Set/2026', description: 'Troca de película de proteção e acionador de gatilho', cost: 350.00, provider: 'Zebra Tech', type: 'Corretiva' }
+    ]
+  },
+  { 
+    id: '2', 
+    code: 'EQP-COL-02', 
+    name: 'Coletora Zebra TC21 #02', 
+    category: 'Coletora RF', 
+    financialType: 'CAPEX', 
+    cost: 4500.00,
+    maintenanceCost: 0.00,
+    unit: 'CD Louveira', 
+    status: 'Operacional', 
+    battery: 82, 
+    lastCheck: '09/Out 07:15',
+    maintenances: []
+  },
+  { 
+    id: '3', 
+    code: 'EQP-EMP-05', 
+    name: 'Empilhadeira Retrátil Toyota #05', 
+    category: 'Empilhadeira', 
+    financialType: 'OPEX', 
+    cost: 3800.00, // Aluguel mensal
+    maintenanceCost: 1200.00,
+    unit: 'CD Cabreúva', 
+    status: 'Manutenção', 
+    battery: 15, 
+    lastCheck: '08/Out 16:40',
+    maintenances: [
+      { id: 'm2', date: '08/Out/2026', description: 'Substituição do conjunto de tração hidráulica', cost: 1200.00, provider: 'Toyota Forklifts', type: 'Corretiva' }
+    ]
+  },
+  { 
+    id: '4', 
+    code: 'EQP-TRN-12', 
+    name: 'Transpaleteira Elétrica Still #12', 
+    category: 'Transpaleteira', 
+    financialType: 'OPEX', 
+    cost: 2100.00, // Aluguel mensal
+    maintenanceCost: 280.00,
+    unit: 'CD Extrema', 
+    status: 'Operacional', 
+    battery: 100, 
+    lastCheck: '09/Out 06:00',
+    maintenances: [
+      { id: 'm3', date: '01/Out/2026', description: 'Revisão preventiva e lubrificação das rodas', cost: 280.00, provider: 'Still Brasil', type: 'Preventiva' }
+    ]
+  },
+  { 
+    id: '5', 
+    code: 'EQP-SCN-08', 
+    name: 'Leitor Honeywell Xenon 1950', 
+    category: 'Scanner / Leitor', 
+    financialType: 'CAPEX', 
+    cost: 1850.00,
+    maintenanceCost: 0.00,
+    unit: 'CD Louveira', 
+    status: 'Operacional', 
+    battery: 67, 
+    lastCheck: '09/Out 09:10',
+    maintenances: []
+  },
+  { 
+    id: '6', 
+    code: 'EQP-IMP-03', 
+    name: 'Impressora Zebra ZT411', 
+    category: 'Impressora Térmica', 
+    financialType: 'CAPEX', 
+    cost: 8900.00,
+    maintenanceCost: 450.00,
+    unit: 'CD Cabreúva', 
+    status: 'Reservado', 
+    battery: 100, 
+    lastCheck: '07/Out 14:20',
+    maintenances: [
+      { id: 'm4', date: '20/Set/2026', description: 'Troca da cabeça de impressão térmica', cost: 450.00, provider: 'Zebra Tech', type: 'Corretiva' }
+    ]
+  }
 ]
 
 type SubPage = 'dashboard' | 'list' | 'maintenance' | 'reports'
@@ -32,6 +133,7 @@ export const EquipmentsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos')
   const [selectedStatus, setSelectedStatus] = useState<string>('Todos')
+  const [selectedFinancialType, setSelectedFinancialType] = useState<string>('Todos')
   
   // Modal Novo/Editar Equipamento
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -39,15 +141,27 @@ export const EquipmentsPage: React.FC = () => {
   const [formCode, setFormCode] = useState('')
   const [formName, setFormName] = useState('')
   const [formCategory, setFormCategory] = useState<Equipment['category']>('Coletora RF')
+  const [formFinancialType, setFormFinancialType] = useState<FinancialType>('CAPEX')
+  const [formCost, setFormCost] = useState<number>(0)
   const [formUnit, setFormUnit] = useState('CD Louveira')
   const [formStatus, setFormStatus] = useState<Equipment['status']>('Operacional')
   const [formBattery, setFormBattery] = useState(100)
+
+  // Modal Registrar Nova Manutenção / Custo de Reparo
+  const [isMaintModalOpen, setIsMaintModalOpen] = useState(false)
+  const [selectedEqpForMaint, setSelectedEqpForMaint] = useState<Equipment | null>(null)
+  const [maintDescription, setMaintDescription] = useState('')
+  const [maintCost, setMaintCost] = useState<number>(0)
+  const [maintProvider, setMaintProvider] = useState('')
+  const [maintType, setMaintType] = useState<'Preventiva' | 'Corretiva'>('Corretiva')
 
   const handleOpenAddModal = () => {
     setEditingId(null)
     setFormCode(`EQP-NEW-${Math.floor(10 + Math.random() * 90)}`)
     setFormName('')
     setFormCategory('Coletora RF')
+    setFormFinancialType('CAPEX')
+    setFormCost(4500)
     setFormUnit('CD Louveira')
     setFormStatus('Operacional')
     setFormBattery(100)
@@ -59,10 +173,21 @@ export const EquipmentsPage: React.FC = () => {
     setFormCode(eqp.code)
     setFormName(eqp.name)
     setFormCategory(eqp.category)
+    setFormFinancialType(eqp.financialType || 'CAPEX')
+    setFormCost(eqp.cost || 0)
     setFormUnit(eqp.unit)
     setFormStatus(eqp.status)
     setFormBattery(eqp.battery)
     setIsModalOpen(true)
+  }
+
+  const handleOpenMaintModal = (eqp: Equipment) => {
+    setSelectedEqpForMaint(eqp)
+    setMaintDescription('')
+    setMaintCost(0)
+    setMaintProvider('')
+    setMaintType('Corretiva')
+    setIsMaintModalOpen(true)
   }
 
   const handleDelete = (id: string) => {
@@ -84,6 +209,8 @@ export const EquipmentsPage: React.FC = () => {
             code: formCode,
             name: formName,
             category: formCategory,
+            financialType: formFinancialType,
+            cost: Number(formCost) || 0,
             unit: formUnit,
             status: formStatus,
             battery: formBattery,
@@ -98,10 +225,14 @@ export const EquipmentsPage: React.FC = () => {
         code: formCode,
         name: formName,
         category: formCategory,
+        financialType: formFinancialType,
+        cost: Number(formCost) || 0,
+        maintenanceCost: 0,
         unit: formUnit,
         status: formStatus,
         battery: formBattery,
-        lastCheck
+        lastCheck,
+        maintenances: []
       }
       setEquipments(prev => [...prev, newEqp])
     }
@@ -109,19 +240,58 @@ export const EquipmentsPage: React.FC = () => {
     setIsModalOpen(false)
   }
 
+  const handleSaveMaintenance = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedEqpForMaint || !maintDescription.trim()) return
+
+    const now = new Date()
+    const dateStr = `${String(now.getDate()).padStart(2, '0')}/Out/${now.getFullYear()}`
+
+    const newMaint: MaintenanceRecord = {
+      id: Date.now().toString(),
+      date: dateStr,
+      description: maintDescription,
+      cost: Number(maintCost) || 0,
+      provider: maintProvider || 'Assistência Técnica',
+      type: maintType
+    }
+
+    setEquipments(prev => prev.map(eqp => {
+      if (eqp.id === selectedEqpForMaint.id) {
+        const updatedMaintenances = [...(eqp.maintenances || []), newMaint]
+        const totalMaintCost = updatedMaintenances.reduce((acc, m) => acc + m.cost, 0)
+        return {
+          ...eqp,
+          maintenanceCost: totalMaintCost,
+          maintenances: updatedMaintenances
+        }
+      }
+      return eqp
+    }))
+
+    setIsMaintModalOpen(false)
+  }
+
   // Filtrar Equipamentos
   const filteredEquipments = equipments.filter(eqp => {
     const matchesSearch = eqp.name.toLowerCase().includes(searchQuery.toLowerCase()) || eqp.code.toLowerCase().includes(searchQuery.toLowerCase()) || eqp.unit.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesCategory = selectedCategory === 'Todos' || eqp.category === selectedCategory
     const matchesStatus = selectedStatus === 'Todos' || eqp.status === selectedStatus
-    return matchesSearch && matchesCategory && matchesStatus
+    const matchesFinancial = selectedFinancialType === 'Todos' || eqp.financialType === selectedFinancialType
+    return matchesSearch && matchesCategory && matchesStatus && matchesFinancial
   })
 
   // Estatísticas do Dashboard de Equipamentos
   const totalEquipments = equipments.length
   const operacionaisCount = equipments.filter(e => e.status === 'Operacional').length
   const manutencaoCount = equipments.filter(e => e.status === 'Manutenção').length
-  const bateriaBaixaCount = equipments.filter(e => e.battery < 25).length
+  const capexCount = equipments.filter(e => e.financialType === 'CAPEX').length
+  const opexCount = equipments.filter(e => e.financialType === 'OPEX').length
+
+  // Totais Financeiros
+  const totalCapexValue = equipments.filter(e => e.financialType === 'CAPEX').reduce((acc, e) => acc + (e.cost || 0), 0)
+  const totalOpexMonthlyValue = equipments.filter(e => e.financialType === 'OPEX').reduce((acc, e) => acc + (e.cost || 0), 0)
+  const totalMaintenanceCost = equipments.reduce((acc, e) => acc + (e.maintenanceCost || 0), 0)
 
   return (
     <div className="space-y-5 w-full">
@@ -195,25 +365,47 @@ export const EquipmentsPage: React.FC = () => {
             <div className="relative z-10 max-w-2xl space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-200 border border-blue-400/30">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                Painel de Telemetria & Ativos
+                Painel de Telemetria & Gestão de Ativos
               </div>
               <h1 className="text-2xl font-bold tracking-tight">Dashboard de Equipamentos dos CDs</h1>
               <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Acompanhe o estado operacional de coletores RF, empilhadeiras, leitores e impressoras em tempo real em todas as unidades Magalog.
+                Acompanhe a classificação de investimentos (Capex / Opex), estado operacional e manutenções preventivas nos CDs Magalog.
               </p>
             </div>
           </div>
 
-          {/* Cards de KPIs Rápidos */}
+          {/* Cards de KPIs Rápidos incluindo Capex/Opex */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center gap-4">
               <div className="p-3 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
                 <Cpu size={24} />
               </div>
               <div>
-                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Total Cadastrado</div>
-                <div className="text-xl font-extrabold text-slate-900 mt-0.5">{totalEquipments} <span className="text-xs font-medium text-slate-500">equipamentos</span></div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Frota completa mapeada</div>
+                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Total de Equipamentos</div>
+                <div className="text-xl font-extrabold text-slate-900 mt-0.5">{totalEquipments} <span className="text-xs font-medium text-slate-500">ativos</span></div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Frota mapeada nos CDs</div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+                <DollarSign size={24} />
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Equipamentos CAPEX</div>
+                <div className="text-xl font-extrabold text-indigo-900 mt-0.5">{capexCount} <span className="text-xs font-medium text-indigo-600">({Math.round((capexCount / (totalEquipments || 1)) * 100)}%)</span></div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Ativos Próprios / Investimento</div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
+                <DollarSign size={24} />
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Equipamentos OPEX</div>
+                <div className="text-xl font-extrabold text-amber-900 mt-0.5">{opexCount} <span className="text-xs font-medium text-amber-600">({Math.round((opexCount / (totalEquipments || 1)) * 100)}%)</span></div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Alugados / Locação Mensal</div>
               </div>
             </div>
 
@@ -223,44 +415,22 @@ export const EquipmentsPage: React.FC = () => {
               </div>
               <div>
                 <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Operacionais</div>
-                <div className="text-xl font-extrabold text-slate-900 mt-0.5">{operacionaisCount} <span className="text-xs font-medium text-emerald-600">({Math.round((operacionaisCount / (totalEquipments || 1)) * 100)}%)</span></div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Prontos para uso imediato</div>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
-                <Wrench size={24} />
-              </div>
-              <div>
-                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Em Manutenção</div>
-                <div className="text-xl font-extrabold text-slate-900 mt-0.5">{manutencaoCount} <span className="text-xs font-medium text-rose-600">Equipamento(s)</span></div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Com ordem de serviço aberta</div>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
-                <Battery size={24} />
-              </div>
-              <div>
-                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Bateria Crítica</div>
-                <div className="text-xl font-extrabold text-slate-900 mt-0.5">{bateriaBaixaCount} <span className="text-xs font-medium text-amber-600">Requer carga</span></div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Bateria abaixo de 25%</div>
+                <div className="text-xl font-extrabold text-slate-900 mt-0.5">{operacionaisCount} <span className="text-xs font-medium text-emerald-600">Em Uso</span></div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Disponibilidade da Frota</div>
               </div>
             </div>
           </div>
 
           {/* Seções em Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Lista de Alertas de Manutenção */}
+            {/* Alertas e Manutenção */}
             <div className="lg:col-span-2 p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <ShieldAlert size={18} className="text-rose-600" /> Manutenções e Ocorrências Ativas
+                    <ShieldAlert size={18} className="text-rose-600" /> Ocorrências & Manutenções Preventivas
                   </h3>
-                  <p className="text-xs text-slate-500">Status dos equipamentos que necessitam de intervenção técnica.</p>
+                  <p className="text-xs text-slate-500">Status técnico e financeiro dos equipamentos com atenção.</p>
                 </div>
                 <button
                   onClick={() => setActiveSubTab('list')}
@@ -278,7 +448,13 @@ export const EquipmentsPage: React.FC = () => {
                         <Wrench size={16} />
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-slate-900">{item.name} <span className="font-mono text-blue-900">({item.code})</span></div>
+                        <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                          <span>{item.name}</span>
+                          <span className="font-mono text-blue-900">({item.code})</span>
+                          <span className={`px-2 py-0.2 text-[9px] font-extrabold rounded ${item.financialType === 'CAPEX' ? 'bg-indigo-100 text-indigo-900' : 'bg-amber-100 text-amber-900'}`}>
+                            {item.financialType}
+                          </span>
+                        </div>
                         <div className="text-[11px] text-slate-500">{item.unit} • Categoria: {item.category}</div>
                       </div>
                     </div>
@@ -289,50 +465,34 @@ export const EquipmentsPage: React.FC = () => {
                     </div>
                   </div>
                 ))}
-
-                {equipments.filter(e => e.status === 'Manutenção' || e.battery < 20).length === 0 && (
-                  <div className="p-6 text-center text-slate-400 text-xs font-medium">
-                    ✅ Nenhum equipamento com alerta no momento. Todos operando normalmente.
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* Distribuição por CD */}
+            {/* Resumo da Classificação Financeira */}
             <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Truck size={18} className="text-blue-600" /> Alocação por Unidade CD
+                <DollarSign size={18} className="text-indigo-600" /> Classificação Financeira
               </h3>
 
               <div className="space-y-3 text-xs font-medium">
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="font-bold text-slate-800">CD Louveira (SP)</span>
-                    <span className="font-mono font-bold text-blue-900">3 Equipamentos</span>
+                <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-200 space-y-1">
+                  <div className="flex justify-between font-bold text-indigo-950">
+                    <span>CAPEX (Ativos Próprios)</span>
+                    <span className="font-mono">{capexCount} Equipamentos</span>
                   </div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div className="bg-blue-600 h-full rounded-full" style={{ width: '50%' }} />
-                  </div>
+                  <p className="text-[11px] text-indigo-800 leading-tight">
+                    Equipamentos comprados como investimento de capital do CD.
+                  </p>
                 </div>
 
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="font-bold text-slate-800">CD Cabreúva (SP)</span>
-                    <span className="font-mono font-bold text-blue-900">2 Equipamentos</span>
+                <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 space-y-1">
+                  <div className="flex justify-between font-bold text-amber-950">
+                    <span>OPEX (Alugados / Locação)</span>
+                    <span className="font-mono">{opexCount} Equipamentos</span>
                   </div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div className="bg-indigo-600 h-full rounded-full" style={{ width: '33%' }} />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="font-bold text-slate-800">CD Extrema (MG)</span>
-                    <span className="font-mono font-bold text-blue-900">1 Equipamento</span>
-                  </div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div className="bg-emerald-600 h-full rounded-full" style={{ width: '17%' }} />
-                  </div>
+                  <p className="text-[11px] text-amber-800 leading-tight">
+                    Equipamentos alugados sob contrato mensal de operação.
+                  </p>
                 </div>
               </div>
             </div>
@@ -340,7 +500,7 @@ export const EquipmentsPage: React.FC = () => {
         </div>
       )}
 
-      {/* CONTEÚDO DA SUB-PÁGINA 2: EQUIPAMENTOS CADASTRADOS (LISTA E CADASTRO) */}
+      {/* CONTEÚDO DA SUB-PÁGINA 2: EQUIPAMENTOS CADASTRADOS */}
       {activeSubTab === 'list' && (
         <div className="space-y-4">
           {/* Top Header Cadastrados */}
@@ -354,7 +514,7 @@ export const EquipmentsPage: React.FC = () => {
                   Equipamentos Cadastrados no Sistema
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Consulte, edite ou cadastre coletores, empilhadeiras, leitores e impressoras térmicas dos CDs Magalog.
+                  Consulte, edite ou cadastre coletores, empilhadeiras e leitores com classificação Capex ou Opex.
                 </p>
               </div>
             </div>
@@ -367,23 +527,35 @@ export const EquipmentsPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Bar de Busca e Filtros */}
-          <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
-            <div className="relative w-full md:w-80">
+          {/* Bar de Busca e Filtros com Filtro Capex/Opex */}
+          <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col lg:flex-row items-center justify-between gap-3">
+            <div className="relative w-full lg:w-72">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Buscar por código, nome ou CD..."
+                placeholder="Buscar código, nome ou CD..."
                 className="w-full pl-9 pr-3 py-1.5 rounded-lg text-xs border border-slate-300 focus:ring-2 focus:ring-blue-600 focus:outline-none bg-slate-50 font-medium"
               />
             </div>
 
-            <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
-              <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
-                <Filter size={14} className="text-slate-400" /> Categoria:
+            <div className="flex items-center gap-2 w-full lg:w-auto flex-wrap">
+              <div className="flex items-center gap-1 text-xs text-slate-600 font-medium">
+                <Filter size={13} className="text-slate-400" /> Filtros:
               </div>
+
+              {/* Filtro Capex / Opex */}
+              <select
+                value={selectedFinancialType}
+                onChange={e => setSelectedFinancialType(e.target.value)}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+              >
+                <option value="Todos">Todos (Capex / Opex)</option>
+                <option value="CAPEX">🔵 CAPEX (Ativo Próprio)</option>
+                <option value="OPEX">🟠 OPEX (Locado / Alugado)</option>
+              </select>
+
               <select
                 value={selectedCategory}
                 onChange={e => setSelectedCategory(e.target.value)}
@@ -410,7 +582,7 @@ export const EquipmentsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Tabela de Equipamentos Cadastrados */}
+          {/* Tabela de Equipamentos com Coluna Capex / Opex */}
           <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left border-collapse">
@@ -419,6 +591,9 @@ export const EquipmentsPage: React.FC = () => {
                     <th className="p-3">Código</th>
                     <th className="p-3">Nome / Descrição</th>
                     <th className="p-3">Categoria</th>
+                    <th className="p-3 text-center">Classificação</th>
+                    <th className="p-3 text-right">Custo / Valor Mensal</th>
+                    <th className="p-3 text-right">Custo Manutenção</th>
                     <th className="p-3">Unidade (CD)</th>
                     <th className="p-3">Bateria / Saúde</th>
                     <th className="p-3 text-center">Status</th>
@@ -432,6 +607,33 @@ export const EquipmentsPage: React.FC = () => {
                       <td className="p-3 font-mono font-bold text-blue-900">{eqp.code}</td>
                       <td className="p-3 font-semibold text-slate-800">{eqp.name}</td>
                       <td className="p-3 text-slate-600 font-medium">{eqp.category}</td>
+                      
+                      {/* Coluna Classificação FinancialType */}
+                      <td className="p-3 text-center">
+                        {eqp.financialType === 'CAPEX' ? (
+                          <span className="px-2.5 py-0.5 text-[10px] font-extrabold text-indigo-800 bg-indigo-50 border border-indigo-200 rounded-md uppercase tracking-wider">
+                            CAPEX
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 text-[10px] font-extrabold text-amber-800 bg-amber-50 border border-amber-200 rounded-md uppercase tracking-wider">
+                            OPEX
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Coluna Custo do Equipamento */}
+                      <td className="p-3 text-right font-mono font-bold text-slate-800">
+                        R$ {eqp.cost?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        <span className="block text-[9px] font-sans text-slate-400 font-normal">
+                          {eqp.financialType === 'CAPEX' ? 'Aquisição' : '/ Mês'}
+                        </span>
+                      </td>
+
+                      {/* Coluna Custo Acumulado Manutenção */}
+                      <td className="p-3 text-right font-mono font-semibold text-rose-700">
+                        R$ {(eqp.maintenanceCost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+
                       <td className="p-3 font-bold text-slate-700">{eqp.unit}</td>
                       <td className="p-3">
                         <div className="flex items-center gap-1.5">
@@ -465,6 +667,13 @@ export const EquipmentsPage: React.FC = () => {
                       <td className="p-3 text-center font-mono text-slate-500">{eqp.lastCheck}</td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleOpenMaintModal(eqp)}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Registrar Manutenção"
+                          >
+                            <Wrench size={14} />
+                          </button>
                           <button
                             onClick={() => handleOpenEditModal(eqp)}
                             className="p-1.5 rounded-lg text-slate-500 hover:text-blue-700 hover:bg-blue-50 transition-colors"
@@ -511,6 +720,9 @@ export const EquipmentsPage: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-bold text-xs text-blue-900 bg-blue-100 px-2 py-0.5 rounded">{eqp.code}</span>
                     <span className="font-bold text-sm text-slate-800">{eqp.name}</span>
+                    <span className={`px-2 py-0.5 text-[9px] font-extrabold rounded ${eqp.financialType === 'CAPEX' ? 'bg-indigo-100 text-indigo-900' : 'bg-amber-100 text-amber-900'}`}>
+                      {eqp.financialType}
+                    </span>
                   </div>
                   <div className="text-xs text-slate-500">Unidade: {eqp.unit} • Categoria: {eqp.category}</div>
                 </div>
@@ -528,12 +740,6 @@ export const EquipmentsPage: React.FC = () => {
                 </div>
               </div>
             ))}
-
-            {equipments.filter(e => e.status === 'Manutenção').length === 0 && (
-              <div className="p-8 text-center text-slate-500 text-sm font-medium">
-                ✅ Nenhuma manutenção em aberto no momento. Todos os equipamentos estão em operação.
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -544,47 +750,57 @@ export const EquipmentsPage: React.FC = () => {
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <BarChart3 size={20} className="text-blue-600" /> Relatório Consolidado de Ativos
+                <BarChart3 size={20} className="text-blue-600" /> Relatório Consolidado de Ativos (Capex vs Opex)
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Estatísticas completas da distribuição e histórico de uso dos equipamentos nos CDs.
+                Estatísticas completas de investimento e alocação de equipamentos nos CDs.
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-medium">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-medium">
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <div className="font-bold text-slate-800 text-sm">Resumo da Frota</div>
-              <div className="flex justify-between py-1 border-b border-slate-200">
-                <span>Coletoras RF</span>
-                <span className="font-mono font-bold text-blue-900">2 Coletoras</span>
+              <div className="font-bold text-slate-800 text-sm">Investimento Total (CAPEX)</div>
+              <div className="text-xl font-extrabold text-indigo-900 font-mono">
+                R$ {totalCapexValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-200">
-                <span>Empilhadeiras</span>
-                <span className="font-mono font-bold text-blue-900">1 Empilhadeira</span>
+              <p className="text-slate-500 text-[11px]">
+                {capexCount} Equipamentos próprios cadastrados.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+              <div className="font-bold text-slate-800 text-sm">Custo Mensal Locação (OPEX)</div>
+              <div className="text-xl font-extrabold text-amber-900 font-mono">
+                R$ {totalOpexMonthlyValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} /mês
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-200">
-                <span>Transpaleteiras</span>
-                <span className="font-mono font-bold text-blue-900">1 Transpaleteira</span>
+              <p className="text-slate-500 text-[11px]">
+                {opexCount} Equipamentos alugados sob contrato.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+              <div className="font-bold text-slate-800 text-sm">Acumulado Manutenções</div>
+              <div className="text-xl font-extrabold text-rose-700 font-mono">
+                R$ {totalMaintenanceCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </div>
-              <div className="flex justify-between py-1">
-                <span>Scanners & Impressoras</span>
-                <span className="font-mono font-bold text-blue-900">2 Equipamentos</span>
-              </div>
+              <p className="text-slate-500 text-[11px]">
+                Gastos totais com peças e serviços técnicos.
+              </p>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
               <div className="font-bold text-slate-800 text-sm">Saúde da Bateria Média</div>
-              <div className="text-2xl font-extrabold text-emerald-700">76.3%</div>
+              <div className="text-xl font-extrabold text-emerald-700 font-mono">76.3%</div>
               <p className="text-slate-500 text-[11px]">
-                A saúde geral das baterias dos coletores e empilhadeiras está dentro do padrão recomendado (acima de 70%).
+                Média geral de carga das baterias operacionais.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal Criar/Editar Equipamento */}
+      {/* Modal Criar/Editar Equipamento com Classificação Capex / Opex */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 space-y-4 animate-in fade-in zoom-in-95">
@@ -598,7 +814,7 @@ export const EquipmentsPage: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSaveForm} className="space-y-3">
+            <form onSubmit={handleSaveForm} className="space-y-3.5">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Código Identificador *</label>
@@ -636,6 +852,58 @@ export const EquipmentsPage: React.FC = () => {
                   onChange={e => setFormName(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-300 focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 />
+              </div>
+
+              {/* Classificação Financeira Capex / Opex & Valores */}
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <DollarSign size={14} className="text-indigo-600" /> Classificação Financeira (Capex / Opex) *
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormFinancialType('CAPEX')}
+                      className={`py-2 px-3 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 border transition-all ${
+                        formFinancialType === 'CAPEX'
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                      }`}
+                    >
+                      🔵 CAPEX (Ativo Próprio)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormFinancialType('OPEX')}
+                      className={`py-2 px-3 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 border transition-all ${
+                        formFinancialType === 'OPEX'
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                      }`}
+                    >
+                      🟠 OPEX (Alugado / Locação)
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {formFinancialType === 'CAPEX' ? 'Custo de Aquisição (R$) *' : 'Valor da Locação Mensal (R$) *'}
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      placeholder="0.00"
+                      value={formCost}
+                      onChange={e => setFormCost(Number(e.target.value))}
+                      className="w-full pl-9 pr-3 py-1.5 rounded-lg text-xs font-mono font-bold border border-slate-300 focus:ring-2 focus:ring-blue-600 focus:outline-none bg-white"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
@@ -692,6 +960,100 @@ export const EquipmentsPage: React.FC = () => {
                   className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 active:scale-95 transition-all"
                 >
                   Salvar Equipamento
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Registrar Custo de Manutenção */}
+      {isMaintModalOpen && selectedEqpForMaint && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md p-6 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Wrench size={18} className="text-rose-600" />
+                Registrar Manutenção / Ordem de Serviço
+              </h3>
+              <button onClick={() => setIsMaintModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+              <div className="text-xs font-bold text-slate-900">{selectedEqpForMaint.name}</div>
+              <div className="text-[11px] text-slate-500 font-mono">Código: {selectedEqpForMaint.code} • Unidade: {selectedEqpForMaint.unit}</div>
+            </div>
+
+            <form onSubmit={handleSaveMaintenance} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Descrição do Reparo / Serviço *</label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="Ex: Troca de peças, revisão periódica, reparo de tela..."
+                  value={maintDescription}
+                  onChange={e => setMaintDescription(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl text-xs font-medium border border-slate-300 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Tipo de Manutenção</label>
+                  <select
+                    value={maintType}
+                    onChange={e => setMaintType(e.target.value as any)}
+                    className="w-full px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                  >
+                    <option value="Corretiva">🔴 Corretiva</option>
+                    <option value="Preventiva">🔵 Preventiva</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Custo da Manutenção (R$) *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      placeholder="0.00"
+                      value={maintCost}
+                      onChange={e => setMaintCost(Number(e.target.value))}
+                      className="w-full pl-9 pr-3 py-1.5 rounded-lg text-xs font-mono font-bold border border-slate-300 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Fornecedor / Assistência Técnica</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Zebra Tech, Assistência Interna..."
+                  value={maintProvider}
+                  onChange={e => setMaintProvider(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-300 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsMaintModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-600/20 active:scale-95 transition-all"
+                >
+                  Salvar Manutenção
                 </button>
               </div>
             </form>
