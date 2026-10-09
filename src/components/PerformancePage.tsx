@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Save, CheckCircle2, FileSpreadsheet, Server, Plus, Trash2, X, Edit3, Filter, ChevronRight } from 'lucide-react'
+import { Save, CheckCircle2, FileSpreadsheet, Server, Plus, Trash2, X, Edit3, Filter, ChevronRight, ClipboardList, AlertTriangle, Calendar, FileText } from 'lucide-react'
+
 
 export type DataType = 'text' | 'percentage' | 'number' | 'decimal' | 'currency'
 
@@ -363,6 +364,62 @@ export const PerformancePage: React.FC = () => {
   const [subItemsDraft, setSubItemsDraft] = useState<SubItemDraft[]>([
     { name: '', meta: '', dataType: 'percentage' }
   ])
+
+  // Modal para Formulário de Plano de Ação e Ocorrências por dia
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false)
+  const [actionModalCellKey, setActionModalCellKey] = useState('')
+  const [actionModalTitle, setActionModalTitle] = useState('')
+  const [actionModalDate, setActionModalDate] = useState('')
+  const [ocorrenciasInput, setOcorrenciasInput] = useState('')
+  const [planoAcaoInput, setPlanoAcaoInput] = useState('')
+  const [responsavelInput, setResponsavelInput] = useState('')
+  const [prazoInput, setPrazoInput] = useState('')
+
+  const handleOpenActionModal = (catName: string, dateLabel: string, cellKey: string) => {
+    setActionModalCellKey(cellKey)
+    setActionModalTitle(catName)
+    setActionModalDate(dateLabel)
+
+    // Tentar ler JSON de ação salvo ou converter texto simples
+    const rawVal = data[cellKey] || ''
+    if (rawVal.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(rawVal)
+        setOcorrenciasInput(parsed.ocorrencias || '')
+        setPlanoAcaoInput(parsed.planoAcao || '')
+        setResponsavelInput(parsed.responsavel || '')
+        setPrazoInput(parsed.prazo || '')
+      } catch (e) {
+        setOcorrenciasInput('')
+        setPlanoAcaoInput(rawVal)
+        setResponsavelInput('')
+        setPrazoInput('')
+      }
+    } else {
+      setOcorrenciasInput('')
+      setPlanoAcaoInput(rawVal)
+      setResponsavelInput('')
+      setPrazoInput('')
+    }
+
+    setIsActionModalOpen(true)
+  }
+
+  const handleSaveActionModal = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!actionModalCellKey) return
+
+    const payload = JSON.stringify({
+      ocorrencias: ocorrenciasInput,
+      planoAcao: planoAcaoInput,
+      responsavel: responsavelInput,
+      prazo: prazoInput
+    })
+
+    saveCell(actionModalCellKey, payload)
+    setIsActionModalOpen(false)
+  }
+
 
   const [data, setData] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
@@ -1217,7 +1274,50 @@ export const PerformancePage: React.FC = () => {
                       {/* Days Input Cells */}
                       {filteredDays.map((d, colIdx) => {
                         const key = `${cat.id}_${sub.id}_${d.colId}`
-                        const value = data[key] || ''
+                        const rawVal = data[key] || ''
+                        const isPlanoAcao = sub.id === 'plano_acao'
+
+                        if (isPlanoAcao) {
+                          let hasData = Boolean(rawVal && rawVal.trim() !== '')
+                          let previewText = ''
+
+                          if (rawVal.startsWith('{')) {
+                            try {
+                              const parsed = JSON.parse(rawVal)
+                              previewText = parsed.planoAcao || parsed.ocorrencias || 'Ação Registrada'
+                              hasData = Boolean(parsed.planoAcao || parsed.ocorrencias)
+                            } catch {
+                              previewText = rawVal
+                            }
+                          } else {
+                            previewText = rawVal
+                          }
+
+                          return (
+                            <td
+                              key={d.colId}
+                              className={`p-1 border-r border-slate-200 text-center ${
+                                colIdx % 2 === 0 ? 'bg-amber-50/30' : 'bg-amber-50/60'
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleOpenActionModal(cat.category, d.date, key)}
+                                title={`Clique para descrever Ocorrência / Plano de Ação de ${cat.category} em ${d.date}`}
+                                className={`w-full min-h-[32px] px-1.5 py-1 rounded-md text-[11px] font-semibold flex items-center justify-center gap-1 transition-all border ${
+                                  hasData
+                                    ? 'bg-amber-500 text-white border-amber-600 shadow-xs hover:bg-amber-600'
+                                    : 'bg-amber-100/60 text-amber-800 border-amber-200/80 hover:bg-amber-200/80 hover:border-amber-400'
+                                }`}
+                              >
+                                <ClipboardList size={13} className="shrink-0" />
+                                <span className="truncate max-w-[70px]">
+                                  {hasData ? previewText : 'Preencher'}
+                                </span>
+                              </button>
+                            </td>
+                          )
+                        }
 
                         return (
                           <td
@@ -1228,7 +1328,7 @@ export const PerformancePage: React.FC = () => {
                           >
                             <input
                               type="text"
-                              value={value}
+                              value={rawVal}
                               onChange={e => saveCell(key, e.target.value)}
                               onBlur={e => handleCellBlur(key, e.target.value, sub.dataType)}
                               placeholder="-"
@@ -1425,6 +1525,120 @@ export const PerformancePage: React.FC = () => {
                   className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20 active:scale-95 transition-all"
                 >
                   {editingCategoryId ? 'Salvar Alterações do Indicador' : 'Criar Indicador'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Interativo de Ocorrências & Plano de Ação */}
+      {isActionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 space-y-5 animate-in fade-in zoom-in-95">
+            {/* Header do Modal */}
+            <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700 border border-amber-200">
+                  <ClipboardList size={22} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    Plano de Ação & Ocorrências
+                  </h3>
+                  <p className="text-xs text-slate-500 flex items-center gap-2 mt-0.5 font-medium">
+                    <span className="font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded">{actionModalTitle}</span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1 font-mono font-bold text-slate-700">
+                      <Calendar size={13} className="text-amber-600" /> {actionModalDate}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsActionModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveActionModal} className="space-y-4">
+              {/* Descrição de Ocorrências */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                  <AlertTriangle size={14} className="text-rose-500" />
+                  <span>1. Descrição das Ocorrências / Causa Raiz</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={ocorrenciasInput}
+                  onChange={e => setOcorrenciasInput(e.target.value)}
+                  placeholder="Descreva o que ocorreu no dia (ex: Atraso de fornecedor, falta de insumos, gargalo na eclusa...)"
+                  className="w-full px-3 py-2 rounded-xl text-xs border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-medium placeholder:text-slate-400"
+                />
+              </div>
+
+              {/* Plano de Ação */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                  <FileText size={14} className="text-amber-600" />
+                  <span>2. Plano de Ação Proposto</span>
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={planoAcaoInput}
+                  onChange={e => setPlanoAcaoInput(e.target.value)}
+                  placeholder="Descreva as ações para contornar ou solucionar o problema..."
+                  className="w-full px-3 py-2 rounded-xl text-xs border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-medium placeholder:text-slate-400"
+                />
+              </div>
+
+              {/* Responsável e Prazo */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Responsável:
+                  </label>
+                  <input
+                    type="text"
+                    value={responsavelInput}
+                    onChange={e => setResponsavelInput(e.target.value)}
+                    placeholder="Ex: João Silva"
+                    className="w-full px-3 py-1.5 rounded-lg text-xs border border-slate-300 focus:ring-1 focus:ring-amber-500 bg-white font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Prazo de Conclusão:
+                  </label>
+                  <input
+                    type="text"
+                    value={prazoInput}
+                    onChange={e => setPrazoInput(e.target.value)}
+                    placeholder="Ex: Até 05/Out ou Imediato"
+                    className="w-full px-3 py-1.5 rounded-lg text-xs border border-slate-300 focus:ring-1 focus:ring-amber-500 bg-white font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsActionModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/20 active:scale-95 transition-all flex items-center gap-1.5"
+                >
+                  <Save size={14} />
+                  Salvar Plano de Ação
                 </button>
               </div>
             </form>
