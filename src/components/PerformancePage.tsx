@@ -1752,7 +1752,7 @@ export const PerformancePage: React.FC = () => {
                     value={ocorrenciasInput}
                     onChange={e => setOcorrenciasInput(e.target.value)}
                     placeholder="Descreva detalhadamente o que causou o desvio do indicador (ex: Atraso na entrega dos fornecedores, quebra de equipamento, falta de efetivo no turno...)"
-                    className="w-full px-4 py-3 rounded-b-xl text-xs sm:text-sm border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-sans leading-relaxed text-slate-800 placeholder:text-slate-400 shadow-inner"
+                    className="w-full px-4 py-3 rounded-b-xl text-xs sm:text-sm border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-sans leading-relaxed text-slate-800 placeholder:text-slate-400 shadow-inner resize-y min-h-[140px]"
                   />
                 </div>
 
@@ -1818,7 +1818,7 @@ export const PerformancePage: React.FC = () => {
                     value={planoAcaoInput}
                     onChange={e => setPlanoAcaoInput(e.target.value)}
                     placeholder="Especifique as etapas do plano de ação (ex: 1. Remanejar 5 conferentes do setor X; 2. Notificar transportadora Y; 3. Reavaliar meta...)"
-                    className="w-full px-4 py-3 rounded-b-xl text-xs sm:text-sm border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-sans leading-relaxed text-slate-800 placeholder:text-slate-400 shadow-inner"
+                    className="w-full px-4 py-3 rounded-b-xl text-xs sm:text-sm border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-sans leading-relaxed text-slate-800 placeholder:text-slate-400 shadow-inner resize-y min-h-[180px]"
                   />
                 </div>
 
