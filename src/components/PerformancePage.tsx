@@ -53,7 +53,8 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
       { id: 'rodo', label: 'Rodo', defaultValue: '97%', dataType: 'percentage' },
       { id: 'courrie', label: 'Courrie', defaultValue: '95%', dataType: 'percentage' },
       { id: 'ns_diario', label: 'NS Diário', defaultValue: '97%', dataType: 'percentage' },
-      { id: 'ns_mensal', label: 'NS Mensal', defaultValue: '97%', dataType: 'percentage' }
+      { id: 'ns_mensal', label: 'NS Mensal', defaultValue: '97%', dataType: 'percentage' },
+      { id: 'plano_acao', label: 'Plano de Ação', defaultValue: '', metaDefault: '-', dataType: 'text' }
     ]
   },
   {
@@ -63,7 +64,8 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
     metaGroupDefault: ['>99,2% 100%', '>98,7% 75%', '>98,2% 50%'],
     subRows: [
       { id: 'full_diario', label: 'Full Diário', defaultValue: '', dataType: 'percentage' },
-      { id: 'full_mensal', label: 'Full Mensal', defaultValue: '', dataType: 'percentage' }
+      { id: 'full_mensal', label: 'Full Mensal', defaultValue: '', dataType: 'percentage' },
+      { id: 'plano_acao', label: 'Plano de Ação', defaultValue: '', metaDefault: '-', dataType: 'text' }
     ]
   },
   {
@@ -76,7 +78,8 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
       { id: 'rodo', label: 'Rodo', defaultValue: '97%', dataType: 'percentage' },
       { id: 'courrie', label: 'Courrie', defaultValue: '95%', dataType: 'percentage' },
       { id: 'eclusa_diario', label: 'Eclusa Diário', defaultValue: '97%', dataType: 'percentage' },
-      { id: 'eclusa_mensal', label: 'Eclusa Mensal', defaultValue: '97%', dataType: 'percentage' }
+      { id: 'eclusa_mensal', label: 'Eclusa Mensal', defaultValue: '97%', dataType: 'percentage' },
+      { id: 'plano_acao', label: 'Plano de Ação', defaultValue: '', metaDefault: '-', dataType: 'text' }
     ]
   },
   {
@@ -86,7 +89,8 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
     metaGroupDefault: ['95%'],
     subRows: [
       { id: 'rle_diario', label: 'RLE Diário', defaultValue: '100%', dataType: 'percentage' },
-      { id: 'rle_mensal', label: 'RLE Mensal', defaultValue: '99%', dataType: 'percentage' }
+      { id: 'rle_mensal', label: 'RLE Mensal', defaultValue: '99%', dataType: 'percentage' },
+      { id: 'plano_acao', label: 'Plano de Ação', defaultValue: '', metaDefault: '-', dataType: 'text' }
     ]
   },
   {
@@ -98,7 +102,8 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
       { id: 'rec_diario', label: '% Reclamações (Diário)', defaultValue: '0%', metaDefault: '<1,5%', dataType: 'percentage' },
       { id: 'backlog_zendesk', label: 'Backlog zendesk (Diário)', defaultValue: '21', metaDefault: '>5 dias = 0', dataType: 'number' },
       { id: 'chamados_loja', label: 'Chamados de loja (Diário)', defaultValue: '23', metaDefault: '>10 dias = 0', dataType: 'number' },
-      { id: 'nps_lojas', label: 'NPS lojas (Diário)', defaultValue: '88%', metaDefault: '80%', dataType: 'percentage' }
+      { id: 'nps_lojas', label: 'NPS lojas (Diário)', defaultValue: '88%', metaDefault: '80%', dataType: 'percentage' },
+      { id: 'plano_acao', label: 'Plano de Ação', defaultValue: '', metaDefault: '-', dataType: 'text' }
     ]
   },
   {
@@ -108,7 +113,8 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
     metaGroupDefault: ['0,38% 80%', '0,27% 100%', '0,15% 120%'],
     subRows: [
       { id: 'consta_diario', label: 'Consta Diário', defaultValue: '', dataType: 'percentage' },
-      { id: 'consta_mensal', label: 'Consta Mensal', defaultValue: '', dataType: 'percentage' }
+      { id: 'consta_mensal', label: 'Consta Mensal', defaultValue: '', dataType: 'percentage' },
+      { id: 'plano_acao', label: 'Plano de Ação', defaultValue: '', metaDefault: '-', dataType: 'text' }
     ]
   },
   {
@@ -118,7 +124,8 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
     metaGroupDefault: ['-'],
     subRows: [
       { id: 'coletas_diario', label: 'Coletas Diário', defaultValue: '', dataType: 'number' },
-      { id: 'coletas_mensal', label: 'Coletas Mensal', defaultValue: '', dataType: 'number' }
+      { id: 'coletas_mensal', label: 'Coletas Mensal', defaultValue: '', dataType: 'number' },
+      { id: 'plano_acao', label: 'Plano de Ação', defaultValue: '', metaDefault: '-', dataType: 'text' }
     ]
   },
   {
@@ -129,7 +136,8 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
       { id: 'pedidos', label: 'Pedidos', defaultValue: '3.500', metaDefault: '7.000', dataType: 'number' },
       { id: 'pecas', label: 'Peças', defaultValue: '8.000', metaDefault: '800', dataType: 'number' },
       { id: 'cubagem', label: 'Cubagem', defaultValue: '920', metaDefault: '27', dataType: 'decimal' },
-      { id: 'qnts_veiculos', label: 'Qnts Veículos', defaultValue: '32', metaDefault: '-', dataType: 'number' }
+      { id: 'qnts_veiculos', label: 'Qnts Veículos', defaultValue: '32', metaDefault: '-', dataType: 'number' },
+      { id: 'plano_acao', label: 'Plano de Ação', defaultValue: '', metaDefault: '-', dataType: 'text' }
     ]
   },
   {
@@ -142,7 +150,8 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
       { id: 'agendas', label: 'Agendas', defaultValue: '15', metaDefault: '2', dataType: 'number' },
       { id: 'transfs', label: 'Transfs', defaultValue: '3', metaDefault: '-', dataType: 'number' },
       { id: 'no_show', label: 'No Show', defaultValue: '10%', metaDefault: '15%', dataType: 'percentage' },
-      { id: 'backlog', label: 'Backlog', defaultValue: '0', metaDefault: '0', dataType: 'number' }
+      { id: 'backlog', label: 'Backlog', defaultValue: '0', metaDefault: '0', dataType: 'number' },
+      { id: 'plano_acao', label: 'Plano de Ação', defaultValue: '', metaDefault: '-', dataType: 'text' }
     ]
   },
   {
@@ -154,7 +163,8 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
       { id: 'cd', label: 'C&D', defaultValue: '22', metaDefault: '24', dataType: 'number' },
       { id: 'quadro_op', label: 'Quadro Op', defaultValue: '91', metaDefault: '92', dataType: 'number' },
       { id: 'quadro_cd', label: 'Quadro C&D', defaultValue: '40', metaDefault: '43', dataType: 'number' },
-      { id: 'absenteismo_conf', label: 'Abesenteísmo Conf e C&D', defaultValue: '2%', metaDefault: '<3%', dataType: 'percentage' }
+      { id: 'absenteismo_conf', label: 'Abesenteísmo Conf e C&D', defaultValue: '2%', metaDefault: '<3%', dataType: 'percentage' },
+      { id: 'plano_acao', label: 'Plano de Ação', defaultValue: '', metaDefault: '-', dataType: 'text' }
     ]
   },
   {
@@ -164,7 +174,8 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
     subRows: [
       { id: 'carteira_tt', label: 'Carteira TT', defaultValue: '1.0', metaDefault: '1.0', dataType: 'decimal' },
       { id: 'aba', label: 'ABA', defaultValue: '400', metaDefault: '-', dataType: 'number' },
-      { id: 'courrie', label: 'Courrie', defaultValue: '', metaDefault: '-', dataType: 'text' }
+      { id: 'courrie', label: 'Courrie', defaultValue: '', metaDefault: '-', dataType: 'text' },
+      { id: 'plano_acao', label: 'Plano de Ação', defaultValue: '', metaDefault: '-', dataType: 'text' }
     ]
   },
   {
@@ -175,7 +186,8 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
       { id: 'qualidade_estoque', label: 'Qualidade de Estoque (Bloqueios)', defaultValue: '99,80', metaDefault: '99,80', dataType: 'percentage' },
       { id: 'avaria', label: 'Avaria', defaultValue: '16.00', metaDefault: '16.00', dataType: 'decimal' },
       { id: 'rotativo', label: 'Rotativo', defaultValue: '', metaDefault: '-', dataType: 'percentage' },
-      { id: 'bloqueios_geral_tt', label: 'Bloqueios Geral TT Valor', defaultValue: '', metaDefault: '-', dataType: 'currency' }
+      { id: 'bloqueios_geral_tt', label: 'Bloqueios Geral TT Valor', defaultValue: '', metaDefault: '-', dataType: 'currency' },
+      { id: 'plano_acao', label: 'Plano de Ação', defaultValue: '', metaDefault: '-', dataType: 'text' }
     ]
   }
 ]
@@ -1189,8 +1201,17 @@ export const PerformancePage: React.FC = () => {
                       )}
 
                       {/* Sub-row Label Cell */}
-                      <td className="p-2 border-r border-slate-200 text-slate-700 font-medium bg-white pl-3 text-[11px]">
-                        {sub.label}
+                      <td className={`p-2 border-r border-slate-200 pl-3 text-[11px] ${
+                        sub.id === 'plano_acao' 
+                          ? 'bg-amber-50/70 font-bold text-amber-900 flex items-center justify-between' 
+                          : 'bg-white font-medium text-slate-700'
+                      }`}>
+                        <span>{sub.label}</span>
+                        {sub.id === 'plano_acao' && (
+                          <span className="text-[9px] px-1.5 py-0.2 bg-amber-200/80 text-amber-900 rounded font-extrabold uppercase ml-1">
+                            Ação
+                          </span>
+                        )}
                       </td>
 
                       {/* Days Input Cells */}
