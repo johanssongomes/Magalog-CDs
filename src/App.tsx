@@ -8,7 +8,7 @@ export function App() {
   const activeItem = navItems.find((item) => item.id === activeTab) || navItems[0]
 
   return (
-    <div className="flex min-h-screen bg-slate-100 text-slate-900 font-sans">
+    <div className="flex min-h-screen bg-slate-100 text-slate-900 font-sans notranslate" translate="no">
       {/* Menu Lateral */}
       <Sidebar 
         activeTab={activeTab} 

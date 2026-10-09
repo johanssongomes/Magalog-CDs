@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react'
 import { 
   Save, CheckCircle2, FileSpreadsheet, Server, Plus, Trash2, X, Edit3, 
   Filter, ChevronRight, ClipboardList, AlertTriangle, Calendar, FileText,
-  Bold, Italic, List, ListOrdered, CheckSquare, Maximize2, Minimize2, User, Clock, Flag, Tag, HelpCircle, Type
+  Bold, Italic, List, ListOrdered, CheckSquare, Maximize2, Minimize2, User, Clock, Flag, Tag, HelpCircle, Type,
+  ChevronUp, ChevronDown
 } from 'lucide-react'
 
 
@@ -39,6 +40,19 @@ interface IndicatorCategory {
   groupId: GroupType
   metaGroupDefault?: string[]
   subRows: IndicatorSubRow[]
+}
+
+const isPlanoItem = (item?: any) => {
+  if (!item) return false
+  const id = (item.id || '').toLowerCase()
+  const name = (item.name || item.label || '').toLowerCase().trim()
+  return id === 'plano_acao' || name === 'plano de ação' || name === 'plano de acao'
+}
+
+const ensurePlanoAcaoAtEnd = <T extends any>(items: T[]): T[] => {
+  const nonPlano = items.filter(s => !isPlanoItem(s))
+  const plano = items.filter(s => isPlanoItem(s))
+  return [...nonPlano, ...plano]
 }
 
 interface SubItemDraft {
@@ -693,8 +707,9 @@ export const PerformancePage: React.FC = () => {
     setEditingCategoryId(cat.id)
     setIndicatorName(cat.category)
     setSelectedGroupId(cat.groupId || 'cx_clientes')
+    const sortedSubRows = ensurePlanoAcaoAtEnd(cat.subRows)
     setSubItemsDraft(
-      cat.subRows.map(sub => ({
+      sortedSubRows.map(sub => ({
         id: sub.id,
         name: sub.label,
         meta: data[`meta_${cat.id}_${sub.id}`] !== undefined ? data[`meta_${cat.id}_${sub.id}`] : sub.metaDefault || '',
@@ -705,11 +720,36 @@ export const PerformancePage: React.FC = () => {
   }
 
   const handleAddSubItemDraft = () => {
-    setSubItemsDraft(prev => [...prev, { name: '', meta: '', dataType: 'percentage' }])
+    setSubItemsDraft(prev => {
+      const newItem: SubItemDraft = { name: '', meta: '', dataType: 'percentage' }
+      return ensurePlanoAcaoAtEnd([...prev, newItem])
+    })
   }
 
   const handleRemoveSubItemDraft = (index: number) => {
     setSubItemsDraft(prev => prev.filter((_, idx) => idx !== index))
+  }
+
+  const handleMoveSubItemUp = (index: number) => {
+    if (index <= 0) return
+    setSubItemsDraft(prev => {
+      const copy = [...prev]
+      const temp = copy[index]
+      copy[index] = copy[index - 1]
+      copy[index - 1] = temp
+      return ensurePlanoAcaoAtEnd(copy)
+    })
+  }
+
+  const handleMoveSubItemDown = (index: number) => {
+    if (index >= subItemsDraft.length - 1) return
+    setSubItemsDraft(prev => {
+      const copy = [...prev]
+      const temp = copy[index]
+      copy[index] = copy[index + 1]
+      copy[index + 1] = temp
+      return ensurePlanoAcaoAtEnd(copy)
+    })
   }
 
   const handleSubItemChange = (index: number, field: keyof SubItemDraft, value: any) => {
@@ -727,9 +767,10 @@ export const PerformancePage: React.FC = () => {
     const validSubItems = subItemsDraft.filter(item => item.name.trim() !== '')
     if (validSubItems.length === 0) return
 
+    const sortedSubItems = ensurePlanoAcaoAtEnd(validSubItems)
     const catId = editingCategoryId || indicatorName.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now()
 
-    const createdSubRows: IndicatorSubRow[] = validSubItems.map((item, idx) => {
+    const createdSubRows: IndicatorSubRow[] = sortedSubItems.map((item, idx) => {
       const subId = item.id || item.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + idx
       if (item.meta.trim()) {
         saveCell(`meta_${catId}_${subId}`, item.meta.trim())
@@ -802,7 +843,7 @@ export const PerformancePage: React.FC = () => {
     .filter(cat => cat.subRows.length > 0)
 
   return (
-    <div className="space-y-4 w-full">
+    <div className="space-y-4 w-full notranslate" translate="no">
       {/* Top Controls Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl bg-white border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3">
@@ -1258,11 +1299,12 @@ export const PerformancePage: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-200">
               {filteredCategories.map((cat, catIdx) => {
-                const subRowsCount = cat.subRows.length
+                const sortedSubRows = ensurePlanoAcaoAtEnd(cat.subRows)
+                const subRowsCount = sortedSubRows.length
                 const hasMetaGroup = Boolean(cat.metaGroupDefault && cat.metaGroupDefault.length > 0)
                 const groupInfo = groupsList.find(g => g.id === cat.groupId) || groupsList[0] || DEFAULT_GROUPS[4]
 
-                return cat.subRows.map((sub, subIdx) => {
+                return sortedSubRows.map((sub, subIdx) => {
                   const isFirstSub = subIdx === 0
 
                   return (
@@ -1545,6 +1587,33 @@ export const PerformancePage: React.FC = () => {
                 <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
                   {subItemsDraft.map((sub, index) => (
                     <div key={index} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-slate-50/80 p-3 rounded-xl border border-slate-200 hover:border-slate-300 transition-all">
+                      
+                      {/* Botões para Reordenar Posição */}
+                      <div className="flex sm:flex-col gap-0.5 shrink-0 items-center justify-center border-r border-slate-200 pr-1.5 mr-0.5">
+                        <button
+                          type="button"
+                          disabled={index === 0 || isPlanoItem(sub)}
+                          onClick={() => handleMoveSubItemUp(index)}
+                          title="Mover sub-indicador para cima"
+                          className="p-1 rounded text-slate-400 hover:text-blue-700 hover:bg-blue-50 disabled:opacity-20 disabled:hover:bg-transparent transition-colors"
+                        >
+                          <ChevronUp size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            index >= subItemsDraft.length - 1 ||
+                            isPlanoItem(sub) ||
+                            isPlanoItem(subItemsDraft[index + 1])
+                          }
+                          onClick={() => handleMoveSubItemDown(index)}
+                          title="Mover sub-indicador para baixo"
+                          className="p-1 rounded text-slate-400 hover:text-blue-700 hover:bg-blue-50 disabled:opacity-20 disabled:hover:bg-transparent transition-colors"
+                        >
+                          <ChevronDown size={14} />
+                        </button>
+                      </div>
+
                       <div className="flex-1">
                         <label className="block text-[10px] font-semibold text-slate-500 mb-0.5 sm:hidden">Nome do Sub-indicador</label>
                         <input
