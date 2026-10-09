@@ -1228,7 +1228,7 @@ export const PerformancePage: React.FC = () => {
                 <th className="p-2.5 border-r border-slate-700 text-center w-48 font-bold bg-slate-950 sticky left-0 z-30 shadow-md">
                   Indicador
                 </th>
-                <th className="p-2 border-r border-slate-700 text-center w-36 font-bold bg-blue-950 text-blue-100">
+                <th className="p-2 border-r border-slate-700 text-center min-w-[155px] w-44 font-bold bg-blue-950 text-blue-100">
                   Meta (Editável)
                 </th>
                 <th className="p-2 border-r border-slate-700 text-center w-48 font-bold bg-slate-900">
@@ -1314,7 +1314,7 @@ export const PerformancePage: React.FC = () => {
                                   value={val}
                                   onChange={e => saveCell(metaKey, e.target.value)}
                                   placeholder="Meta"
-                                  className="w-full text-center bg-white/80 hover:bg-white text-blue-950 font-bold font-mono text-xs rounded border border-blue-200/80 focus:ring-2 focus:ring-blue-600 focus:outline-none px-1 py-0.5"
+                                  className="w-full text-center bg-white/90 hover:bg-white text-blue-950 font-bold font-mono text-xs rounded-md border border-blue-300 focus:ring-2 focus:ring-blue-600 focus:outline-none px-2 py-1 shadow-2xs transition-colors"
                                 />
                               )
                             })}
@@ -1334,7 +1334,7 @@ export const PerformancePage: React.FC = () => {
                                 value={val}
                                 onChange={e => saveCell(metaKey, e.target.value)}
                                 placeholder="Meta"
-                                className="w-full text-center bg-white/80 hover:bg-white text-blue-950 font-bold font-mono text-xs rounded border border-blue-200/80 focus:ring-2 focus:ring-blue-600 focus:outline-none px-1 py-0.5"
+                                className="w-full text-center bg-white/90 hover:bg-white text-blue-950 font-bold font-mono text-xs rounded-md border border-blue-300 focus:ring-2 focus:ring-blue-600 focus:outline-none px-2 py-1 shadow-2xs transition-colors"
                               />
                             )
                           })()}
