@@ -171,6 +171,7 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
       { id: 'transfs', label: 'Transfs', defaultValue: '3', metaDefault: '-', dataType: 'number' },
       { id: 'no_show', label: 'No Show', defaultValue: '10%', metaDefault: '15%', dataType: 'percentage' },
       { id: 'backlog', label: 'Backlog', defaultValue: '0', metaDefault: '0', dataType: 'number' },
+      { id: 'pend_arm_fornecedor', label: 'Pend. Arm. Fornecedor', defaultValue: '0', metaDefault: '0', dataType: 'number' },
       { id: 'plano_acao', label: 'Plano de Ação', defaultValue: '', metaDefault: '-', dataType: 'text' }
     ]
   },
@@ -555,6 +556,19 @@ export const PerformancePage: React.FC = () => {
           dbRows.forEach(row => {
             map[row.cell_key] = row.value
           })
+          
+          if (map['_sys_custom_categories']) {
+            try {
+              const remoteCat = JSON.parse(map['_sys_custom_categories'])
+              if (Array.isArray(remoteCat) && remoteCat.length > 0) {
+                setCategories(remoteCat)
+                localStorage.setItem('magalog_custom_categories', map['_sys_custom_categories'])
+              }
+            } catch (err) {
+              console.error('Erro ao ler categorias remotas:', err)
+            }
+          }
+
           setData(prev => ({ ...prev, ...map }))
           setIsDbSynced(true)
         } else {
@@ -563,6 +577,15 @@ export const PerformancePage: React.FC = () => {
             .then(res => res.json())
             .then(dbData => {
               if (dbData && Object.keys(dbData).length > 0) {
+                if (dbData['_sys_custom_categories']) {
+                  try {
+                    const remoteCat = JSON.parse(dbData['_sys_custom_categories'])
+                    if (Array.isArray(remoteCat) && remoteCat.length > 0) {
+                      setCategories(remoteCat)
+                      localStorage.setItem('magalog_custom_categories', dbData['_sys_custom_categories'])
+                    }
+                  } catch (err) {}
+                }
                 setData(prev => ({ ...prev, ...dbData }))
                 setIsDbSynced(true)
               }
@@ -584,10 +607,20 @@ export const PerformancePage: React.FC = () => {
         { event: '*', schema: 'public', table: 'performance_metrics' },
         (payload: any) => {
           if (payload.new && payload.new.cell_key) {
-            setData(prev => ({
-              ...prev,
-              [payload.new.cell_key]: payload.new.value
-            }))
+            if (payload.new.cell_key === '_sys_custom_categories') {
+              try {
+                const remoteCat = JSON.parse(payload.new.value)
+                if (Array.isArray(remoteCat)) {
+                  setCategories(remoteCat)
+                  localStorage.setItem('magalog_custom_categories', payload.new.value)
+                }
+              } catch (err) {}
+            } else {
+              setData(prev => ({
+                ...prev,
+                [payload.new.cell_key]: payload.new.value
+              }))
+            }
           }
         }
       )
@@ -798,6 +831,7 @@ export const PerformancePage: React.FC = () => {
       })
       setCategories(updatedCategories)
       localStorage.setItem('magalog_custom_categories', JSON.stringify(updatedCategories))
+      saveCell('_sys_custom_categories', JSON.stringify(updatedCategories))
     } else {
       const newCategory: IndicatorCategory = {
         id: catId,
@@ -808,6 +842,7 @@ export const PerformancePage: React.FC = () => {
       const updatedCategories = [...categories, newCategory]
       setCategories(updatedCategories)
       localStorage.setItem('magalog_custom_categories', JSON.stringify(updatedCategories))
+      saveCell('_sys_custom_categories', JSON.stringify(updatedCategories))
     }
 
     setIsModalOpen(false)
@@ -1440,7 +1475,7 @@ export const PerformancePage: React.FC = () => {
                               >
                                 <ClipboardList size={12} className={`shrink-0 ${hasData ? 'text-white' : 'text-slate-300'}`} />
                                 <span className="truncate max-w-[70px]">
-                                  {hasData ? previewText : 'Preencher'}
+                                  {hasData ? 'Ver Ação' : 'Preencher'}
                                 </span>
                               </button>
                             </td>
