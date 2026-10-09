@@ -1321,42 +1321,55 @@ export const PerformancePage: React.FC = () => {
 
       {/* Spreadsheet Table Container */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden w-full">
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              {/* Header Row */}
-              <tr className="bg-slate-900 text-white font-mono text-[11px] border-b border-slate-700">
-                <th className="p-2.5 border-r border-slate-700 text-center w-48 font-bold bg-slate-950 sticky left-0 z-30 shadow-md">
-                  Indicador
-                </th>
-                <th className="p-2 border-r border-slate-700 text-center min-w-[260px] w-64 font-bold bg-blue-950 text-blue-100">
-                  Meta (Editável)
-                </th>
-                <th className="p-2 border-r border-slate-700 text-center w-48 font-bold bg-slate-900">
-                  Sub-indicador
-                </th>
-                {filteredDays.map((d) => {
-                  const isWeekend = d.day === 'Sábado' || d.day === 'Domingo'
-                  return (
-                    <th
-                      key={d.colId}
-                      className={`p-2 border-r border-slate-700 text-center min-w-[84px] font-sans transition-colors ${
-                        isWeekend ? 'bg-amber-950/70 border-b-2 border-b-amber-500' : 'bg-slate-900'
-                      }`}
-                    >
-                      <div className="flex flex-col items-center justify-center gap-0.5">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isWeekend ? 'text-amber-300' : 'text-slate-400'}`}>
-                          {d.day}
-                        </span>
-                        <span className="inline-block px-2 py-0.5 rounded-full bg-blue-600/30 text-blue-200 text-xs font-mono font-bold border border-blue-400/30 shadow-2xs">
-                          {d.date}
-                        </span>
-                      </div>
+        <div className="overflow-x-auto w-full bg-slate-50/20">
+          {(() => {
+            const dateColWidth = '96px'
+
+            return (
+              <table className="w-auto min-w-max text-xs border-collapse">
+                <colgroup>
+                  <col style={{ width: '180px' }} />
+                  <col style={{ width: '260px' }} />
+                  <col style={{ width: '180px' }} />
+                  {filteredDays.map(d => (
+                    <col key={d.colId} style={{ width: dateColWidth }} />
+                  ))}
+                </colgroup>
+                <thead>
+                  {/* Header Row */}
+                  <tr className="bg-slate-900 text-white font-mono text-[11px] border-b border-slate-700">
+                    <th style={{ width: '180px' }} className="p-2.5 border-r border-slate-700 text-center font-bold bg-slate-950 sticky left-0 z-30 shadow-md">
+                      Indicador
                     </th>
-                  )
-                })}
-              </tr>
-            </thead>
+                    <th style={{ width: '260px' }} className="p-2 border-r border-slate-700 text-center font-bold bg-blue-950 text-blue-100">
+                      Meta (Editável)
+                    </th>
+                    <th style={{ width: '180px' }} className="p-2 border-r border-slate-700 text-center font-bold bg-slate-900">
+                      Sub-indicador
+                    </th>
+                    {filteredDays.map((d) => {
+                      const isWeekend = d.day === 'Sábado' || d.day === 'Domingo'
+                      return (
+                        <th
+                          key={d.colId}
+                          style={{ width: dateColWidth }}
+                          className={`p-2 border-r border-slate-700 text-center font-sans transition-colors ${
+                            isWeekend ? 'bg-amber-950/70 border-b-2 border-b-amber-500' : 'bg-slate-900'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center justify-center gap-0.5">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${isWeekend ? 'text-amber-300' : 'text-slate-400'}`}>
+                              {d.day}
+                            </span>
+                            <span className="inline-block px-2 py-0.5 rounded-full bg-blue-600/30 text-blue-200 text-xs font-mono font-bold border border-blue-400/30 shadow-2xs">
+                              {d.date}
+                            </span>
+                          </div>
+                        </th>
+                      )
+                    })}
+                  </tr>
+                </thead>
             <tbody className="divide-y divide-slate-200">
               {filteredCategories.map((cat, catIdx) => {
                 const sortedSubRows = ensurePlanoAcaoAtEnd(cat.subRows)
@@ -1479,6 +1492,7 @@ export const PerformancePage: React.FC = () => {
                           return (
                             <td
                               key={d.colId}
+                              style={{ width: dateColWidth }}
                               className={`p-1 border-r border-slate-200 text-center ${
                                 colIdx % 2 === 0 ? 'bg-slate-50/30' : 'bg-white'
                               }`}
@@ -1505,6 +1519,7 @@ export const PerformancePage: React.FC = () => {
                         return (
                           <td
                             key={d.colId}
+                            style={{ width: dateColWidth }}
                             className={`p-0 border-r border-slate-200 text-center ${
                               colIdx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white'
                             }`}
@@ -1526,6 +1541,8 @@ export const PerformancePage: React.FC = () => {
               })}
             </tbody>
           </table>
+            )
+          })()}
         </div>
       </div>
 
