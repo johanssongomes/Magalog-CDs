@@ -44,8 +44,8 @@ export const navItems: NavItem[] = [
   },
   {
     id: 'catalog',
-    label: 'Catálogo',
-    description: 'Página em branco 2 - Gestão de Catálogo de CDs',
+    label: 'Equipamentos',
+    description: 'Página em branco 2 - Gestão de Equipamentos dos CDs',
     icon: <FolderKanban size={20} />
   },
   {

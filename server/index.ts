@@ -22,7 +22,7 @@ app.get('/api/health', (req, res) => {
 app.get('/api/pages', (req, res) => {
   res.json([
     { id: 'dashboard', label: 'Dashboard' },
-    { id: 'catalog', label: 'Catálogo' },
+    { id: 'catalog', label: 'Equipamentos' },
     { id: 'inventory', label: 'Estoque' },
     { id: 'reports', label: 'Relatórios' },
     { id: 'settings', label: 'Configurações' }
