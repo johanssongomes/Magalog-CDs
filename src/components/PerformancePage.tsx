@@ -196,7 +196,10 @@ const DAYS_HEADER = Array.from({ length: 31 }, (_, i) => {
   }
 })
 
-const API_URL = 'http://localhost:3001/api/performance'
+import { supabase } from '../lib/supabase'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/performance'
+
 
 function formatValueByType(val: string, type?: DataType): string {
   if (!val || val.trim() === '' || val === '-') return val
@@ -373,33 +376,86 @@ export const PerformancePage: React.FC = () => {
   const [isDbSynced, setIsDbSynced] = useState(false)
 
   useEffect(() => {
-    fetch(API_URL)
-      .then(res => res.json())
-      .then(dbData => {
-        if (dbData && Object.keys(dbData).length > 0) {
-          setData(prev => ({ ...prev, ...dbData }))
+    // Carregar dados iniciais do Supabase
+    const loadFromSupabase = async () => {
+      try {
+        const { data: dbRows, error } = await supabase
+          .from('performance_metrics')
+          .select('cell_key, value')
+
+        if (!error && dbRows && dbRows.length > 0) {
+          const map: Record<string, string> = {}
+          dbRows.forEach(row => {
+            map[row.cell_key] = row.value
+          })
+          setData(prev => ({ ...prev, ...map }))
           setIsDbSynced(true)
+        } else {
+          // Fallback para API Node local caso necessário
+          fetch(API_URL)
+            .then(res => res.json())
+            .then(dbData => {
+              if (dbData && Object.keys(dbData).length > 0) {
+                setData(prev => ({ ...prev, ...dbData }))
+                setIsDbSynced(true)
+              }
+            })
+            .catch(err => console.warn('Usando backup local.', err))
         }
-      })
-      .catch(err => {
-        console.warn('Banco local desconectado ou em inicialização, usando backup local.', err)
-      })
+      } catch (e) {
+        console.warn('Erro ao carregar do Supabase:', e)
+      }
+    }
+
+    loadFromSupabase()
+
+    // Inscrição em tempo real no Supabase para sincronizar Vercel <-> Local instantaneamente
+    const channel = supabase
+      .channel('performance_metrics_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'performance_metrics' },
+        (payload: any) => {
+          if (payload.new && payload.new.cell_key) {
+            setData(prev => ({
+              ...prev,
+              [payload.new.cell_key]: payload.new.value
+            }))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
-  const saveCell = (cellKey: string, value: string) => {
+  const saveCell = async (cellKey: string, value: string) => {
     setData(prev => ({
       ...prev,
       [cellKey]: value
     }))
 
-    fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cellKey, value })
-    })
-      .then(res => res.json())
-      .then(() => setIsDbSynced(true))
-      .catch(err => console.error('Erro ao gravar no banco:', err))
+    // Salvar diretamente no Supabase (funciona na Vercel e no Local)
+    try {
+      const { error } = await supabase
+        .from('performance_metrics')
+        .upsert({ cell_key: cellKey, value }, { onConflict: 'cell_key' })
+
+      if (!error) {
+        setIsDbSynced(true)
+      } else {
+        // Tenta API Node local como fallback
+        fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cellKey, value })
+        }).catch(err => console.error('Erro ao gravar no banco:', err))
+      }
+    } catch (err) {
+      console.error('Erro ao salvar no Supabase:', err)
+    }
 
     localStorage.setItem('magalog_performance_data', JSON.stringify({ ...data, [cellKey]: value }))
     setSavedStatus(true)
@@ -413,22 +469,35 @@ export const PerformancePage: React.FC = () => {
     }
   }
 
-  const handleSave = () => {
-    fetch(`${API_URL}/bulk`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-      .then(res => res.json())
-      .then(() => {
+  const handleSave = async () => {
+    const records = Object.keys(data).map(key => ({
+      cell_key: key,
+      value: String(data[key])
+    }))
+
+    try {
+      const { error } = await supabase
+        .from('performance_metrics')
+        .upsert(records, { onConflict: 'cell_key' })
+
+      if (!error) {
         setIsDbSynced(true)
         setSavedStatus(true)
         setTimeout(() => setSavedStatus(false), 3000)
-      })
-      .catch(err => console.error('Erro ao salvar lote no banco:', err))
+      } else {
+        fetch(`${API_URL}/bulk`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        }).catch(err => console.error('Erro bulk:', err))
+      }
+    } catch (err) {
+      console.error('Erro ao salvar lote no Supabase:', err)
+    }
 
     localStorage.setItem('magalog_performance_data', JSON.stringify(data))
   }
+
 
   const handleCreateNewGroupInline = () => {
     if (!newGroupName.trim()) return
