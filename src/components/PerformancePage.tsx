@@ -1355,20 +1355,20 @@ export const PerformancePage: React.FC = () => {
                             <td
                               key={d.colId}
                               className={`p-1 border-r border-slate-200 text-center ${
-                                colIdx % 2 === 0 ? 'bg-amber-50/30' : 'bg-amber-50/60'
+                                colIdx % 2 === 0 ? 'bg-slate-50/30' : 'bg-white'
                               }`}
                             >
                               <button
                                 type="button"
                                 onClick={() => handleOpenActionModal(cat.category, d.date, key)}
                                 title={`Clique para descrever Ocorrência / Plano de Ação de ${cat.category} em ${d.date}`}
-                                className={`w-full min-h-[32px] px-1.5 py-1 rounded-md text-[11px] font-semibold flex items-center justify-center gap-1 transition-all border ${
+                                className={`w-full min-h-[30px] px-1.5 py-0.5 rounded-md text-[11px] flex items-center justify-center gap-1 transition-all border ${
                                   hasData
-                                    ? 'bg-amber-500 text-white border-amber-600 shadow-xs hover:bg-amber-600'
-                                    : 'bg-amber-100/60 text-amber-800 border-amber-200/80 hover:bg-amber-200/80 hover:border-amber-400'
+                                    ? 'bg-amber-500 text-white border-amber-600 font-semibold shadow-xs hover:bg-amber-600'
+                                    : 'bg-slate-50/50 text-slate-400 border-dashed border-slate-200 font-normal hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300'
                                 }`}
                               >
-                                <ClipboardList size={13} className="shrink-0" />
+                                <ClipboardList size={12} className={`shrink-0 ${hasData ? 'text-white' : 'text-slate-300'}`} />
                                 <span className="truncate max-w-[70px]">
                                   {hasData ? previewText : 'Preencher'}
                                 </span>
