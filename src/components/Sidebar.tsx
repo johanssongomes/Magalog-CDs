@@ -37,6 +37,12 @@ export const navItems: NavItem[] = [
     icon: <LayoutDashboard size={20} />
   },
   {
+    id: 'performance',
+    label: 'Performance',
+    description: 'Monitoramento de Desempenho e Indicadores Diários do CD',
+    icon: <Zap size={20} />
+  },
+  {
     id: 'catalog',
     label: 'Catálogo',
     description: 'Página em branco 2 - Gestão de Catálogo de CDs',
@@ -53,12 +59,6 @@ export const navItems: NavItem[] = [
     label: 'Relatórios',
     description: 'Página em branco 4 - Análise e Estatísticas',
     icon: <BarChart3 size={20} />
-  },
-  {
-    id: 'performance',
-    label: 'Performance',
-    description: 'Monitoramento de Desempenho e Indicadores Diários do CD',
-    icon: <Zap size={20} />
   },
   {
     id: 'settings',
