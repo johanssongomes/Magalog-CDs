@@ -387,6 +387,21 @@ export const PerformancePage: React.FC = () => {
   const ocorrenciasRef = useRef<HTMLTextAreaElement>(null)
   const planoAcaoRef = useRef<HTMLTextAreaElement>(null)
 
+  const adjustTextareaHeight = (textarea: HTMLTextAreaElement | null) => {
+    if (!textarea) return
+    textarea.style.height = 'auto'
+    textarea.style.height = `${Math.max(textarea.scrollHeight + 4, 180)}px`
+  }
+
+  useEffect(() => {
+    if (isActionModalOpen) {
+      setTimeout(() => {
+        adjustTextareaHeight(ocorrenciasRef.current)
+        adjustTextareaHeight(planoAcaoRef.current)
+      }, 50)
+    }
+  }, [isActionModalOpen, ocorrenciasInput, planoAcaoInput, isActionModalExpanded])
+
   const insertFormatting = (
     ref: React.RefObject<HTMLTextAreaElement | null>,
     setValue: React.Dispatch<React.SetStateAction<string>>,
@@ -405,6 +420,7 @@ export const PerformancePage: React.FC = () => {
     setTimeout(() => {
       textarea.focus()
       textarea.setSelectionRange(start + prefix.length, end + prefix.length)
+      adjustTextareaHeight(textarea)
     }, 50)
   }
 
@@ -1748,11 +1764,14 @@ export const PerformancePage: React.FC = () => {
 
                   <textarea
                     ref={ocorrenciasRef}
-                    rows={isActionModalExpanded ? 10 : 7}
+                    rows={6}
                     value={ocorrenciasInput}
-                    onChange={e => setOcorrenciasInput(e.target.value)}
+                    onChange={e => {
+                      setOcorrenciasInput(e.target.value)
+                      adjustTextareaHeight(e.target)
+                    }}
                     placeholder="Descreva detalhadamente o que causou o desvio do indicador (ex: Atraso na entrega dos fornecedores, quebra de equipamento, falta de efetivo no turno...)"
-                    className="w-full px-4 py-3 rounded-b-xl text-xs sm:text-sm border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-sans leading-relaxed text-slate-800 placeholder:text-slate-400 shadow-inner resize-y min-h-[140px]"
+                    className="w-full px-4 py-3 rounded-b-xl text-xs sm:text-sm border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-sans leading-relaxed text-slate-800 placeholder:text-slate-400 shadow-inner resize-y overflow-hidden min-h-[160px] transition-all"
                   />
                 </div>
 
@@ -1813,12 +1832,15 @@ export const PerformancePage: React.FC = () => {
 
                   <textarea
                     ref={planoAcaoRef}
-                    rows={isActionModalExpanded ? 12 : 9}
+                    rows={8}
                     required
                     value={planoAcaoInput}
-                    onChange={e => setPlanoAcaoInput(e.target.value)}
+                    onChange={e => {
+                      setPlanoAcaoInput(e.target.value)
+                      adjustTextareaHeight(e.target)
+                    }}
                     placeholder="Especifique as etapas do plano de ação (ex: 1. Remanejar 5 conferentes do setor X; 2. Notificar transportadora Y; 3. Reavaliar meta...)"
-                    className="w-full px-4 py-3 rounded-b-xl text-xs sm:text-sm border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-sans leading-relaxed text-slate-800 placeholder:text-slate-400 shadow-inner resize-y min-h-[180px]"
+                    className="w-full px-4 py-3 rounded-b-xl text-xs sm:text-sm border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50/50 font-sans leading-relaxed text-slate-800 placeholder:text-slate-400 shadow-inner resize-y overflow-hidden min-h-[200px] transition-all"
                   />
                 </div>
 
