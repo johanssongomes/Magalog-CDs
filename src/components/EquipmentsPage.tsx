@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 
 export type FinancialType = 'CAPEX' | 'OPEX'
+export type EquipmentStatus = 'Em Uso' | 'Manutenção' | 'Reserva (Não utilizado)'
 
 export interface MaintenanceRecord {
   id: string
@@ -19,16 +20,24 @@ export interface Equipment {
   id: string
   code: string
   name: string
-  category: 'Coletora RF' | 'Empilhadeira' | 'Transpaleteira' | 'Scanner / Leitor' | 'Impressora Térmica'
+  category: string
   financialType: FinancialType
   cost: number // Custo de Aquisição (CAPEX) ou Valor da Locação Mensal (OPEX)
   maintenanceCost: number // Custo acumulado de manutenções
   unit: string
-  status: 'Operacional' | 'Manutenção' | 'Reservado'
+  status: EquipmentStatus
   battery: number
   lastCheck: string
   maintenances?: MaintenanceRecord[]
 }
+
+const INITIAL_CATEGORIES = [
+  'Coletora RF',
+  'Empilhadeira',
+  'Transpaleteira',
+  'Scanner / Leitor',
+  'Impressora Térmica'
+]
 
 const INITIAL_EQUIPMENTS: Equipment[] = [
   { 
@@ -40,7 +49,7 @@ const INITIAL_EQUIPMENTS: Equipment[] = [
     cost: 4500.00,
     maintenanceCost: 350.00,
     unit: 'CD Louveira', 
-    status: 'Operacional', 
+    status: 'Em Uso', 
     battery: 94, 
     lastCheck: '09/Out 08:30',
     maintenances: [
@@ -56,7 +65,7 @@ const INITIAL_EQUIPMENTS: Equipment[] = [
     cost: 4500.00,
     maintenanceCost: 0.00,
     unit: 'CD Louveira', 
-    status: 'Operacional', 
+    status: 'Em Uso', 
     battery: 82, 
     lastCheck: '09/Out 07:15',
     maintenances: []
@@ -86,7 +95,7 @@ const INITIAL_EQUIPMENTS: Equipment[] = [
     cost: 2100.00, // Aluguel mensal
     maintenanceCost: 280.00,
     unit: 'CD Extrema', 
-    status: 'Operacional', 
+    status: 'Em Uso', 
     battery: 100, 
     lastCheck: '09/Out 06:00',
     maintenances: [
@@ -102,7 +111,7 @@ const INITIAL_EQUIPMENTS: Equipment[] = [
     cost: 1850.00,
     maintenanceCost: 0.00,
     unit: 'CD Louveira', 
-    status: 'Operacional', 
+    status: 'Em Uso', 
     battery: 67, 
     lastCheck: '09/Out 09:10',
     maintenances: []
@@ -116,7 +125,7 @@ const INITIAL_EQUIPMENTS: Equipment[] = [
     cost: 8900.00,
     maintenanceCost: 450.00,
     unit: 'CD Cabreúva', 
-    status: 'Reservado', 
+    status: 'Reserva (Não utilizado)', 
     battery: 100, 
     lastCheck: '07/Out 14:20',
     maintenances: [
@@ -129,22 +138,27 @@ type SubPage = 'dashboard' | 'list' | 'maintenance' | 'reports'
 
 export const EquipmentsPage: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<SubPage>('dashboard')
+  const [categories, setCategories] = useState<string[]>(INITIAL_CATEGORIES)
   const [equipments, setEquipments] = useState<Equipment[]>(INITIAL_EQUIPMENTS)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos')
   const [selectedStatus, setSelectedStatus] = useState<string>('Todos')
   const [selectedFinancialType, setSelectedFinancialType] = useState<string>('Todos')
   
+  // Modal Criar Nova Categoria
+  const [isNewCategoryInputOpen, setIsNewCategoryInputOpen] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+
   // Modal Novo/Editar Equipamento
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formCode, setFormCode] = useState('')
   const [formName, setFormName] = useState('')
-  const [formCategory, setFormCategory] = useState<Equipment['category']>('Coletora RF')
+  const [formCategory, setFormCategory] = useState<string>('Coletora RF')
   const [formFinancialType, setFormFinancialType] = useState<FinancialType>('CAPEX')
   const [formCost, setFormCost] = useState<number>(0)
   const [formUnit, setFormUnit] = useState('CD Louveira')
-  const [formStatus, setFormStatus] = useState<Equipment['status']>('Operacional')
+  const [formStatus, setFormStatus] = useState<EquipmentStatus>('Em Uso')
   const [formBattery, setFormBattery] = useState(100)
 
   // Modal Registrar Nova Manutenção / Custo de Reparo
@@ -155,15 +169,26 @@ export const EquipmentsPage: React.FC = () => {
   const [maintProvider, setMaintProvider] = useState('')
   const [maintType, setMaintType] = useState<'Preventiva' | 'Corretiva'>('Corretiva')
 
+  const handleAddCategory = () => {
+    const trimmed = newCategoryName.trim()
+    if (!trimmed) return
+    if (!categories.includes(trimmed)) {
+      setCategories(prev => [...prev, trimmed])
+    }
+    setFormCategory(trimmed)
+    setNewCategoryName('')
+    setIsNewCategoryInputOpen(false)
+  }
+
   const handleOpenAddModal = () => {
     setEditingId(null)
     setFormCode(`EQP-NEW-${Math.floor(10 + Math.random() * 90)}`)
     setFormName('')
-    setFormCategory('Coletora RF')
+    setFormCategory(categories[0] || 'Coletora RF')
     setFormFinancialType('CAPEX')
     setFormCost(4500)
     setFormUnit('CD Louveira')
-    setFormStatus('Operacional')
+    setFormStatus('Em Uso')
     setFormBattery(100)
     setIsModalOpen(true)
   }
@@ -283,8 +308,9 @@ export const EquipmentsPage: React.FC = () => {
 
   // Estatísticas do Dashboard de Equipamentos
   const totalEquipments = equipments.length
-  const operacionaisCount = equipments.filter(e => e.status === 'Operacional').length
+  const emUsoCount = equipments.filter(e => e.status === 'Em Uso').length
   const manutencaoCount = equipments.filter(e => e.status === 'Manutenção').length
+  const reservaCount = equipments.filter(e => e.status === 'Reserva (Não utilizado)').length
   const capexCount = equipments.filter(e => e.financialType === 'CAPEX').length
   const opexCount = equipments.filter(e => e.financialType === 'OPEX').length
 
@@ -414,8 +440,8 @@ export const EquipmentsPage: React.FC = () => {
                 <CheckCircle2 size={24} />
               </div>
               <div>
-                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Operacionais</div>
-                <div className="text-xl font-extrabold text-slate-900 mt-0.5">{operacionaisCount} <span className="text-xs font-medium text-emerald-600">Em Uso</span></div>
+                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Equipamentos Em Uso</div>
+                <div className="text-xl font-extrabold text-slate-900 mt-0.5">{emUsoCount} <span className="text-xs font-medium text-emerald-600">Ativos</span></div>
                 <div className="text-[10px] text-slate-400 mt-0.5">Disponibilidade da Frota</div>
               </div>
             </div>
@@ -562,11 +588,9 @@ export const EquipmentsPage: React.FC = () => {
                 className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
               >
                 <option value="Todos">Todas Categorias</option>
-                <option value="Coletora RF">Coletora RF</option>
-                <option value="Empilhadeira">Empilhadeira</option>
-                <option value="Transpaleteira">Transpaleteira</option>
-                <option value="Scanner / Leitor">Scanner / Leitor</option>
-                <option value="Impressora Térmica">Impressora Térmica</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
               </select>
 
               <select
@@ -575,9 +599,9 @@ export const EquipmentsPage: React.FC = () => {
                 className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
               >
                 <option value="Todos">Todos os Status</option>
-                <option value="Operacional">🟢 Operacional</option>
+                <option value="Em Uso">🟢 Em Uso</option>
                 <option value="Manutenção">🔴 Manutenção</option>
-                <option value="Reservado">🟡 Reservado</option>
+                <option value="Reserva (Não utilizado)">🟡 Reserva (Não utilizado)</option>
               </select>
             </div>
           </div>
@@ -648,9 +672,9 @@ export const EquipmentsPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="p-3 text-center">
-                        {eqp.status === 'Operacional' && (
+                        {eqp.status === 'Em Uso' && (
                           <span className="px-2.5 py-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 rounded-full border border-emerald-200 inline-flex items-center gap-1">
-                            <CheckCircle2 size={11} /> Operacional
+                            <CheckCircle2 size={11} /> Em Uso
                           </span>
                         )}
                         {eqp.status === 'Manutenção' && (
@@ -658,9 +682,9 @@ export const EquipmentsPage: React.FC = () => {
                             <Wrench size={11} /> Manutenção
                           </span>
                         )}
-                        {eqp.status === 'Reservado' && (
+                        {eqp.status === 'Reserva (Não utilizado)' && (
                           <span className="px-2.5 py-1 text-[10px] font-bold text-amber-800 bg-amber-50 rounded-full border border-amber-200 inline-flex items-center gap-1">
-                            <AlertTriangle size={11} /> Reservado
+                            <AlertTriangle size={11} /> Reserva (Não utilizado)
                           </span>
                         )}
                       </td>
@@ -827,18 +851,46 @@ export const EquipmentsPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Categoria *</label>
-                  <select
-                    value={formCategory}
-                    onChange={e => setFormCategory(e.target.value as any)}
-                    className="w-full px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                  >
-                    <option value="Coletora RF">Coletora RF</option>
-                    <option value="Empilhadeira">Empilhadeira</option>
-                    <option value="Transpaleteira">Transpaleteira</option>
-                    <option value="Scanner / Leitor">Scanner / Leitor</option>
-                    <option value="Impressora Térmica">Impressora Térmica</option>
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">Categoria *</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsNewCategoryInputOpen(!isNewCategoryInputOpen)}
+                      className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-0.5"
+                    >
+                      <Plus size={10} /> {isNewCategoryInputOpen ? 'Selecionar' : 'Criar Categoria'}
+                    </button>
+                  </div>
+
+                  {isNewCategoryInputOpen ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="Nome da categoria..."
+                        value={newCategoryName}
+                        onChange={e => setNewCategoryName(e.target.value)}
+                        className="w-full px-2 py-1 rounded-lg text-xs font-semibold border border-blue-400 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddCategory}
+                        className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg whitespace-nowrap"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      value={formCategory}
+                      onChange={e => setFormCategory(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    >
+                      {categories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
@@ -928,9 +980,9 @@ export const EquipmentsPage: React.FC = () => {
                     onChange={e => setFormStatus(e.target.value as any)}
                     className="w-full px-2 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
                   >
-                    <option value="Operacional">Operacional</option>
+                    <option value="Em Uso">Em Uso</option>
                     <option value="Manutenção">Manutenção</option>
-                    <option value="Reservado">Reservado</option>
+                    <option value="Reserva (Não utilizado)">Reserva (Não utilizado)</option>
                   </select>
                 </div>
 

@@ -204,7 +204,7 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
     category: 'CONTROLE DE ESTOQUE',
     groupId: 'qualidade_cte',
     subRows: [
-      { id: 'qualidade_estoque', label: 'Qualidade de Estoque (Bloqueios)', defaultValue: '99,80', metaDefault: '99,80', dataType: 'percentage' },
+      { id: 'qualidade_estoque', label: 'Qualidade de Estoque (Bloqueios)', defaultValue: '99,80', metaDefault: '🟢 Excelência: 99,95% → 100% do GPO\n🔵 Consolidação: 99,85% → 75% do GPO\n🟡 Alavancagem: 99,80% → 50% do GPO\n🔴 Crítico: < 99,80% → GPO Zerado', dataType: 'percentage' },
       { id: 'avaria', label: 'Avaria', defaultValue: '16.00', metaDefault: '16.00', dataType: 'decimal' },
       { id: 'rotativo', label: 'Rotativo', defaultValue: '', metaDefault: '-', dataType: 'percentage' },
       { id: 'bloqueios_geral_tt', label: 'Bloqueios Geral TT Valor', defaultValue: '', metaDefault: '-', dataType: 'currency' },
@@ -283,7 +283,19 @@ export const PerformancePage: React.FC = () => {
     const saved = localStorage.getItem('magalog_custom_categories')
     if (saved) {
       try {
-        return JSON.parse(saved)
+        const parsed: IndicatorCategory[] = JSON.parse(saved)
+        // Atualizar/Mesclar schema de DEFAULT_CATEGORIES para garantir que novos metaGroupDefault entrem em vigor
+        return parsed.map(c => {
+          const defaultMatch = DEFAULT_CATEGORIES.find(d => d.id === c.id)
+          if (defaultMatch) {
+            return {
+              ...c,
+              metaGroupDefault: defaultMatch.metaGroupDefault,
+              subRows: defaultMatch.subRows || c.subRows
+            }
+          }
+          return c
+        })
       } catch (e) {
         console.error('Erro ao ler categorias salvas', e)
       }
@@ -561,8 +573,19 @@ export const PerformancePage: React.FC = () => {
             try {
               const remoteCat = JSON.parse(map['_sys_custom_categories'])
               if (Array.isArray(remoteCat) && remoteCat.length > 0) {
-                setCategories(remoteCat)
-                localStorage.setItem('magalog_custom_categories', map['_sys_custom_categories'])
+                const mergedRemote = remoteCat.map((c: IndicatorCategory) => {
+                  const defMatch = DEFAULT_CATEGORIES.find(d => d.id === c.id)
+                  if (defMatch) {
+                    return { 
+                      ...c, 
+                      metaGroupDefault: defMatch.metaGroupDefault,
+                      subRows: defMatch.subRows || c.subRows
+                    }
+                  }
+                  return c
+                })
+                setCategories(mergedRemote)
+                localStorage.setItem('magalog_custom_categories', JSON.stringify(mergedRemote))
               }
             } catch (err) {
               console.error('Erro ao ler categorias remotas:', err)
@@ -745,7 +768,9 @@ export const PerformancePage: React.FC = () => {
       sortedSubRows.map(sub => ({
         id: sub.id,
         name: sub.label,
-        meta: data[`meta_${cat.id}_${sub.id}`] !== undefined ? data[`meta_${cat.id}_${sub.id}`] : sub.metaDefault || '',
+        meta: data[`meta_${cat.id}_${sub.id}`] !== undefined 
+          ? data[`meta_${cat.id}_${sub.id}`] 
+          : sub.metaDefault || (cat.metaGroupDefault && cat.metaGroupDefault.length > 0 ? cat.metaGroupDefault.join('\n') : ''),
         dataType: sub.dataType || 'percentage'
       }))
     )
@@ -824,6 +849,7 @@ export const PerformancePage: React.FC = () => {
             ...cat,
             category: indicatorName.trim(),
             groupId: selectedGroupId,
+            metaGroupDefault: cat.metaGroupDefault,
             subRows: createdSubRows
           }
         }
@@ -1304,7 +1330,7 @@ export const PerformancePage: React.FC = () => {
                 <th className="p-2.5 border-r border-slate-700 text-center w-48 font-bold bg-slate-950 sticky left-0 z-30 shadow-md">
                   Indicador
                 </th>
-                <th className="p-2 border-r border-slate-700 text-center min-w-[155px] w-44 font-bold bg-blue-950 text-blue-100">
+                <th className="p-2 border-r border-slate-700 text-center min-w-[260px] w-64 font-bold bg-blue-950 text-blue-100">
                   Meta (Editável)
                 </th>
                 <th className="p-2 border-r border-slate-700 text-center w-48 font-bold bg-slate-900">
@@ -1374,49 +1400,44 @@ export const PerformancePage: React.FC = () => {
                         </td>
                       )}
 
-                      {/* Meta Cell: Caso Seja Meta Unificada/Grupo (rowSpan com múltiplos inputs editáveis) */}
-                      {hasMetaGroup && isFirstSub && (
-                        <td
-                          rowSpan={subRowsCount}
-                          className="p-2 border-r border-slate-200 bg-blue-50/80 text-blue-900 font-semibold align-middle text-center font-mono text-[11px] border-b-2 border-slate-300"
-                        >
-                          <div className="flex flex-col gap-1 items-center justify-center">
-                            {cat.metaGroupDefault?.map((_, i) => {
-                              const metaKey = `metaGroup_${cat.id}_${i}`
-                              const val = data[metaKey] !== undefined ? data[metaKey] : cat.metaGroupDefault![i]
-                              return (
-                                <input
-                                  key={i}
-                                  type="text"
-                                  value={val}
-                                  onChange={e => saveCell(metaKey, e.target.value)}
-                                  placeholder="Meta"
-                                  className="w-full text-center bg-white/90 hover:bg-white text-blue-950 font-bold font-mono text-xs rounded-md border border-blue-300 focus:ring-2 focus:ring-blue-600 focus:outline-none px-2 py-1 shadow-2xs transition-colors"
-                                />
-                              )
-                            })}
-                          </div>
-                        </td>
-                      )}
+                      {/* Meta Cell: Meta Individual por Sub-indicador (1 input/textarea editável por linha com suporte a múltiplas linhas) */}
+                      <td className="p-1 border-r border-slate-200 bg-blue-50/60 text-blue-900 font-semibold text-center font-mono text-[11px] align-middle">
+                        {(() => {
+                          if (isPlanoItem(sub)) {
+                            return <span className="text-slate-400 font-medium font-sans text-xs">-</span>
+                          }
+                          const metaKey = `meta_${cat.id}_${sub.id}`
+                          let rawVal = data[metaKey]
 
-                      {/* Meta Cell: Caso Seja Meta Individual por Sub-indicador (1 input editável por linha) */}
-                      {!hasMetaGroup && (
-                        <td className="p-1 border-r border-slate-200 bg-blue-50/60 text-blue-900 font-semibold text-center font-mono text-[11px]">
-                          {(() => {
-                            const metaKey = `meta_${cat.id}_${sub.id}`
-                            const val = data[metaKey] !== undefined ? data[metaKey] : sub.metaDefault || ''
-                            return (
-                              <input
-                                type="text"
-                                value={val}
-                                onChange={e => saveCell(metaKey, e.target.value)}
-                                placeholder="Meta"
-                                className="w-full text-center bg-white/90 hover:bg-white text-blue-950 font-bold font-mono text-xs rounded-md border border-blue-300 focus:ring-2 focus:ring-blue-600 focus:outline-none px-2 py-1 shadow-2xs transition-colors"
-                              />
-                            )
-                          })()}
-                        </td>
-                      )}
+                          if (rawVal === undefined) {
+                            if (sub.metaDefault !== undefined && sub.metaDefault !== '') {
+                              rawVal = sub.metaDefault
+                            } else if (cat.metaGroupDefault && cat.metaGroupDefault.length > 0) {
+                              rawVal = cat.metaGroupDefault[subIdx] || cat.metaGroupDefault.join('\n')
+                            } else {
+                              rawVal = ''
+                            }
+                          }
+
+                          const displayVal = rawVal.includes('|') && !rawVal.includes('\n')
+                            ? rawVal.split('|').map(s => s.trim()).join('\n')
+                            : rawVal
+
+                          const lineCount = displayVal ? displayVal.split('\n').length : 1
+
+                          return (
+                            <textarea
+                              rows={lineCount}
+                              value={displayVal}
+                              onChange={e => saveCell(metaKey, e.target.value)}
+                              placeholder="Meta"
+                              className={`w-full bg-white/90 hover:bg-white text-slate-900 font-sans font-semibold text-xs rounded-md border border-blue-300 focus:ring-2 focus:ring-blue-600 focus:outline-none px-2.5 py-1.5 shadow-2xs transition-colors resize-none leading-relaxed ${
+                                lineCount > 1 ? 'text-left font-sans text-[11px]' : 'text-center font-mono font-bold'
+                              }`}
+                            />
+                          )
+                        })()}
+                      </td>
 
                       {/* Sub-row Label Cell */}
                       <td className={`p-2 border-r border-slate-200 pl-3 text-[11px] ${
@@ -1512,7 +1533,7 @@ export const PerformancePage: React.FC = () => {
       {/* Modal Elegante e Completo para Criar ou Editar Indicador, Agrupamento e seus Sub-indicadores */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-xl p-6 space-y-5 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl p-6 space-y-5 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -1649,35 +1670,35 @@ export const PerformancePage: React.FC = () => {
                         </button>
                       </div>
 
-                      <div className="flex-1">
-                        <label className="block text-[10px] font-semibold text-slate-500 mb-0.5 sm:hidden">Nome do Sub-indicador</label>
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Nome do Sub-indicador</label>
                         <input
                           type="text"
                           required
                           placeholder={`Sub-indicador #${index + 1}`}
                           value={sub.name}
                           onChange={e => handleSubItemChange(index, 'name', e.target.value)}
-                          className="w-full px-3 py-1.5 rounded-lg text-xs border border-slate-300 focus:ring-1 focus:ring-blue-600 bg-white font-medium"
+                          className="w-full px-3 py-2 rounded-lg text-xs border border-slate-300 focus:ring-1 focus:ring-blue-600 bg-white font-medium"
                         />
                       </div>
 
-                      <div className="w-full sm:w-28">
-                        <label className="block text-[10px] font-semibold text-slate-500 mb-0.5 sm:hidden">Meta</label>
-                        <input
-                          type="text"
-                          placeholder="Meta (ex: 95%)"
+                      <div className="flex-1 min-w-[220px]">
+                        <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Meta(s) (1 por linha)</label>
+                        <textarea
+                          rows={Math.max(2, (sub.meta || '').split('\n').length)}
+                          placeholder="Meta (ex: 95% ou faça várias linhas)"
                           value={sub.meta}
                           onChange={e => handleSubItemChange(index, 'meta', e.target.value)}
-                          className="w-full px-2.5 py-1.5 rounded-lg text-xs border border-slate-300 focus:ring-1 focus:ring-blue-600 bg-white text-center font-mono font-semibold text-blue-900"
+                          className="w-full px-3 py-1.5 rounded-lg text-xs border border-slate-300 focus:ring-1 focus:ring-blue-600 bg-white font-sans font-semibold text-blue-900 leading-normal resize-y min-h-[42px]"
                         />
                       </div>
 
                       <div className="w-full sm:w-36">
-                        <label className="block text-[10px] font-semibold text-slate-500 mb-0.5 sm:hidden">Tipo de Dado</label>
+                        <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Tipo de Dado</label>
                         <select
                           value={sub.dataType}
                           onChange={e => handleSubItemChange(index, 'dataType', e.target.value as DataType)}
-                          className="w-full px-2 py-1.5 rounded-lg text-xs border border-slate-300 focus:ring-1 focus:ring-blue-600 bg-white font-medium"
+                          className="w-full px-2 py-2 rounded-lg text-xs border border-slate-300 focus:ring-1 focus:ring-blue-600 bg-white font-medium"
                         >
                           <option value="percentage">% Porcentagem</option>
                           <option value="number">123 Inteiro</option>
