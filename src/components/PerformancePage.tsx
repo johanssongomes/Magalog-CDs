@@ -762,6 +762,18 @@ export const PerformancePage: React.FC = () => {
             map[row.cell_key] = row.value
           })
           
+          if (map['_sys_custom_groups']) {
+            try {
+              const remoteGroups = JSON.parse(map['_sys_custom_groups'])
+              if (Array.isArray(remoteGroups) && remoteGroups.length > 0) {
+                setGroupsList(remoteGroups)
+                localStorage.setItem('magalog_custom_groups', map['_sys_custom_groups'])
+              }
+            } catch (err) {
+              console.error('Erro ao ler agrupamentos remotos:', err)
+            }
+          }
+
           if (map['_sys_custom_categories']) {
             try {
               const remoteCat = JSON.parse(map['_sys_custom_categories'])
@@ -793,6 +805,15 @@ export const PerformancePage: React.FC = () => {
             .then(res => res.json())
             .then(dbData => {
               if (dbData && Object.keys(dbData).length > 0) {
+                if (dbData['_sys_custom_groups']) {
+                  try {
+                    const remoteGroups = JSON.parse(dbData['_sys_custom_groups'])
+                    if (Array.isArray(remoteGroups) && remoteGroups.length > 0) {
+                      setGroupsList(remoteGroups)
+                      localStorage.setItem('magalog_custom_groups', dbData['_sys_custom_groups'])
+                    }
+                  } catch (err) {}
+                }
                 if (dbData['_sys_custom_categories']) {
                   try {
                     const remoteCat = JSON.parse(dbData['_sys_custom_categories'])
@@ -823,7 +844,15 @@ export const PerformancePage: React.FC = () => {
         { event: '*', schema: 'public', table: 'performance_metrics' },
         (payload: any) => {
           if (payload.new && payload.new.cell_key) {
-            if (payload.new.cell_key === '_sys_custom_categories') {
+            if (payload.new.cell_key === '_sys_custom_groups') {
+              try {
+                const remoteGroups = JSON.parse(payload.new.value)
+                if (Array.isArray(remoteGroups)) {
+                  setGroupsList(remoteGroups)
+                  localStorage.setItem('magalog_custom_groups', payload.new.value)
+                }
+              } catch (err) {}
+            } else if (payload.new.cell_key === '_sys_custom_categories') {
               try {
                 const remoteCat = JSON.parse(payload.new.value)
                 if (Array.isArray(remoteCat)) {
@@ -937,6 +966,7 @@ export const PerformancePage: React.FC = () => {
     const updatedGroups = [...groupsList, newGroupInfo]
     setGroupsList(updatedGroups)
     localStorage.setItem('magalog_custom_groups', JSON.stringify(updatedGroups))
+    saveCell('_sys_custom_groups', JSON.stringify(updatedGroups))
     setSelectedGroupId(newId)
     setNewGroupName('')
     setIsCreatingNewGroup(false)
@@ -1035,8 +1065,9 @@ export const PerformancePage: React.FC = () => {
       }
     })
 
+    let updatedCategories: IndicatorCategory[]
     if (editingCategoryId) {
-      const updatedCategories = categories.map(cat => {
+      updatedCategories = categories.map(cat => {
         if (cat.id === editingCategoryId) {
           return {
             ...cat,
@@ -1048,9 +1079,6 @@ export const PerformancePage: React.FC = () => {
         }
         return cat
       })
-      setCategories(updatedCategories)
-      localStorage.setItem('magalog_custom_categories', JSON.stringify(updatedCategories))
-      saveCell('_sys_custom_categories', JSON.stringify(updatedCategories))
     } else {
       const newCategory: IndicatorCategory = {
         id: catId,
@@ -1058,11 +1086,13 @@ export const PerformancePage: React.FC = () => {
         groupId: selectedGroupId,
         subRows: createdSubRows
       }
-      const updatedCategories = [...categories, newCategory]
-      setCategories(updatedCategories)
-      localStorage.setItem('magalog_custom_categories', JSON.stringify(updatedCategories))
-      saveCell('_sys_custom_categories', JSON.stringify(updatedCategories))
+      updatedCategories = [...categories, newCategory]
     }
+
+    setCategories(updatedCategories)
+    localStorage.setItem('magalog_custom_categories', JSON.stringify(updatedCategories))
+    saveCell('_sys_custom_categories', JSON.stringify(updatedCategories))
+    saveCell('_sys_custom_groups', JSON.stringify(groupsList))
 
     setIsModalOpen(false)
   }
