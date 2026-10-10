@@ -529,6 +529,67 @@ export const PerformancePage: React.FC = () => {
     { name: '', meta: '', dataType: 'percentage' }
   ])
 
+  // Navegação de Grade com Teclas de Seta (Excel / Google Sheets)
+  const handleKeyDownGrid = (
+    e: React.KeyboardEvent<HTMLInputElement | HTMLButtonElement>,
+    flatRowIdx: number,
+    colIdx: number
+  ) => {
+    const target = e.currentTarget
+    const isInput = target instanceof HTMLInputElement
+    const selectionStart = isInput ? target.selectionStart : 0
+    const selectionEnd = isInput ? target.selectionEnd : 0
+    const valLen = isInput ? target.value.length : 0
+
+    let targetRow = flatRowIdx
+    let targetCol = colIdx
+    let shouldMove = false
+
+    if (e.key === 'ArrowDown' || (e.key === 'Enter' && !e.shiftKey)) {
+      targetRow = flatRowIdx + 1
+      shouldMove = true
+      e.preventDefault()
+    } else if (e.key === 'ArrowUp' || (e.key === 'Enter' && e.shiftKey)) {
+      targetRow = flatRowIdx - 1
+      shouldMove = true
+      e.preventDefault()
+    } else if (e.key === 'ArrowRight' || (e.key === 'Tab' && !e.shiftKey)) {
+      if (
+        e.key === 'Tab' ||
+        !isInput ||
+        selectionStart === null ||
+        selectionStart === valLen ||
+        (selectionStart === 0 && selectionEnd === valLen)
+      ) {
+        targetCol = colIdx + 1
+        shouldMove = true
+        e.preventDefault()
+      }
+    } else if (e.key === 'ArrowLeft' || (e.key === 'Tab' && e.shiftKey)) {
+      if (
+        e.key === 'Tab' ||
+        !isInput ||
+        selectionStart === null ||
+        selectionStart === 0 ||
+        (selectionStart === 0 && selectionEnd === valLen)
+      ) {
+        targetCol = colIdx - 1
+        shouldMove = true
+        e.preventDefault()
+      }
+    }
+
+    if (shouldMove) {
+      const nextEl = document.getElementById(`cell_${targetRow}_${targetCol}`)
+      if (nextEl) {
+        nextEl.focus()
+        if (nextEl instanceof HTMLInputElement) {
+          nextEl.select()
+        }
+      }
+    }
+  }
+
   // Modal para Formulário de Plano de Ação e Ocorrências por dia
   const [isActionModalOpen, setIsActionModalOpen] = useState(false)
   const [isActionModalExpanded, setIsActionModalExpanded] = useState(false)
@@ -1509,177 +1570,184 @@ export const PerformancePage: React.FC = () => {
                   </tr>
                 </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredCategories.map((cat, catIdx) => {
-                const sortedSubRows = ensurePlanoAcaoAtEnd(cat.subRows)
-                const subRowsCount = sortedSubRows.length
-                const hasMetaGroup = Boolean(cat.metaGroupDefault && cat.metaGroupDefault.length > 0)
-                const groupInfo = groupsList.find(g => g.id === cat.groupId) || groupsList[0] || DEFAULT_GROUPS[4]
+              {(() => {
+                let globalRowCounter = 0
+                return filteredCategories.flatMap((cat) => {
+                  const sortedSubRows = ensurePlanoAcaoAtEnd(cat.subRows)
+                  const subRowsCount = sortedSubRows.length
+                  const groupInfo = groupsList.find(g => g.id === cat.groupId) || groupsList[0] || DEFAULT_GROUPS[4]
 
-                return sortedSubRows.map((sub, subIdx) => {
-                  const isFirstSub = subIdx === 0
+                  return sortedSubRows.map((sub, subIdx) => {
+                    const isFirstSub = subIdx === 0
+                    const currentFlatRowIdx = globalRowCounter++
 
-                  const metaKey = `meta_${cat.id}_${sub.id}`
-                  let currentMetaVal = data[metaKey]
+                    const metaKey = `meta_${cat.id}_${sub.id}`
+                    let currentMetaVal = data[metaKey]
 
-                  if (currentMetaVal === undefined) {
-                    if (sub.metaDefault !== undefined && sub.metaDefault !== '') {
-                      currentMetaVal = sub.metaDefault
-                    } else if (cat.metaGroupDefault && cat.metaGroupDefault.length > 0) {
-                      currentMetaVal = cat.metaGroupDefault[subIdx] || cat.metaGroupDefault.join('\n')
-                    } else {
-                      currentMetaVal = ''
+                    if (currentMetaVal === undefined) {
+                      if (sub.metaDefault !== undefined && sub.metaDefault !== '') {
+                        currentMetaVal = sub.metaDefault
+                      } else if (cat.metaGroupDefault && cat.metaGroupDefault.length > 0) {
+                        currentMetaVal = cat.metaGroupDefault[subIdx] || cat.metaGroupDefault.join('\n')
+                      } else {
+                        currentMetaVal = ''
+                      }
                     }
-                  }
 
-                  return (
-                    <tr
-                      key={`${cat.id}_${sub.id}_${subIdx}`}
-                      className={`hover:bg-blue-50/50 transition-colors ${
-                        subIdx === subRowsCount - 1 ? 'border-b-2 border-slate-300' : 'border-b border-slate-200'
-                      }`}
-                    >
-                      {/* Category Label Cell (Span multi rows) */}
-                      {isFirstSub && (
-                        <td
-                          rowSpan={subRowsCount}
-                          className="p-3 border-r border-slate-200 font-bold text-slate-800 bg-slate-50 align-middle text-center sticky left-0 z-20 shadow-sm border-b-2 border-slate-300 group"
-                        >
-                          <div className="text-xs uppercase tracking-tight text-blue-900 font-extrabold">{cat.category}</div>
-                          
-                          {/* Badge do Agrupamento */}
-                          <div className="mt-1">
-                            <span className="inline-block px-2 py-0.5 text-[9px] font-bold uppercase rounded-md bg-slate-200 text-slate-700 border border-slate-300">
-                              {groupInfo.name}
-                            </span>
-                          </div>
-
-                          <button
-                            onClick={() => handleOpenEditCategoryModal(cat)}
-                            title="Editar este Indicador e seus Sub-indicadores"
-                            className="opacity-0 group-hover:opacity-100 transition-opacity mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 hover:text-white bg-blue-100 hover:bg-blue-600 px-2 py-0.5 rounded-md shadow-xs"
+                    return (
+                      <tr
+                        key={`${cat.id}_${sub.id}_${subIdx}`}
+                        className={`hover:bg-blue-50/50 transition-colors ${
+                          subIdx === subRowsCount - 1 ? 'border-b-2 border-slate-300' : 'border-b border-slate-200'
+                        }`}
+                      >
+                        {/* Category Label Cell (Span multi rows) */}
+                        {isFirstSub && (
+                          <td
+                            rowSpan={subRowsCount}
+                            className="p-3 border-r border-slate-200 font-bold text-slate-800 bg-slate-50 align-middle text-center sticky left-0 z-20 shadow-sm border-b-2 border-slate-300 group"
                           >
-                            <Edit3 size={11} /> Editar Indicador
-                          </button>
+                            <div className="text-xs uppercase tracking-tight text-blue-900 font-extrabold">{cat.category}</div>
+                            
+                            {/* Badge do Agrupamento */}
+                            <div className="mt-1">
+                              <span className="inline-block px-2 py-0.5 text-[9px] font-bold uppercase rounded-md bg-slate-200 text-slate-700 border border-slate-300">
+                                {groupInfo.name}
+                              </span>
+                            </div>
+
+                            <button
+                              onClick={() => handleOpenEditCategoryModal(cat)}
+                              title="Editar este Indicador e seus Sub-indicadores"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 hover:text-white bg-blue-100 hover:bg-blue-600 px-2 py-0.5 rounded-md shadow-xs"
+                            >
+                              <Edit3 size={11} /> Editar Indicador
+                            </button>
+                          </td>
+                        )}
+
+                        {/* Meta Cell: Meta Individual por Sub-indicador */}
+                        <td className="p-1 border-r border-slate-200 bg-blue-50/60 text-blue-900 font-semibold text-center font-mono text-[11px] align-middle">
+                          {(() => {
+                            if (isPlanoItem(sub)) {
+                              return <span className="text-slate-400 font-medium font-sans text-xs">-</span>
+                            }
+
+                            const displayVal = currentMetaVal.includes('|') && !currentMetaVal.includes('\n')
+                              ? currentMetaVal.split('|').map(s => s.trim()).join('\n')
+                              : currentMetaVal
+
+                            const lineCount = displayVal ? displayVal.split('\n').length : 1
+
+                            return (
+                              <textarea
+                                rows={lineCount}
+                                value={displayVal}
+                                onChange={e => saveCell(metaKey, e.target.value)}
+                                placeholder="Meta"
+                                className={`w-full bg-white/90 hover:bg-white text-slate-900 font-sans font-semibold text-xs rounded-md border border-blue-300 focus:ring-2 focus:ring-blue-600 focus:outline-none px-2.5 py-1.5 shadow-2xs transition-colors resize-none leading-relaxed ${
+                                  lineCount > 1 ? 'text-left font-sans text-[11px]' : 'text-center font-mono font-bold'
+                                }`}
+                              />
+                            )
+                          })()}
                         </td>
-                      )}
 
-                      {/* Meta Cell: Meta Individual por Sub-indicador (1 input/textarea editável por linha com suporte a múltiplas linhas) */}
-                      <td className="p-1 border-r border-slate-200 bg-blue-50/60 text-blue-900 font-semibold text-center font-mono text-[11px] align-middle">
-                        {(() => {
-                          if (isPlanoItem(sub)) {
-                            return <span className="text-slate-400 font-medium font-sans text-xs">-</span>
-                          }
+                        {/* Sub-row Label Cell */}
+                        <td className={`p-2 border-r border-slate-200 pl-3 text-[11px] ${
+                          sub.id === 'plano_acao' 
+                            ? 'bg-amber-50/50 font-bold text-amber-900' 
+                            : 'bg-white font-medium text-slate-700'
+                        }`}>
+                          <div className="flex items-center justify-between gap-1.5 whitespace-nowrap">
+                            <span>{sub.label}</span>
+                            {sub.id === 'plano_acao' && (
+                              <span className="text-[9px] px-1.5 py-0.5 bg-amber-200/80 text-amber-900 rounded font-extrabold uppercase shrink-0">
+                                Ação
+                              </span>
+                            )}
+                          </div>
+                        </td>
 
-                          const displayVal = currentMetaVal.includes('|') && !currentMetaVal.includes('\n')
-                            ? currentMetaVal.split('|').map(s => s.trim()).join('\n')
-                            : currentMetaVal
+                        {/* Days Input Cells */}
+                        {filteredDays.map((d, colIdx) => {
+                          const key = `${cat.id}_${sub.id}_${d.colId}`
+                          const rawVal = data[key] || ''
+                          const isPlanoAcao = sub.id === 'plano_acao'
 
-                          const lineCount = displayVal ? displayVal.split('\n').length : 1
+                          if (isPlanoAcao) {
+                            let hasData = Boolean(rawVal && rawVal.trim() !== '')
+                            let previewText = ''
 
-                          return (
-                            <textarea
-                              rows={lineCount}
-                              value={displayVal}
-                              onChange={e => saveCell(metaKey, e.target.value)}
-                              placeholder="Meta"
-                              className={`w-full bg-white/90 hover:bg-white text-slate-900 font-sans font-semibold text-xs rounded-md border border-blue-300 focus:ring-2 focus:ring-blue-600 focus:outline-none px-2.5 py-1.5 shadow-2xs transition-colors resize-none leading-relaxed ${
-                                lineCount > 1 ? 'text-left font-sans text-[11px]' : 'text-center font-mono font-bold'
-                              }`}
-                            />
-                          )
-                        })()}
-                      </td>
-
-                      {/* Sub-row Label Cell */}
-                      <td className={`p-2 border-r border-slate-200 pl-3 text-[11px] ${
-                        sub.id === 'plano_acao' 
-                          ? 'bg-amber-50/50 font-bold text-amber-900' 
-                          : 'bg-white font-medium text-slate-700'
-                      }`}>
-                        <div className="flex items-center justify-between gap-1.5 whitespace-nowrap">
-                          <span>{sub.label}</span>
-                          {sub.id === 'plano_acao' && (
-                            <span className="text-[9px] px-1.5 py-0.5 bg-amber-200/80 text-amber-900 rounded font-extrabold uppercase shrink-0">
-                              Ação
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Days Input Cells */}
-                      {filteredDays.map((d, colIdx) => {
-                        const key = `${cat.id}_${sub.id}_${d.colId}`
-                        const rawVal = data[key] || ''
-                        const isPlanoAcao = sub.id === 'plano_acao'
-
-                        if (isPlanoAcao) {
-                          let hasData = Boolean(rawVal && rawVal.trim() !== '')
-                          let previewText = ''
-
-                          if (rawVal.startsWith('{')) {
-                            try {
-                              const parsed = JSON.parse(rawVal)
-                              previewText = parsed.planoAcao || parsed.ocorrencias || 'Ação Registrada'
-                              hasData = Boolean(parsed.planoAcao || parsed.ocorrencias)
-                            } catch {
+                            if (rawVal.startsWith('{')) {
+                              try {
+                                const parsed = JSON.parse(rawVal)
+                                previewText = parsed.planoAcao || parsed.ocorrencias || 'Ação Registrada'
+                                hasData = Boolean(parsed.planoAcao || parsed.ocorrencias)
+                              } catch {
+                                previewText = rawVal
+                              }
+                            } else {
                               previewText = rawVal
                             }
-                          } else {
-                            previewText = rawVal
+
+                            return (
+                              <td
+                                key={d.colId}
+                                style={{ width: dateColWidth }}
+                                className={`p-1 border-r border-slate-200 text-center ${
+                                  colIdx % 2 === 0 ? 'bg-slate-50/30' : 'bg-white'
+                                }`}
+                              >
+                                <button
+                                  id={`cell_${currentFlatRowIdx}_${colIdx}`}
+                                  type="button"
+                                  onClick={() => handleOpenActionModal(cat.category, d.date, key)}
+                                  onKeyDown={e => handleKeyDownGrid(e, currentFlatRowIdx, colIdx)}
+                                  title={`Clique para descrever Ocorrência / Plano de Ação de ${cat.category} em ${d.date}`}
+                                  className={`w-full min-h-[30px] px-1.5 py-0.5 rounded-md text-[11px] flex items-center justify-center gap-1 transition-all border ${
+                                    hasData
+                                      ? 'bg-amber-500 text-white border-amber-600 font-semibold shadow-xs hover:bg-amber-600'
+                                      : 'bg-slate-50/50 text-slate-400 border-dashed border-slate-200 font-normal hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300'
+                                  }`}
+                                >
+                                  <ClipboardList size={12} className={`shrink-0 ${hasData ? 'text-white' : 'text-slate-300'}`} />
+                                  <span className="truncate max-w-[70px]">
+                                    {hasData ? 'Ver Ação' : 'Preencher'}
+                                  </span>
+                                </button>
+                              </td>
+                            )
                           }
+
+                          const cellStyleClass = getCellStyleByMeta(rawVal, currentMetaVal)
 
                           return (
                             <td
                               key={d.colId}
                               style={{ width: dateColWidth }}
                               className={`p-1 border-r border-slate-200 text-center ${
-                                colIdx % 2 === 0 ? 'bg-slate-50/30' : 'bg-white'
+                                colIdx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white'
                               }`}
                             >
-                              <button
-                                type="button"
-                                onClick={() => handleOpenActionModal(cat.category, d.date, key)}
-                                title={`Clique para descrever Ocorrência / Plano de Ação de ${cat.category} em ${d.date}`}
-                                className={`w-full min-h-[30px] px-1.5 py-0.5 rounded-md text-[11px] flex items-center justify-center gap-1 transition-all border ${
-                                  hasData
-                                    ? 'bg-amber-500 text-white border-amber-600 font-semibold shadow-xs hover:bg-amber-600'
-                                    : 'bg-slate-50/50 text-slate-400 border-dashed border-slate-200 font-normal hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300'
-                                }`}
-                              >
-                                <ClipboardList size={12} className={`shrink-0 ${hasData ? 'text-white' : 'text-slate-300'}`} />
-                                <span className="truncate max-w-[70px]">
-                                  {hasData ? 'Ver Ação' : 'Preencher'}
-                                </span>
-                              </button>
+                              <input
+                                id={`cell_${currentFlatRowIdx}_${colIdx}`}
+                                type="text"
+                                value={rawVal}
+                                onChange={e => saveCell(key, e.target.value)}
+                                onKeyDown={e => handleKeyDownGrid(e, currentFlatRowIdx, colIdx)}
+                                onBlur={e => handleCellBlur(key, e.target.value, sub.dataType)}
+                                placeholder="-"
+                                className={`w-full h-7 text-center font-mono text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-inset transition-all px-1 ${cellStyleClass}`}
+                              />
                             </td>
                           )
-                        }
-
-                        const cellStyleClass = getCellStyleByMeta(rawVal, currentMetaVal)
-
-                        return (
-                          <td
-                            key={d.colId}
-                            style={{ width: dateColWidth }}
-                            className={`p-1 border-r border-slate-200 text-center ${
-                              colIdx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white'
-                            }`}
-                          >
-                            <input
-                              type="text"
-                              value={rawVal}
-                              onChange={e => saveCell(key, e.target.value)}
-                              onBlur={e => handleCellBlur(key, e.target.value, sub.dataType)}
-                              placeholder="-"
-                              className={`w-full h-7 text-center font-mono text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-inset transition-all px-1 ${cellStyleClass}`}
-                            />
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  )
+                        })}
+                      </tr>
+                    )
+                  })
                 })
-              })}
+              })()}
             </tbody>
           </table>
             )
