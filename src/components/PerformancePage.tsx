@@ -263,6 +263,139 @@ function formatValueByType(val: string, type?: DataType): string {
   }
 }
 
+interface MetaRule {
+  color: 'blue' | 'green' | 'yellow' | 'orange' | 'red'
+  operator: '<=' | '>=' | '<' | '>' | '='
+  value: number
+}
+
+const getCellStyleByMeta = (rawValue: string, metaRaw: string): string => {
+  if (!rawValue || rawValue.trim() === '' || rawValue.trim() === '-') {
+    return 'bg-transparent text-slate-800 font-semibold'
+  }
+
+  if (!metaRaw || metaRaw.trim() === '' || metaRaw.trim() === '-') {
+    return 'bg-transparent text-slate-800 font-semibold'
+  }
+
+  // Extrai valor numérico da célula
+  const numStr = rawValue.replace(/[^0-9,.-]/g, '').replace(',', '.')
+  const cellNum = parseFloat(numStr)
+  if (isNaN(cellNum)) {
+    return 'bg-transparent text-slate-800 font-semibold'
+  }
+
+  const lines = metaRaw.split('\n').map(l => l.trim()).filter(Boolean)
+  const parsedRules: MetaRule[] = []
+
+  lines.forEach(line => {
+    // Detecta cor baseada em emoji ou palavras-chave
+    let color: 'blue' | 'green' | 'yellow' | 'orange' | 'red' | null = null
+    if (line.includes('🔵') || line.toLowerCase().includes('consolidação') || line.toLowerCase().includes('azul')) {
+      color = 'blue'
+    } else if (line.includes('🟢') || line.toLowerCase().includes('excelência') || line.toLowerCase().includes('verde')) {
+      color = 'green'
+    } else if (line.includes('🟡') || line.toLowerCase().includes('alavancagem') || line.toLowerCase().includes('amarelo')) {
+      color = 'yellow'
+    } else if (line.includes('🟠') || line.toLowerCase().includes('laranja')) {
+      color = 'orange'
+    } else if (line.includes('🔴') || line.toLowerCase().includes('crítico') || line.toLowerCase().includes('vermelho')) {
+      color = 'red'
+    }
+
+    // Detecta operador explícito (<, <=, >, >=, =)
+    let operator: '<=' | '>=' | '<' | '>' | '=' | null = null
+    if (line.includes('<=')) operator = '<='
+    else if (line.includes('>=')) operator = '>='
+    else if (line.includes('<')) operator = '<'
+    else if (line.includes('>')) operator = '>'
+    else if (line.includes('=')) operator = '='
+
+    // Extrai o valor de corte de cada linha da meta
+    const cleanLine = line.replace(/[🔵🟢🟡🟠🔴]/g, '')
+    const match = cleanLine.match(/[-+]?\d+([.,]\d+)?/)
+    if (match) {
+      const val = parseFloat(match[0].replace(',', '.'))
+      if (!isNaN(val) && color) {
+        parsedRules.push({
+          color,
+          operator: operator || '>=',
+          value: val
+        })
+      }
+    }
+  })
+
+  // Se não houver regras multi-linhas com cores (ex: Meta simples "95%" ou "<1,5%"):
+  if (parsedRules.length === 0) {
+    const isLessThan = metaRaw.includes('<')
+    const match = metaRaw.match(/[-+]?\d+([.,]\d+)?/)
+    if (match) {
+      const targetVal = parseFloat(match[0].replace(',', '.'))
+      if (!isNaN(targetVal)) {
+        if (isLessThan) {
+          if (cellNum < targetVal) return 'bg-emerald-100/90 text-emerald-950 font-bold border border-emerald-300 shadow-2xs'
+          return 'bg-rose-100/90 text-rose-950 font-bold border border-rose-300 shadow-2xs'
+        } else {
+          if (cellNum >= targetVal) return 'bg-emerald-100/90 text-emerald-950 font-bold border border-emerald-300 shadow-2xs'
+          return 'bg-rose-100/90 text-rose-950 font-bold border border-rose-300 shadow-2xs'
+        }
+      }
+    }
+    return 'bg-transparent text-slate-800 font-semibold'
+  }
+
+  // Verifica se as regras estão ordenadas de forma decrescente (ex: 97%, 96%, 94.5%)
+  const isDescending = parsedRules.length > 1 && parsedRules[0].value > parsedRules[parsedRules.length - 1].value
+
+  for (let i = 0; i < parsedRules.length; i++) {
+    const r = parsedRules[i]
+    let matched = false
+
+    if (r.operator === '=') {
+      matched = Math.abs(cellNum - r.value) < 0.001
+    } else if (r.operator === '<') {
+      matched = cellNum < r.value
+    } else if (r.operator === '<=') {
+      matched = cellNum <= r.value
+    } else if (r.operator === '>') {
+      matched = cellNum > r.value
+    } else {
+      if (isDescending) {
+        if (i === parsedRules.length - 1 && cellNum < parsedRules[i - 1].value) {
+          matched = true
+        } else {
+          matched = cellNum >= r.value
+        }
+      } else {
+        matched = cellNum >= r.value
+      }
+    }
+
+    if (matched) {
+      switch (r.color) {
+        case 'blue':
+          return 'bg-blue-100/90 text-blue-950 font-bold border border-blue-300 shadow-2xs'
+        case 'green':
+          return 'bg-emerald-100/90 text-emerald-950 font-bold border border-emerald-300 shadow-2xs'
+        case 'yellow':
+          return 'bg-amber-100/90 text-amber-950 font-bold border border-amber-300 shadow-2xs'
+        case 'orange':
+          return 'bg-orange-100/90 text-orange-950 font-bold border border-orange-300 shadow-2xs'
+        case 'red':
+          return 'bg-rose-100/90 text-rose-950 font-bold border border-rose-300 shadow-2xs'
+      }
+    }
+  }
+
+  const lastColor = parsedRules[parsedRules.length - 1].color
+  if (lastColor === 'red') {
+    return 'bg-rose-100/90 text-rose-950 font-bold border border-rose-300 shadow-2xs'
+  }
+
+  return 'bg-transparent text-slate-800 font-semibold'
+}
+
 export const PerformancePage: React.FC = () => {
   const [groupsList, setGroupsList] = useState<GroupInfo[]>(() => {
     const saved = localStorage.getItem('magalog_custom_groups')
@@ -970,33 +1103,38 @@ export const PerformancePage: React.FC = () => {
             Todos ({categories.length})
           </button>
 
-          {groupsList.map(group => {
-            const count = categories.filter(c => c.groupId === group.id).length
-            const isActive = selectedGroupFilters.includes(group.id)
-            return (
-              <button
-                key={group.id}
-                type="button"
-                onClick={() => toggleGroupFilter(group.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                  isActive
-                    ? `${group.color} shadow-sm ring-2 ring-offset-1 ring-blue-500 font-bold`
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 opacity-80 hover:opacity-100'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={isActive}
-                  readOnly
-                  className="rounded text-blue-600 focus:ring-0 pointer-events-none w-3.5 h-3.5"
-                />
-                <span>{group.name}</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>
-                  {count}
-                </span>
-              </button>
-            )
-          })}
+          {groupsList
+            .filter(group => {
+              const count = categories.filter(c => c.groupId === group.id).length
+              return count > 0 || selectedGroupFilters.includes(group.id)
+            })
+            .map(group => {
+              const count = categories.filter(c => c.groupId === group.id).length
+              const isActive = selectedGroupFilters.includes(group.id)
+              return (
+                <button
+                  key={group.id}
+                  type="button"
+                  onClick={() => toggleGroupFilter(group.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                    isActive
+                      ? `${group.color} shadow-sm ring-2 ring-offset-1 ring-blue-500 font-bold`
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 opacity-80 hover:opacity-100'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    readOnly
+                    className="rounded text-blue-600 focus:ring-0 pointer-events-none w-3.5 h-3.5"
+                  />
+                  <span>{group.name}</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                    {count}
+                  </span>
+                </button>
+              )
+            })}
         </div>
 
         {/* Nível 2 e 3: Multi-Select Popovers Alinhados com as Colunas da Tabela */}
@@ -1380,6 +1518,19 @@ export const PerformancePage: React.FC = () => {
                 return sortedSubRows.map((sub, subIdx) => {
                   const isFirstSub = subIdx === 0
 
+                  const metaKey = `meta_${cat.id}_${sub.id}`
+                  let currentMetaVal = data[metaKey]
+
+                  if (currentMetaVal === undefined) {
+                    if (sub.metaDefault !== undefined && sub.metaDefault !== '') {
+                      currentMetaVal = sub.metaDefault
+                    } else if (cat.metaGroupDefault && cat.metaGroupDefault.length > 0) {
+                      currentMetaVal = cat.metaGroupDefault[subIdx] || cat.metaGroupDefault.join('\n')
+                    } else {
+                      currentMetaVal = ''
+                    }
+                  }
+
                   return (
                     <tr
                       key={`${cat.id}_${sub.id}_${subIdx}`}
@@ -1418,22 +1569,10 @@ export const PerformancePage: React.FC = () => {
                           if (isPlanoItem(sub)) {
                             return <span className="text-slate-400 font-medium font-sans text-xs">-</span>
                           }
-                          const metaKey = `meta_${cat.id}_${sub.id}`
-                          let rawVal = data[metaKey]
 
-                          if (rawVal === undefined) {
-                            if (sub.metaDefault !== undefined && sub.metaDefault !== '') {
-                              rawVal = sub.metaDefault
-                            } else if (cat.metaGroupDefault && cat.metaGroupDefault.length > 0) {
-                              rawVal = cat.metaGroupDefault[subIdx] || cat.metaGroupDefault.join('\n')
-                            } else {
-                              rawVal = ''
-                            }
-                          }
-
-                          const displayVal = rawVal.includes('|') && !rawVal.includes('\n')
-                            ? rawVal.split('|').map(s => s.trim()).join('\n')
-                            : rawVal
+                          const displayVal = currentMetaVal.includes('|') && !currentMetaVal.includes('\n')
+                            ? currentMetaVal.split('|').map(s => s.trim()).join('\n')
+                            : currentMetaVal
 
                           const lineCount = displayVal ? displayVal.split('\n').length : 1
 
@@ -1516,11 +1655,13 @@ export const PerformancePage: React.FC = () => {
                           )
                         }
 
+                        const cellStyleClass = getCellStyleByMeta(rawVal, currentMetaVal)
+
                         return (
                           <td
                             key={d.colId}
                             style={{ width: dateColWidth }}
-                            className={`p-0 border-r border-slate-200 text-center ${
+                            className={`p-1 border-r border-slate-200 text-center ${
                               colIdx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white'
                             }`}
                           >
@@ -1530,7 +1671,7 @@ export const PerformancePage: React.FC = () => {
                               onChange={e => saveCell(key, e.target.value)}
                               onBlur={e => handleCellBlur(key, e.target.value, sub.dataType)}
                               placeholder="-"
-                              className="w-full h-8 text-center bg-transparent text-slate-800 font-mono text-xs font-semibold focus:bg-blue-100/80 focus:text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-inset border-none transition-colors px-1"
+                              className={`w-full h-7 text-center font-mono text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-inset transition-all px-1 ${cellStyleClass}`}
                             />
                           </td>
                         )
