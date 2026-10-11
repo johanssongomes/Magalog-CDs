@@ -1560,6 +1560,7 @@ export const PerformancePage: React.FC = () => {
                   <col style={{ width: '180px' }} />
                   <col style={{ width: '260px' }} />
                   <col style={{ width: '180px' }} />
+                  <col style={{ width: '110px' }} />
                   {filteredDays.map(d => (
                     <col key={d.colId} style={{ width: dateColWidth }} />
                   ))}
@@ -1575,6 +1576,9 @@ export const PerformancePage: React.FC = () => {
                     </th>
                     <th style={{ width: '180px' }} className="p-2 border-r border-slate-700 text-center font-bold bg-slate-900">
                       Sub-indicador
+                    </th>
+                    <th style={{ width: '110px' }} className="p-2 border-r border-slate-700 text-center font-bold bg-indigo-950 text-indigo-100 shadow-2xs">
+                      Acumulado
                     </th>
                     {filteredDays.map((d) => {
                       const isWeekend = d.day === 'Sábado' || d.day === 'Domingo'
@@ -1698,6 +1702,70 @@ export const PerformancePage: React.FC = () => {
                             )}
                           </div>
                         </td>
+
+                        {/* Coluna Acumulado */}
+                        {(() => {
+                          const acumKey = `acum_${cat.id}_${sub.id}`
+                          const isPlano = isPlanoItem(sub)
+                          if (isPlano) {
+                            return (
+                              <td className="p-1 border-r border-slate-200 bg-slate-50/60 text-center font-mono text-xs text-slate-400">
+                                -
+                              </td>
+                            )
+                          }
+
+                          // Cálculo automático com base nos dias com preenchimento
+                          const numericValues: number[] = []
+                          DAYS_HEADER.forEach(d => {
+                            const dayVal = data[`${cat.id}_${sub.id}_${d.colId}`]
+                            if (dayVal && dayVal.trim() !== '' && dayVal.trim() !== '-') {
+                              const cleaned = dayVal.replace(/[^0-9,.-]/g, '').replace(',', '.')
+                              const n = parseFloat(cleaned)
+                              if (!isNaN(n)) {
+                                numericValues.push(n)
+                              }
+                            }
+                          })
+
+                          let calculatedAccum = ''
+                          if (numericValues.length > 0) {
+                            if (sub.dataType === 'percentage') {
+                              // Média para porcentagens
+                              const avg = numericValues.reduce((a, b) => a + b, 0) / numericValues.length
+                              calculatedAccum = `${avg.toFixed(2).replace('.', ',')}%`
+                            } else {
+                              // Soma para números, moedas e decimais
+                              const sum = numericValues.reduce((a, b) => a + b, 0)
+                              if (sub.dataType === 'currency') {
+                                calculatedAccum = `R$ ${sum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                              } else if (sub.dataType === 'decimal') {
+                                calculatedAccum = sum.toFixed(2).replace('.', ',')
+                              } else {
+                                calculatedAccum = sum.toLocaleString('pt-BR')
+                              }
+                            }
+                          }
+
+                          const finalAcumVal = data[acumKey] !== undefined && data[acumKey] !== '' ? data[acumKey] : calculatedAccum
+                          const acumStyleClass = getCellStyleByMeta(finalAcumVal, currentMetaVal)
+
+                          return (
+                            <td className="p-1 border-r border-slate-200 bg-indigo-50/40 text-center">
+                              <input
+                                type="text"
+                                value={finalAcumVal}
+                                onChange={e => saveCell(acumKey, e.target.value)}
+                                onBlur={e => handleCellBlur(acumKey, e.target.value, sub.dataType)}
+                                placeholder="-"
+                                title="Acumulado (calculado automaticamente com base nos dias preenchidos ou editável manualmente)"
+                                className={`w-full h-7 text-center font-mono text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-inset transition-all px-1 rounded-xs ${
+                                  data[acumKey] ? 'bg-indigo-100/70 border border-indigo-300' : ''
+                                } ${acumStyleClass}`}
+                              />
+                            </td>
+                          )
+                        })()}
 
                         {/* Days Input Cells */}
                         {filteredDays.map((d, colIdx) => {
