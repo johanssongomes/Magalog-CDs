@@ -50,20 +50,20 @@ export const navItems: NavItem[] = [
   },
   {
     id: 'inventory',
-    label: 'Estoque',
-    description: 'Página em branco 3 - Controle de Estoque e Produtos',
+    label: 'Em Construção 1',
+    description: 'Página em construção 1',
     icon: <Package size={20} />
   },
   {
     id: 'reports',
-    label: 'Relatórios',
-    description: 'Página em branco 4 - Análise e Estatísticas',
+    label: 'Em Construção 2',
+    description: 'Página em construção 2',
     icon: <BarChart3 size={20} />
   },
   {
     id: 'settings',
-    label: 'Configurações',
-    description: 'Página em branco 5 - Configurações do Sistema',
+    label: 'Em Construção 3',
+    description: 'Página em construção 3',
     icon: <Settings size={20} />
   }
 ]
