@@ -3,7 +3,7 @@ import {
   Save, CheckCircle2, FileSpreadsheet, Server, Plus, Trash2, X, Edit3, 
   Filter, ChevronRight, ClipboardList, AlertTriangle, Calendar, FileText,
   Bold, Italic, List, ListOrdered, CheckSquare, Maximize2, Minimize2, User, Clock, Flag, Tag, HelpCircle, Type,
-  ChevronUp, ChevronDown
+  ChevronUp, ChevronDown, Target
 } from 'lucide-react'
 
 
@@ -215,19 +215,41 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
 
 const WEEKDAYS_PT = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
-// Gerar dinamicamente todos os 31 dias de Outubro de 2026
-const DAYS_HEADER = Array.from({ length: 31 }, (_, i) => {
-  const dayNum = i + 1
-  const dateObj = new Date(2026, 9, dayNum) // Outubro = mês index 9
-  const dayName = WEEKDAYS_PT[dateObj.getDay()]
-  const dateStr = `${dayNum.toString().padStart(2, '0')}/out`
-  return {
-    day: dayName,
-    date: dateStr,
-    colId: dateStr,
-    dayNum
-  }
-})
+export const MONTHS_OPTIONS = [
+  { id: '2026-01', label: 'Janeiro 2026', short: 'jan', year: 2026, monthIdx: 0 },
+  { id: '2026-02', label: 'Fevereiro 2026', short: 'fev', year: 2026, monthIdx: 1 },
+  { id: '2026-03', label: 'Março 2026', short: 'mar', year: 2026, monthIdx: 2 },
+  { id: '2026-04', label: 'Abril 2026', short: 'abr', year: 2026, monthIdx: 3 },
+  { id: '2026-05', label: 'Maio 2026', short: 'mai', year: 2026, monthIdx: 4 },
+  { id: '2026-06', label: 'Junho 2026', short: 'jun', year: 2026, monthIdx: 5 },
+  { id: '2026-07', label: 'Julho 2026', short: 'jul', year: 2026, monthIdx: 6 },
+  { id: '2026-08', label: 'Agosto 2026', short: 'ago', year: 2026, monthIdx: 7 },
+  { id: '2026-09', label: 'Setembro 2026', short: 'set', year: 2026, monthIdx: 8 },
+  { id: '2026-10', label: 'Outubro 2026', short: 'out', year: 2026, monthIdx: 9 },
+  { id: '2026-11', label: 'Novembro 2026', short: 'nov', year: 2026, monthIdx: 10 },
+  { id: '2026-12', label: 'Dezembro 2026', short: 'dez', year: 2026, monthIdx: 11 },
+]
+
+export function getDaysForMonth(monthId: string) {
+  const m = MONTHS_OPTIONS.find(item => item.id === monthId) || MONTHS_OPTIONS[9]
+  const totalDays = new Date(m.year, m.monthIdx + 1, 0).getDate()
+  return Array.from({ length: totalDays }, (_, i) => {
+    const dayNum = i + 1
+    const dateObj = new Date(m.year, m.monthIdx, dayNum)
+    const dayName = WEEKDAYS_PT[dateObj.getDay()]
+    const dateStr = `${dayNum.toString().padStart(2, '0')}/${m.short}`
+    const fullDateIso = `${m.year}-${(m.monthIdx + 1).toString().padStart(2, '0')}-${dayNum.toString().padStart(2, '0')}`
+    return {
+      day: dayName,
+      date: dateStr,
+      colId: dateStr,
+      dayNum,
+      fullDateIso
+    }
+  })
+}
+
+const DAYS_HEADER = getDaysForMonth('2026-10')
 
 import { supabase } from '../lib/supabase'
 
@@ -435,6 +457,11 @@ export const PerformancePage: React.FC = () => {
     return DEFAULT_CATEGORIES
   })
 
+  // Mês Selecionado para Visualização e Lançamento de Metas (Padrão: Outubro 2026)
+  const [selectedMonth, setSelectedMonth] = useState<string>('2026-10')
+  const [isMetasModalOpen, setIsMetasModalOpen] = useState(false)
+  const [metasModalMonth, setMetasModalMonth] = useState<string>('2026-10')
+
   // Filtro Nível 1: Agrupamentos Selecionados ([] = Todos)
   const [selectedGroupFilters, setSelectedGroupFilters] = useState<GroupType[]>([])
 
@@ -450,14 +477,16 @@ export const PerformancePage: React.FC = () => {
   const [endDateFilter, setEndDateFilter] = useState<string>('')
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false)
 
+  const currentMonthDays = getDaysForMonth(selectedMonth)
+
   const toggleDateFilter = (colId: string) => {
     setSelectedDateFilters(prev =>
       prev.includes(colId) ? prev.filter(d => d !== colId) : [...prev, colId]
     )
   }
 
-  // Datas filtradas para as colunas da tabela
-  const filteredDays = DAYS_HEADER.filter(d => {
+  // Datas filtradas para as colunas da tabela de acordo com o mês selecionado
+  const filteredDays = currentMonthDays.filter(d => {
     // Se houver datas específicas selecionadas por chips
     if (selectedDateFilters.length > 0) {
       if (!selectedDateFilters.includes(d.colId)) return false
@@ -465,8 +494,7 @@ export const PerformancePage: React.FC = () => {
 
     // Se houver faixa de data (De / Até)
     if (startDateFilter || endDateFilter) {
-      // Data da coluna no formato '2026-10-DD'
-      const colDateStr = `2026-10-${d.dayNum.toString().padStart(2, '0')}`
+      const colDateStr = d.fullDateIso
 
       if (startDateFilter && colDateStr < startDateFilter) {
         return false
@@ -1157,6 +1185,17 @@ export const PerformancePage: React.FC = () => {
           )}
 
           <button
+            onClick={() => {
+              setMetasModalMonth(selectedMonth)
+              setIsMetasModalOpen(true)
+            }}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-all shadow-xs"
+          >
+            <Target size={15} />
+            Cadastrar Metas por Mês
+          </button>
+
+          <button
             onClick={handleOpenCreateModal}
             className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-all"
           >
@@ -1229,10 +1268,32 @@ export const PerformancePage: React.FC = () => {
         </div>
 
         {/* Nível 2 e 3: Multi-Select Popovers Alinhados com as Colunas da Tabela */}
-        <div className="p-2.5 bg-slate-50/70 rounded-b-xl flex items-center gap-2 relative">
+        <div className="p-2.5 bg-slate-50/70 rounded-b-xl flex flex-wrap items-center gap-2 relative">
           <div className="flex items-center gap-1 text-xs font-bold text-slate-700 shrink-0 w-44">
             <ChevronRight size={14} className="text-blue-600" />
-            <span>Sub-filtros (Múltipla Seleção):</span>
+            <span>Filtros Operacionais:</span>
+          </div>
+
+          {/* Seletor do Mês Ativo da Tabela */}
+          <div className="relative shrink-0 flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-lg border border-indigo-300 shadow-2xs">
+            <Calendar size={13} className="text-indigo-600 shrink-0" />
+            <span className="text-[10px] font-extrabold uppercase text-slate-500">Mês:</span>
+            <select
+              value={selectedMonth}
+              onChange={e => {
+                setSelectedMonth(e.target.value)
+                setSelectedDateFilters([])
+                setStartDateFilter('')
+                setEndDateFilter('')
+              }}
+              className="bg-transparent text-xs font-bold text-indigo-950 focus:outline-none cursor-pointer pr-1"
+            >
+              {MONTHS_OPTIONS.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Dropdown Multi-Select 1: Indicador (Largura Alinhada com a Coluna 1 da Tabela: w-48 / 12rem) */}
@@ -1422,7 +1483,7 @@ export const PerformancePage: React.FC = () => {
                   {startDateFilter || endDateFilter
                     ? `${startDateFilter ? startDateFilter.split('-').reverse().slice(0,2).join('/') : 'Início'} à ${endDateFilter ? endDateFilter.split('-').reverse().slice(0,2).join('/') : 'Fim'}`
                     : selectedDateFilters.length === 0
-                      ? `Todas as Datas (${DAYS_HEADER.length})`
+                      ? `Todas as Datas (${currentMonthDays.length})`
                       : `${selectedDateFilters.length} dia(s)`}
                 </span>
               </div>
@@ -1500,14 +1561,14 @@ export const PerformancePage: React.FC = () => {
                     }}
                     className="rounded text-amber-600 focus:ring-amber-500 pointer-events-none"
                   />
-                  <span>Exibir Todos os Dias ({DAYS_HEADER.length})</span>
+                  <span>Exibir Todos os Dias ({currentMonthDays.length})</span>
                 </div>
 
                 {/* Seleção Rápida por Chips de Dias */}
                 <div className="space-y-1">
                   <span className="block text-[10px] font-bold text-slate-400 uppercase">Seleção Rápida por Dia:</span>
                   <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto pr-1">
-                    {DAYS_HEADER.map((d) => {
+                    {currentMonthDays.map((d) => {
                       const isChecked = selectedDateFilters.includes(d.colId)
                       const isWeekend = d.day === 'Sábado' || d.day === 'Domingo'
                       return (
@@ -1572,7 +1633,20 @@ export const PerformancePage: React.FC = () => {
                       Indicador
                     </th>
                     <th style={{ width: '260px' }} className="p-2 border-r border-slate-700 text-center font-bold bg-blue-950 text-blue-100">
-                      Meta (Editável)
+                      <div className="flex items-center justify-center gap-1.5">
+                        <span>Meta ({MONTHS_OPTIONS.find(m => m.id === selectedMonth)?.short.toUpperCase() || 'MÊS'})</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMetasModalMonth(selectedMonth)
+                            setIsMetasModalOpen(true)
+                          }}
+                          title="Cadastrar / Editar Metas deste Mês"
+                          className="px-1.5 py-0.5 rounded text-[9px] font-sans font-bold bg-blue-600/70 hover:bg-blue-500 text-white transition-colors"
+                        >
+                          Configurar
+                        </button>
+                      </div>
                     </th>
                     <th style={{ width: '180px' }} className="p-2 border-r border-slate-700 text-center font-bold bg-slate-900">
                       Sub-indicador
@@ -1583,7 +1657,7 @@ export const PerformancePage: React.FC = () => {
                           Acumulado
                         </span>
                         <span className="inline-block px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-indigo-500/30 text-indigo-200 border border-indigo-400/40">
-                          Total Mês
+                          {MONTHS_OPTIONS.find(m => m.id === selectedMonth)?.short.toUpperCase() || 'MÊS'}
                         </span>
                       </div>
                     </th>
@@ -1622,8 +1696,9 @@ export const PerformancePage: React.FC = () => {
                     const isFirstSub = subIdx === 0
                     const currentFlatRowIdx = globalRowCounter++
 
-                    const metaKey = `meta_${cat.id}_${sub.id}`
-                    let currentMetaVal = data[metaKey]
+                    const monthMetaKey = `meta_${selectedMonth}_${cat.id}_${sub.id}`
+                    const legacyMetaKey = `meta_${cat.id}_${sub.id}`
+                    let currentMetaVal = data[monthMetaKey] !== undefined ? data[monthMetaKey] : data[legacyMetaKey]
 
                     if (currentMetaVal === undefined) {
                       if (sub.metaDefault !== undefined && sub.metaDefault !== '') {
@@ -1667,7 +1742,7 @@ export const PerformancePage: React.FC = () => {
                           </td>
                         )}
 
-                        {/* Meta Cell: Meta Individual por Sub-indicador */}
+                        {/* Meta Cell: Meta Individual por Sub-indicador (por Mês) */}
                         <td className="p-1 border-r border-slate-200 bg-blue-50/60 text-blue-900 font-semibold text-center font-mono text-[11px] align-middle">
                           {(() => {
                             if (isPlanoItem(sub)) {
@@ -1684,8 +1759,9 @@ export const PerformancePage: React.FC = () => {
                               <textarea
                                 rows={lineCount}
                                 value={displayVal}
-                                onChange={e => saveCell(metaKey, e.target.value)}
-                                placeholder="Meta"
+                                onChange={e => saveCell(monthMetaKey, e.target.value)}
+                                placeholder="Meta deste mês"
+                                title={`Meta de ${sub.label} para ${MONTHS_OPTIONS.find(m => m.id === selectedMonth)?.label}`}
                                 className={`w-full bg-white/90 hover:bg-white text-slate-900 font-sans font-semibold text-xs rounded-md border border-blue-300 focus:ring-2 focus:ring-blue-600 focus:outline-none px-2.5 py-1.5 shadow-2xs transition-colors resize-none leading-relaxed ${
                                   lineCount > 1 ? 'text-left font-sans text-[11px]' : 'text-center font-mono font-bold'
                                 }`}
@@ -1710,9 +1786,10 @@ export const PerformancePage: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Coluna Acumulado (Diferenciada com destaque e borda) */}
+                        {/* Coluna Acumulado (Diferenciada com destaque e borda por Mês) */}
                         {(() => {
-                          const acumKey = `acum_${cat.id}_${sub.id}`
+                          const acumKey = `acum_${selectedMonth}_${cat.id}_${sub.id}`
+                          const legacyAcumKey = `acum_${cat.id}_${sub.id}`
                           const isPlano = isPlanoItem(sub)
                           if (isPlano) {
                             return (
@@ -1722,7 +1799,7 @@ export const PerformancePage: React.FC = () => {
                             )
                           }
 
-                          const rawAcumVal = data[acumKey] || ''
+                          const rawAcumVal = data[acumKey] !== undefined ? data[acumKey] : (data[legacyAcumKey] || '')
                           const acumStyleClass = getCellStyleByMeta(rawAcumVal, currentMetaVal)
                           const hasMetaColor = acumStyleClass && !acumStyleClass.includes('bg-transparent')
 
@@ -1830,6 +1907,164 @@ export const PerformancePage: React.FC = () => {
           })()}
         </div>
       </div>
+
+      {/* Modal para Cadastro e Configuração de Metas por Mês */}
+      {isMetasModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl p-6 space-y-5 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Target size={18} className="text-indigo-600" />
+                  Cadastrar Metas por Mês
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Defina as metas específicas para cada indicador e sub-indicador no mês selecionado.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsMetasModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Seleção do Mês no Modal e Ações Rápidas */}
+            <div className="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-100 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <Calendar size={16} className="text-indigo-600 shrink-0" />
+                <label className="text-xs font-bold text-indigo-950">Mês de Referência das Metas:</label>
+                <select
+                  value={metasModalMonth}
+                  onChange={e => setMetasModalMonth(e.target.value)}
+                  className="bg-white px-3 py-1.5 rounded-lg text-xs font-bold text-indigo-900 border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-2xs"
+                >
+                  {MONTHS_OPTIONS.map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Copiar metas do mês anterior
+                    const currentIdx = MONTHS_OPTIONS.findIndex(m => m.id === metasModalMonth)
+                    if (currentIdx > 0) {
+                      const prevMonth = MONTHS_OPTIONS[currentIdx - 1]
+                      categories.forEach(cat => {
+                        cat.subRows.forEach(sub => {
+                          if (isPlanoItem(sub)) return
+                          const prevKey = `meta_${prevMonth.id}_${cat.id}_${sub.id}`
+                          const legacyKey = `meta_${cat.id}_${sub.id}`
+                          const val = data[prevKey] !== undefined ? data[prevKey] : data[legacyKey]
+                          if (val !== undefined && val !== '') {
+                            saveCell(`meta_${metasModalMonth}_${cat.id}_${sub.id}`, val)
+                          }
+                        })
+                      })
+                      alert(`Metas copiadas de ${prevMonth.label} para ${MONTHS_OPTIONS[currentIdx].label}!`)
+                    } else {
+                      alert('Não há mês anterior disponível nesta lista para copiar.')
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold text-indigo-700 bg-white hover:bg-indigo-100 border border-indigo-300 transition-colors shadow-2xs flex items-center gap-1.5"
+                  title="Copia os valores das metas registradas no mês imediatamente anterior"
+                >
+                  <FileText size={13} />
+                  Copiar do mês anterior
+                </button>
+              </div>
+            </div>
+
+            {/* Listagem de Indicadores e Campos de Meta */}
+            <div className="space-y-4">
+              {categories.map(cat => {
+                const nonPlanoSubRows = cat.subRows.filter(s => !isPlanoItem(s))
+                if (nonPlanoSubRows.length === 0) return null
+                const groupInfo = groupsList.find(g => g.id === cat.groupId) || groupsList[0] || DEFAULT_GROUPS[4]
+
+                return (
+                  <div key={cat.id} className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50">
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-800 uppercase tracking-tight">
+                          {cat.category}
+                        </span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-200 text-slate-700">
+                          {groupInfo.name}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {nonPlanoSubRows.length} sub-indicador(es)
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {nonPlanoSubRows.map((sub, sIdx) => {
+                        const monthMetaKey = `meta_${metasModalMonth}_${cat.id}_${sub.id}`
+                        const legacyMetaKey = `meta_${cat.id}_${sub.id}`
+                        let val = data[monthMetaKey] !== undefined ? data[monthMetaKey] : data[legacyMetaKey]
+
+                        if (val === undefined) {
+                          if (sub.metaDefault !== undefined && sub.metaDefault !== '') {
+                            val = sub.metaDefault
+                          } else if (cat.metaGroupDefault && cat.metaGroupDefault.length > 0) {
+                            val = cat.metaGroupDefault[sIdx] || cat.metaGroupDefault.join('\n')
+                          } else {
+                            val = ''
+                          }
+                        }
+
+                        return (
+                          <div key={sub.id} className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs space-y-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-slate-700 truncate pr-2">
+                                {sub.label}
+                              </label>
+                              <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-mono font-semibold">
+                                {sub.dataType || 'padrão'}
+                              </span>
+                            </div>
+                            <textarea
+                              rows={val.includes('\n') ? 3 : 2}
+                              value={val}
+                              onChange={e => saveCell(monthMetaKey, e.target.value)}
+                              placeholder="Ex: >= 98% ou faixas em linhas..."
+                              className="w-full text-xs font-mono font-bold text-slate-800 bg-slate-50 focus:bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md p-2 resize-none transition-colors"
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+              <span className="text-xs text-slate-500 font-medium">
+                💡 As alterações são salvas e sincronizadas automaticamente no banco de dados.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedMonth(metasModalMonth)
+                  setIsMetasModalOpen(false)
+                }}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 transition-all flex items-center gap-1.5"
+              >
+                <CheckCircle2 size={15} />
+                Concluir e Exibir na Tabela
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Elegante e Completo para Criar ou Editar Indicador, Agrupamento e seus Sub-indicadores */}
       {isModalOpen && (
