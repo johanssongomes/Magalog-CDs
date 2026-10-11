@@ -958,21 +958,7 @@ export const EquipmentsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Unidade (CD)</label>
-                  <select
-                    value={formUnit}
-                    onChange={e => setFormUnit(e.target.value)}
-                    className="w-full px-2 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                  >
-                    <option value="CD Louveira">CD Louveira</option>
-                    <option value="CD Cabreúva">CD Cabreúva</option>
-                    <option value="CD Extrema">CD Extrema</option>
-                    <option value="CD Alhandra">CD Alhandra</option>
-                  </select>
-                </div>
-
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
                   <select
