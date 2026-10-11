@@ -1703,7 +1703,7 @@ export const PerformancePage: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Coluna Acumulado */}
+                        {/* Coluna Acumulado (Preenchimento Manual) */}
                         {(() => {
                           const acumKey = `acum_${cat.id}_${sub.id}`
                           const isPlano = isPlanoItem(sub)
@@ -1715,53 +1715,19 @@ export const PerformancePage: React.FC = () => {
                             )
                           }
 
-                          // Cálculo automático com base nos dias com preenchimento
-                          const numericValues: number[] = []
-                          DAYS_HEADER.forEach(d => {
-                            const dayVal = data[`${cat.id}_${sub.id}_${d.colId}`]
-                            if (dayVal && dayVal.trim() !== '' && dayVal.trim() !== '-') {
-                              const cleaned = dayVal.replace(/[^0-9,.-]/g, '').replace(',', '.')
-                              const n = parseFloat(cleaned)
-                              if (!isNaN(n)) {
-                                numericValues.push(n)
-                              }
-                            }
-                          })
-
-                          let calculatedAccum = ''
-                          if (numericValues.length > 0) {
-                            if (sub.dataType === 'percentage') {
-                              // Média para porcentagens
-                              const avg = numericValues.reduce((a, b) => a + b, 0) / numericValues.length
-                              calculatedAccum = `${avg.toFixed(2).replace('.', ',')}%`
-                            } else {
-                              // Soma para números, moedas e decimais
-                              const sum = numericValues.reduce((a, b) => a + b, 0)
-                              if (sub.dataType === 'currency') {
-                                calculatedAccum = `R$ ${sum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                              } else if (sub.dataType === 'decimal') {
-                                calculatedAccum = sum.toFixed(2).replace('.', ',')
-                              } else {
-                                calculatedAccum = sum.toLocaleString('pt-BR')
-                              }
-                            }
-                          }
-
-                          const finalAcumVal = data[acumKey] !== undefined && data[acumKey] !== '' ? data[acumKey] : calculatedAccum
-                          const acumStyleClass = getCellStyleByMeta(finalAcumVal, currentMetaVal)
+                          const rawAcumVal = data[acumKey] || ''
+                          const acumStyleClass = getCellStyleByMeta(rawAcumVal, currentMetaVal)
 
                           return (
-                            <td className="p-1 border-r border-slate-200 bg-indigo-50/40 text-center">
+                            <td className="p-1 border-r border-slate-200 bg-white text-center">
                               <input
                                 type="text"
-                                value={finalAcumVal}
+                                value={rawAcumVal}
                                 onChange={e => saveCell(acumKey, e.target.value)}
                                 onBlur={e => handleCellBlur(acumKey, e.target.value, sub.dataType)}
                                 placeholder="-"
-                                title="Acumulado (calculado automaticamente com base nos dias preenchidos ou editável manualmente)"
-                                className={`w-full h-7 text-center font-mono text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-inset transition-all px-1 rounded-xs ${
-                                  data[acumKey] ? 'bg-indigo-100/70 border border-indigo-300' : ''
-                                } ${acumStyleClass}`}
+                                title="Acumulado"
+                                className={`w-full h-7 text-center font-mono text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-inset transition-all px-1 ${acumStyleClass}`}
                               />
                             </td>
                           )
