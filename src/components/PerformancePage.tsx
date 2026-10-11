@@ -1577,8 +1577,15 @@ export const PerformancePage: React.FC = () => {
                     <th style={{ width: '180px' }} className="p-2 border-r border-slate-700 text-center font-bold bg-slate-900">
                       Sub-indicador
                     </th>
-                    <th style={{ width: '110px' }} className="p-2 border-r border-slate-700 text-center font-bold bg-indigo-950 text-indigo-100 shadow-2xs">
-                      Acumulado
+                    <th style={{ width: '115px' }} className="p-2 border-r-2 border-r-indigo-400/40 text-center font-bold bg-indigo-950 text-indigo-100 shadow-xs border-l border-indigo-800/60">
+                      <div className="flex flex-col items-center justify-center gap-0.5">
+                        <span className="text-[10px] font-extrabold tracking-wider uppercase text-indigo-200">
+                          Acumulado
+                        </span>
+                        <span className="inline-block px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-indigo-500/30 text-indigo-200 border border-indigo-400/40">
+                          Total Mês
+                        </span>
+                      </div>
                     </th>
                     {filteredDays.map((d) => {
                       const isWeekend = d.day === 'Sábado' || d.day === 'Domingo'
@@ -1703,13 +1710,13 @@ export const PerformancePage: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Coluna Acumulado (Preenchimento Manual) */}
+                        {/* Coluna Acumulado (Diferenciada com destaque e borda) */}
                         {(() => {
                           const acumKey = `acum_${cat.id}_${sub.id}`
                           const isPlano = isPlanoItem(sub)
                           if (isPlano) {
                             return (
-                              <td className="p-1 border-r border-slate-200 bg-slate-50/60 text-center font-mono text-xs text-slate-400">
+                              <td className="p-1 border-r-2 border-r-indigo-300/60 border-l border-indigo-200/50 bg-indigo-50/20 text-center font-mono text-xs text-slate-400">
                                 -
                               </td>
                             )
@@ -1717,9 +1724,10 @@ export const PerformancePage: React.FC = () => {
 
                           const rawAcumVal = data[acumKey] || ''
                           const acumStyleClass = getCellStyleByMeta(rawAcumVal, currentMetaVal)
+                          const hasMetaColor = acumStyleClass && !acumStyleClass.includes('bg-transparent')
 
                           return (
-                            <td className="p-1 border-r border-slate-200 bg-white text-center">
+                            <td className="p-1 border-r-2 border-r-indigo-300/80 border-l border-indigo-200/60 bg-indigo-50/40 text-center">
                               <input
                                 type="text"
                                 value={rawAcumVal}
@@ -1727,7 +1735,11 @@ export const PerformancePage: React.FC = () => {
                                 onBlur={e => handleCellBlur(acumKey, e.target.value, sub.dataType)}
                                 placeholder="-"
                                 title="Acumulado"
-                                className={`w-full h-7 text-center font-mono text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-inset transition-all px-1 ${acumStyleClass}`}
+                                className={`w-full h-7 text-center font-mono text-xs font-extrabold focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-inset transition-all px-1 rounded-sm shadow-2xs ${
+                                  hasMetaColor
+                                    ? acumStyleClass
+                                    : 'bg-white text-indigo-950 border border-indigo-200 hover:border-indigo-400'
+                                }`}
                               />
                             </td>
                           )
