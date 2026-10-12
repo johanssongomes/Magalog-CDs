@@ -4,6 +4,7 @@ import { BlankPage } from './components/BlankPage'
 import { PerformancePage } from './components/PerformancePage'
 import { DashboardPage } from './components/DashboardPage'
 import { EquipmentsPage } from './components/EquipmentsPage'
+import { BankHoursPage } from './components/BankHoursPage'
 
 export function App() {
   const [activeTab, setActiveTab] = useState('performance')
@@ -44,7 +45,8 @@ export function App() {
           {activeTab === 'dashboard' && <DashboardPage />}
           {activeTab === 'catalog' && <EquipmentsPage />}
           {activeTab === 'performance' && <PerformancePage />}
-          {activeTab !== 'dashboard' && activeTab !== 'catalog' && activeTab !== 'performance' && (
+          {activeTab === 'inventory' && <BankHoursPage />}
+          {activeTab !== 'dashboard' && activeTab !== 'catalog' && activeTab !== 'performance' && activeTab !== 'inventory' && (
             <BlankPage 
               title={activeItem.label} 
               description={`Esta é a ${activeItem.description}. Você pode preencher este espaço com componentes, listas e formulários conforme desenvolver a aplicação.`} 
