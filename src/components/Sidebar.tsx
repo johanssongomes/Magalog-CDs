@@ -11,6 +11,7 @@ import {
   Server,
   Zap,
   Globe,
+  Clock,
   PanelLeftClose,
   PanelLeftOpen
 } from 'lucide-react'
@@ -50,9 +51,9 @@ export const navItems: NavItem[] = [
   },
   {
     id: 'inventory',
-    label: 'Em Construção 1',
-    description: 'Página em construção 1',
-    icon: <Package size={20} />
+    label: 'Banco de Horas',
+    description: 'Gestão e Controle de Banco de Horas',
+    icon: <Clock size={20} />
   },
   {
     id: 'reports',

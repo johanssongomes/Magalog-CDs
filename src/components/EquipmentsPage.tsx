@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   FolderKanban, Plus, Filter, Search, Cpu, CheckCircle2, AlertTriangle, 
   Wrench, Battery, Edit3, Trash2, X, LayoutDashboard, BarChart3, Clock, Truck, ShieldAlert, DollarSign
 } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
 export type FinancialType = 'CAPEX' | 'OPEX'
 export type EquipmentStatus = 'Em Uso' | 'Manutenção' | 'Reserva (Não utilizado)'
@@ -138,12 +139,112 @@ type SubPage = 'dashboard' | 'list' | 'maintenance' | 'reports'
 
 export const EquipmentsPage: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<SubPage>('dashboard')
-  const [categories, setCategories] = useState<string[]>(INITIAL_CATEGORIES)
-  const [equipments, setEquipments] = useState<Equipment[]>(INITIAL_EQUIPMENTS)
+
+  // Inicializa categorias com persistência
+  const [categories, setCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_equipment_categories')
+      if (saved) return JSON.parse(saved)
+    } catch (e) {
+      console.warn('Erro ao carregar categorias locais:', e)
+    }
+    return INITIAL_CATEGORIES
+  })
+
+  // Inicializa equipamentos com persistência
+  const [equipments, setEquipments] = useState<Equipment[]>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_equipments_data')
+      if (saved) return JSON.parse(saved)
+    } catch (e) {
+      console.warn('Erro ao carregar equipamentos locais:', e)
+    }
+    return INITIAL_EQUIPMENTS
+  })
+
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos')
   const [selectedStatus, setSelectedStatus] = useState<string>('Todos')
   const [selectedFinancialType, setSelectedFinancialType] = useState<string>('Todos')
+
+  // Helper para persistir equipamentos no localStorage e na nuvem
+  const persistEquipments = (newEquipments: Equipment[]) => {
+    setEquipments(newEquipments)
+    try {
+      const json = JSON.stringify(newEquipments)
+      localStorage.setItem('magalog_equipments_data', json)
+      // Grava no Supabase de forma assíncrona
+      supabase
+        .from('performance_metrics')
+        .upsert({ cell_key: '_sys_equipments_data', value: json }, { onConflict: 'cell_key' })
+        .then(({ error }) => {
+          if (error) console.warn('Aviso Supabase ao salvar equipamentos:', error.message)
+        })
+        .catch(err => console.warn('Erro ao sincronizar equipamentos com nuvem:', err))
+    } catch (err) {
+      console.error('Erro ao salvar equipamentos:', err)
+    }
+  }
+
+  // Helper para persistir categorias
+  const persistCategories = (newCategories: string[]) => {
+    setCategories(newCategories)
+    try {
+      const json = JSON.stringify(newCategories)
+      localStorage.setItem('magalog_equipment_categories', json)
+      supabase
+        .from('performance_metrics')
+        .upsert({ cell_key: '_sys_equipment_categories', value: json }, { onConflict: 'cell_key' })
+        .then(({ error }) => {
+          if (error) console.warn('Aviso Supabase ao salvar categorias:', error.message)
+        })
+        .catch(err => console.warn('Erro ao sincronizar categorias com nuvem:', err))
+    } catch (err) {
+      console.error('Erro ao salvar categorias:', err)
+    }
+  }
+
+  // Carrega sincronização da nuvem caso exista
+  useEffect(() => {
+    const loadRemote = async () => {
+      try {
+        const { data: dbRows } = await supabase
+          .from('performance_metrics')
+          .select('cell_key, value')
+          .in('cell_key', ['_sys_equipments_data', '_sys_equipment_categories'])
+
+        if (dbRows && dbRows.length > 0) {
+          dbRows.forEach(row => {
+            if (row.cell_key === '_sys_equipments_data' && row.value) {
+              try {
+                const parsed = JSON.parse(row.value)
+                if (Array.isArray(parsed)) {
+                  setEquipments(parsed)
+                  localStorage.setItem('magalog_equipments_data', row.value)
+                }
+              } catch (e) {
+                console.error(e)
+              }
+            }
+            if (row.cell_key === '_sys_equipment_categories' && row.value) {
+              try {
+                const parsed = JSON.parse(row.value)
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  setCategories(parsed)
+                  localStorage.setItem('magalog_equipment_categories', row.value)
+                }
+              } catch (e) {
+                console.error(e)
+              }
+            }
+          })
+        }
+      } catch (e) {
+        console.warn('Erro ao carregar dados remotos de equipamentos:', e)
+      }
+    }
+    loadRemote()
+  }, [])
   
   // Modal Criar Nova Categoria
   const [isNewCategoryInputOpen, setIsNewCategoryInputOpen] = useState(false)
@@ -173,7 +274,7 @@ export const EquipmentsPage: React.FC = () => {
     const trimmed = newCategoryName.trim()
     if (!trimmed) return
     if (!categories.includes(trimmed)) {
-      setCategories(prev => [...prev, trimmed])
+      persistCategories([...categories, trimmed])
     }
     setFormCategory(trimmed)
     setNewCategoryName('')
@@ -216,7 +317,8 @@ export const EquipmentsPage: React.FC = () => {
   }
 
   const handleDelete = (id: string) => {
-    setEquipments(prev => prev.filter(e => e.id !== id))
+    const updated = equipments.filter(e => e.id !== id)
+    persistEquipments(updated)
   }
 
   const handleSaveForm = (e: React.FormEvent) => {
@@ -227,7 +329,7 @@ export const EquipmentsPage: React.FC = () => {
     const lastCheck = `${String(now.getDate()).padStart(2, '0')}/Out ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 
     if (editingId) {
-      setEquipments(prev => prev.map(item => {
+      const updated = equipments.map(item => {
         if (item.id === editingId) {
           return {
             ...item,
@@ -243,7 +345,8 @@ export const EquipmentsPage: React.FC = () => {
           }
         }
         return item
-      }))
+      })
+      persistEquipments(updated)
     } else {
       const newEqp: Equipment = {
         id: Date.now().toString(),
@@ -259,7 +362,7 @@ export const EquipmentsPage: React.FC = () => {
         lastCheck,
         maintenances: []
       }
-      setEquipments(prev => [...prev, newEqp])
+      persistEquipments([...equipments, newEqp])
     }
 
     setIsModalOpen(false)
@@ -281,7 +384,7 @@ export const EquipmentsPage: React.FC = () => {
       type: maintType
     }
 
-    setEquipments(prev => prev.map(eqp => {
+    const updated = equipments.map(eqp => {
       if (eqp.id === selectedEqpForMaint.id) {
         const updatedMaintenances = [...(eqp.maintenances || []), newMaint]
         const totalMaintCost = updatedMaintenances.reduce((acc, m) => acc + m.cost, 0)
@@ -292,7 +395,8 @@ export const EquipmentsPage: React.FC = () => {
         }
       }
       return eqp
-    }))
+    })
+    persistEquipments(updated)
 
     setIsMaintModalOpen(false)
   }
@@ -618,8 +722,6 @@ export const EquipmentsPage: React.FC = () => {
                     <th className="p-3 text-center">Classificação</th>
                     <th className="p-3 text-right">Custo / Valor Mensal</th>
                     <th className="p-3 text-right">Custo Manutenção</th>
-                    <th className="p-3">Unidade (CD)</th>
-                    <th className="p-3">Bateria / Saúde</th>
                     <th className="p-3 text-center">Status</th>
                     <th className="p-3 text-center">Última Checagem</th>
                     <th className="p-3 text-right">Ações</th>
@@ -658,19 +760,6 @@ export const EquipmentsPage: React.FC = () => {
                         R$ {(eqp.maintenanceCost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
 
-                      <td className="p-3 font-bold text-slate-700">{eqp.unit}</td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-1.5">
-                          <Battery size={14} className={eqp.battery < 20 ? 'text-rose-500' : 'text-emerald-600'} />
-                          <div className="w-16 bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
-                            <div
-                              className={`h-full rounded-full ${eqp.battery < 20 ? 'bg-rose-500' : eqp.battery < 50 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                              style={{ width: `${eqp.battery}%` }}
-                            />
-                          </div>
-                          <span className="text-[10px] font-mono font-bold text-slate-600">{eqp.battery}%</span>
-                        </div>
-                      </td>
                       <td className="p-3 text-center">
                         {eqp.status === 'Em Uso' && (
                           <span className="px-2.5 py-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 rounded-full border border-emerald-200 inline-flex items-center gap-1">
@@ -958,31 +1047,17 @@ export const EquipmentsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
-                  <select
-                    value={formStatus}
-                    onChange={e => setFormStatus(e.target.value as any)}
-                    className="w-full px-2 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                  >
-                    <option value="Em Uso">Em Uso</option>
-                    <option value="Manutenção">Manutenção</option>
-                    <option value="Reserva (Não utilizado)">Reserva (Não utilizado)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Bateria ({formBattery}%)</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={formBattery}
-                    onChange={e => setFormBattery(Number(e.target.value))}
-                    className="w-full cursor-pointer accent-blue-600 mt-2"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
+                <select
+                  value={formStatus}
+                  onChange={e => setFormStatus(e.target.value as any)}
+                  className="w-full px-2 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                >
+                  <option value="Em Uso">Em Uso</option>
+                  <option value="Manutenção">Manutenção</option>
+                  <option value="Reserva (Não utilizado)">Reserva (Não utilizado)</option>
+                </select>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
