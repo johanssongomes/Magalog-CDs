@@ -53,6 +53,12 @@ function parseTimeToDecimal(timeStr: string): number {
   return hours + (minutes / 60) + (seconds / 3600)
 }
 
+// Normaliza texto removendo acentuação para comparações seguras
+function normalizeStr(str: string): string {
+  if (!str) return ''
+  return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+}
+
 // Formata horas decimais de volta para "+HH:MMh" ou "-HH:MMh"
 function formatDecimalToHours(decimal: number): string {
   const isNegative = decimal < 0
@@ -164,7 +170,9 @@ export const BankHoursPage: React.FC = () => {
         const qtdHoras = row[idxHoras] || '00:00'
 
         const horasDec = parseTimeToDecimal(qtdHoras)
-        const isDebito = tipo.toLowerCase().includes('debito')
+        const normTipo = normalizeStr(tipo)
+        const isDebito = normTipo.includes('debito')
+        const isCredito = normTipo.includes('credito')
 
         records.push({
           data: dataStr,
@@ -237,7 +245,7 @@ export const BankHoursPage: React.FC = () => {
         item.centroDeCusto.toLowerCase().includes(q)
 
       const matchCC = selectedCC === 'Todos' || item.centroDeCusto === selectedCC
-      const matchTipo = selectedTipo === 'Todos' || item.tipo.toLowerCase().includes(selectedTipo.toLowerCase())
+      const matchTipo = selectedTipo === 'Todos' || normalizeStr(item.tipo).includes(normalizeStr(selectedTipo))
       const matchCargo = selectedCargo === 'Todos' || item.cargo === selectedCargo
 
       return matchSearch && matchCC && matchTipo && matchCargo
@@ -270,9 +278,10 @@ export const BankHoursPage: React.FC = () => {
         registrosCount: 0
       }
 
-      if (item.tipo.toLowerCase().includes('credito')) {
+      const normTipo = normalizeStr(item.tipo)
+      if (normTipo.includes('credito')) {
         existing.creditoHoras += item.horasAbsolutas
-      } else {
+      } else if (normTipo.includes('debito')) {
         existing.debitoHoras += item.horasAbsolutas
       }
 
@@ -305,9 +314,10 @@ export const BankHoursPage: React.FC = () => {
       }
 
       existing.totalColaboradores.add(item.id || item.contratado)
-      if (item.tipo.toLowerCase().includes('credito')) {
+      const normTipo = normalizeStr(item.tipo)
+      if (normTipo.includes('credito')) {
         existing.creditoTotal += item.horasAbsolutas
-      } else {
+      } else if (normTipo.includes('debito')) {
         existing.debitoTotal += item.horasAbsolutas
       }
       existing.saldoTotal = existing.creditoTotal - existing.debitoTotal
@@ -320,13 +330,13 @@ export const BankHoursPage: React.FC = () => {
   // KPIs Gerais do Filtro Atual
   const totalCredito = useMemo(() => {
     return filteredData
-      .filter(d => d.tipo.toLowerCase().includes('credito'))
+      .filter(d => normalizeStr(d.tipo).includes('credito'))
       .reduce((acc, d) => acc + d.horasAbsolutas, 0)
   }, [filteredData])
 
   const totalDebito = useMemo(() => {
     return filteredData
-      .filter(d => d.tipo.toLowerCase().includes('debito'))
+      .filter(d => normalizeStr(d.tipo).includes('debito'))
       .reduce((acc, d) => acc + d.horasAbsolutas, 0)
   }, [filteredData])
 
@@ -866,7 +876,7 @@ export const BankHoursPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 font-sans">
                 {filteredData.map((row, idx) => {
-                  const isDebito = row.tipo.toLowerCase().includes('debito')
+                  const isDebito = normalizeStr(row.tipo).includes('debito')
                   return (
                     <tr key={`${row.id}-${idx}`} className="hover:bg-slate-50 transition-colors">
                       <td className="p-3 font-mono text-slate-600">{row.data}</td>
