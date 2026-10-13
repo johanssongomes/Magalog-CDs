@@ -1618,21 +1618,27 @@ export const PerformancePage: React.FC = () => {
             return (
               <table className="w-auto min-w-max text-xs border-collapse">
                 <colgroup>
-                  <col style={{ width: '180px' }} />
-                  <col style={{ width: '260px' }} />
-                  <col style={{ width: '180px' }} />
-                  <col style={{ width: '110px' }} />
+                  <col style={{ width: '180px', minWidth: '180px', maxWidth: '180px' }} />
+                  <col style={{ width: '260px', minWidth: '260px', maxWidth: '260px' }} />
+                  <col style={{ width: '200px', minWidth: '200px', maxWidth: '200px' }} />
+                  <col style={{ width: '110px', minWidth: '110px', maxWidth: '110px' }} />
                   {filteredDays.map(d => (
                     <col key={d.colId} style={{ width: dateColWidth }} />
                   ))}
                 </colgroup>
                 <thead>
-                  {/* Header Row */}
+                  {/* Header Row com colunas travadas até o Acumulado */}
                   <tr className="bg-slate-900 text-white font-mono text-[11px] border-b border-slate-700">
-                    <th style={{ width: '180px' }} className="p-2.5 border-r border-slate-700 text-center font-bold bg-slate-950 sticky left-0 z-30 shadow-md">
+                    <th 
+                      style={{ width: '180px', minWidth: '180px', maxWidth: '180px', left: '0px' }} 
+                      className="p-2.5 border-r border-slate-700 text-center font-bold bg-slate-950 sticky z-30 shadow-xs"
+                    >
                       Indicador
                     </th>
-                    <th style={{ width: '260px' }} className="p-2 border-r border-slate-700 text-center font-bold bg-blue-950 text-blue-100">
+                    <th 
+                      style={{ width: '260px', minWidth: '260px', maxWidth: '260px', left: '180px' }} 
+                      className="p-2 border-r border-slate-700 text-center font-bold bg-blue-950 text-blue-100 sticky z-30"
+                    >
                       <div className="flex items-center justify-center gap-1.5">
                         <span>Meta ({MONTHS_OPTIONS.find(m => m.id === selectedMonth)?.short.toUpperCase() || 'MÊS'})</span>
                         <button
@@ -1648,10 +1654,16 @@ export const PerformancePage: React.FC = () => {
                         </button>
                       </div>
                     </th>
-                    <th style={{ width: '180px' }} className="p-2 border-r border-slate-700 text-center font-bold bg-slate-900">
+                    <th 
+                      style={{ width: '200px', minWidth: '200px', maxWidth: '200px', left: '440px' }} 
+                      className="p-2 border-r border-slate-700 text-center font-bold bg-slate-900 sticky z-30"
+                    >
                       Sub-indicador
                     </th>
-                    <th style={{ width: '115px' }} className="p-2 border-r-2 border-r-indigo-400/40 text-center font-bold bg-indigo-950 text-indigo-100 shadow-xs border-l border-indigo-800/60">
+                    <th 
+                      style={{ width: '110px', minWidth: '110px', maxWidth: '110px', left: '640px' }} 
+                      className="p-2 border-r-2 border-r-indigo-400 text-center font-bold bg-indigo-950 text-indigo-100 sticky z-30 border-l border-indigo-800/60 shadow-[4px_0_10px_-2px_rgba(0,0,0,0.35)]"
+                    >
                       <div className="flex flex-col items-center justify-center gap-0.5">
                         <span className="text-[10px] font-extrabold tracking-wider uppercase text-indigo-200">
                           Acumulado
@@ -1721,7 +1733,8 @@ export const PerformancePage: React.FC = () => {
                         {isFirstSub && (
                           <td
                             rowSpan={subRowsCount}
-                            className="p-3 border-r border-slate-200 font-bold text-slate-800 bg-slate-50 align-middle text-center sticky left-0 z-20 shadow-sm border-b-2 border-slate-300 group"
+                            style={{ width: '180px', minWidth: '180px', maxWidth: '180px', left: '0px' }}
+                            className="p-3 border-r border-slate-200 font-bold text-slate-800 bg-slate-50 align-middle text-center sticky z-20 shadow-xs border-b-2 border-slate-300 group"
                           >
                             <div className="text-xs uppercase tracking-tight text-blue-900 font-extrabold">{cat.category}</div>
                             
@@ -1743,7 +1756,10 @@ export const PerformancePage: React.FC = () => {
                         )}
 
                         {/* Meta Cell: Meta Individual por Sub-indicador (por Mês) */}
-                        <td className="p-1 border-r border-slate-200 bg-blue-50/60 text-blue-900 font-semibold text-center font-mono text-[11px] align-middle">
+                        <td 
+                          style={{ width: '260px', minWidth: '260px', maxWidth: '260px', left: '180px' }}
+                          className="p-1 border-r border-slate-200 bg-[#edf4ff] text-blue-900 font-semibold text-center font-mono text-[11px] align-middle sticky z-10"
+                        >
                           {(() => {
                             if (isPlanoItem(sub)) {
                               return <span className="text-slate-400 font-medium font-sans text-xs">-</span>
@@ -1771,13 +1787,16 @@ export const PerformancePage: React.FC = () => {
                         </td>
 
                         {/* Sub-row Label Cell */}
-                        <td className={`p-2 border-r border-slate-200 pl-3 text-[11px] ${
-                          sub.id === 'plano_acao' 
-                            ? 'bg-amber-50/50 font-bold text-amber-900' 
-                            : 'bg-white font-medium text-slate-700'
-                        }`}>
+                        <td 
+                          style={{ width: '200px', minWidth: '200px', maxWidth: '200px', left: '440px' }}
+                          className={`p-2 border-r border-slate-200 pl-3 text-[11px] sticky z-10 ${
+                            sub.id === 'plano_acao' 
+                              ? 'bg-[#fffbeb] font-bold text-amber-900' 
+                              : 'bg-white font-medium text-slate-700'
+                          }`}
+                        >
                           <div className="flex items-center justify-between gap-1.5 whitespace-nowrap">
-                            <span>{sub.label}</span>
+                            <span className="truncate max-w-[145px]" title={sub.label}>{sub.label}</span>
                             {sub.id === 'plano_acao' && (
                               <span className="text-[9px] px-1.5 py-0.5 bg-amber-200/80 text-amber-900 rounded font-extrabold uppercase shrink-0">
                                 Ação
@@ -1786,14 +1805,17 @@ export const PerformancePage: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Coluna Acumulado (Diferenciada com destaque e borda por Mês) */}
+                        {/* Coluna Acumulado (Fixa / Sticky com destaque e borda por Mês) */}
                         {(() => {
                           const acumKey = `acum_${selectedMonth}_${cat.id}_${sub.id}`
                           const legacyAcumKey = `acum_${cat.id}_${sub.id}`
                           const isPlano = isPlanoItem(sub)
                           if (isPlano) {
                             return (
-                              <td className="p-1 border-r-2 border-r-indigo-300/60 border-l border-indigo-200/50 bg-indigo-50/20 text-center font-mono text-xs text-slate-400">
+                              <td 
+                                style={{ width: '110px', minWidth: '110px', maxWidth: '110px', left: '640px' }}
+                                className="p-1 border-r-2 border-r-indigo-400 border-l border-indigo-200/50 bg-[#f5f7ff] text-center font-mono text-xs text-slate-400 sticky z-10 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.12)]"
+                              >
                                 -
                               </td>
                             )
@@ -1804,7 +1826,10 @@ export const PerformancePage: React.FC = () => {
                           const hasMetaColor = acumStyleClass && !acumStyleClass.includes('bg-transparent')
 
                           return (
-                            <td className="p-1 border-r-2 border-r-indigo-300/80 border-l border-indigo-200/60 bg-indigo-50/40 text-center">
+                            <td 
+                              style={{ width: '110px', minWidth: '110px', maxWidth: '110px', left: '640px' }}
+                              className="p-1 border-r-2 border-r-indigo-400 border-l border-indigo-200/60 bg-[#eef2ff] text-center sticky z-10 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.12)]"
+                            >
                               <input
                                 type="text"
                                 value={rawAcumVal}
