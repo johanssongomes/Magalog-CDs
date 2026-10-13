@@ -73,17 +73,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
   const [isCollapsed, setIsCollapsed] = useState(false)
 
   return (
-    <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0 shrink-0 transition-all duration-300 z-40`}>
+    <aside className={`${isCollapsed ? 'w-20' : 'w-72'} bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0 shrink-0 transition-all duration-300 z-40`}>
       {/* Header / Brand */}
-      <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="p-2.5 rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/30 shrink-0">
+      <div className="p-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-950/40 gap-2">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className="p-2 rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/30 shrink-0">
             <Layers size={20} />
           </div>
           {!isCollapsed && (
-            <div className="truncate transition-opacity duration-200">
-              <h1 className="text-sm font-bold text-white leading-tight truncate">Magalog CDs</h1>
-              <p className="text-[10px] text-blue-400 font-medium truncate">Painel Administrativo</p>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xs font-bold text-white leading-tight">Gerenciamento Diário CD 994</h1>
+              <p className="text-[10px] text-blue-400 font-medium truncate mt-0.5">Painel Administrativo</p>
             </div>
           )}
         </div>

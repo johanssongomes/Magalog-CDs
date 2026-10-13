@@ -124,7 +124,9 @@ export const BankHoursPage: React.FC = () => {
   const [selectedCC, setSelectedCC] = useState<string>('Todos')
   const [selectedTipo, setSelectedTipo] = useState<string>('Todos')
   const [selectedCargo, setSelectedCargo] = useState<string>('Todos')
-  const [viewTab, setViewTab] = useState<'geral' | 'colaboradores' | 'centros' | 'relatorio'>('geral')
+  const [selectedData, setSelectedData] = useState<string>('Todas')
+  const [viewTab, setViewTab] = useState<'geral' | 'colaboradores' | 'centros' | 'evolucao' | 'relatorio'>('geral')
+  const [evolutionSelectedEmp, setEvolutionSelectedEmp] = useState<string>('')
 
   // Carregar dados do Google Sheets
   const fetchSheetData = async () => {
@@ -233,6 +235,12 @@ export const BankHoursPage: React.FC = () => {
     return Array.from(set).sort()
   }, [data])
 
+  const datasUnicas = useMemo(() => {
+    const set = new Set<string>()
+    data.forEach(d => { if (d.data) set.add(d.data) })
+    return Array.from(set)
+  }, [data])
+
   // Filtragem
   const filteredData = useMemo(() => {
     return data.filter(item => {
@@ -247,10 +255,109 @@ export const BankHoursPage: React.FC = () => {
       const matchCC = selectedCC === 'Todos' || item.centroDeCusto === selectedCC
       const matchTipo = selectedTipo === 'Todos' || normalizeStr(item.tipo).includes(normalizeStr(selectedTipo))
       const matchCargo = selectedCargo === 'Todos' || item.cargo === selectedCargo
+      const matchData = selectedData === 'Todas' || item.data === selectedData
 
-      return matchSearch && matchCC && matchTipo && matchCargo
+      return matchSearch && matchCC && matchTipo && matchCargo && matchData
     })
-  }, [data, search, selectedCC, selectedTipo, selectedCargo])
+  }, [data, search, selectedCC, selectedTipo, selectedCargo, selectedData])
+
+  // Histórico e Evolução por Colaborador através das Datas
+  const employeeEvolutionData = useMemo(() => {
+    // Mapa: colaboradorId -> { info, dates: Map<dataStr, { credito, debito, saldo, qtdHoras }> }
+    const map = new Map<string, {
+      id: string
+      nome: string
+      cargo: string
+      centroDeCusto: string
+      historicoPorData: {
+        data: string
+        credito: number
+        debito: number
+        saldo: number
+        tipo: string
+        qtdHoras: string
+      }[]
+      saldoPrimeiraData: number
+      saldoUltimaData: number
+      diferencaEvolucao: number
+      saldoAtualTotal: number
+    }>()
+
+    // Ordenar dados por data
+    const sorted = [...data].sort((a, b) => {
+      // Ordenação padrão brasileira DD/MM/AAAA
+      const [diaA, mesA, anoA] = a.data.split('/').map(Number)
+      const [diaB, mesB, anoB] = b.data.split('/').map(Number)
+      const dateA = new Date(anoA || 2026, (mesA || 1) - 1, diaA || 1).getTime()
+      const dateB = new Date(anoB || 2026, (mesB || 1) - 1, diaB || 1).getTime()
+      return dateA - dateB
+    })
+
+    sorted.forEach(item => {
+      const key = `${item.id}-${item.contratado}`
+      const existing = map.get(key) || {
+        id: item.id,
+        nome: item.contratado,
+        cargo: item.cargo,
+        centroDeCusto: item.centroDeCusto,
+        historicoPorData: [],
+        saldoPrimeiraData: 0,
+        saldoUltimaData: 0,
+        diferencaEvolucao: 0,
+        saldoAtualTotal: 0
+      }
+
+      const normTipo = normalizeStr(item.tipo)
+      const isCredito = normTipo.includes('credito')
+      const credito = isCredito ? item.horasAbsolutas : 0
+      const debito = !isCredito ? item.horasAbsolutas : 0
+      const saldo = credito - debito
+
+      existing.historicoPorData.push({
+        data: item.data,
+        credito,
+        debito,
+        saldo,
+        tipo: item.tipo,
+        qtdHoras: item.qtdHoras
+      })
+
+      map.set(key, existing)
+    })
+
+    // Calcular evolução (se aumentou ou diminuiu horas)
+    const list = Array.from(map.values()).map(emp => {
+      if (emp.historicoPorData.length > 1) {
+        emp.saldoPrimeiraData = emp.historicoPorData[0].saldo
+        emp.saldoUltimaData = emp.historicoPorData[emp.historicoPorData.length - 1].saldo
+        emp.diferencaEvolucao = emp.saldoUltimaData - emp.saldoPrimeiraData
+        // O saldo atual consolidado do colaborador é a posição da última data registrada
+        emp.saldoAtualTotal = emp.saldoUltimaData
+      } else if (emp.historicoPorData.length === 1) {
+        emp.saldoPrimeiraData = emp.historicoPorData[0].saldo
+        emp.saldoUltimaData = emp.historicoPorData[0].saldo
+        emp.diferencaEvolucao = 0
+        emp.saldoAtualTotal = emp.saldoPrimeiraData
+      }
+      return emp
+    })
+
+    // Aplicar filtros de busca, centro de custo e cargo na matriz de evolução
+    const q = search.toLowerCase()
+    return list.filter(emp => {
+      const matchSearch = 
+        !search ||
+        emp.nome.toLowerCase().includes(q) ||
+        emp.id.toLowerCase().includes(q) ||
+        emp.cargo.toLowerCase().includes(q) ||
+        emp.centroDeCusto.toLowerCase().includes(q)
+
+      const matchCC = selectedCC === 'Todos' || emp.centroDeCusto === selectedCC
+      const matchCargo = selectedCargo === 'Todos' || emp.cargo === selectedCargo
+
+      return matchSearch && matchCC && matchCargo
+    })
+  }, [data, search, selectedCC, selectedCargo])
 
   // Agrupamento por Colaborador
   const groupedByEmployee = useMemo(() => {
@@ -567,6 +674,21 @@ export const BankHoursPage: React.FC = () => {
             </select>
           </div>
 
+          {/* Filtro Data de Lançamento */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs">
+            <Calendar size={13} className="text-slate-500" />
+            <select
+              value={selectedData}
+              onChange={e => setSelectedData(e.target.value)}
+              className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
+            >
+              <option value="Todas">Todas as Datas</option>
+              {datasUnicas.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Botão Exportar */}
           <button
             onClick={handleExportCSV}
@@ -580,10 +702,10 @@ export const BankHoursPage: React.FC = () => {
       </div>
 
       {/* Sub-Navegação de Abas da Página */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
         <button
           onClick={() => setViewTab('geral')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             viewTab === 'geral' 
               ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' 
               : 'text-slate-600 hover:bg-slate-100'
@@ -595,7 +717,7 @@ export const BankHoursPage: React.FC = () => {
 
         <button
           onClick={() => setViewTab('colaboradores')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             viewTab === 'colaboradores' 
               ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' 
               : 'text-slate-600 hover:bg-slate-100'
@@ -606,8 +728,20 @@ export const BankHoursPage: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setViewTab('evolucao')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+            viewTab === 'evolucao' 
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' 
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <TrendingUp size={14} />
+          Evolução por Data
+        </button>
+
+        <button
           onClick={() => setViewTab('centros')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             viewTab === 'centros' 
               ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' 
               : 'text-slate-600 hover:bg-slate-100'
@@ -619,7 +753,7 @@ export const BankHoursPage: React.FC = () => {
 
         <button
           onClick={() => setViewTab('relatorio')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             viewTab === 'relatorio' 
               ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' 
               : 'text-slate-600 hover:bg-slate-100'
@@ -781,10 +915,10 @@ export const BankHoursPage: React.FC = () => {
                     <td className="p-3 text-slate-600 font-medium">{emp.cargo}</td>
                     <td className="p-3 text-slate-500 text-[11px]">{emp.centroDeCusto}</td>
                     <td className="p-3 text-right font-mono font-bold text-emerald-700">
-                      +{emp.creditoHoras.toFixed(2)}h
+                      {formatDecimalToHours(emp.creditoHoras)}
                     </td>
                     <td className="p-3 text-right font-mono font-bold text-rose-700">
-                      -{emp.debitoHoras.toFixed(2)}h
+                      {emp.debitoHoras > 0 ? formatDecimalToHours(-emp.debitoHoras) : '00:00h'}
                     </td>
                     <td className={`p-3 text-right font-mono font-black text-sm ${emp.saldoHoras >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                       {formatDecimalToHours(emp.saldoHoras)}
@@ -804,6 +938,157 @@ export const BankHoursPage: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* CONTEÚDO NOVO: EVOLUÇÃO POR DATA */}
+      {viewTab === 'evolucao' && (
+        <div className="space-y-6">
+          {/* Header & Resumo de Evolução */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-slate-500 uppercase">Aumentaram Saldo (+)</span>
+                <div className="text-xl font-black text-emerald-700 font-mono mt-1">
+                  {employeeEvolutionData.filter(e => e.diferencaEvolucao > 0).length} colaboradores
+                </div>
+                <p className="text-[10px] text-slate-400 mt-0.5">Saldo subiu entre a 1ª e última data</p>
+              </div>
+              <span className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700">
+                <ArrowUpRight size={20} />
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-slate-500 uppercase">Diminuíram Saldo (-)</span>
+                <div className="text-xl font-black text-rose-700 font-mono mt-1">
+                  {employeeEvolutionData.filter(e => e.diferencaEvolucao < 0).length} colaboradores
+                </div>
+                <p className="text-[10px] text-slate-400 mt-0.5">Saldo caiu / compensaram horas</p>
+              </div>
+              <span className="p-2.5 rounded-xl bg-rose-50 text-rose-700">
+                <ArrowDownRight size={20} />
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-slate-500 uppercase">Datas Mapeadas</span>
+                <div className="text-xl font-black text-blue-900 font-mono mt-1">
+                  {datasUnicas.length} dias
+                </div>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  {datasUnicas.slice(0, 3).join(', ')}{datasUnicas.length > 3 ? '...' : ''}
+                </p>
+              </div>
+              <span className="p-2.5 rounded-xl bg-blue-50 text-blue-700">
+                <Calendar size={20} />
+              </span>
+            </div>
+          </div>
+
+          {/* Tabela de Acompanhamento de Evolução */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Matriz Comparativa de Horas por Data
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Veja dia a dia a movimentação de cada colaborador e a variação do saldo.
+                </p>
+              </div>
+              <div className="text-xs font-mono text-slate-500">
+                {employeeEvolutionData.length} colaboradores analisados
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-900 text-white font-mono text-[11px] border-b border-slate-800">
+                    <th className="p-3">Matrícula (ID)</th>
+                    <th className="p-3">Colaborador</th>
+                    <th className="p-3">Cargo</th>
+                    <th className="p-3">Centro de Custo</th>
+                    {datasUnicas.map(d => (
+                      <th key={d} className="p-3 text-right whitespace-nowrap bg-slate-800/80">
+                        {d}
+                      </th>
+                    ))}
+                    <th className="p-3 text-right bg-slate-950 font-bold">Saldo Atual</th>
+                    <th className="p-3 text-center">Evolução Geral</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-sans">
+                  {employeeEvolutionData.map(emp => {
+                    const diff = emp.diferencaEvolucao
+                    return (
+                      <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-3 font-mono font-bold text-blue-900">{emp.id}</td>
+                        <td className="p-3 font-bold text-slate-800">{emp.nome}</td>
+                        <td className="p-3 text-slate-600 font-medium">{emp.cargo}</td>
+                        <td className="p-3 text-slate-500 text-[11px]">{emp.centroDeCusto}</td>
+
+                        {/* Colunas dinâmicas por cada data */}
+                        {datasUnicas.map(d => {
+                          const registro = emp.historicoPorData.find(h => h.data === d)
+                          if (!registro) {
+                            return (
+                              <td key={d} className="p-3 text-right text-slate-300 font-mono">
+                                -
+                              </td>
+                            )
+                          }
+                          const isPos = registro.saldo >= 0
+                          return (
+                            <td key={d} className="p-3 text-right font-mono font-bold">
+                              <span className={`px-2 py-0.5 rounded-md text-[11px] ${
+                                isPos 
+                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                                  : 'bg-rose-50 text-rose-800 border border-rose-200'
+                              }`}>
+                                {isPos ? `+${registro.qtdHoras}` : `-${registro.qtdHoras}`}
+                              </span>
+                            </td>
+                          )
+                        })}
+
+                        {/* Saldo Consolidado */}
+                        <td className={`p-3 text-right font-mono font-black text-sm bg-slate-50/50 ${
+                          emp.saldoAtualTotal >= 0 ? 'text-emerald-700' : 'text-rose-700'
+                        }`}>
+                          {formatDecimalToHours(emp.saldoAtualTotal)}
+                        </td>
+
+                        {/* Indicador de Evolução */}
+                        <td className="p-3 text-center">
+                          {emp.historicoPorData.length <= 1 ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                              Base Inicial
+                            </span>
+                          ) : diff > 0 ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
+                              <ArrowUpRight size={11} /> Aumentou (+{diff.toFixed(2)}h)
+                            </span>
+                          ) : diff < 0 ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200 inline-flex items-center gap-1">
+                              <ArrowDownRight size={11} /> Diminuiu ({diff.toFixed(2)}h)
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
+                              Estável
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -831,10 +1116,10 @@ export const BankHoursPage: React.FC = () => {
                       {cc.totalColaboradores.size}
                     </td>
                     <td className="p-3 text-right font-mono font-bold text-emerald-700">
-                      +{cc.creditoTotal.toFixed(2)}h
+                      {formatDecimalToHours(cc.creditoTotal)}
                     </td>
                     <td className="p-3 text-right font-mono font-bold text-rose-700">
-                      -{cc.debitoTotal.toFixed(2)}h
+                      {cc.debitoTotal > 0 ? formatDecimalToHours(-cc.debitoTotal) : '00:00h'}
                     </td>
                     <td className={`p-3 text-right font-mono font-black text-sm ${cc.saldoTotal >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                       {formatDecimalToHours(cc.saldoTotal)}

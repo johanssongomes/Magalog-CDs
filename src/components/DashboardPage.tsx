@@ -14,7 +14,7 @@ export const DashboardPage: React.FC = () => {
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             Painel Geral Unificado de CDs
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard Administrativo Magalog CDs</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Gerenciamento Diario CD 994</h1>
           <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
             Visão consolidada da frota de equipamentos, métricas de performance, status dos centros de distribuição e SLAs operacionais.
           </p>
