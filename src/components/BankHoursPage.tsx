@@ -53,6 +53,15 @@ function parseTimeToDecimal(timeStr: string): number {
   return hours + (minutes / 60) + (seconds / 3600)
 }
 
+// Converte data DD/MM/AAAA para timestamp milissegundos
+function parseDateBR(dateStr: string): number {
+  if (!dateStr) return 0
+  const parts = dateStr.split('/').map(Number)
+  if (parts.length < 3) return 0
+  const [dia, mes, ano] = parts
+  return new Date(ano || 2026, (mes || 1) - 1, dia || 1).getTime()
+}
+
 // Normaliza texto removendo acentuação para comparações seguras
 function normalizeStr(str: string): string {
   if (!str) return ''
@@ -238,12 +247,37 @@ export const BankHoursPage: React.FC = () => {
   const datasUnicas = useMemo(() => {
     const set = new Set<string>()
     data.forEach(d => { if (d.data) set.add(d.data) })
-    return Array.from(set)
+    return Array.from(set).sort((a, b) => parseDateBR(b) - parseDateBR(a))
   }, [data])
 
-  // Filtragem
-  const filteredData = useMemo(() => {
+  // Dados ativos para cálculo e exibição:
+  // - Se uma data específica estiver selecionada, filtra diretamente por ela.
+  // - Se 'Todas' estiver selecionada (Posição Consolidada Mais Recente),
+  //   mantém para cada colaborador apenas os registros da sua data mais recente,
+  //   garantindo que NÃO SEJAM SOMADOS os dias anteriores (pois cada dia na planilha é o saldo atual daquele momento).
+  const activeSnapshotData = useMemo(() => {
+    if (selectedData !== 'Todas') {
+      return data.filter(item => item.data === selectedData)
+    }
+
+    // Identifica a data mais recente registrada para cada colaborador
+    const latestDateByEmp = new Map<string, string>()
+    const sorted = [...data].sort((a, b) => parseDateBR(a.data) - parseDateBR(b.data))
+    sorted.forEach(item => {
+      const key = `${item.id}-${item.contratado}`
+      latestDateByEmp.set(key, item.data)
+    })
+
+    // Retorna apenas os registros da data mais recente daquele colaborador
     return data.filter(item => {
+      const key = `${item.id}-${item.contratado}`
+      return latestDateByEmp.get(key) === item.data
+    })
+  }, [data, selectedData])
+
+  // Filtragem (aplica busca textual, centro de custo, cargo e tipo sobre os dados ativos)
+  const filteredData = useMemo(() => {
+    return activeSnapshotData.filter(item => {
       const q = search.toLowerCase()
       const matchSearch = 
         !search ||
@@ -255,11 +289,10 @@ export const BankHoursPage: React.FC = () => {
       const matchCC = selectedCC === 'Todos' || item.centroDeCusto === selectedCC
       const matchTipo = selectedTipo === 'Todos' || normalizeStr(item.tipo).includes(normalizeStr(selectedTipo))
       const matchCargo = selectedCargo === 'Todos' || item.cargo === selectedCargo
-      const matchData = selectedData === 'Todas' || item.data === selectedData
 
-      return matchSearch && matchCC && matchTipo && matchCargo && matchData
+      return matchSearch && matchCC && matchTipo && matchCargo
     })
-  }, [data, search, selectedCC, selectedTipo, selectedCargo, selectedData])
+  }, [activeSnapshotData, search, selectedCC, selectedTipo, selectedCargo])
 
   // Histórico e Evolução por Colaborador através das Datas
   const employeeEvolutionData = useMemo(() => {
@@ -572,14 +605,20 @@ export const BankHoursPage: React.FC = () => {
             </div>
             <p className="text-[11px] text-slate-500 mt-1">
               {saldoLiquido >= 0 ? 'Superávit geral de horas' : 'Déficit geral de horas'} da equipe
+              <span className="block text-[10px] text-slate-400 font-medium mt-0.5">
+                {selectedData === 'Todas' ? `Posição Atual (${datasUnicas[0] || 'Recente'}) • Sem somar dias anteriores` : `Referência: ${selectedData}`}
+              </span>
             </p>
           </div>
         </div>
 
-        {/* Card 2: Total Crédito de Horas */}
+        {/* Card 2: Total Crédito de Horas (O que entra) */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total de Créditos</span>
+            <div>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total de Créditos</span>
+              <span className="block text-[10px] font-semibold text-emerald-600">Entradas (+)</span>
+            </div>
             <span className="p-2 rounded-xl bg-indigo-50 text-indigo-700">
               <TrendingUp size={18} />
             </span>
@@ -594,10 +633,13 @@ export const BankHoursPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Card 3: Total Débito de Horas */}
+        {/* Card 3: Total Débito de Horas (O que sai) */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total de Débitos</span>
+            <div>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total de Débitos</span>
+              <span className="block text-[10px] font-semibold text-rose-600">Saídas (-)</span>
+            </div>
             <span className="p-2 rounded-xl bg-rose-50 text-rose-700">
               <Clock size={18} />
             </span>
@@ -682,9 +724,9 @@ export const BankHoursPage: React.FC = () => {
               onChange={e => setSelectedData(e.target.value)}
               className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
             >
-              <option value="Todas">Todas as Datas</option>
+              <option value="Todas">Posição Atual ({datasUnicas[0] || 'Mais Recente'})</option>
               {datasUnicas.map(d => (
-                <option key={d} value={d}>{d}</option>
+                <option key={d} value={d}>Data: {d}</option>
               ))}
             </select>
           </div>
