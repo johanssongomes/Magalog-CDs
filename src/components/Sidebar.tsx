@@ -63,8 +63,8 @@ export const navItems: NavItem[] = [
   },
   {
     id: 'settings',
-    label: 'Em Construção 3',
-    description: 'Página em construção 3',
+    label: 'Central Operacional',
+    description: 'Central Operacional',
     icon: <Settings size={20} />
   }
 ]
