@@ -57,8 +57,8 @@ export const navItems: NavItem[] = [
   },
   {
     id: 'reports',
-    label: 'Em Construção 2',
-    description: 'Página em construção 2',
+    label: 'PMTs',
+    description: 'Gestão e Acompanhamento de PMTs',
     icon: <BarChart3 size={20} />
   },
   {
