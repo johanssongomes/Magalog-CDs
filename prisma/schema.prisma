@@ -29,3 +29,46 @@ model PerformanceMetric {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+model PmtRecord {
+  id                        Int      @id @default(autoincrement())
+  ano                       Int
+  mes                       Int
+  cd                        String
+  dia                       DateTime?
+  modalAgrupado             String?
+  sigla                     String?
+  divMoveis                 String?
+  canalVenda                String?
+  tipoSaida                 String?
+  modal                     String?
+  valorPlanDiarioCd         Float?   @default(0)
+  pedidoPlanDiarioCd        Float?   @default(0)
+  cubPlanDiarioCd           Float?   @default(0)
+  pecasPlanDiarioCd         Float?   @default(0)
+  pedidoUnicoPlanDiarioCd   Float?   @default(0)
+  modalSaida                String?
+  categoria                 String?
+  categoriaProdutividade    String?
+  plataformaVenda           String?
+  versao                    String?  @default("v1")
+  arquivoOrigem             String?
+  createdAt                 DateTime @default(now())
+
+  @@index([ano, mes])
+  @@index([cd])
+  @@index([cd, ano, mes])
+}
+
+model PmtImport {
+  id               Int      @id @default(autoincrement())
+  ano              Int
+  mes              Int
+  versao           String   @default("v1")
+  arquivoNome      String
+  totalLinhas      Int      @default(0)
+  cdFiltro         String?  @default("994")
+  status           String   @default("concluido")
+  substituiuBase   Boolean  @default(true)
+  importedAt       DateTime @default(now())
+}

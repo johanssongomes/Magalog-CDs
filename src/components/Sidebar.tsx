@@ -56,7 +56,7 @@ export const navItems: NavItem[] = [
     icon: <Clock size={20} />
   },
   {
-    id: 'reports',
+    id: 'pmts',
     label: 'PMTs',
     description: 'Gestão e Acompanhamento de PMTs',
     icon: <BarChart3 size={20} />

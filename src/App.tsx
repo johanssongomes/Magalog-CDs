@@ -6,6 +6,7 @@ import { DashboardPage } from './components/DashboardPage'
 import { EquipmentsPage } from './components/EquipmentsPage'
 import { BankHoursPage } from './components/BankHoursPage'
 import { CentralOperacionalPage } from './components/CentralOperacionalPage'
+import { PmtsPage } from './components/PmtsPage'
 
 export function App() {
   const [activeTab, setActiveTab] = useState('performance')
@@ -47,8 +48,9 @@ export function App() {
           {activeTab === 'catalog' && <EquipmentsPage />}
           {activeTab === 'performance' && <PerformancePage />}
           {activeTab === 'inventory' && <BankHoursPage />}
+          {(activeTab === 'pmts' || activeTab === 'reports') && <PmtsPage />}
           {(activeTab === 'settings' || activeTab === 'central-operacional') && <CentralOperacionalPage />}
-          {activeTab !== 'dashboard' && activeTab !== 'catalog' && activeTab !== 'performance' && activeTab !== 'inventory' && activeTab !== 'settings' && activeTab !== 'central-operacional' && (
+          {activeTab !== 'dashboard' && activeTab !== 'catalog' && activeTab !== 'performance' && activeTab !== 'inventory' && activeTab !== 'pmts' && activeTab !== 'reports' && activeTab !== 'settings' && activeTab !== 'central-operacional' && (
             <BlankPage 
               title={activeItem.label} 
               description={`Esta é a ${activeItem.description}. Você pode preencher este espaço com componentes, listas e formulários conforme desenvolver a aplicação.`} 
