@@ -109,6 +109,63 @@ export const PmtsPage: React.FC = () => {
   // Sub-página ativa do menu Quadro (Pg 1, Pg 2, Pg 3, Pg 4)
   const [quadroSubPage, setQuadroSubPage] = useState<'pg1' | 'pg2' | 'pg3' | 'pg4'>('pg1')
 
+  // Estado do Modal de Cadastro (Quadro - Pg 1)
+  const [isCadastroModalOpen, setIsCadastroModalOpen] = useState(false)
+  const [cadastroForm, setCadastroForm] = useState({
+    id: '',
+    contratado: '',
+    cargo: '',
+    centroDeCusto: ''
+  })
+  const [colaboradoresList, setColaboradoresList] = useState<Array<{
+    id: string
+    contratado: string
+    cargo: string
+    centroDeCusto: string
+    createdAt: string
+  }>>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_quadro_colaboradores')
+      if (saved) return JSON.parse(saved)
+    } catch {}
+    return [
+      {
+        id: '280438',
+        contratado: 'JOSE PEDRO MENEZES SILVA',
+        cargo: 'MEDICO TRABALHO JR',
+        centroDeCusto: 'REMUNERAÇÃO - SAUDE E SEGURANÇA DO TRABALHO',
+        createdAt: '2026-10-19'
+      }
+    ]
+  })
+  const [cadastroSuccessMsg, setCadastroSuccessMsg] = useState('')
+
+  const handleSalvarCadastro = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!cadastroForm.id || !cadastroForm.contratado) return
+
+    const novoColaborador = {
+      id: cadastroForm.id.trim(),
+      contratado: cadastroForm.contratado.trim(),
+      cargo: cadastroForm.cargo.trim(),
+      centroDeCusto: cadastroForm.centroDeCusto.trim(),
+      createdAt: new Date().toISOString()
+    }
+
+    const updated = [novoColaborador, ...colaboradoresList.filter(c => c.id !== novoColaborador.id)]
+    setColaboradoresList(updated)
+    try {
+      localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated))
+    } catch {}
+
+    setCadastroForm({ id: '', contratado: '', cargo: '', centroDeCusto: '' })
+    setCadastroSuccessMsg('Colaborador cadastrado com sucesso!')
+    setTimeout(() => {
+      setCadastroSuccessMsg('')
+      setIsCadastroModalOpen(false)
+    }, 1200)
+  }
+
   // Estado dos Filtros de Ano e Mês (solicitado pelo usuário)
   const [selectedYear, setSelectedYear] = useState<number>(2026)
   const [selectedMonth, setSelectedMonth] = useState<number>(10)
@@ -370,8 +427,22 @@ export const PmtsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Botões de Ação à Direita: Atualizar Dados e Importar Nova Planilha PMT */}
+        {/* Botões de Ação à Direita: Cadastrar (se Quadro Pg 1), Atualizar Dados e Importar Nova Planilha PMT */}
         <div className="flex items-center gap-2.5">
+          {activePageId === 3 && quadroSubPage === 'pg1' && (
+            <button
+              onClick={() => {
+                setCadastroSuccessMsg('')
+                setIsCadastroModalOpen(true)
+              }}
+              title="Cadastrar Colaborador (ID, Contratado, Cargo, Centro de Custo)"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 border-pink-500 bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-bold shadow-sm transition-all hover:translate-y-[-1px] cursor-pointer"
+            >
+              <Plus size={15} className="text-pink-600 stroke-[3]" />
+              <span>Cadastrar</span>
+            </button>
+          )}
+
           <button
             onClick={() => fetchPmtData(selectedYear, selectedMonth)}
             title="Recarregar dados do período selecionado"
@@ -709,8 +780,172 @@ export const PmtsPage: React.FC = () => {
                     <span>Importar Planilha PMT</span>
                   </>
                 )}
+      {/* =========================================================================
+          PAINEL DE CADASTRO DO QUADRO (PG 1)
+          Se Quadro Pg 1 estiver ativo, exibe tabela com ID, Contratado, Cargo, Centro de Custo
+          ========================================================================= */}
+      {activePageId === 3 && quadroSubPage === 'pg1' && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
+                Quadro de Colaboradores (Pg 1)
+              </h3>
+              <p className="text-xs text-slate-500">
+                Registros cadastrados com ID, Contratado, Cargo e Centro de Custo
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setCadastroSuccessMsg('')
+                setIsCadastroModalOpen(true)
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold shadow-sm shadow-pink-500/20 transition-all hover:translate-y-[-1px] cursor-pointer self-start sm:self-auto"
+            >
+              <Plus size={15} />
+              <span>Novo Cadastro</span>
+            </button>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="p-3 w-28">ID</th>
+                  <th className="p-3">Contratado</th>
+                  <th className="p-3">Cargo</th>
+                  <th className="p-3">Centro de Custo</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {colaboradoresList.map((colab) => (
+                  <tr key={colab.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="p-3 font-mono font-bold text-blue-700">{colab.id}</td>
+                    <td className="p-3 font-bold text-slate-800">{colab.contratado}</td>
+                    <td className="p-3 text-slate-600 uppercase text-[11px] font-semibold">{colab.cargo}</td>
+                    <td className="p-3 text-slate-600 uppercase text-[11px] font-semibold">{colab.centroDeCusto}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL DE CADASTRO: QUADRO PG 1
+          Campos: ID, Contratado, Cargo, Centro de Custo
+          ========================================================================= */}
+      {isCadastroModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-5">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-pink-50 text-pink-600 border border-pink-100">
+                  <Plus size={20} className="stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Cadastrar Colaborador</h3>
+                  <p className="text-xs text-slate-500">Preencha os campos obrigatórios do Quadro Pg 1</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsCadastroModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X size={18} />
               </button>
             </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSalvarCadastro} className="space-y-4">
+              {/* Campo 1: ID */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                  <span>ID / Matrícula</span>
+                  <span className="text-[10px] text-pink-600 font-semibold">* obrigatório</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: 280438"
+                  value={cadastroForm.id}
+                  onChange={(e) => setCadastroForm({ ...cadastroForm, id: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-pink-500 focus:bg-white focus:ring-2 focus:ring-pink-500/10 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none transition-all"
+                />
+              </div>
+
+              {/* Campo 2: Contratado */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                  <span>Contratado (Nome Completo)</span>
+                  <span className="text-[10px] text-pink-600 font-semibold">* obrigatório</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: JOSE PEDRO MENEZES SILVA"
+                  value={cadastroForm.contratado}
+                  onChange={(e) => setCadastroForm({ ...cadastroForm, contratado: e.target.value.toUpperCase() })}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-pink-500 focus:bg-white focus:ring-2 focus:ring-pink-500/10 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none transition-all"
+                />
+              </div>
+
+              {/* Campo 3: Cargo */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">
+                  Cargo
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: MEDICO TRABALHO JR"
+                  value={cadastroForm.cargo}
+                  onChange={(e) => setCadastroForm({ ...cadastroForm, cargo: e.target.value.toUpperCase() })}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-pink-500 focus:bg-white focus:ring-2 focus:ring-pink-500/10 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none transition-all"
+                />
+              </div>
+
+              {/* Campo 4: Centro de Custo */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">
+                  Centro de Custo
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: REMUNERAÇÃO - SAUDE E SEGURANÇA DO TRABALHO"
+                  value={cadastroForm.centroDeCusto}
+                  onChange={(e) => setCadastroForm({ ...cadastroForm, centroDeCusto: e.target.value.toUpperCase() })}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-pink-500 focus:bg-white focus:ring-2 focus:ring-pink-500/10 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none transition-all"
+                />
+              </div>
+
+              {/* Mensagem de Sucesso */}
+              {cadastroSuccessMsg && (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                  <span>{cadastroSuccessMsg}</span>
+                </div>
+              )}
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsCadastroModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-pink-600 text-white hover:bg-pink-700 text-xs font-bold shadow-sm shadow-pink-500/20 transition-all cursor-pointer"
+                >
+                  Salvar Cadastro
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
