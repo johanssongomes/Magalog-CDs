@@ -106,6 +106,9 @@ export const PmtsPage: React.FC = () => {
   const [activePageId, setActivePageId] = useState<number>(1)
   const activePage = PMT_PAGES_CONFIG.find(p => p.id === activePageId) || PMT_PAGES_CONFIG[0]
 
+  // Sub-página ativa do menu Quadro (Pg 1, Pg 2, Pg 3, Pg 4)
+  const [quadroSubPage, setQuadroSubPage] = useState<'pg1' | 'pg2' | 'pg3' | 'pg4'>('pg1')
+
   // Estado dos Filtros de Ano e Mês (solicitado pelo usuário)
   const [selectedYear, setSelectedYear] = useState<number>(2026)
   const [selectedMonth, setSelectedMonth] = useState<number>(10)
@@ -264,6 +267,38 @@ export const PmtsPage: React.FC = () => {
             )
           })}
         </div>
+
+        {/* Sub-páginas exclusivas do menu Quadro (Pg 1, Pg 2, Pg 3, Pg 4) */}
+        {activePageId === 3 && (
+          <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-2 px-1">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono mr-1">
+              Sub-páginas:
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[
+                { id: 'pg1', label: 'Pg 1' },
+                { id: 'pg2', label: 'Pg 2' },
+                { id: 'pg3', label: 'Pg 3' },
+                { id: 'pg4', label: 'Pg 4' }
+              ].map((sub) => {
+                const isSubActive = quadroSubPage === sub.id
+                return (
+                  <button
+                    key={sub.id}
+                    onClick={() => setQuadroSubPage(sub.id)}
+                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer border ${
+                      isSubActive
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                        : 'bg-slate-50 text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
+                    }`}
+                  >
+                    {sub.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* =========================================================================
@@ -427,7 +462,7 @@ export const PmtsPage: React.FC = () => {
                 Distribuição por Modal Agrupado (CD 994)
               </h3>
               <p className="text-xs text-slate-500">
-                Segmentação do PMT {activePage.label} para o período de {selectedMonthName.split(' - ')[1]}/{selectedYear}
+                Segmentação do PMT {activePage.label} {activePageId === 3 ? `(${quadroSubPage.toUpperCase()})` : ''} para o período de {selectedMonthName.split(' - ')[1]}/{selectedYear}
               </p>
             </div>
             <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700">
