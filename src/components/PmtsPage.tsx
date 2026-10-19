@@ -235,28 +235,28 @@ export const PmtsPage: React.FC = () => {
           1. BARRA DE MENUS DE PÁGINAS:
           Página 1 (PMT Expedição) | Página 2 (PMT Recebimento) | Página 3 | Página 4 | Página 5
           ========================================================================= */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-2.5 shadow-xs">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+      <div className="bg-white border border-slate-200 rounded-xl p-1.5 shadow-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
           {PMT_PAGES_CONFIG.map((page) => {
             const isActive = activePageId === page.id
             return (
               <button
                 key={page.id}
                 onClick={() => setActivePageId(page.id)}
-                className={`flex items-center justify-center gap-2.5 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer border ${
+                className={`flex items-center justify-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer border ${
                   isActive
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20 translate-y-[-1px]'
-                    : 'bg-slate-50 hover:bg-blue-50/60 text-slate-700 hover:text-blue-700 border-slate-200/90 hover:border-blue-200'
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/20'
+                    : 'bg-slate-50 hover:bg-blue-50/60 text-slate-700 hover:text-blue-700 border-slate-200 hover:border-blue-200'
                 }`}
               >
-                <span className={`p-1 rounded-lg ${isActive ? 'bg-blue-500/40 text-white' : 'bg-white text-slate-500 border border-slate-200'}`}>
+                <span className={`p-1 rounded-md ${isActive ? 'bg-blue-500/40 text-white' : 'bg-white text-slate-500 border border-slate-200'}`}>
                   {page.icon}
                 </span>
                 <div className="flex flex-col text-left min-w-0">
-                  <span className="leading-tight text-xs uppercase tracking-wider opacity-75 font-mono truncate">
+                  <span className="leading-none text-[9px] uppercase tracking-wider opacity-75 font-mono truncate">
                     {page.badge}
                   </span>
-                  <span className="text-sm font-bold leading-tight truncate">
+                  <span className="text-xs font-bold leading-tight truncate">
                     {page.label}
                   </span>
                 </div>
@@ -270,7 +270,7 @@ export const PmtsPage: React.FC = () => {
           2. FILTROS DE ANO E MÊS (Área destacada pelo usuário na imagem com retângulos)
           Filtro Ano + Filtro Mês + Botão de Importação / Atualização da Base PMT
           ========================================================================= */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200 rounded-xl p-2.5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-2.5">
         {/* Bloco dos Campos de Filtro (Ano & Mês) */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider font-mono mr-1">
