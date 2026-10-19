@@ -780,6 +780,11 @@ export const PmtsPage: React.FC = () => {
                     <span>Importar Planilha PMT</span>
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* =========================================================================
           PAINEL DE CADASTRO DO QUADRO (PG 1)
           Se Quadro Pg 1 estiver ativo, exibe tabela com ID, Contratado, Cargo, Centro de Custo
