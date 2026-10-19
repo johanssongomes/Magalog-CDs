@@ -20,7 +20,10 @@ import {
   Layers,
   ChevronDown,
   Search,
-  ArrowUpRight
+  ArrowUpRight,
+  Loader2,
+  FolderOpen,
+  HardDrive
 } from 'lucide-react'
 import { PmtDailyMatrixTable } from './PmtDailyMatrixTable'
 
@@ -114,6 +117,29 @@ export const PmtsPage: React.FC = () => {
   const [isImporting, setIsImporting] = useState(false)
   const [importFeedback, setImportFeedback] = useState<{ success?: boolean; message?: string } | null>(null)
 
+  // Lista de arquivos disponíveis na pasta PMTs/
+  const [pmtFiles, setPmtFiles] = useState<{ name: string; sizeMb: string; lastModified: string }[]>([])
+  const [selectedFile, setSelectedFile] = useState<string>('')
+  const [loadingFiles, setLoadingFiles] = useState(false)
+
+  const loadPmtFiles = async () => {
+    setLoadingFiles(true)
+    try {
+      const res = await fetch('http://localhost:3001/api/pmt/files')
+      if (res.ok) {
+        const files = await res.json()
+        setPmtFiles(files)
+        if (files.length > 0 && !selectedFile) {
+          setSelectedFile(files[0].name) // seleciona o primeiro por padrão
+        }
+      }
+    } catch {
+      setPmtFiles([])
+    } finally {
+      setLoadingFiles(false)
+    }
+  }
+
   // Dados consolidados do PMT (CD 994)
   const [loadingData, setLoadingData] = useState(false)
   const [pmtData, setPmtData] = useState<{
@@ -171,7 +197,7 @@ export const PmtsPage: React.FC = () => {
           mes: selectedMonth,
           versao: importVersion,
           replace: replaceExisting,
-          filename: 'PMT_out_2026.xlsx'
+          filename: selectedFile || 'PMT_out_2026.xlsx'
         })
       })
       const data = await res.json()
@@ -321,7 +347,11 @@ export const PmtsPage: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setIsImportModalOpen(true)}
+            onClick={() => {
+            setIsImportModalOpen(true)
+            setImportFeedback(null)
+            loadPmtFiles()
+          }}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-xs font-bold shadow-sm shadow-blue-500/20 transition-all hover:translate-y-[-1px] cursor-pointer"
           >
             <UploadCloud size={16} />
@@ -529,18 +559,72 @@ export const PmtsPage: React.FC = () => {
                 </label>
               </div>
 
-              {/* Card de Arquivo Local Detectado na Pasta PMTs */}
-              <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/50 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <FileCheck size={20} className="text-emerald-600 shrink-0" />
-                  <div className="min-w-0 text-left">
-                    <p className="text-xs font-bold text-emerald-900 truncate">PMT_out_2026.xlsx detectado</p>
-                    <p className="text-[10px] text-emerald-700 font-mono">Pasta: PMTs/ • 50.530 linhas • 18 colunas mapeadas</p>
-                  </div>
+              {/* Seletor Dinâmico de Arquivo da Pasta PMTs/ */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <FolderOpen size={13} className="text-blue-600" />
+                    Planilha PMT (pasta PMTs/)
+                  </label>
+                  <button
+                    onClick={loadPmtFiles}
+                    className="text-[11px] text-blue-600 hover:underline flex items-center gap-1 font-semibold"
+                  >
+                    {loadingFiles ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                    Atualizar
+                  </button>
                 </div>
-                <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider font-mono shrink-0">
-                  Pronto
-                </span>
+
+                {loadingFiles ? (
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center gap-2 text-slate-400 text-xs">
+                    <Loader2 size={14} className="animate-spin" />
+                    Buscando arquivos na pasta PMTs/...
+                  </div>
+                ) : pmtFiles.length === 0 ? (
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-center text-xs text-slate-400">
+                    Nenhuma planilha encontrada na pasta <span className="font-mono font-bold">PMTs/</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                    {pmtFiles.map(file => {
+                      const isSelected = selectedFile === file.name
+                      const modDate = new Date(file.lastModified).toLocaleDateString('pt-BR')
+                      return (
+                        <button
+                          key={file.name}
+                          onClick={() => setSelectedFile(file.name)}
+                          className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                            isSelected
+                              ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-500/10'
+                              : 'border-slate-200 bg-slate-50 hover:border-blue-300 hover:bg-blue-50/40'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className={`p-1.5 rounded-lg shrink-0 ${
+                              isSelected ? 'bg-blue-100 text-blue-700' : 'bg-white border border-slate-200 text-slate-400'
+                            }`}>
+                              <FileCheck size={14} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className={`text-xs font-bold truncate ${
+                                isSelected ? 'text-blue-900' : 'text-slate-800'
+                              }`}>{file.name}</p>
+                              <p className="text-[10px] font-mono text-slate-500 flex items-center gap-1 mt-0.5">
+                                <HardDrive size={9} />
+                                {file.sizeMb} MB • Modificado: {modDate}
+                              </p>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <span className="px-2 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider font-mono shrink-0">
+                              Selecionado
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Mapeamento de Colunas Detectadas */}
@@ -576,7 +660,7 @@ export const PmtsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleExecuteImport}
-                disabled={isImporting}
+                disabled={isImporting || !selectedFile}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-xs font-bold shadow-sm shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-50"
               >
                 {isImporting ? (

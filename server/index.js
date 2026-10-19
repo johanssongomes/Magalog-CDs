@@ -166,6 +166,33 @@ function getSqliteDb() {
   }
 }
 
+// Lista arquivos disponíveis na pasta PMTs/ para seleção no modal de importação
+app.get('/api/pmt/files', (req, res) => {
+  const pmtsDir = path.join(__dirname, '../PMTs')
+  try {
+    if (!fs.existsSync(pmtsDir)) {
+      return res.json([])
+    }
+    const files = fs.readdirSync(pmtsDir)
+      .filter(f => /\.(xlsx|xlsb|xls)$/i.test(f))
+      .map(f => {
+        const filePath = path.join(pmtsDir, f)
+        const stat = fs.statSync(filePath)
+        return {
+          name: f,
+          sizeMb: (stat.size / 1024 / 1024).toFixed(1),
+          sizeBytes: stat.size,
+          lastModified: stat.mtime.toISOString()
+        }
+      })
+      .sort((a, b) => b.lastModified.localeCompare(a.lastModified)) // mais recentes primeiro
+    res.json(files)
+  } catch (err) {
+    console.error('Erro /api/pmt/files:', err)
+    res.json([])
+  }
+})
+
 // Lista de Anos disponíveis
 app.get('/api/pmt/years', (req, res) => {
   try {
