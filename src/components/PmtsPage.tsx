@@ -58,11 +58,11 @@ const PMT_PAGES_CONFIG: PmtPageItem[] = [
   },
   {
     id: 3,
-    label: 'Página 3',
-    title: 'Aderência & Indicadores de Expedição',
-    description: 'Métricas de pontualidade de carregamento, aderência ao cronograma PMT e produtividade operacional.',
+    label: 'Quadro',
+    title: 'Quadro de Acompanhamento & Metas',
+    description: 'Quadro geral de métricas, metas e acompanhamento operacional.',
     badge: 'Módulo 03',
-    slug: 'pagina-3',
+    slug: 'quadro',
     icon: <Target size={18} />
   },
   {
