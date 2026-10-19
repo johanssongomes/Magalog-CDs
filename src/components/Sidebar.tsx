@@ -57,8 +57,8 @@ export const navItems: NavItem[] = [
   },
   {
     id: 'pmts',
-    label: 'PMTs',
-    description: 'Gestão e Acompanhamento de PMTs',
+    label: 'Gestão 360°',
+    description: 'Gestão e Acompanhamento de PMTs e Indicadores 360°',
     icon: <BarChart3 size={20} />
   },
   {
