@@ -77,15 +77,39 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         className="absolute top-0 right-0 bottom-0 w-[4px] pointer-events-none z-50 bg-gradient-to-b from-[#00ff66] via-[#00f2fe] via-[#0066ff] via-[#7b2cbf] to-[#d900ff] shadow-[0_0_12px_rgba(0,242,254,0.4)]" 
       />
       {/* Header / Brand */}
-      <div className="p-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-950/40 gap-2">
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <div className="p-2 rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/30 shrink-0">
-            <Layers size={20} />
+      <div className="relative p-3.5 border-b border-slate-800/80 flex items-center justify-between bg-[#0b1329]/80 backdrop-blur-sm gap-2">
+        {/* Marcador lateral ciano/turquesa estilizado */}
+        <div className="absolute left-0 top-2 bottom-2 w-1 bg-cyan-400 rounded-r shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+
+        <div className="flex items-center gap-3 min-w-0 flex-1 pl-1">
+          {/* Logo container estilo botão azul arredondado */}
+          <div className="w-10 h-10 rounded-2xl bg-[#1e60ff] text-white shadow-lg shadow-blue-600/40 flex items-center justify-center shrink-0 border border-blue-400/40">
+            <svg 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2.2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              className="w-5 h-5 text-white"
+            >
+              {/* Telhado superior estilizado */}
+              <path d="M4 8.5L12 3.5L20 8.5" />
+              {/* Camada intermediária */}
+              <path d="M6 12L12 8L18 12" />
+              {/* Estrutura inferior / porta do armazém */}
+              <path d="M5 14.5v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5" />
+              <path d="M9.5 20.5v-4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v4" />
+            </svg>
           </div>
           {!isCollapsed && (
             <div className="min-w-0 flex-1">
-              <h1 className="text-xs font-bold text-white leading-tight">Gerenciamento Diário CD 994</h1>
-              <p className="text-[10px] text-blue-400 font-medium truncate mt-0.5">Painel Administrativo</p>
+              <h1 className="text-[13px] font-black text-white tracking-wide uppercase leading-tight truncate">
+                CD 994 <span className="text-slate-400 font-light mx-0.5">|</span> GESTÃO LOGÍSTICA
+              </h1>
+              <p className="text-[9px] font-bold text-blue-400 tracking-[0.2em] uppercase mt-0.5 truncate">
+                PAINEL OPERACIONAL
+              </p>
             </div>
           )}
         </div>
@@ -93,9 +117,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           title={isCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors shrink-0"
         >
-          {isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          {isCollapsed ? <ChevronRight size={18} /> : <ChevronRight size={18} className="text-slate-400 hover:text-white" />}
         </button>
       </div>
 
