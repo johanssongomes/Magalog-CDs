@@ -116,13 +116,21 @@ def parse_and_import(file_path, ano=2026, mes=10, versao="v14", replace=True, db
                         pass
                 row_data[col] = val
             
-            # Converte data do Excel (serial)
+            # Converte data do Excel (suporta tanto dia do mês [1..31] quanto número serial Excel)
             dia_str = None
             raw_dia = row_data.get('D')
-            if raw_dia:
+            if raw_dia is not None and str(raw_dia).strip() != '':
                 try:
-                    d_obj = BASE_EXCEL_DATE + timedelta(days=float(raw_dia))
-                    dia_str = d_obj.strftime('%Y-%m-%d')
+                    num_dia = float(raw_dia)
+                    if 1 <= num_dia <= 31 and num_dia.is_integer():
+                        # É o dia do mês direto (ex: 1, 2, ..., 30)
+                        dia_str = f"{ano:04d}-{mes:02d}-{int(num_dia):02d}"
+                    elif num_dia > 1000:
+                        # É uma data serial do Excel (ex: 46296 para 2026-10-01)
+                        d_obj = BASE_EXCEL_DATE + timedelta(days=num_dia)
+                        dia_str = d_obj.strftime('%Y-%m-%d')
+                    else:
+                        dia_str = f"{ano:04d}-{mes:02d}-{int(num_dia):02d}"
                 except:
                     dia_str = str(raw_dia)
             
