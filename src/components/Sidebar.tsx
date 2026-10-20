@@ -77,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         className="absolute top-0 right-0 bottom-0 w-[4px] pointer-events-none z-50 bg-gradient-to-b from-[#00ff66] via-[#00f2fe] via-[#0066ff] via-[#7b2cbf] to-[#d900ff] shadow-[0_0_12px_rgba(0,242,254,0.4)]" 
       />
       {/* Header / Brand */}
-      <div className="relative px-3 py-3.5 border-b border-slate-800/80 flex items-center justify-between bg-[#0b1329]/80 backdrop-blur-sm gap-2">
+      <div className="relative px-3 py-3.5 border-b border-slate-700/60 flex items-center justify-between bg-[#0b1329]/80 backdrop-blur-sm gap-2">
         {/* Marcador lateral ciano/turquesa estilizado */}
         <div className="absolute left-0 top-2 bottom-2 w-1 bg-cyan-400 rounded-r shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
 
