@@ -385,11 +385,12 @@ app.get('/api/pmt/history', (req, res) => {
   }
 })
 
-// Matriz diária por Modal para o indicador (Pedidos TT, Peças TT, Cubagem TT)
+// Matriz diária por Modal ou por Categoria de Produtividade para o indicador (Pedidos TT, Peças TT, Cubagem TT)
 app.get('/api/pmt/daily-matrix', (req, res) => {
   const ano = parseInt(req.query.ano || '2026', 10)
   const mes = parseInt(req.query.mes || '10', 10)
   const cd = String(req.query.cd || '994').trim()
+  const groupBy = String(req.query.groupBy || 'modal').trim() // 'modal' ou 'categoria_produtividade'
 
   try {
     const db = getSqliteDb()
@@ -409,6 +410,9 @@ app.get('/api/pmt/daily-matrix', (req, res) => {
       })
     }
 
+    const isCategoria = groupBy === 'categoria_produtividade' || groupBy === 'categoria'
+    const groupCol = isCategoria ? 'categoria_produtividade' : 'modal'
+
     const expectedModals = [
       '1. Courier',
       '10. Ecom Fulfillment',
@@ -422,16 +426,32 @@ app.get('/api/pmt/daily-matrix', (req, res) => {
       '9. Ecom 1P'
     ]
 
+    const expectedCategorias = [
+      'ATACADO',
+      'BENS DE CONSUMO (MERCADO)',
+      'COFRE',
+      'COLCHAO / ESTOFADO',
+      'CROSS LEVE',
+      'CROSS PESADO',
+      'DIVERSOS',
+      'ELETRO PESADO',
+      'MADEIRA',
+      'PNEUS',
+      'TV'
+    ]
+
+    const targetList = isCategoria ? expectedCategorias : expectedModals
+
     const rows = db.prepare(`
       SELECT 
-        modal,
+        ${groupCol} as group_name,
         SUBSTR(dia, 9, 2) as dia_mes,
         SUM(pedido_plan_diario_cd) as pedidos,
         SUM(pecas_plan_diario_cd) as pecas,
         SUM(cub_plan_diario_cd) as cub
       FROM pmt_records
-      WHERE cd = ? AND ano = ? AND mes = ? AND dia IS NOT NULL
-      GROUP BY modal, dia_mes
+      WHERE cd = ? AND ano = ? AND mes = ? AND dia IS NOT NULL AND ${groupCol} IS NOT NULL AND ${groupCol} != '' AND ${groupCol} != '-'
+      GROUP BY ${groupCol}, dia_mes
     `).all(cd, ano, mes)
 
     const data = {
@@ -440,7 +460,7 @@ app.get('/api/pmt/daily-matrix', (req, res) => {
       cubagem: {}
     }
 
-    expectedModals.forEach(m => {
+    targetList.forEach(m => {
       data.pedidos[m] = { total: 0 }
       data.pecas[m] = { total: 0 }
       data.cubagem[m] = { total: 0 }
@@ -452,7 +472,7 @@ app.get('/api/pmt/daily-matrix', (req, res) => {
     })
 
     rows.forEach(r => {
-      const m = r.modal
+      const m = r.group_name
       const d = r.dia_mes
       if (data.pedidos[m]) {
         const ped = Number(r.pedidos || 0)
@@ -470,8 +490,8 @@ app.get('/api/pmt/daily-matrix', (req, res) => {
       }
     })
 
-    // Arredonda os totais gerais por modal
-    expectedModals.forEach(m => {
+    // Arredonda os totais gerais
+    targetList.forEach(m => {
       data.pedidos[m].total = Math.round(data.pedidos[m].total)
       data.pecas[m].total = Math.round(data.pecas[m].total)
       data.cubagem[m].total = Math.round(data.cubagem[m].total)
@@ -488,7 +508,7 @@ app.get('/api/pmt/daily-matrix', (req, res) => {
       let sumPed = 0
       let sumPec = 0
       let sumCub = 0
-      expectedModals.forEach(m => {
+      targetList.forEach(m => {
         sumPed += data.pedidos[m][d.dayStr] || 0
         sumPec += data.pecas[m][d.dayStr] || 0
         sumCub += data.cubagem[m][d.dayStr] || 0
@@ -518,8 +538,9 @@ app.get('/api/pmt/daily-matrix', (req, res) => {
       ano,
       mes,
       cd,
+      groupBy: isCategoria ? 'categoria_produtividade' : 'modal',
       days,
-      modals: expectedModals,
+      modals: targetList,
       data,
       totals
     })

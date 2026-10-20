@@ -44,6 +44,7 @@ import initialColaboradoresData from '../data/initialColaboradores.json'
 import { PmtDailyMatrixTable } from './PmtDailyMatrixTable'
 import { BankHoursPage } from './BankHoursPage'
 import { supabase } from '../lib/supabase'
+import { getPmtSummaryFromSupabase } from '../lib/pmtService'
 
 export interface PmtPageItem {
   id: number
@@ -923,18 +924,26 @@ export const PmtsPage: React.FC = () => {
     totalGeralLinhas?: number
   }>({})
 
-  // Carrega dados da API do servidor quando o ano ou mês mudam
+  // Carrega dados do Supabase (ou servidor local como fallback) quando o ano ou mês mudam
   const fetchPmtData = async (year: number, month: number) => {
     setLoadingData(true)
     setPmtData({})
     try {
+      // 1. Tenta carregar direto do Supabase (funciona na Vercel e fora da rede)
+      const cloudSummary = await getPmtSummaryFromSupabase(year, month, '994')
+      if (cloudSummary && cloudSummary.summary && (cloudSummary.summary.total_linhas || 0) > 0) {
+        setPmtData(cloudSummary)
+        return
+      }
+
+      // 2. Fallback para API local caso esteja rodando offline com SQLite
       const res = await fetch(`http://localhost:3001/api/pmt/summary?ano=${year}&mes=${month}&cd=994`)
       if (res.ok) {
         const json = await res.json()
         setPmtData(json ?? {})
       }
     } catch {
-      // Sem conexão com o servidor – exibe estado vazio
+      // Sem conexão – exibe estado vazio
     } finally {
       setLoadingData(false)
     }

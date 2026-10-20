@@ -13,6 +13,7 @@ import {
   Sparkles,
   InboxIcon
 } from 'lucide-react'
+import { getPmtDailyMatrixFromSupabase } from '../lib/pmtService'
 
 interface DayItem {
   day: number
@@ -24,6 +25,7 @@ interface MatrixData {
   ano: number
   mes: number
   cd: string
+  groupBy?: 'modal' | 'categoria_produtividade'
   days: DayItem[]
   modals: string[]
   data: {
@@ -46,25 +48,34 @@ interface Props {
 }
 
 type SectionView = 'all' | 'pedidos' | 'pecas' | 'cubagem'
+type GroupByView = 'modal' | 'categoria_produtividade'
 
 export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pageTitle = 'PMT Expedição' }) => {
   const [matrix, setMatrix] = useState<MatrixData | null>(null)
   const [selectedSection, setSelectedSection] = useState<SectionView>('all')
+  const [groupBy, setGroupBy] = useState<GroupByView>('modal')
   const [searchModal, setSearchModal] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  // Carrega dados dinâmicos da API sempre que ano/mês/cd mudam
+  // Carrega dados dinâmicos do Supabase (ou local se offline) sempre que ano/mês/cd/groupBy mudam
   useEffect(() => {
     let isMounted = true
     setMatrix(null) // Limpa dados do mês anterior imediatamente ao mudar filtros
     const fetchMatrix = async () => {
       setIsLoading(true)
       try {
-        const res = await fetch(`http://localhost:3001/api/pmt/daily-matrix?ano=${ano}&mes=${mes}&cd=${cd}`)
+        // Tenta primeiro direto do Supabase (funciona na Vercel e fora da rede)
+        const cloudData = await getPmtDailyMatrixFromSupabase(ano, mes, cd, groupBy)
+        if (cloudData && cloudData.days && cloudData.days.length > 0 && isMounted) {
+          setMatrix(cloudData)
+          return
+        }
+
+        // Fallback para servidor local se disponível
+        const res = await fetch(`http://localhost:3001/api/pmt/daily-matrix?ano=${ano}&mes=${mes}&cd=${cd}&groupBy=${groupBy}`)
         if (res.ok) {
           const json = await res.json()
           if (isMounted) {
-            // Só seta se vier com dados reais (days > 0)
             if (json && json.days && json.days.length > 0) {
               setMatrix(json)
             } else {
@@ -73,7 +84,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
           }
         }
       } catch {
-        // API offline – mantém null (sem dados)
+        // Mantém null se não conseguir carregar
         if (isMounted) setMatrix(null)
       } finally {
         if (isMounted) setIsLoading(false)
@@ -82,7 +93,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
 
     fetchMatrix()
     return () => { isMounted = false }
-  }, [ano, mes, cd])
+  }, [ano, mes, cd, groupBy])
 
   // Função para remover a numeração inicial dos nomes dos modais (ex: "1. Courier" -> "Courier")
   const cleanModalName = (name: string) => {
@@ -107,7 +118,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
 
   // Exportar para CSV
   const handleExportCSV = () => {
-    const headers = ['Indicador', 'Modal', ...matrix.days.map(d => `${d.dayStr} (${d.weekdayLetter})`), 'Total Geral']
+    const colName = groupBy === 'categoria_produtividade' ? 'Categoria de Produtividade' : 'Modal'
+    const headers = ['Indicador', colName, ...matrix.days.map(d => `${d.dayStr} (${d.weekdayLetter})`), 'Total Geral']
     const csvRows: string[] = [headers.join(';')]
 
     const addSectionRows = (sectionName: string, sectionData: Record<string, Record<string, number> & { total: number }>, sectionTotal: Record<string, number> & { total: number }) => {
@@ -138,7 +150,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `PMT_${cd}_${mes}_${ano}_indicadores.csv`
+    a.download = `PMT_${cd}_${mes}_${ano}_${groupBy}_indicadores.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -189,15 +201,39 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
             </span>
           </div>
           <h3 className="text-base font-bold text-slate-900 tracking-tight">
-            Acompanhamento Diário por Modal (Pedidos, Peças e Cubagem)
+            Acompanhamento Diário por {groupBy === 'categoria_produtividade' ? 'Categoria de Produtividade' : 'Modal'} (Pedidos, Peças e Cubagem)
           </h3>
           <p className="text-xs text-slate-500">
-            Visão diária do dia 01 ao dia {matrix.days.length} com consolidação de Pedidos TT, Peças TT e Cubagem TT
+            Visão diária do dia 01 ao dia {matrix.days.length} agrupada por {groupBy === 'categoria_produtividade' ? 'Categoria de Produtividade' : 'Modal de Transporte'} com totais consolidados
           </p>
         </div>
 
-        {/* Controles: Abas de Seções, Filtro de Busca e Exportação */}
+        {/* Controles: Agrupamento (Modal vs Categoria), Abas de Seções, Filtro de Busca e Exportação */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Alternador de Agrupamento: Modal vs Categoria de Produtividade */}
+          <div className="inline-flex p-1 bg-amber-50/80 border border-amber-200/80 rounded-xl text-xs font-semibold text-amber-900">
+            <button
+              onClick={() => setGroupBy('modal')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                groupBy === 'modal'
+                  ? 'bg-amber-600 text-white shadow-2xs font-bold'
+                  : 'hover:bg-amber-100 text-amber-800'
+              }`}
+            >
+              Por Modal
+            </button>
+            <button
+              onClick={() => setGroupBy('categoria_produtividade')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                groupBy === 'categoria_produtividade'
+                  ? 'bg-amber-600 text-white shadow-2xs font-bold'
+                  : 'hover:bg-amber-100 text-amber-800'
+              }`}
+            >
+              Por Categoria Produtividade
+            </button>
+          </div>
+
           {/* Tabs para alternar entre Todos / Pedidos / Peças / Cubagem */}
           <div className="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-semibold text-slate-600">
             <button
@@ -242,14 +278,14 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
             </button>
           </div>
 
-          {/* Busca de Modal */}
+          {/* Busca de Modal ou Categoria */}
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchModal}
               onChange={(e) => setSearchModal(e.target.value)}
-              placeholder="Buscar modal..."
+              placeholder={groupBy === 'categoria_produtividade' ? 'Buscar categoria...' : 'Buscar modal...'}
               className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 w-36 sm:w-44"
             />
           </div>
