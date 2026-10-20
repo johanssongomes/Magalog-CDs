@@ -67,7 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
   const [isCollapsed, setIsCollapsed] = useState(false)
 
   return (
-    <aside className={`${isCollapsed ? 'w-20' : 'w-72'} bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0 shrink-0 transition-all duration-300 z-40 relative`}>
+    <aside className={`${isCollapsed ? 'w-20' : 'w-80'} bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0 shrink-0 transition-all duration-300 z-40 relative`}>
       {/* Faixa decorativa em gradiente colorido na lateral esquerda */}
       <div 
         className="absolute top-0 left-0 bottom-0 w-[4px] pointer-events-none z-50 bg-gradient-to-b from-[#00ff66] via-[#00f2fe] via-[#0066ff] via-[#7b2cbf] to-[#d900ff] shadow-[0_0_12px_rgba(0,242,254,0.4)]" 
@@ -77,13 +77,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         className="absolute top-0 right-0 bottom-0 w-[4px] pointer-events-none z-50 bg-gradient-to-b from-[#00ff66] via-[#00f2fe] via-[#0066ff] via-[#7b2cbf] to-[#d900ff] shadow-[0_0_12px_rgba(0,242,254,0.4)]" 
       />
       {/* Header / Brand */}
-      <div className="relative p-3.5 border-b border-slate-800/80 flex items-center justify-between bg-[#0b1329]/80 backdrop-blur-sm gap-2">
+      <div className="relative px-3 py-3.5 border-b border-slate-800/80 flex items-center justify-between bg-[#0b1329]/80 backdrop-blur-sm gap-2">
         {/* Marcador lateral ciano/turquesa estilizado */}
         <div className="absolute left-0 top-2 bottom-2 w-1 bg-cyan-400 rounded-r shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
 
-        <div className="flex items-center gap-3 min-w-0 flex-1 pl-1">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1 pl-1">
           {/* Logo container estilo botão azul arredondado */}
-          <div className="w-10 h-10 rounded-2xl bg-[#1e60ff] text-white shadow-lg shadow-blue-600/40 flex items-center justify-center shrink-0 border border-blue-400/40">
+          <div className="w-9 h-9 rounded-xl bg-[#1e60ff] text-white shadow-lg shadow-blue-600/40 flex items-center justify-center shrink-0 border border-blue-400/40">
             <svg 
               viewBox="0 0 24 24" 
               fill="none" 
@@ -104,10 +104,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           </div>
           {!isCollapsed && (
             <div className="min-w-0 flex-1">
-              <h1 className="text-[13px] font-black text-white tracking-wide uppercase leading-tight truncate">
+              <h1 className="text-xs font-black text-white uppercase leading-tight whitespace-nowrap">
                 CD 994 <span className="text-slate-400 font-light mx-0.5">|</span> GESTÃO LOGÍSTICA
               </h1>
-              <p className="text-[9px] font-bold text-blue-400 tracking-[0.2em] uppercase mt-0.5 truncate">
+              <p className="text-[9px] font-bold text-blue-400 tracking-[0.16em] uppercase mt-0.5 whitespace-nowrap">
                 PAINEL OPERACIONAL
               </p>
             </div>
