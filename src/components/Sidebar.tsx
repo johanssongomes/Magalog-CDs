@@ -50,12 +50,6 @@ export const navItems: NavItem[] = [
     icon: <FolderKanban size={20} />
   },
   {
-    id: 'inventory',
-    label: 'Banco de Horas',
-    description: 'Gestão e Controle de Banco de Horas',
-    icon: <Clock size={20} />
-  },
-  {
     id: 'pmts',
     label: 'Gestão 360°',
     description: 'Gestão e Acompanhamento de PMTs e Indicadores 360°',

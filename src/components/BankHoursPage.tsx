@@ -20,7 +20,9 @@ import {
   SlidersHorizontal,
   ChevronDown,
   Layers,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Check,
+  X
 } from 'lucide-react'
 
 export interface BankHourRecord {
@@ -128,12 +130,13 @@ export const BankHoursPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [lastSync, setLastSync] = useState<string>('')
   
-  // Filtros
+  // Filtros (Múltipla Seleção)
   const [search, setSearch] = useState('')
-  const [selectedCC, setSelectedCC] = useState<string>('Todos')
-  const [selectedTipo, setSelectedTipo] = useState<string>('Todos')
+  const [selectedCCs, setSelectedCCs] = useState<string[]>([])
+  const [selectedTipos, setSelectedTipos] = useState<string[]>([])
+  const [selectedDatas, setSelectedDatas] = useState<string[]>([])
+  const [openDropdown, setOpenDropdown] = useState<'cc' | 'tipo' | 'data' | null>(null)
   const [selectedCargo, setSelectedCargo] = useState<string>('Todos')
-  const [selectedData, setSelectedData] = useState<string>('Todas')
   const [viewTab, setViewTab] = useState<'geral' | 'colaboradores' | 'centros' | 'evolucao' | 'relatorio'>('geral')
   const [evolutionSelectedEmp, setEvolutionSelectedEmp] = useState<string>('')
 
@@ -251,13 +254,13 @@ export const BankHoursPage: React.FC = () => {
   }, [data])
 
   // Dados ativos para cálculo e exibição:
-  // - Se uma data específica estiver selecionada, filtra diretamente por ela.
-  // - Se 'Todas' estiver selecionada (Posição Consolidada Mais Recente),
+  // - Se datas específicas estiverem selecionadas, filtra diretamente por elas.
+  // - Se nenhuma data estiver selecionada (Posição Consolidada Mais Recente),
   //   mantém para cada colaborador apenas os registros da sua data mais recente,
-  //   garantindo que NÃO SEJAM SOMADOS os dias anteriores (pois cada dia na planilha é o saldo atual daquele momento).
+  //   garantindo que NÃO SEJAM SOMADOS os dias anteriores.
   const activeSnapshotData = useMemo(() => {
-    if (selectedData !== 'Todas') {
-      return data.filter(item => item.data === selectedData)
+    if (selectedDatas.length > 0) {
+      return data.filter(item => selectedDatas.includes(item.data))
     }
 
     // Identifica a data mais recente registrada para cada colaborador
@@ -273,9 +276,9 @@ export const BankHoursPage: React.FC = () => {
       const key = `${item.id}-${item.contratado}`
       return latestDateByEmp.get(key) === item.data
     })
-  }, [data, selectedData])
+  }, [data, selectedDatas])
 
-  // Filtragem (aplica busca textual, centro de custo, cargo e tipo sobre os dados ativos)
+  // Filtragem (aplica busca textual, múltiplos centros de custo, múltiplos tipos e cargo sobre os dados ativos)
   const filteredData = useMemo(() => {
     return activeSnapshotData.filter(item => {
       const q = search.toLowerCase()
@@ -286,13 +289,20 @@ export const BankHoursPage: React.FC = () => {
         item.cargo.toLowerCase().includes(q) ||
         item.centroDeCusto.toLowerCase().includes(q)
 
-      const matchCC = selectedCC === 'Todos' || item.centroDeCusto === selectedCC
-      const matchTipo = selectedTipo === 'Todos' || normalizeStr(item.tipo).includes(normalizeStr(selectedTipo))
+      const matchCC = selectedCCs.length === 0 || selectedCCs.includes(item.centroDeCusto)
+      
+      const itemTipoNorm = normalizeStr(item.tipo)
+      const matchTipo = selectedTipos.length === 0 || selectedTipos.some(t => {
+        if (t === 'credito') return itemTipoNorm.includes('credito')
+        if (t === 'debito') return itemTipoNorm.includes('debito')
+        return itemTipoNorm.includes(normalizeStr(t))
+      })
+
       const matchCargo = selectedCargo === 'Todos' || item.cargo === selectedCargo
 
       return matchSearch && matchCC && matchTipo && matchCargo
     })
-  }, [activeSnapshotData, search, selectedCC, selectedTipo, selectedCargo])
+  }, [activeSnapshotData, search, selectedCCs, selectedTipos, selectedCargo])
 
   // Histórico e Evolução por Colaborador através das Datas
   const employeeEvolutionData = useMemo(() => {
@@ -385,12 +395,12 @@ export const BankHoursPage: React.FC = () => {
         emp.cargo.toLowerCase().includes(q) ||
         emp.centroDeCusto.toLowerCase().includes(q)
 
-      const matchCC = selectedCC === 'Todos' || emp.centroDeCusto === selectedCC
+      const matchCC = selectedCCs.length === 0 || selectedCCs.includes(emp.centroDeCusto)
       const matchCargo = selectedCargo === 'Todos' || emp.cargo === selectedCargo
 
       return matchSearch && matchCC && matchCargo
     })
-  }, [data, search, selectedCC, selectedCargo])
+  }, [data, search, selectedCCs, selectedCargo])
 
   // Agrupamento por Colaborador
   const groupedByEmployee = useMemo(() => {
@@ -606,7 +616,11 @@ export const BankHoursPage: React.FC = () => {
             <p className="text-[11px] text-slate-500 mt-1">
               {saldoLiquido >= 0 ? 'Superávit geral de horas' : 'Déficit geral de horas'} da equipe
               <span className="block text-[10px] text-slate-400 font-medium mt-0.5">
-                {selectedData === 'Todas' ? `Posição Atual (${datasUnicas[0] || 'Recente'}) • Sem somar dias anteriores` : `Referência: ${selectedData}`}
+                {selectedDatas.length === 0 
+                  ? `Posição Atual (${datasUnicas[0] || 'Recente'}) • Sem somar dias anteriores` 
+                  : selectedDatas.length === 1 
+                    ? `Referência: ${selectedDatas[0]}` 
+                    : `Datas: ${selectedDatas.length} selecionadas`}
               </span>
             </p>
           </div>
@@ -687,48 +701,255 @@ export const BankHoursPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Filtro Centro de Custo */}
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs">
-            <Building2 size={13} className="text-slate-500" />
-            <select
-              value={selectedCC}
-              onChange={e => setSelectedCC(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer max-w-[150px] truncate"
+          {/* Filtro Centro de Custo (Múltipla Seleção) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setOpenDropdown(openDropdown === 'cc' ? null : 'cc')}
+              className={`flex items-center gap-1.5 border rounded-xl px-2.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                selectedCCs.length > 0 
+                  ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs' 
+                  : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-700'
+              }`}
             >
-              <option value="Todos">Todos os Centros</option>
-              {centrosDeCusto.map(cc => (
-                <option key={cc} value={cc}>{cc}</option>
-              ))}
-            </select>
+              <Building2 size={13} className={selectedCCs.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
+              <span className="truncate max-w-[150px]">
+                {selectedCCs.length === 0 
+                  ? 'Todos os Centros' 
+                  : selectedCCs.length === 1 
+                    ? selectedCCs[0] 
+                    : `${selectedCCs.length} centros`}
+              </span>
+              <ChevronDown size={13} className={`text-slate-400 transition-transform ${openDropdown === 'cc' ? 'rotate-180' : ''}`} />
+            </button>
+
+            {openDropdown === 'cc' && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                <div className="absolute left-0 mt-1.5 w-72 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-2 space-y-1.5 max-h-72 flex flex-col animate-in fade-in zoom-in-95 duration-100">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 px-1">
+                    <span className="text-[11px] font-bold text-slate-700">Centros de Custo</span>
+                    {selectedCCs.length > 0 && (
+                      <button 
+                        type="button" 
+                        onClick={() => setSelectedCCs([])}
+                        className="text-[10px] text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
+                      >
+                        Limpar ({selectedCCs.length})
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="overflow-y-auto space-y-0.5 max-h-56 pr-1">
+                    <label className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs">
+                      <input 
+                        type="checkbox"
+                        checked={selectedCCs.length === 0}
+                        onChange={() => setSelectedCCs([])}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span className={`text-[11px] ${selectedCCs.length === 0 ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
+                        Todos os Centros
+                      </span>
+                    </label>
+
+                    {centrosDeCusto.map(cc => {
+                      const isChecked = selectedCCs.includes(cc)
+                      return (
+                        <label key={cc} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs">
+                          <input 
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setSelectedCCs(selectedCCs.filter(item => item !== cc))
+                              } else {
+                                setSelectedCCs([...selectedCCs, cc])
+                              }
+                            }}
+                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
+                            {cc}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Filtro Tipo Crédito / Débito */}
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs">
-            <Filter size={13} className="text-slate-500" />
-            <select
-              value={selectedTipo}
-              onChange={e => setSelectedTipo(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
+          {/* Filtro Tipo Crédito / Débito (Múltipla Seleção) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setOpenDropdown(openDropdown === 'tipo' ? null : 'tipo')}
+              className={`flex items-center gap-1.5 border rounded-xl px-2.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                selectedTipos.length > 0 
+                  ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs' 
+                  : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-700'
+              }`}
             >
-              <option value="Todos">Todos os Tipos</option>
-              <option value="credito">Apenas Crédito</option>
-              <option value="debito">Apenas Débito</option>
-            </select>
+              <Filter size={13} className={selectedTipos.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
+              <span>
+                {selectedTipos.length === 0 
+                  ? 'Todos os Tipos' 
+                  : selectedTipos.length === 1 
+                    ? (selectedTipos[0] === 'credito' ? 'Apenas Crédito' : 'Apenas Débito') 
+                    : 'Crédito & Débito'}
+              </span>
+              <ChevronDown size={13} className={`text-slate-400 transition-transform ${openDropdown === 'tipo' ? 'rotate-180' : ''}`} />
+            </button>
+
+            {openDropdown === 'tipo' && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                <div className="absolute left-0 mt-1.5 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-2 space-y-1 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-100 px-1">
+                    <span className="text-[11px] font-bold text-slate-700">Tipo de Horas</span>
+                    {selectedTipos.length > 0 && (
+                      <button 
+                        type="button" 
+                        onClick={() => setSelectedTipos([])}
+                        className="text-[10px] text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+
+                  <label className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs">
+                    <input 
+                      type="checkbox"
+                      checked={selectedTipos.length === 0}
+                      onChange={() => setSelectedTipos([])}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className={`text-[11px] ${selectedTipos.length === 0 ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
+                      Todos os Tipos
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs">
+                    <input 
+                      type="checkbox"
+                      checked={selectedTipos.includes('credito')}
+                      onChange={() => {
+                        if (selectedTipos.includes('credito')) {
+                          setSelectedTipos(selectedTipos.filter(t => t !== 'credito'))
+                        } else {
+                          setSelectedTipos([...selectedTipos, 'credito'])
+                        }
+                      }}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className={`text-[11px] ${selectedTipos.includes('credito') ? 'font-bold text-emerald-700' : 'text-slate-700'}`}>
+                      Crédito de Horas (+)
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs">
+                    <input 
+                      type="checkbox"
+                      checked={selectedTipos.includes('debito')}
+                      onChange={() => {
+                        if (selectedTipos.includes('debito')) {
+                          setSelectedTipos(selectedTipos.filter(t => t !== 'debito'))
+                        } else {
+                          setSelectedTipos([...selectedTipos, 'debito'])
+                        }
+                      }}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className={`text-[11px] ${selectedTipos.includes('debito') ? 'font-bold text-rose-700' : 'text-slate-700'}`}>
+                      Débito de Horas (-)
+                    </span>
+                  </label>
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Filtro Data de Lançamento */}
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs">
-            <Calendar size={13} className="text-slate-500" />
-            <select
-              value={selectedData}
-              onChange={e => setSelectedData(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
+          {/* Filtro Data de Lançamento (Múltipla Seleção) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setOpenDropdown(openDropdown === 'data' ? null : 'data')}
+              className={`flex items-center gap-1.5 border rounded-xl px-2.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                selectedDatas.length > 0 
+                  ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs' 
+                  : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-700'
+              }`}
             >
-              <option value="Todas">Posição Atual ({datasUnicas[0] || 'Mais Recente'})</option>
-              {datasUnicas.map(d => (
-                <option key={d} value={d}>Data: {d}</option>
-              ))}
-            </select>
+              <Calendar size={13} className={selectedDatas.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
+              <span className="truncate max-w-[170px]">
+                {selectedDatas.length === 0 
+                  ? `Posição Atual (${datasUnicas[0] || 'Recente'})` 
+                  : selectedDatas.length === 1 
+                    ? selectedDatas[0] 
+                    : `${selectedDatas.length} datas`}
+              </span>
+              <ChevronDown size={13} className={`text-slate-400 transition-transform ${openDropdown === 'data' ? 'rotate-180' : ''}`} />
+            </button>
+
+            {openDropdown === 'data' && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                <div className="absolute right-0 mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-2 space-y-1.5 max-h-72 flex flex-col animate-in fade-in zoom-in-95 duration-100">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-100 px-1">
+                    <span className="text-[11px] font-bold text-slate-700">Datas de Fechamento</span>
+                    {selectedDatas.length > 0 && (
+                      <button 
+                        type="button" 
+                        onClick={() => setSelectedDatas([])}
+                        className="text-[10px] text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
+                      >
+                        Limpar ({selectedDatas.length})
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="overflow-y-auto space-y-0.5 max-h-56 pr-1">
+                    <label className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs">
+                      <input 
+                        type="checkbox"
+                        checked={selectedDatas.length === 0}
+                        onChange={() => setSelectedDatas([])}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span className={`text-[11px] ${selectedDatas.length === 0 ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
+                        Posição Atual (Mais Recente)
+                      </span>
+                    </label>
+
+                    {datasUnicas.map(d => {
+                      const isChecked = selectedDatas.includes(d)
+                      return (
+                        <label key={d} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs">
+                          <input 
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setSelectedDatas(selectedDatas.filter(item => item !== d))
+                              } else {
+                                setSelectedDatas([...selectedDatas, d])
+                              }
+                            }}
+                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
+                            {d}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Botão Exportar */}

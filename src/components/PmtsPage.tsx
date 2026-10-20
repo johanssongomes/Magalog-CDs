@@ -36,10 +36,13 @@ import {
   User,
   Save,
   FileText,
-  Check
+  Check,
+  LayoutDashboard,
+  BarChart2
 } from 'lucide-react'
 import initialColaboradoresData from '../data/initialColaboradores.json'
 import { PmtDailyMatrixTable } from './PmtDailyMatrixTable'
+import { BankHoursPage } from './BankHoursPage'
 
 export interface PmtPageItem {
   id: number
@@ -194,8 +197,8 @@ export const PmtsPage: React.FC = () => {
   const [activePageId, setActivePageId] = useState<number>(3)
   const activePage = PMT_PAGES_CONFIG.find(p => p.id === activePageId) || PMT_PAGES_CONFIG[0]
 
-  // Sub-página ativa do menu Quadro (Pg 1, Pg 2, Pg 3, Pg 4)
-  const [quadroSubPage, setQuadroSubPage] = useState<'pg1' | 'pg2' | 'pg3' | 'pg4'>('pg1')
+  // Sub-página ativa do menu Quadro (Dashboard, Quadro TT, BH, Pg 3, Pg 4)
+  const [quadroSubPage, setQuadroSubPage] = useState<'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4'>('dashboard')
 
   // Filtros contextuais do Quadro (Múltipla Seleção)
   const [filtrosCargo, setFiltrosCargo] = useState<string[]>([])
@@ -816,8 +819,9 @@ export const PmtsPage: React.FC = () => {
             </span>
             <div className="flex items-center gap-1.5 flex-wrap">
               {[
+                { id: 'dashboard', label: 'Dashboard' },
                 { id: 'pg1', label: 'Quadro TT' },
-                { id: 'pg2', label: 'Pg 2' },
+                { id: 'pg2', label: 'BH' },
                 { id: 'pg3', label: 'Pg 3' },
                 { id: 'pg4', label: 'Pg 4' }
               ].map((sub) => {
@@ -843,12 +847,13 @@ export const PmtsPage: React.FC = () => {
 
       {/* =========================================================================
           2. FILTROS E AÇÕES DE CABEÇALHO
-          - Se Quadro: Filtros com sentido de RH/Quadro (Busca, Cargo, Centro de Custo, Status do Headcount)
+          - Se Dashboard ou Quadro TT: Filtros com sentido de RH/Quadro (Busca, Cargo, Centro de Custo, Status do Headcount)
           - Botões no Quadro: "Cadastrar" e "Importar Planilha (Cadastro em Massa)", SEM o botão "Atualizar"
           - Se Outros PMTs: Filtro Ano + Mês, Atualizar e Importar PMT
           ========================================================================= */}
-      <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-        {isQuadro ? (
+      {(!isQuadro || quadroSubPage === 'pg1' || quadroSubPage === 'dashboard') && (
+        <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+          {isQuadro ? (
           /* FILTROS ESPECÍFICOS DO QUADRO */
           <div className="flex flex-wrap items-center gap-2.5 flex-1">
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider font-mono mr-1">
@@ -1258,6 +1263,7 @@ export const PmtsPage: React.FC = () => {
           )}
         </div>
       </div>
+      )}
 
       {/* =========================================================================
           3. REGIÃO DO MEIO (CONTEÚDO PRINCIPAL)
@@ -1267,7 +1273,10 @@ export const PmtsPage: React.FC = () => {
           - Nos demais PMTs: Métricas padrão e Indicador Diário por Modal
           ========================================================================= */}
       {isQuadro ? (
-        quadroSubPage === 'pg1' ? (
+        quadroSubPage === 'dashboard' ? (
+          /* =========================================================================
+             SUB-PÁGINA DASHBOARD: CARDS DE MÉTRICAS + TABELAS DINÂMICAS CONSOLIDADAS
+             ========================================================================= */
           <div className="space-y-6">
             {/* CARDS COM SENTIDO DO QUADRO DE COLABORADORES */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1346,7 +1355,7 @@ export const PmtsPage: React.FC = () => {
                     <span>Distribuição Consolidada do Efetivo - Quadro TT (CD 994)</span>
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Visão comparativa compacta por Cargo, Centro de Custo e Gerência. Selecione uma ou mais linhas para filtrar a tabela abaixo.
+                    Visão comparativa compacta por Cargo, Centro de Custo e Gerência. Selecione uma ou mais linhas para filtrar os dados.
                   </p>
                 </div>
 
@@ -1566,7 +1575,12 @@ export const PmtsPage: React.FC = () => {
                 </div>
               </div>
             </div>
-
+          </div>
+        ) : quadroSubPage === 'pg1' ? (
+          /* =========================================================================
+             SUB-PÁGINA QUADRO TT: TABELA COMPLETA DE COLABORADORES
+             ========================================================================= */
+          <div className="space-y-6">
             {/* TABELA DETALHADA DO QUADRO DE COLABORADORES */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
@@ -1694,8 +1708,13 @@ export const PmtsPage: React.FC = () => {
               )}
             </div>
           </div>
+        ) : quadroSubPage === 'pg2' ? (
+          /* PÁGINA DEDICADA DO BANCO DE HORAS (BH) DENTRO DO QUADRO */
+          <div className="pt-1">
+            <BankHoursPage />
+          </div>
         ) : (
-          /* PÁGINAS DEDICADAS DO QUADRO (PG 2, PG 3, PG 4) - SEM REPETIR DADOS DA QUADRO TT */
+          /* PÁGINAS DEDICADAS DO QUADRO (PG 3, PG 4) */
           <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center shadow-xs space-y-4">
             <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center mx-auto shadow-2xs">
               <FileSpreadsheet size={28} />
