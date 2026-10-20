@@ -754,17 +754,25 @@ export const BankHoursPage: React.FC = () => {
                     </label>
 
                     {centrosDeCusto.map(cc => {
-                      const isChecked = selectedCCs.includes(cc)
+                      const isChecked = selectedCCs.length === 0 || selectedCCs.includes(cc)
                       return (
                         <label key={cc} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs">
                           <input 
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => {
-                              if (isChecked) {
+                              if (selectedCCs.length === 0) {
+                                // Se todos estavam ativos, desmarcar este item significa manter todos os outros selecionados
+                                setSelectedCCs(centrosDeCusto.filter(item => item !== cc))
+                              } else if (selectedCCs.includes(cc)) {
                                 setSelectedCCs(selectedCCs.filter(item => item !== cc))
                               } else {
-                                setSelectedCCs([...selectedCCs, cc])
+                                const next = [...selectedCCs, cc]
+                                if (next.length === centrosDeCusto.length) {
+                                  setSelectedCCs([])
+                                } else {
+                                  setSelectedCCs(next)
+                                }
                               }
                             }}
                             className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
@@ -835,17 +843,24 @@ export const BankHoursPage: React.FC = () => {
                   <label className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs">
                     <input 
                       type="checkbox"
-                      checked={selectedTipos.includes('credito')}
+                      checked={selectedTipos.length === 0 || selectedTipos.includes('credito')}
                       onChange={() => {
-                        if (selectedTipos.includes('credito')) {
+                        if (selectedTipos.length === 0) {
+                          setSelectedTipos(['debito'])
+                        } else if (selectedTipos.includes('credito')) {
                           setSelectedTipos(selectedTipos.filter(t => t !== 'credito'))
                         } else {
-                          setSelectedTipos([...selectedTipos, 'credito'])
+                          const next = [...selectedTipos, 'credito']
+                          if (next.includes('debito')) {
+                            setSelectedTipos([])
+                          } else {
+                            setSelectedTipos(next)
+                          }
                         }
                       }}
                       className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                     />
-                    <span className={`text-[11px] ${selectedTipos.includes('credito') ? 'font-bold text-emerald-700' : 'text-slate-700'}`}>
+                    <span className={`text-[11px] ${(selectedTipos.length === 0 || selectedTipos.includes('credito')) ? 'font-bold text-emerald-700' : 'text-slate-700'}`}>
                       Crédito de Horas (+)
                     </span>
                   </label>
@@ -853,17 +868,24 @@ export const BankHoursPage: React.FC = () => {
                   <label className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs">
                     <input 
                       type="checkbox"
-                      checked={selectedTipos.includes('debito')}
+                      checked={selectedTipos.length === 0 || selectedTipos.includes('debito')}
                       onChange={() => {
-                        if (selectedTipos.includes('debito')) {
+                        if (selectedTipos.length === 0) {
+                          setSelectedTipos(['credito'])
+                        } else if (selectedTipos.includes('debito')) {
                           setSelectedTipos(selectedTipos.filter(t => t !== 'debito'))
                         } else {
-                          setSelectedTipos([...selectedTipos, 'debito'])
+                          const next = [...selectedTipos, 'debito']
+                          if (next.includes('credito')) {
+                            setSelectedTipos([])
+                          } else {
+                            setSelectedTipos(next)
+                          }
                         }
                       }}
                       className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                     />
-                    <span className={`text-[11px] ${selectedTipos.includes('debito') ? 'font-bold text-rose-700' : 'text-slate-700'}`}>
+                    <span className={`text-[11px] ${(selectedTipos.length === 0 || selectedTipos.includes('debito')) ? 'font-bold text-rose-700' : 'text-slate-700'}`}>
                       Débito de Horas (-)
                     </span>
                   </label>
