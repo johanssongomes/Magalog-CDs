@@ -43,6 +43,7 @@ import {
 import initialColaboradoresData from '../data/initialColaboradores.json'
 import { PmtDailyMatrixTable } from './PmtDailyMatrixTable'
 import { BankHoursPage } from './BankHoursPage'
+import { supabase } from '../lib/supabase'
 
 export interface PmtPageItem {
   id: number
@@ -287,28 +288,124 @@ export const PmtsPage: React.FC = () => {
   const [cadastroSuccessMsg, setCadastroSuccessMsg] = useState('')
   const [isSyncingDb, setIsSyncingDb] = useState(false)
 
-  // Carregar dados da tabela do Banco de Dados (API / Supabase)
+  // Helpers para mapeamento de coluna Supabase (snake_case) <-> Frontend (camelCase)
+  const mapFromSupabase = (row: any): ColaboradorItem => ({
+    id: String(row.id || ''),
+    contratado: row.contratado || '',
+    cargo: row.cargo || '',
+    centroDeCusto: row.centro_de_custo || '',
+    cd: row.cd || '994',
+    login: row.login || '',
+    cpf: row.cpf || '',
+    rg: row.rg || '',
+    sexo: row.sexo || '',
+    cargoAnterior: row.cargo_anterior || '',
+    dataAdmissao: row.data_admissao || '',
+    dataNascimento: row.data_nascimento || '',
+    situacaoSistema: row.situacao_sistema || 'Em Atividade Normal',
+    status: row.status || '',
+    possuiMedidas: row.possui_medidas || '',
+    possuiFeedback: row.possui_feedback || '',
+    idLider: row.id_lider || '',
+    nomeLider: row.nome_lider || '',
+    setor: row.setor || '',
+    turno: row.turno || '',
+    ferias: row.ferias || '',
+    codCentroCusto: row.cod_centro_custo || '',
+    gerencia: row.gerencia || '',
+    periodo45Dias: row.periodo_45_dias || '',
+    periodo90Dias: row.periodo_90_dias || '',
+    diaNiver: row.dia_niver || '',
+    mesNiver: row.mes_niver || '',
+    aniversario: row.aniversario || '',
+    novaIdade: row.nova_idade || '',
+    tempoDeEmpresa: row.tempo_de_empresa || '',
+    mesAdm: row.mes_adm || '',
+    diaAdm: row.dia_adm || '',
+    anoAdm: row.ano_adm || '',
+    createdAt: row.created_at || new Date().toISOString()
+  })
+
+  const mapToSupabase = (item: ColaboradorItem) => ({
+    id: String(item.id || ''),
+    contratado: item.contratado || '',
+    cargo: item.cargo || '',
+    centro_de_custo: item.centroDeCusto || '',
+    cd: item.cd || '994',
+    login: item.login || '',
+    cpf: item.cpf || '',
+    rg: item.rg || '',
+    sexo: item.sexo || '',
+    cargo_anterior: item.cargoAnterior || '',
+    data_admissao: item.dataAdmissao || '',
+    data_nascimento: item.dataNascimento || '',
+    situacao_sistema: item.situacaoSistema || 'Em Atividade Normal',
+    status: item.status || '',
+    possui_medidas: item.possuiMedidas || '',
+    possui_feedback: item.possuiFeedback || '',
+    id_lider: item.idLider || '',
+    nome_lider: item.nomeLider || '',
+    setor: item.setor || '',
+    turno: item.turno || '',
+    ferias: item.ferias || '',
+    cod_centro_custo: item.codCentroCusto || '',
+    gerencia: item.gerencia || '',
+    periodo_45_dias: item.periodo45Dias || '',
+    periodo_90_dias: item.periodo90Dias || '',
+    dia_niver: item.diaNiver || '',
+    mes_niver: item.mesNiver || '',
+    aniversario: item.aniversario || '',
+    nova_idade: item.novaIdade || '',
+    tempo_de_empresa: item.tempoDeEmpresa || '',
+    mes_adm: item.mesAdm || '',
+    dia_adm: item.diaAdm || '',
+    ano_adm: item.anoAdm || '',
+    updated_at: new Date().toISOString()
+  })
+
+  // Carregar dados da tabela do Banco de Dados (Supabase na Vercel + API Local)
   const fetchColaboradoresFromDb = async () => {
     try {
       setIsSyncingDb(true)
-      const res = await fetch('http://localhost:3001/api/colaboradores')
-      const json = await res.json()
-      if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
-        setColaboradoresList(json.data)
-        try {
-          localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(json.data))
-        } catch {}
-      } else {
-        // Se a tabela do banco de dados ainda estiver vazia, sincroniza a base inicial de 192 colaboradores
-        const initialList = (initialColaboradoresData as ColaboradorItem[]) || []
-        if (initialList.length > 0) {
-          await fetch('http://localhost:3001/api/colaboradores/bulk', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: initialList, replaceAll: true })
-          })
-          setColaboradoresList(initialList)
+
+      // 1. Tenta carregar direto do Supabase (Essencial para Vercel)
+      try {
+        const { data: supaData, error: supaErr } = await supabase
+          .from('colaboradores')
+          .select('*')
+          .order('contratado', { ascending: true })
+
+        if (!supaErr && Array.isArray(supaData) && supaData.length > 0) {
+          const list = supaData.map(mapFromSupabase)
+          setColaboradoresList(list)
+          try {
+            localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(list))
+          } catch {}
+          return
         }
+      } catch (e) {
+        // Ignora e tenta local API
+      }
+
+      // 2. Se não estiver no Supabase ou estiver rodando localmente com server Node
+      try {
+        const res = await fetch('http://localhost:3001/api/colaboradores')
+        const json = await res.json()
+        if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setColaboradoresList(json.data)
+          try {
+            localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(json.data))
+          } catch {}
+          return
+        }
+      } catch (e) {
+        // Local server indisponível (ex: ambiente Vercel)
+      }
+
+      // 3. Fallback: Base local inicial
+      const initialList = (initialColaboradoresData as ColaboradorItem[]) || []
+      if (initialList.length > 0) {
+        setColaboradoresList(initialList)
       }
     } catch (err) {
       console.warn('Banco de dados local/remoto não respondeu, utilizando base em memória/local:', err)
@@ -355,7 +452,11 @@ export const PmtsPage: React.FC = () => {
       localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated))
     } catch {}
 
-    // Grava no Banco de Dados via API (SQLite + Supabase)
+    // Grava no Banco de Dados via Supabase (Vercel) e API local
+    try {
+      await supabase.from('colaboradores').upsert(mapToSupabase(novoColaborador), { onConflict: 'id' })
+    } catch {}
+
     try {
       await fetch('http://localhost:3001/api/colaboradores', {
         method: 'POST',
@@ -363,7 +464,7 @@ export const PmtsPage: React.FC = () => {
         body: JSON.stringify(novoColaborador)
       })
     } catch (err) {
-      console.error('Erro ao gravar colaborador no banco de dados:', err)
+      // Local server indisponível (ex: ambiente Vercel)
     }
 
     setCadastroForm(defaultColaboradorForm)
@@ -396,7 +497,11 @@ export const PmtsPage: React.FC = () => {
       localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedList))
     } catch {}
 
-    // Grava alteração no Banco de Dados
+    // Grava alteração no Banco de Dados (Supabase Vercel + API Local)
+    try {
+      await supabase.from('colaboradores').upsert(mapToSupabase(editingColaborador), { onConflict: 'id' })
+    } catch {}
+
     try {
       await fetch('http://localhost:3001/api/colaboradores', {
         method: 'POST',
@@ -404,7 +509,7 @@ export const PmtsPage: React.FC = () => {
         body: JSON.stringify(editingColaborador)
       })
     } catch (err) {
-      console.error('Erro ao atualizar colaborador no banco de dados:', err)
+      // Local server indisponível (ex: ambiente Vercel)
     }
 
     setEditSuccessMsg('Dados do colaborador atualizados e salvos no Banco de Dados!')
@@ -606,7 +711,18 @@ export const PmtsPage: React.FC = () => {
       localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedList))
     } catch {}
 
-    // Grava todos os registros na tabela do Banco de Dados
+    // Grava todos os registros na tabela do Banco de Dados (Supabase Vercel + API Local)
+    try {
+      const supaRows = bulkParsedData.map(mapToSupabase)
+      if (replaceExistingColab) {
+        await supabase.from('colaboradores').delete().neq('id', '___all___')
+      }
+      // Upsert em lotes de 100 para o Supabase
+      for (let i = 0; i < supaRows.length; i += 100) {
+        await supabase.from('colaboradores').upsert(supaRows.slice(i, i + 100), { onConflict: 'id' })
+      }
+    } catch {}
+
     try {
       await fetch('http://localhost:3001/api/colaboradores/bulk', {
         method: 'POST',
@@ -617,7 +733,7 @@ export const PmtsPage: React.FC = () => {
         })
       })
     } catch (err) {
-      console.error('Erro ao gravar lote no banco de dados:', err)
+      // Local server indisponível (ex: ambiente Vercel)
     }
 
     setBulkFeedback({
@@ -649,13 +765,17 @@ export const PmtsPage: React.FC = () => {
       localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated))
     } catch {}
 
-    // Remove do Banco de Dados
+    // Remove do Banco de Dados (Supabase Vercel + API Local)
+    try {
+      await supabase.from('colaboradores').delete().eq('id', id)
+    } catch {}
+
     try {
       await fetch(`http://localhost:3001/api/colaboradores/${encodeURIComponent(id)}`, {
         method: 'DELETE'
       })
     } catch (err) {
-      console.error('Erro ao excluir no banco de dados:', err)
+      // Local server indisponível (ex: ambiente Vercel)
     }
   }
 
@@ -666,13 +786,17 @@ export const PmtsPage: React.FC = () => {
       localStorage.removeItem('magalog_quadro_colaboradores')
     } catch {}
 
-    // Limpa a tabela no Banco de Dados
+    // Limpa a tabela no Banco de Dados (Supabase Vercel + API Local)
+    try {
+      await supabase.from('colaboradores').delete().neq('id', '___all___')
+    } catch {}
+
     try {
       await fetch('http://localhost:3001/api/colaboradores', {
         method: 'DELETE'
       })
     } catch (err) {
-      console.error('Erro ao limpar banco de dados:', err)
+      // Local server indisponível (ex: ambiente Vercel)
     }
 
     setIsClearAllModalOpen(false)
