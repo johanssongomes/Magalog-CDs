@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
+import * as XLSX from 'xlsx'
 import { 
   BarChart3, 
   Truck, 
@@ -23,8 +24,21 @@ import {
   ArrowUpRight,
   Loader2,
   FolderOpen,
-  HardDrive
+  HardDrive,
+  Users,
+  Briefcase,
+  Building2,
+  Download,
+  Trash2,
+  UserCheck,
+  Edit,
+  Eye,
+  User,
+  Save,
+  FileText,
+  Check
 } from 'lucide-react'
+import initialColaboradoresData from '../data/initialColaboradores.json'
 import { PmtDailyMatrixTable } from './PmtDailyMatrixTable'
 
 export interface PmtPageItem {
@@ -59,8 +73,8 @@ const PMT_PAGES_CONFIG: PmtPageItem[] = [
   {
     id: 3,
     label: 'Quadro',
-    title: 'Quadro de Acompanhamento & Metas',
-    description: 'Quadro geral de métricas, metas e acompanhamento operacional.',
+    title: 'Quadro de Colaboradores & Acompanhamento de Efetivo',
+    description: 'Gestão de headcount, lotação por cargo, centros de custo e cadastro individual ou em massa da equipe.',
     badge: 'Módulo 03',
     slug: 'quadro',
     icon: <Target size={18} />
@@ -102,41 +116,170 @@ const MONTHS_LIST = [
 
 const YEARS_LIST = [2024, 2025, 2026, 2027]
 
+export interface ColaboradorItem {
+  id: string
+  contratado: string
+  cargo: string
+  centroDeCusto: string
+  // Campos detalhados conforme "Modelo Pessoas Modelo 1.xlsx"
+  cd?: string
+  login?: string
+  cpf?: string
+  rg?: string
+  sexo?: string
+  cargoAnterior?: string
+  dataAdmissao?: string
+  dataNascimento?: string
+  situacaoSistema?: string
+  status?: string
+  possuiMedidas?: string
+  possuiFeedback?: string
+  idLider?: string
+  nomeLider?: string
+  setor?: string
+  turno?: string
+  ferias?: string
+  codCentroCusto?: string
+  gerencia?: string
+  periodo45Dias?: string
+  periodo90Dias?: string
+  diaNiver?: string
+  mesNiver?: string
+  aniversario?: string
+  novaIdade?: string
+  tempoDeEmpresa?: string
+  mesAdm?: string
+  diaAdm?: string
+  anoAdm?: string
+  createdAt?: string
+}
+
+const defaultColaboradorForm: ColaboradorItem = {
+  id: '',
+  contratado: '',
+  cargo: '',
+  centroDeCusto: '',
+  cd: '994',
+  login: '',
+  cpf: '',
+  rg: '',
+  sexo: '',
+  cargoAnterior: '',
+  dataAdmissao: '',
+  dataNascimento: '',
+  situacaoSistema: 'Em Atividade Normal',
+  status: '',
+  possuiMedidas: '',
+  possuiFeedback: '',
+  idLider: '',
+  nomeLider: '',
+  setor: '',
+  turno: '',
+  ferias: '',
+  codCentroCusto: '',
+  gerencia: '',
+  periodo45Dias: '',
+  periodo90Dias: '',
+  diaNiver: '',
+  mesNiver: '',
+  aniversario: '',
+  novaIdade: '',
+  tempoDeEmpresa: '',
+  mesAdm: '',
+  diaAdm: '',
+  anoAdm: ''
+}
+
 export const PmtsPage: React.FC = () => {
-  const [activePageId, setActivePageId] = useState<number>(1)
+  const [activePageId, setActivePageId] = useState<number>(3)
   const activePage = PMT_PAGES_CONFIG.find(p => p.id === activePageId) || PMT_PAGES_CONFIG[0]
 
   // Sub-página ativa do menu Quadro (Pg 1, Pg 2, Pg 3, Pg 4)
   const [quadroSubPage, setQuadroSubPage] = useState<'pg1' | 'pg2' | 'pg3' | 'pg4'>('pg1')
 
-  // Estado do Modal de Cadastro (Quadro - Pg 1)
+  // Filtros contextuais do Quadro (Múltipla Seleção)
+  const [filtrosCargo, setFiltrosCargo] = useState<string[]>([])
+  const [filtrosCentroCusto, setFiltrosCentroCusto] = useState<string[]>([])
+  const [filtrosGerencia, setFiltrosGerencia] = useState<string[]>([])
+  const [buscaColaborador, setBuscaColaborador] = useState<string>('')
+
+  // Controle de abertura dos dropdowns de múltipla seleção
+  const [openDropdown, setOpenDropdown] = useState<'cargo' | 'cc' | 'gerencia' | null>(null)
+
+  // Estado do Modal de Cadastro Individual (Quadro - Pg 1)
   const [isCadastroModalOpen, setIsCadastroModalOpen] = useState(false)
-  const [cadastroForm, setCadastroForm] = useState({
-    id: '',
-    contratado: '',
-    cargo: '',
-    centroDeCusto: ''
-  })
-  const [colaboradoresList, setColaboradoresList] = useState<Array<{
-    id: string
-    contratado: string
-    cargo: string
-    centroDeCusto: string
-    createdAt: string
-  }>>(() => {
+  const [cadastroForm, setCadastroForm] = useState<ColaboradorItem>(defaultColaboradorForm)
+
+  // Estado do Modal de Edição Completa dos Dados do Colaborador
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingColaborador, setEditingColaborador] = useState<ColaboradorItem | null>(null)
+  const [editTab, setEditTab] = useState<'geral' | 'funcional' | 'admissao' | 'pessoal'>('geral')
+  const [editSuccessMsg, setEditSuccessMsg] = useState('')
+
+  // Estado do Modal de Importação em Massa de Colaboradores
+  const [isImportColaboradoresModalOpen, setIsImportColaboradoresModalOpen] = useState(false)
+  const [bulkFeedback, setBulkFeedback] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null)
+  const [bulkParsedData, setBulkParsedData] = useState<ColaboradorItem[]>([])
+  const [bulkFileName, setBulkFileName] = useState<string>('')
+  const [replaceExistingColab, setReplaceExistingColab] = useState(false)
+  const [duplicatesCount, setDuplicatesCount] = useState<number>(0)
+  const [isClearAllModalOpen, setIsClearAllModalOpen] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [colaboradoresList, setColaboradoresList] = useState<ColaboradorItem[]>(() => {
     try {
       const saved = localStorage.getItem('magalog_quadro_colaboradores')
-      if (saved) return JSON.parse(saved)
-    } catch {}
-    return [
-      {
-        id: '280438',
-        contratado: 'JOSE PEDRO MENEZES SILVA',
-        cargo: 'MEDICO TRABALHO JR',
-        centroDeCusto: 'REMUNERAÇÃO - SAUDE E SEGURANÇA DO TRABALHO',
-        createdAt: '2026-10-19'
+      if (saved) {
+        const parsed: ColaboradorItem[] = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Se os registros salvos forem antigos (sem campos detalhados como login/cpf),
+          // mescla com a base completa do Modelo 1 para preencher todos os dados
+          const fullDataMap = new Map<string, ColaboradorItem>()
+          ;(initialColaboradoresData as ColaboradorItem[]).forEach(item => {
+            fullDataMap.set(item.id.trim().toLowerCase(), item)
+            fullDataMap.set(item.contratado.trim().toUpperCase(), item)
+          })
+
+          const upgraded = parsed.map(colab => {
+            const match = fullDataMap.get(colab.id.trim().toLowerCase()) || fullDataMap.get(colab.contratado.trim().toUpperCase())
+            if (match) {
+              const isCcNumeric = /^\d+$/.test(colab.centroDeCusto || '')
+              const fixedCentroDeCusto = isCcNumeric ? match.centroDeCusto : (colab.centroDeCusto || match.centroDeCusto)
+              const fixedCodCentroCusto = colab.codCentroCusto || (isCcNumeric ? colab.centroDeCusto : match.codCentroCusto)
+
+              return {
+                ...match,
+                ...colab,
+                centroDeCusto: fixedCentroDeCusto,
+                codCentroCusto: fixedCodCentroCusto,
+                login: colab.login || match.login,
+                cpf: colab.cpf || match.cpf,
+                rg: colab.rg || match.rg,
+                sexo: colab.sexo || match.sexo,
+                dataNascimento: colab.dataNascimento || match.dataNascimento,
+                dataAdmissao: colab.dataAdmissao || match.dataAdmissao,
+                novaIdade: colab.novaIdade || match.novaIdade,
+                diaNiver: colab.diaNiver || match.diaNiver,
+                mesNiver: colab.mesNiver || match.mesNiver,
+                idLider: colab.idLider || match.idLider,
+                nomeLider: colab.nomeLider || match.nomeLider,
+                setor: colab.setor || match.setor,
+                turno: colab.turno || match.turno,
+                situacaoSistema: colab.situacaoSistema || match.situacaoSistema
+              }
+            }
+            return colab
+          })
+
+          try {
+            localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(upgraded))
+          } catch {}
+          return upgraded
+        }
       }
-    ]
+    } catch {}
+    // Carrega a base padrão com os 187 colaboradores completos do arquivo "Modelo Pessoas Modelo 1.xlsx"
+    return (initialColaboradoresData as ColaboradorItem[]) || []
   })
   const [cadastroSuccessMsg, setCadastroSuccessMsg] = useState('')
 
@@ -144,21 +287,36 @@ export const PmtsPage: React.FC = () => {
     e.preventDefault()
     if (!cadastroForm.id || !cadastroForm.contratado) return
 
-    const novoColaborador = {
-      id: cadastroForm.id.trim(),
-      contratado: cadastroForm.contratado.trim(),
-      cargo: cadastroForm.cargo.trim(),
-      centroDeCusto: cadastroForm.centroDeCusto.trim(),
+    const normalizedId = cadastroForm.id.trim()
+    const normalizedNome = cadastroForm.contratado.trim().toUpperCase()
+
+    // Validação de duplicidade no cadastro individual
+    const exists = colaboradoresList.some(
+      c => c.id.toLowerCase() === normalizedId.toLowerCase() || 
+           c.contratado.toLowerCase() === normalizedNome.toLowerCase()
+    )
+
+    if (exists) {
+      alert(`Atenção: Já existe um colaborador cadastrado com o ID "${normalizedId}" ou Nome "${normalizedNome}". Duplicados não são permitidos.`)
+      return
+    }
+
+    const novoColaborador: ColaboradorItem = {
+      ...cadastroForm,
+      id: normalizedId,
+      contratado: normalizedNome,
+      cargo: (cadastroForm.cargo || 'NÃO DEFINIDO').trim().toUpperCase(),
+      centroDeCusto: (cadastroForm.centroDeCusto || 'GERAL CD 994').trim().toUpperCase(),
       createdAt: new Date().toISOString()
     }
 
-    const updated = [novoColaborador, ...colaboradoresList.filter(c => c.id !== novoColaborador.id)]
+    const updated = [novoColaborador, ...colaboradoresList]
     setColaboradoresList(updated)
     try {
       localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated))
     } catch {}
 
-    setCadastroForm({ id: '', contratado: '', cargo: '', centroDeCusto: '' })
+    setCadastroForm(defaultColaboradorForm)
     setCadastroSuccessMsg('Colaborador cadastrado com sucesso!')
     setTimeout(() => {
       setCadastroSuccessMsg('')
@@ -166,11 +324,335 @@ export const PmtsPage: React.FC = () => {
     }, 1200)
   }
 
-  // Estado dos Filtros de Ano e Mês (solicitado pelo usuário)
+  // Abrir modal de edição para um colaborador específico
+  const handleOpenEdit = (colab: ColaboradorItem) => {
+    setEditingColaborador({ ...colab })
+    setEditTab('geral')
+    setEditSuccessMsg('')
+    setIsEditModalOpen(true)
+  }
+
+  // Salvar alterações da edição do colaborador
+  const handleSalvarEdicao = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingColaborador || !editingColaborador.id || !editingColaborador.contratado) return
+
+    const updatedList = colaboradoresList.map(c => 
+      c.id === editingColaborador.id ? { ...editingColaborador } : c
+    )
+
+    setColaboradoresList(updatedList)
+    try {
+      localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedList))
+    } catch {}
+
+    setEditSuccessMsg('Dados do colaborador atualizados com sucesso!')
+    setTimeout(() => {
+      setEditSuccessMsg('')
+      setIsEditModalOpen(false)
+      setEditingColaborador(null)
+    }, 1000)
+  }
+
+  // Processamento da Planilha Excel / CSV para Cadastro em Massa com suporte completo aos campos do Modelo 1.xlsx
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setBulkFileName(file.name)
+    setBulkFeedback(null)
+    setDuplicatesCount(0)
+
+    const formatExcelDate = (val: any) => {
+      if (!val) return ''
+      if (typeof val === 'number') {
+        const d = (XLSX.SSF as any).parse_date_code(val)
+        if (d) {
+          const pad = (n: number) => String(n).padStart(2, '0')
+          return `${pad(d.d)}/${pad(d.m)}/${d.y}`
+        }
+      }
+      return String(val).trim()
+    }
+
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result
+        const wb = XLSX.read(bstr, { type: 'binary' })
+        const wsname = wb.SheetNames[0]
+        const ws = wb.Sheets[wsname]
+        const rawJson: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' })
+
+        if (!rawJson || rawJson.length === 0) {
+          setBulkFeedback({ type: 'error', message: 'A planilha selecionada está vazia.' })
+          setBulkParsedData([])
+          return
+        }
+
+        // Sets para impedir duplicados internos na própria planilha
+        const seenIds = new Set<string>()
+        const seenNames = new Set<string>()
+
+        // Sets de colaboradores já cadastrados no sistema (quando não for substituir tudo)
+        const existingIds = new Set(colaboradoresList.map(c => c.id.trim().toLowerCase()))
+        const existingNames = new Set(colaboradoresList.map(c => c.contratado.trim().toUpperCase()))
+
+        const parsed: ColaboradorItem[] = []
+        let duplicatesBlocked = 0
+
+        for (const row of rawJson) {
+          const keys = Object.keys(row)
+          const findVal = (terms: string[]) => {
+            // Primeiro tenta correspondência exata do nome da coluna
+            const exactKey = keys.find(k => terms.some(t => k.toLowerCase().trim() === t.toLowerCase().trim()))
+            if (exactKey) return row[exactKey]
+            // Se não houver exata, tenta substring mas evitando conflito de cod_centro_custo com centro_custo
+            const partialKey = keys.find(k => terms.some(t => {
+              const normK = k.toLowerCase().trim()
+              const normT = t.toLowerCase().trim()
+              if (normT === 'centro_custo' || normT === 'centro de custo') {
+                return (normK === 'centro_custo' || normK === 'centro de custo') || (normK.includes('centro') && !normK.includes('cod'))
+              }
+              return normK.includes(normT)
+            }))
+            return partialKey ? row[partialKey] : ''
+          }
+
+          const rawId = String(findVal(['id', 'matrícula', 'matricula', 'crachá', 'cracha', 'codigo', 'código'])).trim()
+          const rawContratado = String(findVal(['contratado', 'nome', 'colaborador', 'funcionario', 'funcionário'])).trim()
+          
+          if (rawId || rawContratado) {
+            const normId = (rawId || `AUTO-${Math.floor(100000 + Math.random() * 900000)}`).trim()
+            const normNome = (rawContratado || 'SEM NOME').trim().toUpperCase()
+            const idKey = normId.toLowerCase()
+
+            // 1. Verifica se já apareceu antes na mesma planilha
+            if (seenIds.has(idKey) || (normNome !== 'SEM NOME' && seenNames.has(normNome))) {
+              duplicatesBlocked++
+              continue
+            }
+
+            // 2. Se NÃO estiver marcado para substituir tudo, verifica se já existe na base atual
+            if (!replaceExistingColab && (existingIds.has(idKey) || (normNome !== 'SEM NOME' && existingNames.has(normNome)))) {
+              duplicatesBlocked++
+              continue
+            }
+
+            seenIds.add(idKey)
+            if (normNome !== 'SEM NOME') seenNames.add(normNome)
+
+            const rawCentroCusto = String(findVal(['centro_custo', 'centro de custo', 'centro custo'])).trim().toUpperCase()
+            const rawCodCentroCusto = String(findVal(['cod_centro_custo', 'cod centro custo', 'codigo centro de custo'])).trim()
+
+            parsed.push({
+              id: normId,
+              contratado: normNome,
+              cargo: String(findVal(['cargo']) || 'NÃO DEFINIDO').trim().toUpperCase(),
+              centroDeCusto: rawCentroCusto && !/^\d+$/.test(rawCentroCusto) ? rawCentroCusto : (rawCentroCusto || 'GERAL CD 994'),
+              cd: String(findVal(['cd']) || '994').trim(),
+              login: String(findVal(['login'])).trim(),
+              cpf: String(findVal(['cpf'])).trim(),
+              rg: String(findVal(['rg'])).trim(),
+              sexo: String(findVal(['sexo'])).trim(),
+              cargoAnterior: String(findVal(['cargo anterior'])).trim(),
+              dataAdmissao: formatExcelDate(findVal(['data_admissao', 'data admissao', 'admissao'])),
+              dataNascimento: formatExcelDate(findVal(['data_nascimento', 'data nascimento', 'nascimento'])),
+              situacaoSistema: String(findVal(['situacao sistema', 'situação sistema', 'situacao']) || 'Em Atividade Normal').trim(),
+              status: String(findVal(['status'])).trim(),
+              possuiMedidas: String(findVal(['possui medidas'])).trim(),
+              possuiFeedback: String(findVal(['possui feedback'])).trim(),
+              idLider: String(findVal(['id lider', 'id líder'])).trim(),
+              nomeLider: String(findVal(['nome lider', 'nome líder'])).trim(),
+              setor: String(findVal(['setor'])).trim(),
+              turno: String(findVal(['turno'])).trim(),
+              ferias: String(findVal(['férias', 'ferias'])).trim(),
+              codCentroCusto: rawCodCentroCusto,
+              gerencia: String(findVal(['gerência', 'gerencia'])).trim(),
+              periodo45Dias: formatExcelDate(findVal(['período 45 dias', 'periodo 45 dias'])),
+              periodo90Dias: formatExcelDate(findVal(['período 90 dias', 'periodo 90 dias'])),
+              diaNiver: String(findVal(['dia niver'])).trim(),
+              mesNiver: String(findVal(['mes niver'])).trim(),
+              aniversario: formatExcelDate(findVal(['aniversário', 'aniversario'])),
+              novaIdade: String(findVal(['nova idade'])).trim(),
+              tempoDeEmpresa: String(findVal(['tempo de empresa'])).trim(),
+              mesAdm: String(findVal(['mês adm', 'mes adm'])).trim(),
+              diaAdm: String(findVal(['dia adm'])).trim(),
+              anoAdm: String(findVal(['ano adm'])).trim(),
+              createdAt: new Date().toISOString()
+            })
+          }
+        }
+
+        setDuplicatesCount(duplicatesBlocked)
+
+        if (parsed.length === 0) {
+          if (duplicatesBlocked > 0) {
+            setBulkFeedback({
+              type: 'warning',
+              message: `Todos os ${duplicatesBlocked} registros da planilha foram ignorados por já estarem cadastrados ou serem duplicados.`
+            })
+          } else {
+            setBulkFeedback({
+              type: 'error',
+              message: 'Não foi possível encontrar colunas válidas de ID ou Nome na planilha.'
+            })
+          }
+          setBulkParsedData([])
+        } else {
+          setBulkParsedData(parsed)
+          setBulkFeedback({
+            type: 'success',
+            message: `${parsed.length} novos colaboradores prontos para importação com todos os dados do Modelo 1.${duplicatesBlocked > 0 ? ` (${duplicatesBlocked} duplicados ignorados e bloqueados)` : ''}`
+          })
+        }
+      } catch (err: any) {
+        setBulkFeedback({
+          type: 'error',
+          message: 'Erro ao processar planilha: ' + (err.message || 'formato inválido')
+        })
+        setBulkParsedData([])
+      }
+    }
+    reader.readAsBinaryString(file)
+  }
+
+  const handleConfirmBulkImport = () => {
+    if (bulkParsedData.length === 0) return
+
+    let updatedList: ColaboradorItem[]
+    if (replaceExistingColab) {
+      updatedList = [...bulkParsedData]
+    } else {
+      // Mescla atualizando e enriquecendo colaboradores existentes pelo ID/Nome com os novos campos da planilha
+      const map = new Map<string, ColaboradorItem>()
+      colaboradoresList.forEach(c => map.set(c.id.toLowerCase(), c))
+
+      bulkParsedData.forEach(item => {
+        const key = item.id.toLowerCase()
+        if (map.has(key)) {
+          // Se já existia, preserva mas enriquece com todos os dados da planilha
+          map.set(key, { ...map.get(key)!, ...item })
+        } else {
+          map.set(key, item)
+        }
+      })
+      updatedList = Array.from(map.values())
+    }
+
+    setColaboradoresList(updatedList)
+    try {
+      localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedList))
+    } catch {}
+
+    setBulkFeedback({
+      type: 'success',
+      message: `Sucesso! ${bulkParsedData.length} colaboradores foram cadastrados sem duplicidades.`
+    })
+    setTimeout(() => {
+      setIsImportColaboradoresModalOpen(false)
+      setBulkParsedData([])
+      setBulkFileName('')
+      setBulkFeedback(null)
+      setDuplicatesCount(0)
+    }, 1200)
+  }
+
+  const handleDownloadTemplate = () => {
+    // Tenta baixar o arquivo original do Modelo 1 se disponível
+    const link = document.createElement('a')
+    link.href = '/modelo_cadastro_colaboradores.xlsx'
+    link.download = 'Modelo 1.xlsx'
+    link.click()
+  }
+
+  // Exclusão individual de colaborador
+  const handleDeleteColaborador = (id: string) => {
+    const updated = colaboradoresList.filter(c => c.id !== id)
+    setColaboradoresList(updated)
+    try {
+      localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated))
+    } catch {}
+  }
+
+  // Deletar todos os colaboradores
+  const handleClearAllColaboradores = () => {
+    setColaboradoresList([])
+    try {
+      localStorage.removeItem('magalog_quadro_colaboradores')
+    } catch {}
+    setIsClearAllModalOpen(false)
+  }
+
+  // Filtragem de colaboradores para Quadro (Suporta Múltipla Seleção)
+  const filteredColaboradores = colaboradoresList.filter(colab => {
+    const matchBusca = !buscaColaborador || 
+      colab.contratado.toLowerCase().includes(buscaColaborador.toLowerCase()) ||
+      colab.id.toLowerCase().includes(buscaColaborador.toLowerCase())
+    const matchCargo = filtrosCargo.length === 0 || filtrosCargo.includes(colab.cargo)
+    const matchCC = filtrosCentroCusto.length === 0 || filtrosCentroCusto.includes(colab.centroDeCusto || '(vazio)')
+    const matchGer = filtrosGerencia.length === 0 || filtrosGerencia.includes(colab.gerencia || '(vazio)')
+    return matchBusca && matchCargo && matchCC && matchGer
+  })
+
+  // Lista de valores únicos para filtros e resumos
+  const listaCargos = Array.from(new Set(colaboradoresList.map(c => c.cargo).filter(Boolean))).sort()
+  const listaCentrosCusto = Array.from(new Set(colaboradoresList.map(c => c.centroDeCusto || '(vazio)'))).sort()
+  const listaGerencias = Array.from(new Set(colaboradoresList.map(c => c.gerencia || '(vazio)'))).sort()
+
+  // Tabelas de resumo ordenadas por quantidade descrescente (igual à tabela dinâmica solicitada)
+  const totalGeral = colaboradoresList.length
+
+  const resumoCargos = useMemo(() => {
+    const map = new Map<string, number>()
+    colaboradoresList.forEach(c => {
+      const key = c.cargo || '(vazio)'
+      map.set(key, (map.get(key) || 0) + 1)
+    })
+    return Array.from(map.entries())
+      .map(([nome, qnts]) => ({
+        nome,
+        qnts,
+        perc: totalGeral > 0 ? (qnts / totalGeral) * 100 : 0
+      }))
+      .sort((a, b) => b.qnts - a.qnts || a.nome.localeCompare(b.nome))
+  }, [colaboradoresList, totalGeral])
+
+  const resumoCentrosCusto = useMemo(() => {
+    const map = new Map<string, number>()
+    colaboradoresList.forEach(c => {
+      const key = c.centroDeCusto || '(vazio)'
+      map.set(key, (map.get(key) || 0) + 1)
+    })
+    return Array.from(map.entries())
+      .map(([nome, qnts]) => ({
+        nome,
+        qnts,
+        perc: totalGeral > 0 ? (qnts / totalGeral) * 100 : 0
+      }))
+      .sort((a, b) => b.qnts - a.qnts || a.nome.localeCompare(b.nome))
+  }, [colaboradoresList, totalGeral])
+
+  const resumoGerencias = useMemo(() => {
+    const map = new Map<string, number>()
+    colaboradoresList.forEach(c => {
+      const key = c.gerencia || '(vazio)'
+      map.set(key, (map.get(key) || 0) + 1)
+    })
+    return Array.from(map.entries())
+      .map(([nome, qnts]) => ({
+        nome,
+        qnts,
+        perc: totalGeral > 0 ? (qnts / totalGeral) * 100 : 0
+      }))
+      .sort((a, b) => b.qnts - a.qnts || a.nome.localeCompare(b.nome))
+  }, [colaboradoresList, totalGeral])
+
+  // Estado dos Filtros de Ano e Mês (para PMT Expedição/Recebimento)
   const [selectedYear, setSelectedYear] = useState<number>(2026)
   const [selectedMonth, setSelectedMonth] = useState<number>(10)
   
-  // Estado do Modal de Importação / Atualização
+  // Estado do Modal de Importação / Atualização PMT
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [importVersion, setImportVersion] = useState('v14')
   const [replaceExisting, setReplaceExisting] = useState(true)
@@ -190,7 +672,7 @@ export const PmtsPage: React.FC = () => {
         const files = await res.json()
         setPmtFiles(files)
         if (files.length > 0 && !selectedFile) {
-          setSelectedFile(files[0].name) // seleciona o primeiro por padrão
+          setSelectedFile(files[0].name)
         }
       }
     } catch {
@@ -221,12 +703,12 @@ export const PmtsPage: React.FC = () => {
       cub?: number
     }>
     totalGeralLinhas?: number
-  }>({}) // Estado inicial vazio – dados sempre carregados da API pelo mês selecionado
+  }>({})
 
   // Carrega dados da API do servidor quando o ano ou mês mudam
   const fetchPmtData = async (year: number, month: number) => {
     setLoadingData(true)
-    setPmtData({}) // Limpa dados do mês anterior antes de buscar o novo
+    setPmtData({})
     try {
       const res = await fetch(`http://localhost:3001/api/pmt/summary?ano=${year}&mes=${month}&cd=994`)
       if (res.ok) {
@@ -241,10 +723,12 @@ export const PmtsPage: React.FC = () => {
   }
 
   useEffect(() => {
-    fetchPmtData(selectedYear, selectedMonth)
-  }, [selectedYear, selectedMonth])
+    if (activePageId !== 3) {
+      fetchPmtData(selectedYear, selectedMonth)
+    }
+  }, [selectedYear, selectedMonth, activePageId])
 
-  // Função para executar a importação / atualização do mês
+  // Função para executar a importação / atualização do mês PMT
   const handleExecuteImport = async () => {
     setIsImporting(true)
     setImportFeedback(null)
@@ -270,53 +754,52 @@ export const PmtsPage: React.FC = () => {
       } else {
         setImportFeedback({
           success: false,
-          message: data.error || 'Erro ao processar arquivo de PMT.'
+          message: `Falha na importação: ${data.error || 'Erro desconhecido'}`
         })
       }
     } catch (err: any) {
       setImportFeedback({
-        success: true,
-        message: 'Importação simulada com sucesso! Base de dados local atualizada para o período selecionado.'
+        success: false,
+        message: `Erro ao conectar com servidor de importação: ${err.message}`
       })
     } finally {
       setIsImporting(false)
     }
   }
 
-  const selectedMonthName = MONTHS_LIST.find(m => m.id === selectedMonth)?.name || `${selectedMonth}`
-  const totalValor = pmtData.summary?.total_valor || 0
-  const totalPecas = pmtData.summary?.total_pecas || 0
-  const totalPedidos = pmtData.summary?.total_pedidos || 0
-  const totalCub = pmtData.summary?.total_cub || 0
+  const selectedMonthName = MONTHS_LIST.find(m => m.id === selectedMonth)?.name || '10 - Outubro'
+  const totalValor = pmtData.summary?.total_valor ?? 0
+  const totalPecas = pmtData.summary?.total_pecas ?? 0
+  const totalPedidos = pmtData.summary?.total_pedidos ?? 0
+  const totalCub = pmtData.summary?.total_cub ?? 0
+
+  const isQuadro = activePageId === 3
 
   return (
-    <div className="space-y-5 w-full">
+    <div className="space-y-6">
       {/* =========================================================================
-          1. BARRA DE MENUS DE PÁGINAS:
-          Página 1 (PMT Expedição) | Página 2 (PMT Recebimento) | Página 3 | Página 4 | Página 5
+          1. HEADER DA PÁGINA PMTS COM OS 5 MÓDULOS DE NAVEGAÇÃO
           ========================================================================= */}
-      <div className="bg-white border border-slate-200 rounded-xl p-1.5 shadow-xs">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+        {/* Abas Superiores dos Módulos PMT */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {PMT_PAGES_CONFIG.map((page) => {
             const isActive = activePageId === page.id
             return (
               <button
                 key={page.id}
                 onClick={() => setActivePageId(page.id)}
-                className={`flex items-center justify-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer border ${
+                className={`relative flex items-center justify-center gap-2 px-3 py-3 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer text-center ${
                   isActive
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/20'
-                    : 'bg-slate-50 hover:bg-blue-50/60 text-slate-700 hover:text-blue-700 border-slate-200 hover:border-blue-200'
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25 ring-2 ring-blue-500/20'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 hover:text-blue-700'
                 }`}
               >
-                <span className={`p-1 rounded-md ${isActive ? 'bg-blue-500/40 text-white' : 'bg-white text-slate-500 border border-slate-200'}`}>
-                  {page.icon}
-                </span>
-                <div className="flex flex-col text-left min-w-0">
-                  <span className="leading-none text-[9px] uppercase tracking-wider opacity-75 font-mono truncate">
-                    {page.badge}
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={isActive ? 'text-white' : 'text-slate-400'}>
+                    {page.icon}
                   </span>
-                  <span className="text-xs font-bold leading-tight truncate">
+                  <span className="truncate">
                     {page.label}
                   </span>
                 </div>
@@ -325,15 +808,15 @@ export const PmtsPage: React.FC = () => {
           })}
         </div>
 
-        {/* Sub-páginas exclusivas do menu Quadro (Pg 1, Pg 2, Pg 3, Pg 4) */}
-        {activePageId === 3 && (
+        {/* Sub-páginas exclusivas do menu Quadro (Quadro TT, Pg 2, Pg 3, Pg 4) */}
+        {isQuadro && (
           <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-2 px-1">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono mr-1">
               Sub-páginas:
             </span>
             <div className="flex items-center gap-1.5 flex-wrap">
               {[
-                { id: 'pg1', label: 'Pg 1' },
+                { id: 'pg1', label: 'Quadro TT' },
                 { id: 'pg2', label: 'Pg 2' },
                 { id: 'pg3', label: 'Pg 3' },
                 { id: 'pg4', label: 'Pg 4' }
@@ -342,7 +825,7 @@ export const PmtsPage: React.FC = () => {
                 return (
                   <button
                     key={sub.id}
-                    onClick={() => setQuadroSubPage(sub.id)}
+                    onClick={() => setQuadroSubPage(sub.id as any)}
                     className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer border ${
                       isSubActive
                         ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
@@ -359,226 +842,1172 @@ export const PmtsPage: React.FC = () => {
       </div>
 
       {/* =========================================================================
-          2. FILTROS DE ANO E MÊS (Área destacada pelo usuário na imagem com retângulos)
-          Filtro Ano + Filtro Mês + Botão de Importação / Atualização da Base PMT
+          2. FILTROS E AÇÕES DE CABEÇALHO
+          - Se Quadro: Filtros com sentido de RH/Quadro (Busca, Cargo, Centro de Custo, Status do Headcount)
+          - Botões no Quadro: "Cadastrar" e "Importar Planilha (Cadastro em Massa)", SEM o botão "Atualizar"
+          - Se Outros PMTs: Filtro Ano + Mês, Atualizar e Importar PMT
           ========================================================================= */}
-      <div className="bg-white border border-slate-200 rounded-xl p-2.5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-2.5">
-        {/* Bloco dos Campos de Filtro (Ano & Mês) */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider font-mono mr-1">
-            <Filter size={16} className="text-blue-600" />
-            <span>Filtro PMT:</span>
-          </div>
+      <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+        {isQuadro ? (
+          /* FILTROS ESPECÍFICOS DO QUADRO */
+          <div className="flex flex-wrap items-center gap-2.5 flex-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider font-mono mr-1">
+              <Filter size={15} className="text-blue-600" />
+              <span>Filtro Quadro:</span>
+            </div>
 
-          {/* Campo ANO (Retângulo 1 desenhado pelo usuário) */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/10 rounded-xl px-3 py-2 transition-all">
-            <Calendar size={16} className="text-blue-600 shrink-0" />
-            <div className="flex flex-col text-left">
-              <label htmlFor="pmt-ano-select" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                Ano
-              </label>
-              <select
-                id="pmt-ano-select"
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="bg-transparent text-sm font-bold text-slate-800 outline-none cursor-pointer pr-4"
+            {/* Busca por Colaborador ou ID */}
+            <div className="relative min-w-[200px] flex-1 max-w-xs">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar por nome ou ID..."
+                value={buscaColaborador}
+                onChange={(e) => setBuscaColaborador(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 hover:border-blue-400 focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 rounded-xl pl-8 pr-3 py-2 text-xs font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400"
+              />
+              {buscaColaborador && (
+                <button 
+                  onClick={() => setBuscaColaborador('')} 
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
+            {/* Filtro por Cargo (Múltipla Seleção) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === 'cargo' ? null : 'cargo')}
+                className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${
+                  filtrosCargo.length > 0 
+                    ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs' 
+                    : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
+                }`}
               >
-                {YEARS_LIST.map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
+                <Briefcase size={14} className={filtrosCargo.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
+                <div className="flex flex-col">
+                  <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                    Cargo
+                  </label>
+                  <span className="text-xs font-bold truncate max-w-[140px]">
+                    {filtrosCargo.length === 0 
+                      ? 'Todos os Cargos' 
+                      : filtrosCargo.length === 1 
+                        ? filtrosCargo[0] 
+                        : `${filtrosCargo.length} selecionados`}
+                  </span>
+                </div>
+                <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'cargo' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {openDropdown === 'cargo' && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                  <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
+                      <span className="font-bold text-slate-700">Filtrar por Cargos</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setFiltrosCargo([...listaCargos])}
+                          className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
+                        >
+                          Marcar Todos
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setFiltrosCargo([])}
+                          className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
+                      {listaCargos.map((cargo) => {
+                        const isChecked = filtrosCargo.includes(cargo)
+                        return (
+                          <label
+                            key={cargo}
+                            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setFiltrosCargo(filtrosCargo.filter(c => c !== cargo))
+                                } else {
+                                  setFiltrosCargo([...filtrosCargo, cargo])
+                                }
+                              }}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
+                              {cargo}
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Filtro por Centro de Custo (Múltipla Seleção) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === 'cc' ? null : 'cc')}
+                className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${
+                  filtrosCentroCusto.length > 0 
+                    ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs' 
+                    : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
+                }`}
+              >
+                <Building2 size={14} className={filtrosCentroCusto.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
+                <div className="flex flex-col">
+                  <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                    Centro de Custo
+                  </label>
+                  <span className="text-xs font-bold truncate max-w-[140px]">
+                    {filtrosCentroCusto.length === 0 
+                      ? 'Todos os Centros' 
+                      : filtrosCentroCusto.length === 1 
+                        ? filtrosCentroCusto[0] 
+                        : `${filtrosCentroCusto.length} selecionados`}
+                  </span>
+                </div>
+                <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'cc' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {openDropdown === 'cc' && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                  <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
+                      <span className="font-bold text-slate-700">Filtrar Centros de Custo</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setFiltrosCentroCusto([...listaCentrosCusto])}
+                          className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
+                        >
+                          Marcar Todos
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setFiltrosCentroCusto([])}
+                          className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
+                      {listaCentrosCusto.map((cc) => {
+                        const isChecked = filtrosCentroCusto.includes(cc)
+                        return (
+                          <label
+                            key={cc}
+                            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setFiltrosCentroCusto(filtrosCentroCusto.filter(c => c !== cc))
+                                } else {
+                                  setFiltrosCentroCusto([...filtrosCentroCusto, cc])
+                                }
+                              }}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
+                              {cc}
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Filtro por Gerência (Múltipla Seleção) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === 'gerencia' ? null : 'gerencia')}
+                className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${
+                  filtrosGerencia.length > 0 
+                    ? 'bg-indigo-50/80 border-indigo-400 text-indigo-900 shadow-2xs' 
+                    : 'bg-slate-50 border-slate-200 hover:border-indigo-400 text-slate-800'
+                }`}
+              >
+                <Layers size={14} className={filtrosGerencia.length > 0 ? 'text-indigo-600' : 'text-slate-500'} />
+                <div className="flex flex-col">
+                  <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                    Gerência
+                  </label>
+                  <span className="text-xs font-bold truncate max-w-[140px]">
+                    {filtrosGerencia.length === 0 
+                      ? 'Todas as Gerências' 
+                      : filtrosGerencia.length === 1 
+                        ? filtrosGerencia[0] 
+                        : `${filtrosGerencia.length} selecionadas`}
+                  </span>
+                </div>
+                <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'gerencia' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {openDropdown === 'gerencia' && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                  <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
+                      <span className="font-bold text-slate-700">Filtrar Gerências</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setFiltrosGerencia([...listaGerencias])}
+                          className="text-[10px] text-indigo-600 hover:underline font-bold cursor-pointer"
+                        >
+                          Marcar Todas
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setFiltrosGerencia([])}
+                          className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
+                      {listaGerencias.map((ger) => {
+                        const isChecked = filtrosGerencia.includes(ger)
+                        return (
+                          <label
+                            key={ger}
+                            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setFiltrosGerencia(filtrosGerencia.filter(g => g !== ger))
+                                } else {
+                                  setFiltrosGerencia([...filtrosGerencia, ger])
+                                }
+                              }}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            />
+                            <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-indigo-900' : 'text-slate-700'}`}>
+                              {ger}
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Tag de Resumo do Quadro */}
+            <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50/70 border border-blue-100 text-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+              <span className="text-slate-600">
+                Efetivo Total: <strong className="text-blue-700 font-bold">{colaboradoresList.length}</strong>
+              </span>
+              <span className="text-slate-300">|</span>
+              <span className="text-slate-500 text-[11px]">
+                Exibindo: <strong className="text-slate-800">{filteredColaboradores.length}</strong>
+              </span>
             </div>
           </div>
+        ) : (
+          /* FILTROS PADRÃO DOS DEMAIS PMTS */
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider font-mono mr-1">
+              <Filter size={16} className="text-blue-600" />
+              <span>Filtro PMT:</span>
+            </div>
 
-          {/* Campo MÊS (Retângulo 2 desenhado pelo usuário) */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/10 rounded-xl px-3 py-2 transition-all">
-            <Calendar size={16} className="text-blue-600 shrink-0" />
-            <div className="flex flex-col text-left">
-              <label htmlFor="pmt-mes-select" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                Mês
-              </label>
-              <select
-                id="pmt-mes-select"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                className="bg-transparent text-sm font-bold text-slate-800 outline-none cursor-pointer pr-4"
-              >
-                {MONTHS_LIST.map(month => (
-                  <option key={month.id} value={month.id}>{month.name}</option>
-                ))}
-              </select>
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/10 rounded-xl px-3 py-2 transition-all">
+              <Calendar size={16} className="text-blue-600 shrink-0" />
+              <div className="flex flex-col text-left">
+                <label htmlFor="pmt-ano-select" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                  Ano
+                </label>
+                <select
+                  id="pmt-ano-select"
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="bg-transparent text-sm font-bold text-slate-800 outline-none cursor-pointer pr-4"
+                >
+                  {YEARS_LIST.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/10 rounded-xl px-3 py-2 transition-all">
+              <Calendar size={16} className="text-blue-600 shrink-0" />
+              <div className="flex flex-col text-left">
+                <label htmlFor="pmt-mes-select" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                  Mês
+                </label>
+                <select
+                  id="pmt-mes-select"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="bg-transparent text-sm font-bold text-slate-800 outline-none cursor-pointer pr-4"
+                >
+                  {MONTHS_LIST.map(month => (
+                    <option key={month.id} value={month.id}>{month.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50/70 border border-blue-100 text-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+              <span className="text-slate-600">
+                Base: <strong className="text-blue-700">{selectedMonthName.split(' - ')[1]}/{selectedYear}</strong>
+              </span>
+              <span className="text-slate-300">|</span>
+              <span className="text-slate-600">
+                Versão: <strong className="text-slate-800 font-mono">{pmtData.summary?.versao || '—'}</strong>
+              </span>
+              <span className="text-slate-300">|</span>
+              <span className="text-slate-500 font-mono text-[11px]">
+                {pmtData.summary?.total_linhas != null ? `${pmtData.summary.total_linhas.toLocaleString('pt-BR')} linhas CD 994` : 'Sem dados'}
+              </span>
             </div>
           </div>
+        )}
 
-          {/* Tag de Status da Base Ativa Carregada */}
-          <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50/70 border border-blue-100 text-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-            <span className="text-slate-600">
-              Base: <strong className="text-blue-700">{selectedMonthName.split(' - ')[1]}/{selectedYear}</strong>
-            </span>
-            <span className="text-slate-300">|</span>
-            <span className="text-slate-600">
-              Versão: <strong className="text-slate-800 font-mono">{pmtData.summary?.versao || '—'}</strong>
-            </span>
-            <span className="text-slate-300">|</span>
-            <span className="text-slate-500 font-mono text-[11px]">
-              {pmtData.summary?.total_linhas != null ? `${pmtData.summary.total_linhas.toLocaleString('pt-BR')} linhas CD 994` : 'Sem dados'}
-            </span>
-          </div>
-        </div>
+        {/* BOTÕES DE AÇÃO À DIREITA */}
+        <div className="flex items-center gap-2 shrink-0">
+          {isQuadro ? (
+            /* BOTÕES ESPECÍFICOS DO QUADRO (SEM BOTÃO ATUALIZAR, CONFORME SOLICITADO) */
+            <>
+              <button
+                onClick={() => {
+                  setCadastroSuccessMsg('')
+                  setIsCadastroModalOpen(true)
+                }}
+                title="Cadastrar Novo Colaborador Individualmente"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 border-pink-500 bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-bold shadow-sm transition-all hover:translate-y-[-1px] cursor-pointer"
+              >
+                <Plus size={15} className="text-pink-600 stroke-[3]" />
+                <span>+ Cadastrar</span>
+              </button>
 
-        {/* Botões de Ação à Direita: Cadastrar (se Quadro Pg 1), Atualizar Dados e Importar Nova Planilha PMT */}
-        <div className="flex items-center gap-2.5">
-          {activePageId === 3 && quadroSubPage === 'pg1' && (
-            <button
-              onClick={() => {
-                setCadastroSuccessMsg('')
-                setIsCadastroModalOpen(true)
-              }}
-              title="Cadastrar Colaborador (ID, Contratado, Cargo, Centro de Custo)"
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 border-pink-500 bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-bold shadow-sm transition-all hover:translate-y-[-1px] cursor-pointer"
-            >
-              <Plus size={15} className="text-pink-600 stroke-[3]" />
-              <span>Cadastrar</span>
-            </button>
+              <button
+                onClick={() => {
+                  setBulkFeedback(null)
+                  setBulkParsedData([])
+                  setBulkFileName('')
+                  setIsImportColaboradoresModalOpen(true)
+                }}
+                title="Importar Planilha Excel/CSV para Cadastro em Massa de Colaboradores"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-500/20 transition-all hover:translate-y-[-1px] cursor-pointer"
+              >
+                <UploadCloud size={16} />
+                <span>Importar Planilha (Cadastro em Massa)</span>
+              </button>
+            </>
+          ) : (
+            /* BOTÕES DOS DEMAIS PMTS */
+            <>
+              <button
+                onClick={() => fetchPmtData(selectedYear, selectedMonth)}
+                title="Recarregar dados do período selecionado"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 text-xs font-semibold transition-colors"
+              >
+                <RefreshCw size={14} className={loadingData ? 'animate-spin text-blue-600' : ''} />
+                <span>Atualizar</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsImportModalOpen(true)
+                  setImportFeedback(null)
+                  loadPmtFiles()
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-xs font-bold shadow-sm shadow-blue-500/20 transition-all hover:translate-y-[-1px] cursor-pointer"
+              >
+                <UploadCloud size={16} />
+                <span>Importar / Atualizar PMT</span>
+              </button>
+            </>
           )}
-
-          <button
-            onClick={() => fetchPmtData(selectedYear, selectedMonth)}
-            title="Recarregar dados do período selecionado"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 text-xs font-semibold transition-colors"
-          >
-            <RefreshCw size={14} className={loadingData ? 'animate-spin text-blue-600' : ''} />
-            <span>Atualizar</span>
-          </button>
-
-          <button
-            onClick={() => {
-            setIsImportModalOpen(true)
-            setImportFeedback(null)
-            loadPmtFiles()
-          }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-xs font-bold shadow-sm shadow-blue-500/20 transition-all hover:translate-y-[-1px] cursor-pointer"
-          >
-            <UploadCloud size={16} />
-            <span>Importar / Atualizar PMT</span>
-          </button>
         </div>
       </div>
 
       {/* =========================================================================
-          3. CONTEÚDO PRINCIPAL DA SUB-PÁGINA (PMT Expedição, Recebimento, etc.)
+          3. REGIÃO DO MEIO (CONTEÚDO PRINCIPAL)
+          - No Quadro: Adaptada para fazer total sentido com o Quadro de Colaboradores
+            (Efetivo Total CD 994, Total de Cargos, Total de Centros de Custo, Conferentes & Operacionais,
+             Distribuição por Cargos, Tabela e Ações)
+          - Nos demais PMTs: Métricas padrão e Indicador Diário por Modal
           ========================================================================= */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
-        {/* 4 Cards de Métricas Reais do CD 994 carregadas da planilha PMT */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Valor Planejado (CD 994)</span>
-              <span className="p-1 rounded bg-blue-100 text-blue-700 font-mono text-[10px] font-bold">R$</span>
-            </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              {totalValor ? `R$ ${(totalValor / 1_000_000).toFixed(1)}M` : 'R$ 0,00'}
-            </div>
-            <p className="text-[11px] text-slate-500 mt-1 font-mono">
-              R$ {totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </p>
-          </div>
+      {isQuadro ? (
+        quadroSubPage === 'pg1' ? (
+          <div className="space-y-6">
+            {/* CARDS COM SENTIDO DO QUADRO DE COLABORADORES */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Card 1: Efetivo Total Cadastrado */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Efetivo Cadastrado (CD 994)</span>
+                  <span className="p-1 rounded bg-blue-100 text-blue-700">
+                    <Users size={15} />
+                  </span>
+                </div>
+                <div className="text-2xl font-bold text-slate-900 tracking-tight">
+                  {colaboradoresList.length} <span className="text-sm font-semibold text-slate-500">colaboradores</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+                  <UserCheck size={12} className="text-emerald-500" />
+                  <span>Base ativa do Quadro TT</span>
+                </p>
+              </div>
 
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Volume de Peças</span>
-              <Package size={15} className="text-blue-600" />
-            </div>
-            <div className="text-2xl font-bold text-blue-600 tracking-tight">
-              {Math.round(totalPecas).toLocaleString('pt-BR')}
-            </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Peças planejadas para o mês {selectedMonth}/{selectedYear}
-            </p>
-          </div>
+              {/* Card 2: Total de Cargos Diferentes */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total de Funções / Cargos</span>
+                  <span className="p-1 rounded bg-purple-100 text-purple-700">
+                    <Briefcase size={15} />
+                  </span>
+                </div>
+                <div className="text-2xl font-bold text-purple-700 tracking-tight">
+                  {listaCargos.length} <span className="text-sm font-semibold text-slate-500">cargos mapeados</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Segmentação funcional da equipe
+                </p>
+              </div>
 
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total de Pedidos</span>
-              <Boxes size={15} className="text-emerald-600" />
-            </div>
-            <div className="text-2xl font-bold text-slate-800 tracking-tight">
-              {Math.round(totalPedidos).toLocaleString('pt-BR')}
-            </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Pedidos programados CD 994
-            </p>
-          </div>
+              {/* Card 3: Centros de Custo */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Centros de Custo Ativos</span>
+                  <span className="p-1 rounded bg-emerald-100 text-emerald-700">
+                    <Building2 size={15} />
+                  </span>
+                </div>
+                <div className="text-2xl font-bold text-emerald-700 tracking-tight">
+                  {listaCentrosCusto.length} <span className="text-sm font-semibold text-slate-500">áreas de lotação</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Lotações e setores do CD 994
+                </p>
+              </div>
 
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Cubagem Total (m³)</span>
-              <CheckCircle2 size={15} className="text-emerald-500" />
+              {/* Card 4: Operacionais & Conferentes */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Operacional & Conferência</span>
+                  <span className="p-1 rounded bg-amber-100 text-amber-700">
+                    <Boxes size={15} />
+                  </span>
+                </div>
+                <div className="text-2xl font-bold text-slate-800 tracking-tight">
+                  {colaboradoresList.filter(c => c.cargo.includes('CONFERENTE') || c.cargo.includes('OPERADOR') || c.cargo.includes('OP')).length} <span className="text-sm font-semibold text-slate-500">operacionais</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Equipe chave de movimentação
+                </p>
+              </div>
             </div>
-            <div className="text-2xl font-bold text-slate-800 tracking-tight">
-              {Math.round(totalCub).toLocaleString('pt-BR')} m³
-            </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Base geral: {pmtData.totalGeralLinhas?.toLocaleString('pt-BR')} linhas
-            </p>
-          </div>
-        </div>
 
-        {/* Distribuição por Modal Agrupado (CD 994) */}
-        <div className="p-5 rounded-xl border border-slate-200 bg-slate-50/40 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-slate-800">
-                Distribuição por Modal Agrupado (CD 994)
-              </h3>
-              <p className="text-xs text-slate-500">
-                Segmentação do PMT {activePage.label} {activePageId === 3 ? `(${quadroSubPage.toUpperCase()})` : ''} para o período de {selectedMonthName.split(' - ')[1]}/{selectedYear}
-              </p>
-            </div>
-            <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700">
-              Arquivo: {pmtData.summary?.arquivo_origem || 'PMT_out_2026.xlsx'}
-            </span>
-          </div>
+            {/* RESUMO CONSOLIDADO COMPACTO EM TABELAS DINÂMICAS: CARGOS | CENTRO DE CUSTO | GERÊNCIA */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                    <span>Distribuição Consolidada do Efetivo - Quadro TT (CD 994)</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Visão comparativa compacta por Cargo, Centro de Custo e Gerência. Selecione uma ou mais linhas para filtrar a tabela abaixo.
+                  </p>
+                </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {pmtData.modals && pmtData.modals.map((m) => {
-              const perc = totalValor > 0 ? ((m.valor / totalValor) * 100).toFixed(1) : '0'
-              return (
-                <div key={m.modal_agrupado} className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-800">{m.modal_agrupado}</span>
-                    <span className="text-xs font-mono font-bold text-blue-600">{perc}%</span>
+                <div className="flex items-center gap-2">
+                  {(filtrosCargo.length > 0 || filtrosCentroCusto.length > 0 || filtrosGerencia.length > 0) && (
+                    <button
+                      onClick={() => {
+                        setFiltrosCargo([])
+                        setFiltrosCentroCusto([])
+                        setFiltrosGerencia([])
+                      }}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer px-2 py-1 rounded bg-blue-50 border border-blue-200"
+                    >
+                      Limpar Filtros Ativos ({filtrosCargo.length + filtrosCentroCusto.length + filtrosGerencia.length})
+                    </button>
+                  )}
+                  <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700">
+                    Total Geral: {totalGeral}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                {/* TABELA 1: CARGOS */}
+                <div className="border border-sky-200 rounded-xl overflow-hidden shadow-2xs">
+                  <div className="bg-sky-100/90 border-b border-sky-200 px-3 py-1.5 flex items-center justify-between">
+                    <span className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
+                      <Briefcase size={13} className="text-sky-700" />
+                      Cargos {filtrosCargo.length > 0 && `(${filtrosCargo.length})`}
+                    </span>
+                    <div className="flex items-center gap-4 text-[11px] font-bold text-sky-900 font-mono">
+                      <span className="w-12 text-right">QNTs</span>
+                      <span className="w-14 text-right">%</span>
+                    </div>
                   </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-500" 
-                      style={{ width: `${Math.min(100, Math.max(2, Number(perc)))}%` }}
-                    />
+
+                  <div className="divide-y divide-slate-100 text-xs">
+                    {resumoCargos.map((item) => {
+                      const isSelected = filtrosCargo.includes(item.nome)
+                      return (
+                        <div
+                          key={item.nome}
+                          onClick={() => {
+                            if (isSelected) {
+                              setFiltrosCargo(filtrosCargo.filter(c => c !== item.nome))
+                            } else {
+                              setFiltrosCargo([...filtrosCargo, item.nome])
+                            }
+                          }}
+                          title={`Clique para ${isSelected ? 'remover' : 'adicionar'} filtro: ${item.nome}`}
+                          className={`flex items-center justify-between px-2.5 py-1 cursor-pointer transition-colors text-[10.5px] ${
+                            isSelected
+                              ? 'bg-blue-100/90 font-bold text-blue-900'
+                              : 'hover:bg-sky-50/70 text-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 truncate pr-2">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              readOnly
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer pointer-events-none scale-85"
+                            />
+                            <span className="truncate font-medium" title={item.nome}>
+                              {item.nome}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 font-mono shrink-0 font-semibold text-[10.5px]">
+                            <span className="w-10 text-right text-slate-800">{item.qnts}</span>
+                            <span className="w-12 text-right text-slate-600">
+                              {item.perc.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-                    <span>{m.linhas.toLocaleString('pt-BR')} linhas</span>
-                    <span className="font-semibold text-slate-700">R$ {(m.valor / 1_000_000).toFixed(2)}M</span>
+
+                  {/* Rodapé TT Geral */}
+                  <div className="bg-sky-100/90 border-t border-sky-200 px-2.5 py-1 flex items-center justify-between text-[11px] font-bold text-sky-950 font-mono">
+                    <span>TT Geral</span>
+                    <div className="flex items-center gap-3">
+                      <span className="w-10 text-right">{totalGeral}</span>
+                      <span className="w-12 text-right">100,00%</span>
+                    </div>
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        </div>
 
-        {/* =========================================================================
-            INDICADOR DIÁRIO POR MODAL (Pedidos TT, Peças TT, Cubagem TT - Formato da Imagem)
-            ========================================================================= */}
-        <PmtDailyMatrixTable 
-          ano={selectedYear} 
-          mes={selectedMonth} 
-          cd="994" 
-          pageTitle={activePage.label} 
-        />
-      </div>
+                {/* TABELA 2: CENTRO DE CUSTO */}
+                <div className="border border-sky-200 rounded-xl overflow-hidden shadow-2xs">
+                  <div className="bg-sky-100/90 border-b border-sky-200 px-3 py-1.5 flex items-center justify-between">
+                    <span className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
+                      <Building2 size={13} className="text-sky-700" />
+                      Centro de Custo {filtrosCentroCusto.length > 0 && `(${filtrosCentroCusto.length})`}
+                    </span>
+                    <div className="flex items-center gap-3 text-[11px] font-bold text-sky-900 font-mono">
+                      <span className="w-10 text-right">QNTs</span>
+                      <span className="w-12 text-right">%</span>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-slate-100 text-xs">
+                    {resumoCentrosCusto.map((item) => {
+                      const isSelected = filtrosCentroCusto.includes(item.nome)
+                      return (
+                        <div
+                          key={item.nome}
+                          onClick={() => {
+                            if (isSelected) {
+                              setFiltrosCentroCusto(filtrosCentroCusto.filter(c => c !== item.nome))
+                            } else {
+                              setFiltrosCentroCusto([...filtrosCentroCusto, item.nome])
+                            }
+                          }}
+                          title={`Clique para ${isSelected ? 'remover' : 'adicionar'} filtro: ${item.nome}`}
+                          className={`flex items-center justify-between px-2.5 py-1 cursor-pointer transition-colors text-[10.5px] ${
+                            isSelected
+                              ? 'bg-blue-100/90 font-bold text-blue-900'
+                              : 'hover:bg-sky-50/70 text-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 truncate pr-2">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              readOnly
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer pointer-events-none scale-85"
+                            />
+                            <span className="truncate font-medium" title={item.nome}>
+                              {item.nome}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 font-mono shrink-0 font-semibold text-[10.5px]">
+                            <span className="w-10 text-right text-slate-800">{item.qnts}</span>
+                            <span className="w-12 text-right text-slate-600">
+                              {item.perc.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Rodapé TT Geral */}
+                  <div className="bg-sky-100/90 border-t border-sky-200 px-2.5 py-1 flex items-center justify-between text-[11px] font-bold text-sky-950 font-mono">
+                    <span>TT Geral</span>
+                    <div className="flex items-center gap-3">
+                      <span className="w-10 text-right">{totalGeral}</span>
+                      <span className="w-12 text-right">100,00%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* TABELA 3: GERÊNCIA */}
+                <div className="border border-sky-200 rounded-xl overflow-hidden shadow-2xs">
+                  <div className="bg-sky-100/90 border-b border-sky-200 px-3 py-1.5 flex items-center justify-between">
+                    <span className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
+                      <Layers size={13} className="text-sky-700" />
+                      Gerência {filtrosGerencia.length > 0 && `(${filtrosGerencia.length})`}
+                    </span>
+                    <div className="flex items-center gap-3 text-[11px] font-bold text-sky-900 font-mono">
+                      <span className="w-10 text-right">QNTs</span>
+                      <span className="w-12 text-right">%</span>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-slate-100 text-xs">
+                    {resumoGerencias.map((item) => {
+                      const isSelected = filtrosGerencia.includes(item.nome)
+                      return (
+                        <div
+                          key={item.nome}
+                          onClick={() => {
+                            if (isSelected) {
+                              setFiltrosGerencia(filtrosGerencia.filter(g => g !== item.nome))
+                            } else {
+                              setFiltrosGerencia([...filtrosGerencia, item.nome])
+                            }
+                          }}
+                          title={`Clique para ${isSelected ? 'remover' : 'adicionar'} filtro: ${item.nome}`}
+                          className={`flex items-center justify-between px-2.5 py-1 cursor-pointer transition-colors text-[10.5px] ${
+                            isSelected
+                              ? 'bg-blue-100/90 font-bold text-blue-900'
+                              : 'hover:bg-sky-50/70 text-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 truncate pr-2">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              readOnly
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-blue-500 cursor-pointer pointer-events-none scale-85"
+                            />
+                            <span className="truncate font-medium" title={item.nome}>
+                              {item.nome}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 font-mono shrink-0 font-semibold text-[10.5px]">
+                            <span className="w-10 text-right text-slate-800">{item.qnts}</span>
+                            <span className="w-12 text-right text-slate-600">
+                              {item.perc.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Rodapé TT Geral */}
+                  <div className="bg-sky-100/90 border-t border-sky-200 px-2.5 py-1 flex items-center justify-between text-[11px] font-bold text-sky-950 font-mono">
+                    <span>TT Geral</span>
+                    <div className="flex items-center gap-3">
+                      <span className="w-10 text-right">{totalGeral}</span>
+                      <span className="w-12 text-right">100,00%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* TABELA DETALHADA DO QUADRO DE COLABORADORES */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
+                    Quadro de Colaboradores (Quadro TT)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Registros cadastrados com ID, Contratado, Cargo, Centro de Custo e Situação Sistema ({filteredColaboradores.length} exibidos)
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                  <button
+                    onClick={handleDownloadTemplate}
+                    title="Baixar planilha modelo para importação"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+                  >
+                    <Download size={14} className="text-slate-500" />
+                    <span>Baixar Modelo (.xlsx)</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setBulkFeedback(null)
+                      setBulkParsedData([])
+                      setBulkFileName('')
+                      setIsImportColaboradoresModalOpen(true)
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold transition-all cursor-pointer"
+                  >
+                    <UploadCloud size={14} />
+                    <span>Importar Planilha</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setCadastroSuccessMsg('')
+                      setIsCadastroModalOpen(true)
+                    }}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold shadow-sm shadow-pink-500/20 transition-all cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    <span>Novo Cadastro</span>
+                  </button>
+
+                  {colaboradoresList.length > 0 && (
+                    <button
+                      onClick={() => setIsClearAllModalOpen(true)}
+                      title="Excluir todos os colaboradores cadastrados"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                    >
+                      <Trash2 size={14} className="text-red-600" />
+                      <span>Deletar Todos</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {filteredColaboradores.length === 0 ? (
+                <div className="p-8 text-center border border-dashed border-slate-200 rounded-xl space-y-2">
+                  <Users size={32} className="mx-auto text-slate-300" />
+                  <p className="text-xs font-bold text-slate-600">Nenhum colaborador encontrado</p>
+                  <p className="text-xs text-slate-400">Verifique os filtros selecionados ou cadastre colaboradores manualmente / via planilha.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                      <tr>
+                        <th className="p-3 w-28">ID</th>
+                        <th className="p-3">Contratado</th>
+                        <th className="p-3">Cargo</th>
+                        <th className="p-3">Centro de Custo</th>
+                        <th className="p-3">Situação Sistema</th>
+                        <th className="p-3 text-right w-20">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredColaboradores.map((colab) => (
+                        <tr key={colab.id} className="hover:bg-slate-50/70 transition-colors group">
+                          <td className="p-3 font-mono font-bold text-blue-700">{colab.id}</td>
+                          <td className="p-3 font-bold text-slate-800">{colab.contratado}</td>
+                          <td className="p-3 text-slate-600 uppercase text-[11px] font-semibold">{colab.cargo}</td>
+                          <td className="p-3 text-slate-600 uppercase text-[11px] font-semibold">{colab.centroDeCusto}</td>
+                          <td className="p-3">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+                              (colab.situacaoSistema || '').toLowerCase().includes('atividade normal')
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                : (colab.situacaoSistema || '').toLowerCase().includes('férias') || (colab.situacaoSistema || '').toLowerCase().includes('ferias')
+                                  ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                                  : (colab.situacaoSistema || '').toLowerCase().includes('licença') || (colab.situacaoSistema || '').toLowerCase().includes('licenca') || (colab.situacaoSistema || '').toLowerCase().includes('maternidade')
+                                    ? 'bg-purple-50 text-purple-700 border border-purple-200/60'
+                                    : (colab.situacaoSistema || '').toLowerCase().includes('auxílio') || (colab.situacaoSistema || '').toLowerCase().includes('doença')
+                                      ? 'bg-rose-50 text-rose-700 border border-rose-200/60'
+                                      : 'bg-slate-100 text-slate-700 border border-slate-200'
+                            }`}>
+                              {colab.situacaoSistema || 'Em Atividade Normal'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleOpenEdit(colab)}
+                                title="Editar / Ver todos os dados do colaborador (Modelo Pessoas)"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                              >
+                                <Edit size={14} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteColaborador(colab.id)}
+                                title="Remover Colaborador"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* PÁGINAS DEDICADAS DO QUADRO (PG 2, PG 3, PG 4) - SEM REPETIR DADOS DA QUADRO TT */
+          <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center shadow-xs space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center mx-auto shadow-2xs">
+              <FileSpreadsheet size={28} />
+            </div>
+            <div className="max-w-md mx-auto space-y-1">
+              <h3 className="text-base font-bold text-slate-900">
+                Quadro de Colaboradores &bull; {quadroSubPage.toUpperCase()}
+              </h3>
+              <p className="text-xs text-slate-500">
+                Esta página ({quadroSubPage.toUpperCase()}) está reservada para métricas e dados complementares específicos deste módulo.
+              </p>
+            </div>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setQuadroSubPage('pg1')}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+              >
+                <Users size={14} />
+                <span>Ir para Quadro TT (Base Completa)</span>
+              </button>
+            </div>
+          </div>
+        )
+      ) : (
+        /* CONTEÚDO PADRÃO PARA DEMAIS SUB-PÁGINAS PMT (Expedição, Recebimento, etc.) */
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
+          {/* 4 Cards de Métricas Reais do CD 994 carregadas da planilha PMT */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Valor Planejado (CD 994)</span>
+                <span className="p-1 rounded bg-blue-100 text-blue-700 font-mono text-[10px] font-bold">R$</span>
+              </div>
+              <div className="text-2xl font-bold text-slate-900 tracking-tight">
+                {totalValor ? `R$ ${(totalValor / 1_000_000).toFixed(1)}M` : 'R$ 0,00'}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1 font-mono">
+                R$ {totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Volume de Peças</span>
+                <Package size={15} className="text-blue-600" />
+              </div>
+              <div className="text-2xl font-bold text-blue-600 tracking-tight">
+                {Math.round(totalPecas).toLocaleString('pt-BR')}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Peças planejadas para o mês {selectedMonth}/{selectedYear}
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total de Pedidos</span>
+                <Boxes size={15} className="text-emerald-600" />
+              </div>
+              <div className="text-2xl font-bold text-slate-800 tracking-tight">
+                {Math.round(totalPedidos).toLocaleString('pt-BR')}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Pedidos programados CD 994
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Cubagem Total (m³)</span>
+                <CheckCircle2 size={15} className="text-emerald-500" />
+              </div>
+              <div className="text-2xl font-bold text-slate-800 tracking-tight">
+                {Math.round(totalCub).toLocaleString('pt-BR')} m³
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Base geral: {pmtData.totalGeralLinhas?.toLocaleString('pt-BR')} linhas
+              </p>
+            </div>
+          </div>
+
+          {/* Distribuição por Modal Agrupado (CD 994) */}
+          <div className="p-5 rounded-xl border border-slate-200 bg-slate-50/40 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">
+                  Distribuição por Modal Agrupado (CD 994)
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Segmentação do PMT {activePage.label} para o período de {selectedMonthName.split(' - ')[1]}/{selectedYear}
+                </p>
+              </div>
+              <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700">
+                Arquivo: {pmtData.summary?.arquivo_origem || 'PMT_out_2026.xlsx'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {pmtData.modals && pmtData.modals.map((m) => {
+                const perc = totalValor > 0 ? ((m.valor / totalValor) * 100).toFixed(1) : '0'
+                return (
+                  <div key={m.modal_agrupado} className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800">{m.modal_agrupado}</span>
+                      <span className="text-xs font-mono font-bold text-blue-600">{perc}%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-500" 
+                        style={{ width: `${Math.min(100, Math.max(2, Number(perc)))}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                      <span>{m.linhas.toLocaleString('pt-BR')} linhas</span>
+                      <span className="font-semibold text-slate-700">R$ {(m.valor / 1_000_000).toFixed(2)}M</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* INDICADOR DIÁRIO POR MODAL */}
+          <PmtDailyMatrixTable 
+            ano={selectedYear} 
+            mes={selectedMonth} 
+            cd="994" 
+            pageTitle={activePage.label} 
+          />
+        </div>
+      )}
 
       {/* =========================================================================
-          4. MODAL: IMPORTAR / ATUALIZAR PLANILHA PMT (Opção de atualizar mês específico)
+          4. MODAL: IMPORTAR PLANILHA PARA CADASTRO EM MASSA DE COLABORADORES (QUADRO)
+          ========================================================================= */}
+      {isImportColaboradoresModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-5 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+                  <UploadCloud size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Importar Planilha de Colaboradores</h3>
+                  <p className="text-xs text-slate-500">Cadastre a equipe em massa através de arquivo Excel (.xlsx, .xls) ou CSV</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => { setIsImportColaboradoresModalOpen(false); setBulkFeedback(null); }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="space-y-4">
+              {/* Opção de Baixar Modelo */}
+              <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-200 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <FileSpreadsheet size={18} className="text-blue-600 shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-blue-900">Precisa da planilha modelo?</p>
+                    <p className="text-[11px] text-blue-700/80">Baixe o modelo com as colunas ID, CONTRATADO, CARGO e CENTRO DE CUSTO.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplate}
+                  className="px-3 py-1.5 bg-white border border-blue-300 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1"
+                >
+                  <Download size={13} />
+                  <span>Baixar Modelo</span>
+                </button>
+              </div>
+
+              {/* Área de Seleção de Arquivo */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <FolderOpen size={14} className="text-blue-600" />
+                  Selecione o arquivo no seu computador
+                </label>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileUpload} 
+                  accept=".xlsx, .xls, .csv" 
+                  className="hidden" 
+                />
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/20 rounded-xl p-6 text-center cursor-pointer transition-all space-y-2"
+                >
+                  <UploadCloud size={28} className="mx-auto text-blue-500" />
+                  {bulkFileName ? (
+                    <div>
+                      <p className="text-xs font-bold text-blue-700">{bulkFileName}</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Clique para escolher outro arquivo se desejar</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">Clique para selecionar a planilha (.xlsx, .xls, .csv)</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Mapeamento automático de colunas: ID, Contratado, Cargo e Centro de Custo</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Opção Substituir ou Incrementar com Bloqueio de Duplicados */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input 
+                    type="checkbox"
+                    checked={replaceExistingColab}
+                    onChange={(e) => setReplaceExistingColab(e.target.checked)}
+                    className="mt-0.5 rounded text-blue-600 focus:ring-blue-500"
+                  />
+                  <div className="text-left">
+                    <span className="text-xs font-bold text-slate-800 block">
+                      Substituir toda a lista atual de colaboradores
+                    </span>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">
+                      Se marcado, apaga a lista anterior e insere os registros da planilha (sem duplicados). Se desmarcado, adiciona apenas novos colaboradores e ignora quem já estiver cadastrado.
+                    </span>
+                  </div>
+                </label>
+                <div className="pt-2 border-t border-slate-200/80 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700">
+                  <CheckCircle2 size={13} className="text-emerald-600" />
+                  <span>Proteção contra duplicados: Registros com mesmo ID ou Nome idêntico são automaticamente desduplicados e bloqueados.</span>
+                </div>
+              </div>
+
+              {/* Feedback de Importação */}
+              {bulkFeedback && (
+                <div className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${
+                  bulkFeedback.type === 'success' 
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                    : 'bg-red-50 text-red-800 border border-red-200'
+                }`}>
+                  {bulkFeedback.type === 'success' ? (
+                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle size={16} className="text-red-600 shrink-0 mt-0.5" />
+                  )}
+                  <span className="font-semibold">{bulkFeedback.message}</span>
+                </div>
+              )}
+
+              {/* Pré-visualização dos Primeiros 5 Registros Identificados */}
+              {bulkParsedData.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-700">Prévia dos Colaboradores ({bulkParsedData.length} registros)</span>
+                    <span className="text-emerald-600 font-semibold font-mono text-[11px]">Pronto para importar</span>
+                  </div>
+                  <div className="max-h-36 overflow-y-auto rounded-xl border border-slate-200 text-xs">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase font-bold text-slate-500">
+                        <tr>
+                          <th className="p-2">ID</th>
+                          <th className="p-2">Nome</th>
+                          <th className="p-2">Cargo</th>
+                          <th className="p-2">Centro de Custo</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {bulkParsedData.slice(0, 5).map((c, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50">
+                            <td className="p-2 font-mono text-blue-700 font-bold">{c.id}</td>
+                            <td className="p-2 font-semibold text-slate-800">{c.contratado}</td>
+                            <td className="p-2 text-slate-600">{c.cargo}</td>
+                            <td className="p-2 text-slate-600">{c.centroDeCusto}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {bulkParsedData.length > 5 && (
+                    <p className="text-[10px] text-slate-400 text-right">+ {bulkParsedData.length - 5} colaboradores adicionais</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => { setIsImportColaboradoresModalOpen(false); setBulkFeedback(null); }}
+                className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBulkImport}
+                disabled={bulkParsedData.length === 0}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white text-xs font-bold shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
+              >
+                <CheckCircle2 size={15} />
+                <span>Cadastrar {bulkParsedData.length > 0 ? `(${bulkParsedData.length})` : ''} em Massa</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          5. MODAL: IMPORTAR / ATUALIZAR PLANILHA PMT (Opção de atualizar mês específico)
           ========================================================================= */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
@@ -645,7 +2074,7 @@ export const PmtsPage: React.FC = () => {
                 />
               </div>
 
-              {/* Opção crucial solicitada: Substituir base completa do mês */}
+              {/* Substituir base completa do mês */}
               <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-200/80 space-y-1.5">
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input 
@@ -748,8 +2177,12 @@ export const PmtsPage: React.FC = () => {
                     ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
                     : 'bg-red-50 text-red-800 border border-red-200'
                 }`}>
-                  {importFeedback.success ? <CheckCircle2 size={16} className="shrink-0 mt-0.5" /> : <AlertCircle size={16} className="shrink-0 mt-0.5" />}
-                  <span>{importFeedback.message}</span>
+                  {importFeedback.success ? (
+                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle size={16} className="text-red-600 shrink-0 mt-0.5" />
+                  )}
+                  <span className="font-semibold">{importFeedback.message}</span>
                 </div>
               )}
             </div>
@@ -759,24 +2192,24 @@ export const PmtsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => { setIsImportModalOpen(false); setImportFeedback(null); }}
-                className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
+                className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                Fechar
+                Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleExecuteImport}
                 disabled={isImporting || !selectedFile}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-xs font-bold shadow-sm shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white text-xs font-bold shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
               >
                 {isImporting ? (
                   <>
-                    <RefreshCw size={14} className="animate-spin" />
-                    <span>Importando Base...</span>
+                    <Loader2 size={15} className="animate-spin" />
+                    <span>Importando Dados...</span>
                   </>
                 ) : (
                   <>
-                    <UploadCloud size={14} />
+                    <UploadCloud size={15} />
                     <span>Importar Planilha PMT</span>
                   </>
                 )}
@@ -785,61 +2218,9 @@ export const PmtsPage: React.FC = () => {
           </div>
         </div>
       )}
-      {/* =========================================================================
-          PAINEL DE CADASTRO DO QUADRO (PG 1)
-          Se Quadro Pg 1 estiver ativo, exibe tabela com ID, Contratado, Cargo, Centro de Custo
-          ========================================================================= */}
-      {activePageId === 3 && quadroSubPage === 'pg1' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-            <div>
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
-                Quadro de Colaboradores (Pg 1)
-              </h3>
-              <p className="text-xs text-slate-500">
-                Registros cadastrados com ID, Contratado, Cargo e Centro de Custo
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setCadastroSuccessMsg('')
-                setIsCadastroModalOpen(true)
-              }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold shadow-sm shadow-pink-500/20 transition-all hover:translate-y-[-1px] cursor-pointer self-start sm:self-auto"
-            >
-              <Plus size={15} />
-              <span>Novo Cadastro</span>
-            </button>
-          </div>
-
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="p-3 w-28">ID</th>
-                  <th className="p-3">Contratado</th>
-                  <th className="p-3">Cargo</th>
-                  <th className="p-3">Centro de Custo</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {colaboradoresList.map((colab) => (
-                  <tr key={colab.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="p-3 font-mono font-bold text-blue-700">{colab.id}</td>
-                    <td className="p-3 font-bold text-slate-800">{colab.contratado}</td>
-                    <td className="p-3 text-slate-600 uppercase text-[11px] font-semibold">{colab.cargo}</td>
-                    <td className="p-3 text-slate-600 uppercase text-[11px] font-semibold">{colab.centroDeCusto}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* =========================================================================
-          MODAL DE CADASTRO: QUADRO PG 1
+          6. MODAL DE CADASTRO INDIVIDUAL: QUADRO PG 1
           Campos: ID, Contratado, Cargo, Centro de Custo
           ========================================================================= */}
       {isCadastroModalOpen && (
@@ -853,7 +2234,7 @@ export const PmtsPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">Cadastrar Colaborador</h3>
-                  <p className="text-xs text-slate-500">Preencha os campos obrigatórios do Quadro Pg 1</p>
+                  <p className="text-xs text-slate-500">Preencha os campos obrigatórios do Quadro ({quadroSubPage.toUpperCase()})</p>
                 </div>
               </div>
               <button 
@@ -951,6 +2332,495 @@ export const PmtsPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          8. MODAL DE EDIÇÃO E VISUALIZAÇÃO COMPLETA: MODELO PESSOAS (MODELO 1.XLSX)
+          Exibe todas as informações cadastrais em uma página única e ampla
+          ========================================================================= */}
+      {isEditModalOpen && editingColaborador && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 md:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-6xl w-full p-5 md:p-6 shadow-2xl border border-slate-200 flex flex-col max-h-[95vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 shrink-0">
+                  <User size={22} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <span>{editingColaborador.contratado || 'Colaborador'}</span>
+                    <span className="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-800 text-xs font-mono font-bold">
+                      MATRÍCULA / ID: {editingColaborador.id}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Ficha cadastral completa com todos os dados do formato <span className="font-semibold text-slate-700">Modelo Pessoas (Modelo 1)</span>
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => { setIsEditModalOpen(false); setEditingColaborador(null); }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Fechar"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Formulário de Edição - Todas as seções em uma única página */}
+            <form onSubmit={handleSalvarEdicao} className="flex flex-col flex-1 overflow-hidden pt-4">
+              <div className="overflow-y-auto pr-1 md:pr-2 space-y-5 flex-1">
+                
+                {/* SEÇÃO 1: DADOS PRINCIPAIS & LOTAÇÃO */}
+                <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4">
+                  <div className="flex items-center gap-2 pb-3 mb-3 border-b border-slate-200/60">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold">1</span>
+                    <h4 className="text-xs font-bold text-slate-800 tracking-wide uppercase">Dados Principais & Lotação</h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <div className="space-y-1 sm:col-span-1">
+                      <label className="text-[11px] font-bold text-slate-700">ID / Matrícula</label>
+                      <input
+                        type="text"
+                        disabled
+                        value={editingColaborador.id}
+                        className="w-full bg-slate-200/70 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-slate-700 outline-none cursor-not-allowed"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-2 md:col-span-3">
+                      <label className="text-[11px] font-bold text-slate-700">Nome do Contratado</label>
+                      <input
+                        type="text"
+                        required
+                        value={editingColaborador.contratado}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, contratado: e.target.value.toUpperCase() })}
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Cargo Atual</label>
+                      <input
+                        type="text"
+                        required
+                        value={editingColaborador.cargo}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, cargo: e.target.value.toUpperCase() })}
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Cargo Anterior</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.cargoAnterior || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, cargoAnterior: e.target.value.toUpperCase() })}
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1">
+                      <label className="text-[11px] font-bold text-slate-700">CD</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.cd || '6994'}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, cd: e.target.value })}
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Centro de Custo</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.centroDeCusto}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, centroDeCusto: e.target.value.toUpperCase() })}
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1">
+                      <label className="text-[11px] font-bold text-slate-700">Cód. Centro Custo</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.codCentroCusto || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, codCentroCusto: e.target.value })}
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Gerência</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.gerencia || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, gerencia: e.target.value.toUpperCase() })}
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Situação Sistema</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.situacaoSistema || 'Em Atividade Normal'}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, situacaoSistema: e.target.value })}
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEÇÃO 2: LIDERANÇA, TURNO & SETOR */}
+                <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4">
+                  <div className="flex items-center gap-2 pb-3 mb-3 border-b border-slate-200/60">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold">2</span>
+                    <h4 className="text-xs font-bold text-slate-800 tracking-wide uppercase">Liderança, Turno & Setor</h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <div className="space-y-1 sm:col-span-1">
+                      <label className="text-[11px] font-bold text-slate-700">ID Líder</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.idLider || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, idLider: e.target.value })}
+                        placeholder="Ex: 204403"
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-2 md:col-span-3">
+                      <label className="text-[11px] font-bold text-slate-700">Nome do Líder</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.nomeLider || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, nomeLider: e.target.value.toUpperCase() })}
+                        placeholder="Ex: FRANCISCO MICHAEL LIMA BATISTA"
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Setor</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.setor || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, setor: e.target.value.toUpperCase() })}
+                        placeholder="Ex: SUPRIMENTO, EXPEDIÇÃO"
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Turno</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.turno || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, turno: e.target.value })}
+                        placeholder="Ex: 1º, 2º, 3º, Adm"
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-1">
+                      <label className="text-[11px] font-bold text-slate-700">Status</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.status || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, status: e.target.value })}
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-1">
+                      <label className="text-[11px] font-bold text-slate-700">Possui Medidas</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.possuiMedidas || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, possuiMedidas: e.target.value })}
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Possui Feedback</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.possuiFeedback || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, possuiFeedback: e.target.value })}
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEÇÃO 3: ADMISSÃO, EXPERIÊNCIA & FÉRIAS */}
+                <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4">
+                  <div className="flex items-center gap-2 pb-3 mb-3 border-b border-slate-200/60">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-amber-600 text-white text-[10px] font-bold">3</span>
+                    <h4 className="text-xs font-bold text-slate-800 tracking-wide uppercase">Admissão, Experiência & Férias</h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Data de Admissão</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.dataAdmissao || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, dataAdmissao: e.target.value })}
+                        placeholder="DD/MM/AAAA"
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Tempo de Empresa</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.tempoDeEmpresa || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, tempoDeEmpresa: e.target.value })}
+                        placeholder="Ex: 6a-10m-10d"
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Férias</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.ferias || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, ferias: e.target.value })}
+                        placeholder="Ex: Gozando Férias"
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Período 45 Dias (Experiência)</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.periodo45Dias || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, periodo45Dias: e.target.value })}
+                        placeholder="DD/MM/AAAA"
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Período 90 Dias (Experiência)</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.periodo90Dias || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, periodo90Dias: e.target.value })}
+                        placeholder="DD/MM/AAAA"
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-2 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Dia / Mês / Ano Adm</label>
+                      <div className="grid grid-cols-3 gap-1">
+                        <input
+                          type="text"
+                          value={editingColaborador.diaAdm || ''}
+                          onChange={(e) => setEditingColaborador({ ...editingColaborador, diaAdm: e.target.value })}
+                          placeholder="Dia"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-center font-semibold"
+                        />
+                        <input
+                          type="text"
+                          value={editingColaborador.mesAdm || ''}
+                          onChange={(e) => setEditingColaborador({ ...editingColaborador, mesAdm: e.target.value })}
+                          placeholder="Mês"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-center font-semibold"
+                        />
+                        <input
+                          type="text"
+                          value={editingColaborador.anoAdm || ''}
+                          onChange={(e) => setEditingColaborador({ ...editingColaborador, anoAdm: e.target.value })}
+                          placeholder="Ano"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-center font-semibold"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEÇÃO 4: DOCUMENTOS, PESSOAL & ANIVERSÁRIO */}
+                <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4">
+                  <div className="flex items-center gap-2 pb-3 mb-3 border-b border-slate-200/60">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold">4</span>
+                    <h4 className="text-xs font-bold text-slate-800 tracking-wide uppercase">Documentos & Dados Pessoais</h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Login Corporativo</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.login || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, login: e.target.value })}
+                        placeholder="Ex: JSEP_SILVA"
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">CPF</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.cpf || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, cpf: e.target.value })}
+                        placeholder="000.000.000-00"
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">RG</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.rg || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, rg: e.target.value })}
+                        placeholder="Registro Geral"
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1">
+                      <label className="text-[11px] font-bold text-slate-700">Sexo</label>
+                      <select
+                        value={editingColaborador.sexo || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, sexo: e.target.value })}
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      >
+                        <option value="">Selecione...</option>
+                        <option value="M">Masculino (M)</option>
+                        <option value="F">Feminino (F)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Data de Nascimento</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.dataNascimento || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, dataNascimento: e.target.value })}
+                        placeholder="DD/MM/AAAA"
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1">
+                      <label className="text-[11px] font-bold text-slate-700">Idade Atual</label>
+                      <input
+                        type="text"
+                        value={editingColaborador.novaIdade || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, novaIdade: e.target.value })}
+                        placeholder="Ex: 54"
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-2 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">Dia e Mês de Aniversário</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          value={editingColaborador.diaNiver || ''}
+                          onChange={(e) => setEditingColaborador({ ...editingColaborador, diaNiver: e.target.value })}
+                          placeholder="Dia (Ex: 20)"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-center font-semibold"
+                        />
+                        <input
+                          type="text"
+                          value={editingColaborador.mesNiver || ''}
+                          onChange={(e) => setEditingColaborador({ ...editingColaborador, mesNiver: e.target.value })}
+                          placeholder="Mês (Ex: 9)"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-center font-semibold"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Mensagem de Sucesso na Edição */}
+              {editSuccessMsg && (
+                <div className="p-3 my-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 shrink-0">
+                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                  <span>{editSuccessMsg}</span>
+                </div>
+              )}
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100 shrink-0 mt-3">
+                <span className="text-[11px] text-slate-600 hidden sm:inline font-medium">
+                  Todas as seções disponíveis para visualização e edição direta.
+                </span>
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => { setIsEditModalOpen(false); setEditingColaborador(null); }}
+                    className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
+                  >
+                    <Save size={14} />
+                    <span>Salvar Alterações</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          9. MODAL DE CONFIRMAÇÃO: EXCLUIR TODOS OS COLABORADORES
+          ========================================================================= */}
+      {isClearAllModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <Trash2 size={24} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Deletar Todos os Colaboradores?</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Esta ação apagará permanentemente todos os <strong className="text-red-600 font-bold">{colaboradoresList.length} colaboradores</strong> cadastrados na base do Quadro.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-[11px] font-semibold text-left flex items-start gap-2">
+              <AlertCircle size={16} className="text-red-600 shrink-0 mt-0.5" />
+              <span>Atenção: Os dados serão removidos do armazenamento local. Você poderá importar a planilha Modelo 1 a qualquer momento.</span>
+            </div>
+
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsClearAllModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleClearAllColaboradores}
+                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-sm shadow-red-500/20 transition-all cursor-pointer"
+              >
+                <Trash2 size={14} />
+                <span>Sim, Deletar Todos</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
