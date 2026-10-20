@@ -49,7 +49,8 @@ const app = express()
 const PORT = process.env.PORT || 3001
 
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '50mb' }))
+app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -159,7 +160,52 @@ const DB_PATH = path.join(__dirname, '../prisma/dev.db')
 function getSqliteDb() {
   if (!fs.existsSync(DB_PATH)) return null
   try {
-    return new DatabaseSync(DB_PATH)
+    const db = new DatabaseSync(DB_PATH)
+    // Inicializa a tabela de colaboradores caso ainda não exista
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS colaboradores (
+        id TEXT PRIMARY KEY,
+        contratado TEXT NOT NULL,
+        cargo TEXT NOT NULL,
+        centro_de_custo TEXT NOT NULL,
+        cd TEXT DEFAULT '994',
+        login TEXT,
+        cpf TEXT,
+        rg TEXT,
+        sexo TEXT,
+        cargo_anterior TEXT,
+        data_admissao TEXT,
+        data_nascimento TEXT,
+        situacao_sistema TEXT DEFAULT 'Em Atividade Normal',
+        status TEXT,
+        possui_medidas TEXT,
+        possui_feedback TEXT,
+        id_lider TEXT,
+        nome_lider TEXT,
+        setor TEXT,
+        turno TEXT,
+        ferias TEXT,
+        cod_centro_custo TEXT,
+        gerencia TEXT,
+        periodo_45_dias TEXT,
+        periodo_90_dias TEXT,
+        dia_niver TEXT,
+        mes_niver TEXT,
+        aniversario TEXT,
+        nova_idade TEXT,
+        tempo_de_empresa TEXT,
+        mes_adm TEXT,
+        dia_adm TEXT,
+        ano_adm TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_colab_cargo ON colaboradores(cargo);
+      CREATE INDEX IF NOT EXISTS idx_colab_cc ON colaboradores(centro_de_custo);
+      CREATE INDEX IF NOT EXISTS idx_colab_gerencia ON colaboradores(gerencia);
+      CREATE INDEX IF NOT EXISTS idx_colab_situacao ON colaboradores(situacao_sistema);
+    `)
+    return db
   } catch (err) {
     console.error('Erro ao abrir SQLite dev.db:', err)
     return null
@@ -481,6 +527,350 @@ app.get('/api/pmt/daily-matrix', (req, res) => {
     console.error('Erro /api/pmt/daily-matrix:', err)
     res.status(500).json({ error: err.message })
   }
+})
+
+// =========================================================================
+// ENDPOINTS DE COLABORADORES (Quadro TT / Modelo Pessoas)
+// Persistência com Supabase (PostgreSQL) + Fallback automático em SQLite dev.db
+// =========================================================================
+
+// Função auxiliar para mapear item camelCase <-> snake_case
+function mapToDbRow(item) {
+  return {
+    id: String(item.id || '').trim(),
+    contratado: String(item.contratado || '').trim(),
+    cargo: String(item.cargo || '').trim(),
+    centro_de_custo: String(item.centroDeCusto || item.centro_de_custo || '').trim(),
+    cd: String(item.cd || '994').trim(),
+    login: item.login || null,
+    cpf: item.cpf || null,
+    rg: item.rg || null,
+    sexo: item.sexo || null,
+    cargo_anterior: item.cargoAnterior || item.cargo_anterior || null,
+    data_admissao: item.dataAdmissao || item.data_admissao || null,
+    data_nascimento: item.dataNascimento || item.data_nascimento || null,
+    situacao_sistema: item.situacaoSistema || item.situacao_sistema || 'Em Atividade Normal',
+    status: item.status || null,
+    possui_medidas: item.possuiMedidas || item.possui_medidas || null,
+    possui_feedback: item.possuiFeedback || item.possui_feedback || null,
+    id_lider: item.idLider || item.id_lider || null,
+    nome_lider: item.nomeLider || item.nome_lider || null,
+    setor: item.setor || null,
+    turno: item.turno || null,
+    ferias: item.ferias || null,
+    cod_centro_custo: item.codCentroCusto || item.cod_centro_custo || null,
+    gerencia: item.gerencia || null,
+    periodo_45_dias: item.periodo45Dias || item.periodo_45_dias || null,
+    periodo_90_dias: item.periodo90Dias || item.periodo_90_dias || null,
+    dia_niver: item.diaNiver || item.dia_niver || null,
+    mes_niver: item.mesNiver || item.mes_niver || null,
+    aniversario: item.aniversario || null,
+    nova_idade: item.novaIdade || item.nova_idade || null,
+    tempo_de_empresa: item.tempoDeEmpresa || item.tempo_de_empresa || null,
+    mes_adm: item.mesAdm || item.mes_adm || null,
+    dia_adm: item.diaAdm || item.dia_adm || null,
+    ano_adm: item.anoAdm || item.ano_adm || null,
+    updated_at: new Date().toISOString()
+  }
+}
+
+function mapFromDbRow(row) {
+  return {
+    id: row.id,
+    contratado: row.contratado,
+    cargo: row.cargo,
+    centroDeCusto: row.centro_de_custo,
+    cd: row.cd || '994',
+    login: row.login || '',
+    cpf: row.cpf || '',
+    rg: row.rg || '',
+    sexo: row.sexo || '',
+    cargoAnterior: row.cargo_anterior || '',
+    dataAdmissao: row.data_admissao || '',
+    dataNascimento: row.data_nascimento || '',
+    situacaoSistema: row.situacao_sistema || 'Em Atividade Normal',
+    status: row.status || '',
+    possuiMedidas: row.possui_medidas || '',
+    possuiFeedback: row.possui_feedback || '',
+    idLider: row.id_lider || '',
+    nomeLider: row.nome_lider || '',
+    setor: row.setor || '',
+    turno: row.turno || '',
+    ferias: row.ferias || '',
+    codCentroCusto: row.cod_centro_custo || '',
+    gerencia: row.gerencia || '',
+    periodo45Dias: row.periodo_45_dias || '',
+    periodo90Dias: row.periodo_90_dias || '',
+    diaNiver: row.dia_niver || '',
+    mesNiver: row.mes_niver || '',
+    aniversario: row.aniversario || '',
+    novaIdade: row.nova_idade || '',
+    tempoDeEmpresa: row.tempo_de_empresa || '',
+    mesAdm: row.mes_adm || '',
+    diaAdm: row.dia_adm || '',
+    anoAdm: row.ano_adm || '',
+    createdAt: row.created_at
+  }
+}
+
+// 1. LISTAR TODOS OS COLABORADORES
+app.get('/api/colaboradores', async (req, res) => {
+  try {
+    // Tenta carregar do Supabase primeiro
+    const { data: supaData, error } = await supabase
+      .from('colaboradores')
+      .select('*')
+      .order('contratado', { ascending: true })
+
+    if (!error && Array.isArray(supaData) && supaData.length > 0) {
+      return res.json({ success: true, source: 'supabase', count: supaData.length, data: supaData.map(mapFromDbRow) })
+    }
+
+    // Fallback: consulta tabela no SQLite local
+    const db = getSqliteDb()
+    if (db) {
+      const rows = db.prepare('SELECT * FROM colaboradores ORDER BY contratado ASC').all()
+      if (rows && rows.length > 0) {
+        return res.json({ success: true, source: 'sqlite', count: rows.length, data: rows.map(mapFromDbRow) })
+      }
+    }
+
+    // Se ainda vazio, retorna array vazio
+    res.json({ success: true, source: 'empty', count: 0, data: [] })
+  } catch (err) {
+    console.error('Erro get /api/colaboradores:', err)
+    // Tenta fallback sqlite
+    const db = getSqliteDb()
+    if (db) {
+      try {
+        const rows = db.prepare('SELECT * FROM colaboradores ORDER BY contratado ASC').all()
+        return res.json({ success: true, source: 'sqlite-fallback', count: rows.length, data: rows.map(mapFromDbRow) })
+      } catch (e) {
+        console.error('Erro fallback sqlite:', e)
+      }
+    }
+    res.status(500).json({ error: err.message, data: [] })
+  }
+})
+
+// 2. SALVAR/CADASTRAR INDIVIDUAL (UPSERT)
+app.post('/api/colaboradores', async (req, res) => {
+  const item = req.body
+  if (!item || !item.id || !item.contratado) {
+    return res.status(400).json({ error: 'ID e Contratado são campos obrigatórios.' })
+  }
+
+  const row = mapToDbRow(item)
+
+  // Salva no SQLite local
+  const db = getSqliteDb()
+  if (db) {
+    try {
+      const stmt = db.prepare(`
+        INSERT INTO colaboradores (
+          id, contratado, cargo, centro_de_custo, cd, login, cpf, rg, sexo,
+          cargo_anterior, data_admissao, data_nascimento, situacao_sistema, status,
+          possui_medidas, possui_feedback, id_lider, nome_lider, setor, turno, ferias,
+          cod_centro_custo, gerencia, periodo_45_dias, periodo_90_dias, dia_niver,
+          mes_niver, aniversario, nova_idade, tempo_de_empresa, mes_adm, dia_adm, ano_adm, updated_at
+        ) VALUES (
+          @id, @contratado, @cargo, @centro_de_custo, @cd, @login, @cpf, @rg, @sexo,
+          @cargo_anterior, @data_admissao, @data_nascimento, @situacao_sistema, @status,
+          @possui_medidas, @possui_feedback, @id_lider, @nome_lider, @setor, @turno, @ferias,
+          @cod_centro_custo, @gerencia, @periodo_45_dias, @periodo_90_dias, @dia_niver,
+          @mes_niver, @aniversario, @nova_idade, @tempo_de_empresa, @mes_adm, @dia_adm, @ano_adm, @updated_at
+        ) ON CONFLICT(id) DO UPDATE SET
+          contratado=excluded.contratado,
+          cargo=excluded.cargo,
+          centro_de_custo=excluded.centro_de_custo,
+          cd=excluded.cd,
+          login=excluded.login,
+          cpf=excluded.cpf,
+          rg=excluded.rg,
+          sexo=excluded.sexo,
+          cargo_anterior=excluded.cargo_anterior,
+          data_admissao=excluded.data_admissao,
+          data_nascimento=excluded.data_nascimento,
+          situacao_sistema=excluded.situacao_sistema,
+          status=excluded.status,
+          possui_medidas=excluded.possui_medidas,
+          possui_feedback=excluded.possui_feedback,
+          id_lider=excluded.id_lider,
+          nome_lider=excluded.nome_lider,
+          setor=excluded.setor,
+          turno=excluded.turno,
+          ferias=excluded.ferias,
+          cod_centro_custo=excluded.cod_centro_custo,
+          gerencia=excluded.gerencia,
+          periodo_45_dias=excluded.periodo_45_dias,
+          periodo_90_dias=excluded.periodo_90_dias,
+          dia_niver=excluded.dia_niver,
+          mes_niver=excluded.mes_niver,
+          aniversario=excluded.aniversario,
+          nova_idade=excluded.nova_idade,
+          tempo_de_empresa=excluded.tempo_de_empresa,
+          mes_adm=excluded.mes_adm,
+          dia_adm=excluded.dia_adm,
+          ano_adm=excluded.ano_adm,
+          updated_at=excluded.updated_at
+      `)
+      stmt.run(row)
+    } catch (e) {
+      console.error('Erro ao salvar colaborador no SQLite:', e)
+    }
+  }
+
+  // Tenta salvar também no Supabase
+  try {
+    await supabase
+      .from('colaboradores')
+      .upsert(row, { onConflict: 'id' })
+  } catch (err) {
+    console.error('Aviso ao sincronizar colaborador no Supabase:', err.message)
+  }
+
+  res.json({ success: true, item: mapFromDbRow(row) })
+})
+
+// 3. SALVAR EM LOTE (IMPORTAÇÃO EM MASSA / SINCRONIZAÇÃO)
+app.post('/api/colaboradores/bulk', async (req, res) => {
+  const { items, replaceAll } = req.body
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Nenhum colaborador informado para importação.' })
+  }
+
+  const rows = items.map(mapToDbRow)
+
+  // Salva no SQLite local com transação
+  const db = getSqliteDb()
+  if (db) {
+    try {
+      db.exec('BEGIN TRANSACTION;')
+      if (replaceAll) {
+        db.exec('DELETE FROM colaboradores;')
+      }
+
+      const stmt = db.prepare(`
+        INSERT INTO colaboradores (
+          id, contratado, cargo, centro_de_custo, cd, login, cpf, rg, sexo,
+          cargo_anterior, data_admissao, data_nascimento, situacao_sistema, status,
+          possui_medidas, possui_feedback, id_lider, nome_lider, setor, turno, ferias,
+          cod_centro_custo, gerencia, periodo_45_dias, periodo_90_dias, dia_niver,
+          mes_niver, aniversario, nova_idade, tempo_de_empresa, mes_adm, dia_adm, ano_adm, updated_at
+        ) VALUES (
+          @id, @contratado, @cargo, @centro_de_custo, @cd, @login, @cpf, @rg, @sexo,
+          @cargo_anterior, @data_admissao, @data_nascimento, @situacao_sistema, @status,
+          @possui_medidas, @possui_feedback, @id_lider, @nome_lider, @setor, @turno, @ferias,
+          @cod_centro_custo, @gerencia, @periodo_45_dias, @periodo_90_dias, @dia_niver,
+          @mes_niver, @aniversario, @nova_idade, @tempo_de_empresa, @mes_adm, @dia_adm, @ano_adm, @updated_at
+        ) ON CONFLICT(id) DO UPDATE SET
+          contratado=excluded.contratado,
+          cargo=excluded.cargo,
+          centro_de_custo=excluded.centro_de_custo,
+          cd=excluded.cd,
+          login=excluded.login,
+          cpf=excluded.cpf,
+          rg=excluded.rg,
+          sexo=excluded.sexo,
+          cargo_anterior=excluded.cargo_anterior,
+          data_admissao=excluded.data_admissao,
+          data_nascimento=excluded.data_nascimento,
+          situacao_sistema=excluded.situacao_sistema,
+          status=excluded.status,
+          possui_medidas=excluded.possui_medidas,
+          possui_feedback=excluded.possui_feedback,
+          id_lider=excluded.id_lider,
+          nome_lider=excluded.nome_lider,
+          setor=excluded.setor,
+          turno=excluded.turno,
+          ferias=excluded.ferias,
+          cod_centro_custo=excluded.cod_centro_custo,
+          gerencia=excluded.gerencia,
+          periodo_45_dias=excluded.periodo_45_dias,
+          periodo_90_dias=excluded.periodo_90_dias,
+          dia_niver=excluded.dia_niver,
+          mes_niver=excluded.mes_niver,
+          aniversario=excluded.aniversario,
+          nova_idade=excluded.nova_idade,
+          tempo_de_empresa=excluded.tempo_de_empresa,
+          mes_adm=excluded.mes_adm,
+          dia_adm=excluded.dia_adm,
+          ano_adm=excluded.ano_adm,
+          updated_at=excluded.updated_at
+      `)
+
+      for (const r of rows) {
+        stmt.run(r)
+      }
+      db.exec('COMMIT;')
+    } catch (e) {
+      try { db.exec('ROLLBACK;') } catch {}
+      console.error('Erro bulk no SQLite:', e)
+    }
+  }
+
+  // Tenta salvar também no Supabase (se a tabela estiver criada lá)
+  try {
+    if (replaceAll) {
+      await supabase.from('colaboradores').delete().neq('id', '___non_existent___')
+    }
+    // Grava em lotes de 100
+    for (let i = 0; i < rows.length; i += 100) {
+      const chunk = rows.slice(i, i + 100)
+      await supabase.from('colaboradores').upsert(chunk, { onConflict: 'id' })
+    }
+  } catch (err) {
+    console.error('Aviso ao sincronizar lote no Supabase:', err.message)
+  }
+
+  res.json({ success: true, count: rows.length })
+})
+
+// 4. DELETAR INDIVIDUAL
+app.delete('/api/colaboradores/:id', async (req, res) => {
+  const { id } = req.params
+  if (!id) return res.status(400).json({ error: 'ID obrigatório' })
+
+  // SQLite
+  const db = getSqliteDb()
+  if (db) {
+    try {
+      db.prepare('DELETE FROM colaboradores WHERE id = ?').run(id)
+    } catch (e) {
+      console.error('Erro ao deletar no SQLite:', e)
+    }
+  }
+
+  // Supabase
+  try {
+    await supabase.from('colaboradores').delete().eq('id', id)
+  } catch (err) {
+    console.error('Aviso ao deletar no Supabase:', err.message)
+  }
+
+  res.json({ success: true, deletedId: id })
+})
+
+// 5. DELETAR TODOS
+app.delete('/api/colaboradores', async (req, res) => {
+  // SQLite
+  const db = getSqliteDb()
+  if (db) {
+    try {
+      db.exec('DELETE FROM colaboradores;')
+    } catch (e) {
+      console.error('Erro ao limpar SQLite:', e)
+    }
+  }
+
+  // Supabase
+  try {
+    await supabase.from('colaboradores').delete().neq('id', '___non_existent___')
+  } catch (err) {
+    console.error('Aviso ao limpar Supabase:', err.message)
+  }
+
+  res.json({ success: true, message: 'Todos os colaboradores foram removidos.' })
 })
 
 app.listen(PORT, () => {

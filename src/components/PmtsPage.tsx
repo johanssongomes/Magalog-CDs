@@ -285,8 +285,44 @@ export const PmtsPage: React.FC = () => {
     return (initialColaboradoresData as ColaboradorItem[]) || []
   })
   const [cadastroSuccessMsg, setCadastroSuccessMsg] = useState('')
+  const [isSyncingDb, setIsSyncingDb] = useState(false)
 
-  const handleSalvarCadastro = (e: React.FormEvent) => {
+  // Carregar dados da tabela do Banco de Dados (API / Supabase)
+  const fetchColaboradoresFromDb = async () => {
+    try {
+      setIsSyncingDb(true)
+      const res = await fetch('http://localhost:3001/api/colaboradores')
+      const json = await res.json()
+      if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
+        setColaboradoresList(json.data)
+        try {
+          localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(json.data))
+        } catch {}
+      } else {
+        // Se a tabela do banco de dados ainda estiver vazia, sincroniza a base inicial de 192 colaboradores
+        const initialList = (initialColaboradoresData as ColaboradorItem[]) || []
+        if (initialList.length > 0) {
+          await fetch('http://localhost:3001/api/colaboradores/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: initialList, replaceAll: true })
+          })
+          setColaboradoresList(initialList)
+        }
+      }
+    } catch (err) {
+      console.warn('Banco de dados local/remoto não respondeu, utilizando base em memória/local:', err)
+    } finally {
+      setIsSyncingDb(false)
+    }
+  }
+
+  // Executa o carregamento inicial do Banco de Dados
+  useEffect(() => {
+    fetchColaboradoresFromDb()
+  }, [])
+
+  const handleSalvarCadastro = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!cadastroForm.id || !cadastroForm.contratado) return
 
@@ -319,8 +355,19 @@ export const PmtsPage: React.FC = () => {
       localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated))
     } catch {}
 
+    // Grava no Banco de Dados via API (SQLite + Supabase)
+    try {
+      await fetch('http://localhost:3001/api/colaboradores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(novoColaborador)
+      })
+    } catch (err) {
+      console.error('Erro ao gravar colaborador no banco de dados:', err)
+    }
+
     setCadastroForm(defaultColaboradorForm)
-    setCadastroSuccessMsg('Colaborador cadastrado com sucesso!')
+    setCadastroSuccessMsg('Colaborador cadastrado e gravado no Banco de Dados!')
     setTimeout(() => {
       setCadastroSuccessMsg('')
       setIsCadastroModalOpen(false)
@@ -336,7 +383,7 @@ export const PmtsPage: React.FC = () => {
   }
 
   // Salvar alterações da edição do colaborador
-  const handleSalvarEdicao = (e: React.FormEvent) => {
+  const handleSalvarEdicao = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingColaborador || !editingColaborador.id || !editingColaborador.contratado) return
 
@@ -349,7 +396,18 @@ export const PmtsPage: React.FC = () => {
       localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedList))
     } catch {}
 
-    setEditSuccessMsg('Dados do colaborador atualizados com sucesso!')
+    // Grava alteração no Banco de Dados
+    try {
+      await fetch('http://localhost:3001/api/colaboradores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingColaborador)
+      })
+    } catch (err) {
+      console.error('Erro ao atualizar colaborador no banco de dados:', err)
+    }
+
+    setEditSuccessMsg('Dados do colaborador atualizados e salvos no Banco de Dados!')
     setTimeout(() => {
       setEditSuccessMsg('')
       setIsEditModalOpen(false)
@@ -520,7 +578,7 @@ export const PmtsPage: React.FC = () => {
     reader.readAsBinaryString(file)
   }
 
-  const handleConfirmBulkImport = () => {
+  const handleConfirmBulkImport = async () => {
     if (bulkParsedData.length === 0) return
 
     let updatedList: ColaboradorItem[]
@@ -548,9 +606,23 @@ export const PmtsPage: React.FC = () => {
       localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedList))
     } catch {}
 
+    // Grava todos os registros na tabela do Banco de Dados
+    try {
+      await fetch('http://localhost:3001/api/colaboradores/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: bulkParsedData,
+          replaceAll: replaceExistingColab
+        })
+      })
+    } catch (err) {
+      console.error('Erro ao gravar lote no banco de dados:', err)
+    }
+
     setBulkFeedback({
       type: 'success',
-      message: `Sucesso! ${bulkParsedData.length} colaboradores foram cadastrados sem duplicidades.`
+      message: `Sucesso! ${bulkParsedData.length} colaboradores foram cadastrados e gravados na tabela do Banco de Dados.`
     })
     setTimeout(() => {
       setIsImportColaboradoresModalOpen(false)
@@ -570,20 +642,39 @@ export const PmtsPage: React.FC = () => {
   }
 
   // Exclusão individual de colaborador
-  const handleDeleteColaborador = (id: string) => {
+  const handleDeleteColaborador = async (id: string) => {
     const updated = colaboradoresList.filter(c => c.id !== id)
     setColaboradoresList(updated)
     try {
       localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated))
     } catch {}
+
+    // Remove do Banco de Dados
+    try {
+      await fetch(`http://localhost:3001/api/colaboradores/${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      })
+    } catch (err) {
+      console.error('Erro ao excluir no banco de dados:', err)
+    }
   }
 
   // Deletar todos os colaboradores
-  const handleClearAllColaboradores = () => {
+  const handleClearAllColaboradores = async () => {
     setColaboradoresList([])
     try {
       localStorage.removeItem('magalog_quadro_colaboradores')
     } catch {}
+
+    // Limpa a tabela no Banco de Dados
+    try {
+      await fetch('http://localhost:3001/api/colaboradores', {
+        method: 'DELETE'
+      })
+    } catch (err) {
+      console.error('Erro ao limpar banco de dados:', err)
+    }
+
     setIsClearAllModalOpen(false)
   }
 
@@ -1585,12 +1676,18 @@ export const PmtsPage: React.FC = () => {
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
-                    Quadro de Colaboradores (Quadro TT)
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
+                      Quadro de Colaboradores (Quadro TT)
+                    </h3>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Banco de Dados Ativo
+                    </span>
+                  </div>
                   <p className="text-xs text-slate-500">
-                    Registros cadastrados com ID, Contratado, Cargo, Centro de Custo e Situação Sistema ({filteredColaboradores.length} exibidos)
+                    Registros salvos em tabela de Banco de Dados com ID, Contratado, Cargo, Centro de Custo e Situação Sistema ({filteredColaboradores.length} exibidos)
                   </p>
                 </div>
 

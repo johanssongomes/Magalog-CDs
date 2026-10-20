@@ -72,3 +72,42 @@ model PmtImport {
   substituiuBase   Boolean  @default(true)
   importedAt       DateTime @default(now())
 }
+
+model Colaborador {
+  id               String   @id // Matrícula / ID
+  contratado       String
+  cargo            String
+  centroDeCusto    String
+  cd               String?  @default("994")
+  login            String?
+  cpf              String?
+  rg               String?
+  sexo             String?
+  cargoAnterior    String?
+  dataAdmissao     String?
+  dataNascimento   String?
+  situacaoSistema  String?  @default("Em Atividade Normal")
+  status           String?
+  possuiMedidas    String?
+  possuiFeedback   String?
+  idLider          String?
+  nomeLider        String?
+  setor            String?
+  turno            String?
+  ferias           String?
+  codCentroCusto   String?
+  gerencia         String?
+  periodo45Dias    String?
+  periodo90Dias    String?
+  diaNiver         String?
+  mesNiver         String?
+  aniversario      String?
+  novaIdade        String?
+  tempoDeEmpresa   String?
+  mesAdm           String?
+  diaAdm           String?
+  anoAdm           String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
