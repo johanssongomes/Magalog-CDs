@@ -714,11 +714,13 @@ export const BankHoursPage: React.FC = () => {
             >
               <Building2 size={13} className={selectedCCs.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
               <span className="truncate max-w-[150px]">
-                {selectedCCs.length === 0 
-                  ? 'Todos os Centros' 
-                  : selectedCCs.length === 1 
-                    ? selectedCCs[0] 
-                    : `${selectedCCs.length} centros`}
+                {selectedCCs.includes('__NONE__')
+                  ? 'Nenhum centro'
+                  : selectedCCs.length === 0 
+                    ? 'Todos os Centros' 
+                    : selectedCCs.length === 1 
+                      ? selectedCCs[0] 
+                      : `${selectedCCs.length} centros`}
               </span>
               <ChevronDown size={13} className={`text-slate-400 transition-transform ${openDropdown === 'cc' ? 'rotate-180' : ''}`} />
             </button>
@@ -745,7 +747,15 @@ export const BankHoursPage: React.FC = () => {
                       <input 
                         type="checkbox"
                         checked={selectedCCs.length === 0}
-                        onChange={() => setSelectedCCs([])}
+                        onChange={() => {
+                          if (selectedCCs.length === 0) {
+                            // Se todos estavam marcados, desmarca todos
+                            setSelectedCCs(['__NONE__'])
+                          } else {
+                            // Marca todos
+                            setSelectedCCs([])
+                          }
+                        }}
                         className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                       />
                       <span className={`text-[11px] ${selectedCCs.length === 0 ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
@@ -802,11 +812,13 @@ export const BankHoursPage: React.FC = () => {
             >
               <Filter size={13} className={selectedTipos.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
               <span>
-                {selectedTipos.length === 0 
-                  ? 'Todos os Tipos' 
-                  : selectedTipos.length === 1 
-                    ? (selectedTipos[0] === 'credito' ? 'Apenas Crédito' : 'Apenas Débito') 
-                    : 'Crédito & Débito'}
+                {selectedTipos.includes('__NONE__')
+                  ? 'Nenhum Tipo'
+                  : selectedTipos.length === 0 
+                    ? 'Todos os Tipos' 
+                    : selectedTipos.length === 1 
+                      ? (selectedTipos[0] === 'credito' ? 'Apenas Crédito' : 'Apenas Débito') 
+                      : 'Crédito & Débito'}
               </span>
               <ChevronDown size={13} className={`text-slate-400 transition-transform ${openDropdown === 'tipo' ? 'rotate-180' : ''}`} />
             </button>
@@ -832,7 +844,13 @@ export const BankHoursPage: React.FC = () => {
                     <input 
                       type="checkbox"
                       checked={selectedTipos.length === 0}
-                      onChange={() => setSelectedTipos([])}
+                      onChange={() => {
+                        if (selectedTipos.length === 0) {
+                          setSelectedTipos(['__NONE__'])
+                        } else {
+                          setSelectedTipos([])
+                        }
+                      }}
                       className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                     />
                     <span className={`text-[11px] ${selectedTipos.length === 0 ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
