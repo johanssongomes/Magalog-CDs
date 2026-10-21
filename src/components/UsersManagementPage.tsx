@@ -127,10 +127,20 @@ export const UsersManagementPage: React.FC = () => {
           updatePayload.password_hash = formPassword
         }
 
-        const { error } = await supabase
+        let { error } = await supabase
           .from('app_users')
           .update(updatePayload)
           .eq('id', editingUser.id)
+
+        // Se o banco ainda não tiver a coluna password_hash adicionada, salva sem ela
+        if (error && error.message?.includes('password_hash')) {
+          delete updatePayload.password_hash
+          const retry = await supabase
+            .from('app_users')
+            .update(updatePayload)
+            .eq('id', editingUser.id)
+          error = retry.error
+        }
 
         if (error) throw error
 
