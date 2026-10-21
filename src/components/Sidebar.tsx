@@ -13,8 +13,11 @@ import {
   Globe,
   Clock,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Users,
+  LogOut
 } from 'lucide-react'
+import { useAuth } from '../lib/authContext'
 
 export interface NavItem {
   id: string
@@ -60,11 +63,21 @@ export const navItems: NavItem[] = [
     label: 'Central Operacional',
     description: 'Central Operacional',
     icon: <Settings size={20} />
+  },
+  {
+    id: 'users',
+    label: 'Usuários & Permissões',
+    description: 'Controle de Acessos e Usuários',
+    icon: <Users size={20} />
   }
 ]
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const { user, logout, hasPermission } = useAuth()
+
+  // Filtra itens de acordo com a permissão do usuário
+  const visibleNavItems = navItems.filter((item) => hasPermission(item.id))
 
   return (
     <aside className={`${isCollapsed ? 'w-20' : 'w-80'} bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0 shrink-0 transition-all duration-300 z-40 relative`}>
@@ -117,7 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           title={isCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors shrink-0"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors shrink-0 cursor-pointer"
         >
           {isCollapsed ? <ChevronRight size={18} /> : <ChevronRight size={18} className="text-slate-400 hover:text-white" />}
         </button>
@@ -130,14 +143,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
             Menu Principal
           </div>
         )}
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const isActive = activeTab === item.id
           return (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
               title={isCollapsed ? item.label : undefined}
-              className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'justify-between px-3.5'} py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative ${
+              className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'justify-between px-3.5'} py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative cursor-pointer ${
                 isActive
                   ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/20'
                   : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'
@@ -163,25 +176,52 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         })}
       </nav>
 
-      {/* Tech Stack Info Footer */}
-      {!isCollapsed ? (
-        <div className="p-3 m-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-xs animate-fade-in">
-          <div className="flex items-center gap-1.5 font-semibold text-slate-300 mb-1.5">
-            <Zap size={14} className="text-amber-400" />
-            <span>Tech Stack</span>
+      {/* Perfil Conectado & Logout Footer */}
+      <div className="p-3 border-t border-slate-800/80 bg-slate-950/60">
+        {!isCollapsed ? (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs shrink-0">
+                {user?.name ? user.name.slice(0, 2).toUpperCase() : 'US'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-bold text-white truncate leading-tight">
+                  {user?.name || 'Usuário'}
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded ${
+                    user?.role === 'admin' 
+                      ? 'bg-purple-900/60 text-purple-300 border border-purple-500/30' 
+                      : user?.role === 'gerente'
+                      ? 'bg-blue-900/60 text-blue-300 border border-blue-500/30'
+                      : 'bg-slate-800 text-slate-300'
+                  }`}>
+                    {user?.role || 'Colaborador'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => logout()}
+              title="Encerrar Sessão (Sair)"
+              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer shrink-0"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
-          <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-400 font-mono">
-            <span className="flex items-center gap-1"><Globe size={10} className="text-blue-400"/> React/Vite</span>
-            <span className="flex items-center gap-1"><Zap size={10} className="text-sky-400"/> Tailwind</span>
-            <span className="flex items-center gap-1"><Server size={10} className="text-emerald-400"/> Express</span>
-            <span className="flex items-center gap-1"><Database size={10} className="text-indigo-400"/> Prisma</span>
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <button
+              onClick={() => logout()}
+              title="Encerrar Sessão (Sair)"
+              className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
-        </div>
-      ) : (
-        <div className="p-3 mb-2 flex justify-center text-slate-500">
-          <Zap size={16} className="text-amber-400" />
-        </div>
-      )}
+        )}
+      </div>
     </aside>
   )
 }
