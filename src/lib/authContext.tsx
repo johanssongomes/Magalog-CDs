@@ -110,8 +110,93 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false)
     })
 
+    // Ouvinte em Tempo Real via Supabase Realtime para app_users
+    const channel = supabase
+      .channel('app_users_realtime_permissions')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'app_users' },
+        (payload: any) => {
+          const currentStored = localStorage.getItem('magalog_admin_session')
+          const currentUserObj = currentStored ? JSON.parse(currentStored) : null
+          const updatedRow = payload.new
+
+          if (updatedRow && currentUserObj && (
+            updatedRow.email?.toLowerCase() === currentUserObj.email?.toLowerCase() ||
+            updatedRow.id === currentUserObj.id
+          )) {
+            // Se o usuário foi desativado em tempo real
+            if (updatedRow.active === false) {
+              localStorage.removeItem('magalog_admin_session')
+              setUser(null)
+              return
+            }
+
+            // Atualiza permissões em tempo real
+            const updatedProfile: AppUserProfile = {
+              id: updatedRow.id,
+              user_id: updatedRow.user_id || currentUserObj.user_id,
+              email: updatedRow.email,
+              name: updatedRow.name,
+              role: updatedRow.role as UserRole,
+              allowed_pages: updatedRow.allowed_pages || DEFAULT_ROLE_PAGES[updatedRow.role as UserRole],
+              active: updatedRow.active
+            }
+
+            localStorage.setItem('magalog_admin_session', JSON.stringify(updatedProfile))
+            setUser(updatedProfile)
+          }
+        }
+      )
+      .subscribe()
+
+    // Sincronização periódica inteligente (a cada 4s) para garantir atualização instantânea mesmo se realtime websocket falhar
+    const interval = setInterval(async () => {
+      const currentStored = localStorage.getItem('magalog_admin_session')
+      if (!currentStored) return
+      try {
+        const u = JSON.parse(currentStored)
+        if (!u?.email || u.email === 'johansson.gomes@magazineluiza.com.br') return
+
+        const { data: latest } = await supabase
+          .from('app_users')
+          .select('*')
+          .ilike('email', u.email)
+          .maybeSingle()
+
+        if (latest) {
+          if (!latest.active) {
+            localStorage.removeItem('magalog_admin_session')
+            setUser(null)
+            return
+          }
+
+          const hasChanged = 
+            JSON.stringify(latest.allowed_pages) !== JSON.stringify(u.allowed_pages) ||
+            latest.role !== u.role ||
+            latest.active !== u.active
+
+          if (hasChanged) {
+            const updatedProfile: AppUserProfile = {
+              id: latest.id,
+              user_id: latest.user_id || u.user_id,
+              email: latest.email,
+              name: latest.name,
+              role: latest.role as UserRole,
+              allowed_pages: latest.allowed_pages || DEFAULT_ROLE_PAGES[latest.role as UserRole],
+              active: latest.active
+            }
+            localStorage.setItem('magalog_admin_session', JSON.stringify(updatedProfile))
+            setUser(updatedProfile)
+          }
+        }
+      } catch {}
+    }, 4000)
+
     return () => {
       subscription.unsubscribe()
+      supabase.removeChannel(channel)
+      clearInterval(interval)
     }
   }, [])
 
