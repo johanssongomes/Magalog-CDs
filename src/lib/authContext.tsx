@@ -15,9 +15,9 @@ export interface AppUserProfile {
 
 // Permissões padrão por cargo
 export const DEFAULT_ROLE_PAGES: Record<UserRole, string[]> = {
-  admin: ['dashboard', 'performance', 'catalog', 'pmts', 'inventory', 'settings', 'users'],
-  gerente: ['dashboard', 'performance', 'catalog', 'pmts', 'inventory'],
-  colaborador: ['dashboard', 'performance', 'inventory']
+  admin: ['dashboard', 'performance', 'catalog', 'pmts', 'inventory', 'settings', 'links', 'users'],
+  gerente: ['dashboard', 'performance', 'catalog', 'pmts', 'inventory', 'links'],
+  colaborador: ['dashboard', 'performance', 'inventory', 'links']
 }
 
 interface AuthContextType {

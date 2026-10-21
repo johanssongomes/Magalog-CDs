@@ -20,7 +20,8 @@ import {
   FolderKanban,
   BarChart3,
   Clock,
-  Settings
+  Settings,
+  Globe
 } from 'lucide-react'
 
 const AVAILABLE_PAGES = [
@@ -30,6 +31,7 @@ const AVAILABLE_PAGES = [
   { id: 'pmts', label: 'Gestão 360°', icon: <BarChart3 size={14} /> },
   { id: 'inventory', label: 'Banco de Horas', icon: <Clock size={14} /> },
   { id: 'settings', label: 'Central Operacional', icon: <Settings size={14} /> },
+  { id: 'links', label: 'Links Úteis', icon: <Globe size={14} /> },
   { id: 'users', label: 'Gestão de Usuários', icon: <Users size={14} /> }
 ]
 

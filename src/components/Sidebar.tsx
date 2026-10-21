@@ -71,6 +71,12 @@ export const navItems: NavItem[] = [
     icon: <Settings size={20} />
   },
   {
+    id: 'links',
+    label: 'Links',
+    description: 'Links Úteis, Sites e Ferramentas Operacionais',
+    icon: <Globe size={20} />
+  },
+  {
     id: 'users',
     label: 'Usuários & Permissões',
     description: 'Controle de Acessos e Usuários',

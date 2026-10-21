@@ -8,6 +8,7 @@ import { BankHoursPage } from './components/BankHoursPage'
 import { CentralOperacionalPage } from './components/CentralOperacionalPage'
 import { PmtsPage } from './components/PmtsPage'
 import { UsersManagementPage } from './components/UsersManagementPage'
+import { LinksPage } from './components/LinksPage'
 import { LoginPage } from './components/LoginPage'
 import { AuthProvider, useAuth } from './lib/authContext'
 import { ShieldAlert, Loader2 } from 'lucide-react'
@@ -80,8 +81,9 @@ function AppContent() {
               {activeTab === 'inventory' && <BankHoursPage />}
               {(activeTab === 'pmts' || activeTab === 'reports') && <PmtsPage />}
               {(activeTab === 'settings' || activeTab === 'central-operacional') && <CentralOperacionalPage />}
+              {activeTab === 'links' && <LinksPage />}
               {activeTab === 'users' && <UsersManagementPage />}
-              {activeTab !== 'dashboard' && activeTab !== 'catalog' && activeTab !== 'performance' && activeTab !== 'inventory' && activeTab !== 'pmts' && activeTab !== 'reports' && activeTab !== 'settings' && activeTab !== 'central-operacional' && activeTab !== 'users' && (
+              {activeTab !== 'dashboard' && activeTab !== 'catalog' && activeTab !== 'performance' && activeTab !== 'inventory' && activeTab !== 'pmts' && activeTab !== 'reports' && activeTab !== 'settings' && activeTab !== 'central-operacional' && activeTab !== 'links' && activeTab !== 'users' && (
                 <BlankPage 
                   title={activeItem.label} 
                   description={`Esta é a ${activeItem.description}. Você pode preencher este espaço com componentes, listas e formulários conforme desenvolver a aplicação.`} 
