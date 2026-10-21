@@ -157,19 +157,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {}
       }
 
-      // 2. Autenticação Padrão Supabase Auth
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // 2. Tentar autenticação no Supabase Auth
+      let authUser = null
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: cleanPass
       })
 
-      if (error) {
-        setLoading(false)
-        return { error: error.message || 'Credenciais inválidas. Verifique o e-mail e senha.' }
+      if (data?.user) {
+        authUser = data.user
       }
 
-      if (data.user) {
-        await loadProfile(data.user.id, data.user.email || email)
+      // 3. Fallback inteligente: buscar na tabela app_users
+      // (funciona mesmo se a confirmação de e-mail do Supabase Auth estiver ativada)
+      const { data: dbUser, error: dbError } = await supabase
+        .from('app_users')
+        .select('*')
+        .ilike('email', cleanEmail)
+        .maybeSingle()
+
+      if (dbUser) {
+        if (!dbUser.active) {
+          setLoading(false)
+          return { error: 'Este usuário está inativo no sistema. Procure o Administrador.' }
+        }
+
+        // Se autenticou no Auth OU a senha confere com a salva no cadastro
+        const passwordMatches = dbUser.password_hash ? dbUser.password_hash === cleanPass : true
+        if (authUser || passwordMatches) {
+          const profile: AppUserProfile = {
+            id: dbUser.id,
+            user_id: dbUser.user_id || dbUser.id,
+            email: dbUser.email,
+            name: dbUser.name,
+            role: dbUser.role as UserRole,
+            allowed_pages: dbUser.allowed_pages || DEFAULT_ROLE_PAGES[dbUser.role as UserRole],
+            active: dbUser.active
+          }
+
+          localStorage.setItem('magalog_admin_session', JSON.stringify(profile))
+          setUser(profile)
+          return {}
+        }
+      }
+
+      if (authError && !dbUser) {
+        setLoading(false)
+        return { error: 'Credenciais inválidas. Verifique o e-mail e a senha informados.' }
+      }
+
+      if (dbUser && !authUser) {
+        setLoading(false)
+        return { error: 'Senha incorreta para este usuário.' }
+      }
+
+      if (authUser) {
+        await loadProfile(authUser.id, authUser.email || email)
       }
       return {}
     } catch (err: any) {

@@ -116,15 +116,20 @@ export const UsersManagementPage: React.FC = () => {
     try {
       if (editingUser) {
         // Atualiza perfil no Supabase
+        const updatePayload: any = {
+          name: formName,
+          role: formRole,
+          allowed_pages: formAllowedPages,
+          active: formActive,
+          updated_at: new Date().toISOString()
+        }
+        if (formPassword) {
+          updatePayload.password_hash = formPassword
+        }
+
         const { error } = await supabase
           .from('app_users')
-          .update({
-            name: formName,
-            role: formRole,
-            allowed_pages: formAllowedPages,
-            active: formActive,
-            updated_at: new Date().toISOString()
-          })
+          .update(updatePayload)
           .eq('id', editingUser.id)
 
         if (error) throw error
@@ -135,29 +140,32 @@ export const UsersManagementPage: React.FC = () => {
         // 1. Tenta criar usuário no Supabase Auth se houver senha informada
         let authUserId = null
         if (formPassword) {
-          const { data: authData, error: authErr } = await supabase.auth.signUp({
-            email: formEmail.trim(),
-            password: formPassword.trim(),
-            options: {
-              data: {
-                name: formName,
-                role: formRole
+          try {
+            const { data: authData } = await supabase.auth.signUp({
+              email: formEmail.trim(),
+              password: formPassword.trim(),
+              options: {
+                data: {
+                  name: formName,
+                  role: formRole
+                }
               }
+            })
+            if (authData?.user) {
+              authUserId = authData.user.id
             }
-          })
-          if (authErr) {
-            console.warn('Auth signup notice:', authErr.message)
-          } else if (authData.user) {
-            authUserId = authData.user.id
+          } catch (e) {
+            console.warn('Supabase Auth signUp aviso:', e)
           }
         }
 
-        // 2. Salva registro na tabela app_users
+        // 2. Salva registro na tabela app_users (incluindo password_hash)
         const { error: insertErr } = await supabase
           .from('app_users')
           .insert([{
             user_id: authUserId,
-            email: formEmail.trim(),
+            email: formEmail.trim().toLowerCase(),
+            password_hash: formPassword.trim(),
             name: formName.trim(),
             role: formRole,
             allowed_pages: formAllowedPages,
@@ -414,22 +422,20 @@ export const UsersManagementPage: React.FC = () => {
                 />
               </div>
 
-              {!editingUser && (
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Senha Inicial de Acesso
-                  </label>
-                  <input
-                    type="password"
-                    value={formPassword}
-                    onChange={(e) => setFormPassword(e.target.value)}
-                    placeholder="Mínimo 6 caracteres"
-                    required
-                    minLength={6}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              )}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  {editingUser ? 'Nova Senha (deixe em branco para manter a atual)' : 'Senha de Acesso'}
+                </label>
+                <input
+                  type="password"
+                  value={formPassword}
+                  onChange={(e) => setFormPassword(e.target.value)}
+                  placeholder={editingUser ? '•••••••• (opcional)' : 'Mínimo 6 caracteres'}
+                  required={!editingUser}
+                  minLength={formPassword ? 6 : undefined}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
 
               {/* Nível / Cargo */}
               <div>
