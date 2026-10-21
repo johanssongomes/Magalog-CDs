@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { 
   Save, CheckCircle2, FileSpreadsheet, Server, Plus, Trash2, X, Edit3, 
-  Filter, ChevronRight, ClipboardList, AlertTriangle, Calendar, FileText,
+  Filter, ChevronRight, ChevronLeft, ClipboardList, AlertTriangle, Calendar, FileText,
   Bold, Italic, List, ListOrdered, CheckSquare, Maximize2, Minimize2, User, Clock, Flag, Tag, HelpCircle, Type,
-  ChevronUp, ChevronDown, Target
+  ChevronUp, ChevronDown, Target, Sparkles, RotateCcw, CalendarDays
 } from 'lucide-react'
 
 
@@ -1467,7 +1467,8 @@ export const PerformancePage: React.FC = () => {
           </div>
 
           {/* Dropdown Multi-Select 3: Filtro por Período / Calendário Contínuo */}
-          <div className="relative w-48 shrink-0">
+          {/* Dropdown de Calendário Interativo & Período Modernizado */}
+          <div className="relative shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -1475,27 +1476,39 @@ export const PerformancePage: React.FC = () => {
                 setIsIndicatorDropdownOpen(false)
                 setIsSubIndicatorDropdownOpen(false)
               }}
-              className="w-full flex items-center justify-between gap-1.5 bg-white px-2.5 py-1.5 rounded-lg border border-slate-300 shadow-xs text-xs font-bold text-amber-900 hover:border-amber-400 transition-all text-left"
+              className="flex items-center justify-between gap-2 bg-gradient-to-r from-amber-50 to-orange-50/50 hover:from-amber-100/70 hover:to-orange-100/60 px-3 py-1.5 rounded-xl border border-amber-300/80 shadow-xs text-xs font-bold text-amber-950 transition-all text-left group"
             >
-              <div className="truncate flex items-center gap-1">
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-tight">Data:</span>
-                <span className="truncate">
+              <div className="flex items-center gap-1.5">
+                <CalendarDays size={15} className="text-amber-600 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-extrabold text-amber-700/80 uppercase tracking-wider">Período:</span>
+                <span className="font-semibold text-slate-800">
                   {startDateFilter || endDateFilter
                     ? `${startDateFilter ? startDateFilter.split('-').reverse().slice(0,2).join('/') : 'Início'} à ${endDateFilter ? endDateFilter.split('-').reverse().slice(0,2).join('/') : 'Fim'}`
                     : selectedDateFilters.length === 0
-                      ? `Todas as Datas (${currentMonthDays.length})`
+                      ? `Mês Completo (${currentMonthDays.length}d)`
                       : `${selectedDateFilters.length} dia(s)`}
                 </span>
               </div>
-              <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full shrink-0 font-bold">
+              <span className="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full font-extrabold shadow-2xs">
                 {filteredDays.length}
               </span>
             </button>
 
             {isDateDropdownOpen && (
-              <div className="absolute top-full left-0 mt-1 w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-3 space-y-2.5 max-h-96 overflow-y-auto animate-in fade-in zoom-in-95">
-                <div className="flex items-center justify-between px-1 pb-1 border-b border-slate-100">
-                  <span className="text-[11px] font-bold text-slate-600 uppercase">Calendário & Período (Dia/Mês/Ano)</span>
+              <div className="absolute top-full left-0 mt-2 w-[340px] sm:w-[360px] bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 p-4 space-y-3.5 animate-in fade-in zoom-in-95">
+                {/* Cabeçalho do Calendário */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
+                      <CalendarDays size={16} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Filtro de Calendário</h4>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        {MONTHS_OPTIONS.find(m => m.id === selectedMonth)?.label || 'Outubro 2026'}
+                      </p>
+                    </div>
+                  </div>
                   {(selectedDateFilters.length > 0 || startDateFilter || endDateFilter) && (
                     <button
                       type="button"
@@ -1505,19 +1518,148 @@ export const PerformancePage: React.FC = () => {
                         setStartDateFilter('')
                         setEndDateFilter('')
                       }}
-                      className="text-[10px] text-amber-700 hover:underline font-bold"
+                      className="flex items-center gap-1 text-[11px] text-amber-600 hover:text-amber-800 font-bold bg-amber-50 hover:bg-amber-100/80 px-2 py-1 rounded-lg transition-colors cursor-pointer"
                     >
-                      Limpar Filtros
+                      <RotateCcw size={12} />
+                      Limpar
                     </button>
                   )}
                 </div>
 
-                {/* Seleção Contínua por Calendário (De / Até) */}
-                <div className="p-2 rounded-lg bg-amber-50/60 border border-amber-200/70 space-y-1.5">
-                  <span className="block text-[10px] font-extrabold text-amber-900 uppercase">Faixa de Datas Contínua:</span>
+                {/* Atalhos Rápidos (Presets) */}
+                <div className="grid grid-cols-4 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDateFilters([])
+                      setStartDateFilter('')
+                      setEndDateFilter('')
+                    }}
+                    className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all cursor-pointer ${
+                      selectedDateFilters.length === 0 && !startDateFilter && !endDateFilter
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60'
+                    }`}
+                  >
+                    Mês Todo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Segunda a Sexta do mês
+                      const workDays = currentMonthDays.filter(d => d.day !== 'Sábado' && d.day !== 'Domingo').map(d => d.colId)
+                      setSelectedDateFilters(workDays)
+                      setStartDateFilter('')
+                      setEndDateFilter('')
+                    }}
+                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
+                  >
+                    Dias Úteis
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // 1ª Quinzena (dias 1 a 15)
+                      const firstHalf = currentMonthDays.filter(d => d.dayNum <= 15).map(d => d.colId)
+                      setSelectedDateFilters(firstHalf)
+                      setStartDateFilter('')
+                      setEndDateFilter('')
+                    }}
+                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
+                  >
+                    1ª Quinzena
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // 2ª Quinzena (dias 16 até o final)
+                      const secondHalf = currentMonthDays.filter(d => d.dayNum > 15).map(d => d.colId)
+                      setSelectedDateFilters(secondHalf)
+                      setStartDateFilter('')
+                      setEndDateFilter('')
+                    }}
+                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
+                  >
+                    2ª Quinzena
+                  </button>
+                </div>
+
+                {/* Grade Visual do Calendário Mensal */}
+                <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-200/80">
+                  {/* Cabeçalho dos Dias da Semana */}
+                  <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
+                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((dia, idx) => (
+                      <span 
+                        key={dia} 
+                        className={`text-[9px] font-bold uppercase tracking-wider ${
+                          idx === 0 || idx === 6 ? 'text-amber-600' : 'text-slate-400'
+                        }`}
+                      >
+                        {dia}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Células de Dias */}
+                  {(() => {
+                    const monthObj = MONTHS_OPTIONS.find(m => m.id === selectedMonth) || MONTHS_OPTIONS[9]
+                    const firstDayWeekIdx = new Date(monthObj.year, monthObj.monthIdx, 1).getDay()
+                    const emptyPrefixSlots = Array.from({ length: firstDayWeekIdx })
+
+                    return (
+                      <div className="grid grid-cols-7 gap-1">
+                        {emptyPrefixSlots.map((_, i) => (
+                          <div key={`empty-${i}`} className="h-7 rounded-lg" />
+                        ))}
+                        {currentMonthDays.map(d => {
+                          const isSingleSelected = selectedDateFilters.includes(d.colId)
+                          const isInRange = Boolean(
+                            (startDateFilter && endDateFilter && d.fullDateIso >= startDateFilter && d.fullDateIso <= endDateFilter) ||
+                            (startDateFilter && !endDateFilter && d.fullDateIso === startDateFilter) ||
+                            (!startDateFilter && endDateFilter && d.fullDateIso === endDateFilter)
+                          )
+                          const isSelected = isSingleSelected || isInRange
+                          const isWeekend = d.day === 'Sábado' || d.day === 'Domingo'
+
+                          return (
+                            <button
+                              key={d.colId}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setStartDateFilter('')
+                                setEndDateFilter('')
+                                toggleDateFilter(d.colId)
+                              }}
+                              title={`${d.date} (${d.day})`}
+                              className={`h-7 rounded-lg text-[11px] font-bold flex flex-col items-center justify-center transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30 scale-105 z-10'
+                                  : isWeekend
+                                    ? 'bg-amber-100/50 hover:bg-amber-200/60 text-amber-900 border border-amber-200/40'
+                                    : 'bg-white hover:bg-slate-200/60 text-slate-700 border border-slate-200/50 hover:border-slate-300'
+                              }`}
+                            >
+                              <span>{d.dayNum}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* Seletor Elegante de Faixa Contínua (De / Até) */}
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-tight">Faixa de Datas:</span>
+                    {(startDateFilter || endDateFilter) && (
+                      <span className="text-[9px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded">Range Ativo</span>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">De (Início):</label>
+                      <span className="block text-[9px] font-semibold text-slate-400 mb-0.5 uppercase">Início</span>
                       <input
                         type="date"
                         value={startDateFilter}
@@ -1525,11 +1667,11 @@ export const PerformancePage: React.FC = () => {
                           setStartDateFilter(e.target.value)
                           setSelectedDateFilters([])
                         }}
-                        className="w-full px-2 py-1 rounded-md text-xs border border-slate-300 focus:ring-1 focus:ring-amber-500 bg-white font-mono font-semibold"
+                        className="w-full px-2 py-1 rounded-lg text-xs border border-slate-300 bg-white font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Até (Fim):</label>
+                      <span className="block text-[9px] font-semibold text-slate-400 mb-0.5 uppercase">Fim</span>
                       <input
                         type="date"
                         value={endDateFilter}
@@ -1537,71 +1679,22 @@ export const PerformancePage: React.FC = () => {
                           setEndDateFilter(e.target.value)
                           setSelectedDateFilters([])
                         }}
-                        className="w-full px-2 py-1 rounded-md text-xs border border-slate-300 focus:ring-1 focus:ring-amber-500 bg-white font-mono font-semibold"
+                        className="w-full px-2 py-1 rounded-lg text-xs border border-slate-300 bg-white font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div
-                  onClick={() => {
-                    setSelectedDateFilters([])
-                    setStartDateFilter('')
-                    setEndDateFilter('')
-                  }}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-100 cursor-pointer text-xs font-semibold text-slate-800 select-none border-b border-slate-100"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedDateFilters.length === 0 && !startDateFilter && !endDateFilter}
-                    onChange={() => {
-                      setSelectedDateFilters([])
-                      setStartDateFilter('')
-                      setEndDateFilter('')
-                    }}
-                    className="rounded text-amber-600 focus:ring-amber-500 pointer-events-none"
-                  />
-                  <span>Exibir Todos os Dias ({currentMonthDays.length})</span>
-                </div>
-
-                {/* Seleção Rápida por Chips de Dias */}
-                <div className="space-y-1">
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase">Seleção Rápida por Dia:</span>
-                  <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto pr-1">
-                    {currentMonthDays.map((d) => {
-                      const isChecked = selectedDateFilters.includes(d.colId)
-                      const isWeekend = d.day === 'Sábado' || d.day === 'Domingo'
-                      return (
-                        <div
-                          key={d.colId}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setStartDateFilter('')
-                            setEndDateFilter('')
-                            toggleDateFilter(d.colId)
-                          }}
-                          className={`flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer text-xs transition-all select-none border ${
-                            isChecked
-                              ? 'bg-amber-50 border-amber-300 text-amber-950 font-bold'
-                              : 'border-slate-100 text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5 pointer-events-none">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              readOnly
-                              className="rounded text-amber-600 focus:ring-amber-500 pointer-events-none shrink-0"
-                            />
-                            <span className="font-semibold text-[11px]">{d.date}</span>
-                          </div>
-                          <span className={`text-[9px] font-bold px-1 rounded ${isWeekend ? 'bg-amber-200 text-amber-900' : 'text-slate-500'}`}>
-                            {d.day.slice(0, 3)}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
+                {/* Rodapé Informativo */}
+                <div className="flex items-center justify-between text-[11px] pt-1 text-slate-500 font-medium">
+                  <span>{filteredDays.length} de {currentMonthDays.length} dias exibidos</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsDateDropdownOpen(false)}
+                    className="text-amber-700 hover:text-amber-900 font-bold hover:underline cursor-pointer"
+                  >
+                    Fechar
+                  </button>
                 </div>
               </div>
             )}
