@@ -143,15 +143,13 @@ export const LoginPage: React.FC = () => {
             </button>
           </form>
 
-          {/* Imagem de Valores Magalog */}
-          <div className="mt-7 pt-5 border-t border-slate-800/80 flex flex-col items-center">
-            <div className="w-full rounded-2xl overflow-hidden bg-[#070d1e]/80 border border-slate-700/50 p-1 shadow-inner shadow-black/60 group hover:border-cyan-500/40 transition-colors">
-              <img 
-                src="/valores-magalog.png" 
-                alt="Valores Magalog: Gente que gosta de gente, Atitude de dono, Mão na massa, Simplicidade e inovação, Cliente em 1º lugar" 
-                className="w-full h-auto object-contain rounded-xl block transform transition-transform duration-300 hover:scale-[1.02]"
-              />
-            </div>
+          {/* Imagem de Valores Magalog - Integrada naturalmente sem caixa/fundo */}
+          <div className="mt-6 pt-5 border-t border-slate-800/80 flex flex-col items-center w-full">
+            <img 
+              src="/valores-magalog.png" 
+              alt="Valores Magalog: Gente que gosta de gente, Atitude de dono, Mão na massa, Simplicidade e inovação, Cliente em 1º lugar" 
+              className="w-full max-w-[360px] h-auto object-contain select-none pointer-events-none drop-shadow-[0_4px_16px_rgba(6,182,212,0.15)]"
+            />
           </div>
         </div>
       </div>
