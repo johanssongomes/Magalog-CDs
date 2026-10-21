@@ -46,9 +46,13 @@ export const LoginPage: React.FC = () => {
           {/* Topo / Logo */}
           <div className="flex flex-col items-center text-center mb-8">
             <div className="relative mb-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-blue-500 to-cyan-400 p-[1.5px] shadow-lg shadow-blue-500/30">
-                <div className="w-full h-full bg-[#0b1329] rounded-[15px] flex items-center justify-center">
-                  <Warehouse size={32} className="text-cyan-400" />
+              <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-blue-600 via-cyan-400 to-indigo-600 p-[2px] shadow-xl shadow-cyan-500/25">
+                <div className="w-full h-full bg-[#0b1329] rounded-[22px] overflow-hidden flex items-center justify-center p-1">
+                  <img 
+                    src="/magalog-logo.png" 
+                    alt="Magalog CD 994" 
+                    className="w-full h-full object-contain"
+                  />
                 </div>
               </div>
               <span className="absolute -bottom-1 -right-1 flex h-4 w-4">

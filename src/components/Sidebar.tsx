@@ -107,25 +107,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         <div className="absolute left-0 top-2 bottom-2 w-1 bg-cyan-400 rounded-r shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
 
         <div className="flex items-center gap-2.5 min-w-0 flex-1 pl-1">
-          {/* Logo container estilo botão azul arredondado */}
-          <div className="w-9 h-9 rounded-xl bg-[#1e60ff] text-white shadow-lg shadow-blue-600/40 flex items-center justify-center shrink-0 border border-blue-400/40">
-            <svg 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2.2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              className="w-5 h-5 text-white"
-            >
-              {/* Telhado superior estilizado */}
-              <path d="M4 8.5L12 3.5L20 8.5" />
-              {/* Camada intermediária */}
-              <path d="M6 12L12 8L18 12" />
-              {/* Estrutura inferior / porta do armazém */}
-              <path d="M5 14.5v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5" />
-              <path d="M9.5 20.5v-4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v4" />
-            </svg>
+          {/* Logo container estilo botão arredondado com a logo Magalog */}
+          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-blue-600/30 flex items-center justify-center shrink-0 border border-blue-400/30 bg-slate-900">
+            <img 
+              src="/magalog-logo.png" 
+              alt="Magalog CD 994" 
+              className="w-full h-full object-cover"
+            />
           </div>
           {!isCollapsed && (
             <div className="min-w-0 flex-1">
