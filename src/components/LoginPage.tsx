@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useAuth } from '../lib/authContext'
-import { Lock, Mail, ArrowRight, ShieldCheck, Warehouse, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth()
@@ -143,28 +143,14 @@ export const LoginPage: React.FC = () => {
             </button>
           </form>
 
-          {/* Rodapé do Login com Tags de Níveis de Acesso */}
-          <div className="mt-8 pt-6 border-t border-slate-800/80">
-            <div className="flex items-center gap-2 mb-3 text-slate-400">
-              <ShieldCheck size={14} className="text-cyan-400" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
-                Níveis de Acesso Integrados
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 text-[10px] text-center font-semibold">
-              <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
-                Admin
-                <span className="block text-[8px] text-slate-400 font-normal mt-0.5">Acesso Total</span>
-              </div>
-              <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-300">
-                Gerente
-                <span className="block text-[8px] text-slate-400 font-normal mt-0.5">Operacional & 360</span>
-              </div>
-              <div className="p-2 rounded-lg bg-slate-500/10 border border-slate-500/20 text-slate-300">
-                Colaborador
-                <span className="block text-[8px] text-slate-400 font-normal mt-0.5">Rotinas Diárias</span>
-              </div>
+          {/* Imagem de Valores Magalog */}
+          <div className="mt-7 pt-5 border-t border-slate-800/80 flex flex-col items-center">
+            <div className="w-full rounded-2xl overflow-hidden bg-[#070d1e]/80 border border-slate-700/50 p-1 shadow-inner shadow-black/60 group hover:border-cyan-500/40 transition-colors">
+              <img 
+                src="/valores-magalog.png" 
+                alt="Valores Magalog: Gente que gosta de gente, Atitude de dono, Mão na massa, Simplicidade e inovação, Cliente em 1º lugar" 
+                className="w-full h-auto object-contain rounded-xl block transform transition-transform duration-300 hover:scale-[1.02]"
+              />
             </div>
           </div>
         </div>
