@@ -20,7 +20,9 @@ import {
   FileSpreadsheet, 
   HelpCircle,
   Clock,
-  ArrowUpRight
+  ArrowUpRight,
+  LayoutGrid,
+  List
 } from 'lucide-react'
 import { useAuth } from '../lib/authContext'
 
@@ -143,7 +145,21 @@ export const LinksPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('Todos')
   const [onlyFavorites, setOnlyFavorites] = useState(false)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    try {
+      const savedMode = localStorage.getItem('magalog_links_view_mode')
+      if (savedMode === 'list' || savedMode === 'grid') return savedMode
+    } catch {}
+    return 'grid'
+  })
   const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const handleToggleViewMode = (mode: 'grid' | 'list') => {
+    setViewMode(mode)
+    try {
+      localStorage.setItem('magalog_links_view_mode', mode)
+    } catch {}
+  }
 
   // Estados do Modal de Criação / Edição
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -339,9 +355,40 @@ export const LinksPage: React.FC = () => {
 
           {/* Botões de Ação */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* Alternância de Visualização: Cards (Grid) vs Lista */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => handleToggleViewMode('grid')}
+                title="Visualização em Cards / Grid"
+                className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'grid'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <LayoutGrid size={15} />
+                <span className="hidden sm:inline">Cards</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleToggleViewMode('list')}
+                title="Visualização em Lista Compacta"
+                className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'list'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <List size={15} />
+                <span className="hidden sm:inline">Lista</span>
+              </button>
+            </div>
+
             <button
               onClick={() => setOnlyFavorites(!onlyFavorites)}
-              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                 onlyFavorites
                   ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-xs'
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -406,7 +453,104 @@ export const LinksPage: React.FC = () => {
             </button>
           )}
         </div>
+      ) : viewMode === 'list' ? (
+        /* Visualização em Lista */
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
+          <div className="divide-y divide-slate-100">
+            {filteredLinks.map((item) => (
+              <div
+                key={item.id}
+                className="group p-3.5 sm:p-4 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              >
+                {/* Lado Esquerdo: Ícone + Título + Categoria + URL + Descrição */}
+                <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
+                  <div className={`w-9 h-9 rounded-xl ${item.iconColor || 'bg-blue-600'} text-white flex items-center justify-center shrink-0 shadow-xs`}>
+                    <Globe size={18} />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                        {item.title}
+                      </h3>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 uppercase tracking-wider">
+                        {item.category}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-0.5">
+                      <span className="text-[11px] font-mono text-slate-400 truncate max-w-xs sm:max-w-md">
+                        {item.url}
+                      </span>
+                      {item.description && (
+                        <>
+                          <span className="hidden sm:inline text-slate-300">•</span>
+                          <span className="text-xs text-slate-500 truncate max-w-sm sm:max-w-md">
+                            {item.description}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lado Direito: Ações (Favoritar, Copiar, Editar, Excluir, Acessar) */}
+                <div className="flex items-center justify-end gap-1.5 shrink-0 self-end sm:self-center pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
+                  <button
+                    onClick={(e) => handleToggleFavorite(item.id, e)}
+                    title={item.isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                    className="p-1.5 text-slate-400 hover:text-amber-500 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    <Star size={16} className={item.isFavorite ? 'fill-amber-400 text-amber-500' : ''} />
+                  </button>
+
+                  <button
+                    onClick={(e) => handleCopyUrl(item.url, item.id, e)}
+                    title="Copiar URL"
+                    className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    {copiedId === item.id ? (
+                      <Check size={16} className="text-emerald-500" />
+                    ) : (
+                      <Copy size={16} />
+                    )}
+                  </button>
+
+                  {canManage && (
+                    <>
+                      <button
+                        onClick={() => handleOpenEditModal(item)}
+                        title="Editar"
+                        className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                      >
+                        <Edit3 size={15} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteLink(item.id)}
+                        title="Excluir"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </>
+                  )}
+
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 ml-1 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white text-xs font-bold transition-all duration-150 shrink-0 shadow-xs cursor-pointer group-hover:bg-blue-600 group-hover:text-white"
+                  >
+                    <span>Acessar</span>
+                    <ArrowUpRight size={14} />
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : (
+        /* Visualização em Cards (Grid) */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredLinks.map((item) => {
             return (
