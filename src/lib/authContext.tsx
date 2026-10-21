@@ -79,28 +79,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  // Atualizador central de estado do usuário
+  const applyProfileUpdate = (updatedProfile: AppUserProfile | null) => {
+    if (!updatedProfile || updatedProfile.active === false) {
+      localStorage.removeItem('magalog_admin_session')
+      setUser(null)
+    } else {
+      localStorage.setItem('magalog_admin_session', JSON.stringify(updatedProfile))
+      setUser(updatedProfile)
+    }
+  }
+
   useEffect(() => {
-    // Restaurar sessão mestre local se existir
+    // 1. Restaurar sessão inicial do localStorage
     const localSession = localStorage.getItem('magalog_admin_session')
     if (localSession) {
       try {
-        setUser(JSON.parse(localSession))
+        const parsed = JSON.parse(localSession)
+        setUser(parsed)
         setLoading(false)
-        return
       } catch {}
     }
 
-    // Verificar sessão atual Supabase Auth
+    // 2. Verificar sessão atual no Supabase Auth
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         loadProfile(session.user.id, session.user.email || '')
-      } else {
+      } else if (!localStorage.getItem('magalog_admin_session')) {
         setUser(null)
       }
       setLoading(false)
     })
 
-    // Ouvinte de mudanças no Auth
+    // 3. Ouvinte de mudanças no Supabase Auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         loadProfile(session.user.id, session.user.email || '')
@@ -110,53 +121,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false)
     })
 
-    // Ouvinte em Tempo Real via Supabase Realtime para app_users
+    // 4. Ouvinte Supabase Realtime para app_users
     const channel = supabase
-      .channel('app_users_realtime_permissions')
+      .channel('app_users_realtime_sync')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'app_users' },
         (payload: any) => {
           const currentStored = localStorage.getItem('magalog_admin_session')
-          const currentUserObj = currentStored ? JSON.parse(currentStored) : null
-          const updatedRow = payload.new
+          if (!currentStored) return
+          try {
+            const currentObj = JSON.parse(currentStored)
+            const row = payload.new
 
-          if (updatedRow && currentUserObj && (
-            updatedRow.email?.toLowerCase() === currentUserObj.email?.toLowerCase() ||
-            updatedRow.id === currentUserObj.id
-          )) {
-            // Se o usuário foi desativado em tempo real
-            if (updatedRow.active === false) {
-              localStorage.removeItem('magalog_admin_session')
-              setUser(null)
-              return
+            if (row && (
+              row.email?.toLowerCase() === currentObj.email?.toLowerCase() ||
+              row.id === currentObj.id
+            )) {
+              if (row.active === false) {
+                applyProfileUpdate(null)
+                return
+              }
+
+              const newProf: AppUserProfile = {
+                id: row.id,
+                user_id: row.user_id || currentObj.user_id,
+                email: row.email,
+                name: row.name,
+                role: row.role as UserRole,
+                allowed_pages: row.allowed_pages || DEFAULT_ROLE_PAGES[row.role as UserRole],
+                active: row.active
+              }
+              applyProfileUpdate(newProf)
             }
-
-            // Atualiza permissões em tempo real
-            const updatedProfile: AppUserProfile = {
-              id: updatedRow.id,
-              user_id: updatedRow.user_id || currentUserObj.user_id,
-              email: updatedRow.email,
-              name: updatedRow.name,
-              role: updatedRow.role as UserRole,
-              allowed_pages: updatedRow.allowed_pages || DEFAULT_ROLE_PAGES[updatedRow.role as UserRole],
-              active: updatedRow.active
-            }
-
-            localStorage.setItem('magalog_admin_session', JSON.stringify(updatedProfile))
-            setUser(updatedProfile)
-          }
+          } catch {}
         }
       )
       .subscribe()
 
-    // Sincronização periódica inteligente (a cada 3s) para garantir atualização instantânea mesmo se realtime websocket falhar
+    // 5. Polling rápido e confiável (a cada 1.5s) para garantir reflexo instantâneo independente de Realtime
     const interval = setInterval(async () => {
       const currentStored = localStorage.getItem('magalog_admin_session')
       if (!currentStored) return
       try {
         const u = JSON.parse(currentStored)
-        if (!u?.email) return
+        if (!u?.email || u.email === 'johansson.gomes@magazineluiza.com.br') return
 
         const { data: latest } = await supabase
           .from('app_users')
@@ -165,19 +174,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .maybeSingle()
 
         if (latest) {
-          if (!latest.active) {
-            localStorage.removeItem('magalog_admin_session')
-            setUser(null)
+          // Se foi desativado pelo administrador
+          if (latest.active === false) {
+            applyProfileUpdate(null)
             return
           }
 
-          const hasChanged = 
-            JSON.stringify(latest.allowed_pages) !== JSON.stringify(u.allowed_pages) ||
-            latest.role !== u.role ||
-            latest.active !== u.active
+          // Checa se as páginas, role ou status mudaram
+          const currentPages = (u.allowed_pages || []).slice().sort().join(',')
+          const latestPages = (latest.allowed_pages || []).slice().sort().join(',')
 
-          if (hasChanged) {
-            const updatedProfile: AppUserProfile = {
+          if (currentPages !== latestPages || u.role !== latest.role || u.active !== latest.active) {
+            const newProf: AppUserProfile = {
               id: latest.id,
               user_id: latest.user_id || u.user_id,
               email: latest.email,
@@ -186,17 +194,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               allowed_pages: latest.allowed_pages || DEFAULT_ROLE_PAGES[latest.role as UserRole],
               active: latest.active
             }
-            localStorage.setItem('magalog_admin_session', JSON.stringify(updatedProfile))
-            setUser(updatedProfile)
+            applyProfileUpdate(newProf)
           }
         }
       } catch {}
-    }, 4000)
+    }, 1500)
+
+    // 6. Ouvinte de evento entre abas do mesmo navegador (storage event)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'magalog_admin_session') {
+        if (!e.newValue) {
+          setUser(null)
+        } else {
+          try {
+            setUser(JSON.parse(e.newValue))
+          } catch {}
+        }
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
 
     return () => {
       subscription.unsubscribe()
       supabase.removeChannel(channel)
       clearInterval(interval)
+      window.removeEventListener('storage', handleStorageChange)
     }
   }, [])
 
