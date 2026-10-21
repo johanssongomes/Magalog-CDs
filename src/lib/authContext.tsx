@@ -80,7 +80,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   useEffect(() => {
-    // Verificar sessão atual
+    // Restaurar sessão mestre local se existir
+    const localSession = localStorage.getItem('magalog_admin_session')
+    if (localSession) {
+      try {
+        setUser(JSON.parse(localSession))
+        setLoading(false)
+        return
+      } catch {}
+    }
+
+    // Verificar sessão atual Supabase Auth
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         loadProfile(session.user.id, session.user.email || '')
@@ -94,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         loadProfile(session.user.id, session.user.email || '')
-      } else {
+      } else if (!localStorage.getItem('magalog_admin_session')) {
         setUser(null)
       }
       setLoading(false)
@@ -108,9 +118,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
       setLoading(true)
+      const cleanEmail = email.trim().toLowerCase()
+      const cleanPass = password.trim()
+
+      // 1. Verificação de Acesso Mestre / Primeiro Acesso
+      if (cleanEmail === 'johansson.gomes@magazineluiza.com.br' && cleanPass === '12345') {
+        // Tenta também cadastrar ou logar no Supabase silenciosamente
+        try {
+          await supabase.auth.signUp({
+            email: cleanEmail,
+            password: cleanPass,
+            options: { data: { name: 'Johansson Gomes', role: 'admin' } }
+          })
+          await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password: cleanPass
+          })
+        } catch {
+          // segue mesmo se offline
+        }
+
+        const adminMaster: AppUserProfile = {
+          id: 'admin-master',
+          email: cleanEmail,
+          name: 'Johansson Gomes',
+          role: 'admin',
+          allowed_pages: DEFAULT_ROLE_PAGES.admin,
+          active: true
+        }
+
+        // Persiste registro mestre
+        try {
+          await supabase.from('app_users').upsert([adminMaster], { onConflict: 'email' })
+        } catch {}
+
+        localStorage.setItem('magalog_admin_session', JSON.stringify(adminMaster))
+        setUser(adminMaster)
+        return {}
+      }
+
+      // 2. Autenticação Padrão Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password.trim()
+        email: cleanEmail,
+        password: cleanPass
       })
 
       if (error) {
@@ -132,6 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     setLoading(true)
+    localStorage.removeItem('magalog_admin_session')
     await supabase.auth.signOut()
     setUser(null)
     setLoading(false)
