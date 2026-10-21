@@ -150,13 +150,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       )
       .subscribe()
 
-    // Sincronização periódica inteligente (a cada 4s) para garantir atualização instantânea mesmo se realtime websocket falhar
+    // Sincronização periódica inteligente (a cada 3s) para garantir atualização instantânea mesmo se realtime websocket falhar
     const interval = setInterval(async () => {
       const currentStored = localStorage.getItem('magalog_admin_session')
       if (!currentStored) return
       try {
         const u = JSON.parse(currentStored)
-        if (!u?.email || u.email === 'johansson.gomes@magazineluiza.com.br') return
+        if (!u?.email) return
 
         const { data: latest } = await supabase
           .from('app_users')

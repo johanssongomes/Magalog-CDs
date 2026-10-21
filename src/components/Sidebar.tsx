@@ -59,6 +59,12 @@ export const navItems: NavItem[] = [
     icon: <BarChart3 size={20} />
   },
   {
+    id: 'inventory',
+    label: 'Banco de Horas',
+    description: 'Gestão e Apontamento do Banco de Horas',
+    icon: <Clock size={20} />
+  },
+  {
     id: 'settings',
     label: 'Central Operacional',
     description: 'Central Operacional',
