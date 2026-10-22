@@ -99,14 +99,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
   const visibleNavItems = navItems.filter((item) => hasPermission(item.id))
 
   return (
-    <aside className={`${isCollapsed ? 'w-20' : 'w-80'} bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0 shrink-0 transition-all duration-300 z-40 relative`}>
+    <aside className={`${isCollapsed ? 'w-20' : 'w-80'} bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0 shrink-0 transition-all duration-300 z-30 relative`}>
       {/* Faixa decorativa em gradiente colorido na lateral esquerda */}
       <div 
-        className="absolute top-0 left-0 bottom-0 w-[4px] pointer-events-none z-50 bg-gradient-to-b from-[#00ff66] via-[#00f2fe] via-[#0066ff] via-[#7b2cbf] to-[#d900ff] shadow-[0_0_12px_rgba(0,242,254,0.4)]" 
+        className="absolute top-0 left-0 bottom-0 w-[4px] pointer-events-none z-10 bg-gradient-to-b from-[#00ff66] via-[#00f2fe] via-[#0066ff] via-[#7b2cbf] to-[#d900ff] shadow-[0_0_12px_rgba(0,242,254,0.4)]" 
       />
       {/* Faixa decorativa em gradiente colorido na lateral direita */}
       <div 
-        className="absolute top-0 right-0 bottom-0 w-[4px] pointer-events-none z-50 bg-gradient-to-b from-[#00ff66] via-[#00f2fe] via-[#0066ff] via-[#7b2cbf] to-[#d900ff] shadow-[0_0_12px_rgba(0,242,254,0.4)]" 
+        className="absolute top-0 right-0 bottom-0 w-[4px] pointer-events-none z-10 bg-gradient-to-b from-[#00ff66] via-[#00f2fe] via-[#0066ff] via-[#7b2cbf] to-[#d900ff] shadow-[0_0_12px_rgba(0,242,254,0.4)]" 
       />
       {/* Header / Brand */}
       <div className="relative px-3 py-3.5 border-b border-slate-700/60 flex items-center justify-between bg-[#0b1329]/80 backdrop-blur-sm gap-2">

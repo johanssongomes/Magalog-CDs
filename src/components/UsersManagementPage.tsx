@@ -288,7 +288,7 @@ export const UsersManagementPage: React.FC = () => {
                 <th className="px-4 py-3">Nível de Acesso</th>
                 <th className="px-4 py-3">Páginas Autorizadas</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Ações</th>
+                <th className="px-6 py-3 text-right min-w-[120px]">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -359,20 +359,22 @@ export const UsersManagementPage: React.FC = () => {
                         </span>
                       </td>
 
-                      <td className="px-4 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="px-6 py-3.5 text-right min-w-[120px]">
+                        <div className="flex items-center justify-end gap-2 pr-1">
                           <button
+                            type="button"
                             onClick={() => handleOpenEditModal(u)}
                             title="Editar Usuário & Permissões"
-                            className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                            className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100/70 rounded-xl transition-all cursor-pointer border border-transparent hover:border-blue-200 shadow-2xs"
                           >
                             <Edit2 size={15} />
                           </button>
                           {!isCurrent && (
                             <button
+                              type="button"
                               onClick={() => handleDelete(u)}
                               title="Remover Usuário"
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-100/70 rounded-xl transition-all cursor-pointer border border-transparent hover:border-rose-200 shadow-2xs"
                             >
                               <Trash2 size={15} />
                             </button>

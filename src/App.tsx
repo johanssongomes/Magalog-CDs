@@ -56,7 +56,7 @@ function AppContent() {
       {/* Conteúdo Principal */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         {/* Área de Conteúdo da Página */}
-        <div className="p-4 w-full flex-1">
+        <div className="px-5 sm:px-6 py-4 w-full flex-1">
           {/* Bloqueio de Segurança para páginas não autorizadas */}
           {!hasPermission(activeTab) ? (
             <div className="bg-white border border-rose-200 rounded-3xl p-10 text-center max-w-md mx-auto my-12 shadow-sm">
