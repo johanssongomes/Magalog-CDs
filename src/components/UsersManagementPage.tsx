@@ -21,7 +21,8 @@ import {
   BarChart3,
   Clock,
   Settings,
-  Globe
+  Globe,
+  DollarSign
 } from 'lucide-react'
 
 const AVAILABLE_PAGES = [
@@ -29,6 +30,7 @@ const AVAILABLE_PAGES = [
   { id: 'performance', label: 'Performance', icon: <Zap size={14} /> },
   { id: 'catalog', label: 'Equipamentos', icon: <FolderKanban size={14} /> },
   { id: 'pmts', label: 'Gestão 360°', icon: <BarChart3 size={14} /> },
+  { id: 'budget', label: 'Gestão Orçamentária', icon: <DollarSign size={14} /> },
   { id: 'inventory', label: 'Banco de Horas', icon: <Clock size={14} /> },
   { id: 'settings', label: 'Central Operacional', icon: <Settings size={14} /> },
   { id: 'links', label: 'Links Úteis', icon: <Globe size={14} /> },

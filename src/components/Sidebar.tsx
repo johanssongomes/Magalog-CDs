@@ -15,7 +15,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Users,
-  LogOut
+  LogOut,
+  DollarSign
 } from 'lucide-react'
 import { useAuth } from '../lib/authContext'
 
@@ -57,6 +58,12 @@ export const navItems: NavItem[] = [
     label: 'Gestão 360°',
     description: 'Gestão e Acompanhamento de PMTs e Indicadores 360°',
     icon: <BarChart3 size={20} />
+  },
+  {
+    id: 'budget',
+    label: 'Gestão Orçamentária',
+    description: 'Controle de Custos, Orçamento Disponível e Previsto x Realizado',
+    icon: <DollarSign size={20} />
   },
   {
     id: 'inventory',

@@ -8,6 +8,7 @@ import { BankHoursPage } from './components/BankHoursPage'
 import { CentralOperacionalPage } from './components/CentralOperacionalPage'
 import { PmtsPage } from './components/PmtsPage'
 import { UsersManagementPage } from './components/UsersManagementPage'
+import { BudgetManagementPage } from './components/BudgetManagementPage'
 import { LinksPage } from './components/LinksPage'
 import { LoginPage } from './components/LoginPage'
 import { AuthProvider, useAuth } from './lib/authContext'
@@ -78,6 +79,7 @@ function AppContent() {
               {activeTab === 'dashboard' && <DashboardPage />}
               {activeTab === 'catalog' && <EquipmentsPage />}
               {activeTab === 'performance' && <PerformancePage />}
+              {activeTab === 'budget' && <BudgetManagementPage />}
               {activeTab === 'inventory' && <BankHoursPage />}
               {(activeTab === 'pmts' || activeTab === 'reports') && <PmtsPage />}
               {(activeTab === 'settings' || activeTab === 'central-operacional') && <CentralOperacionalPage />}
