@@ -38,7 +38,9 @@ import {
   FileText,
   Check,
   LayoutDashboard,
-  BarChart2
+  BarChart2,
+  ExternalLink,
+  Maximize2
 } from 'lucide-react'
 import initialColaboradoresData from '../data/initialColaboradores.json'
 import { PmtDailyMatrixTable } from './PmtDailyMatrixTable'
@@ -1046,7 +1048,7 @@ export const PmtsPage: React.FC = () => {
                 { id: 'dashboard', label: 'Dashboard' },
                 { id: 'pg1', label: 'Quadro TT' },
                 { id: 'pg2', label: 'BH' },
-                { id: 'pg3', label: 'Pg 3' },
+                { id: 'pg3', label: 'Controle PADU' },
                 { id: 'pg4', label: 'Pg 4' }
               ].map((sub) => {
                 const isSubActive = quadroSubPage === sub.id
@@ -1943,8 +1945,60 @@ export const PmtsPage: React.FC = () => {
           <div className="pt-1">
             <BankHoursPage />
           </div>
+        ) : quadroSubPage === 'pg3' ? (
+          /* =========================================================================
+             SUB-PÁGINA: CONTROLE PADU (INTEGRAÇÃO EXTERNA EMBUTIDA)
+             ========================================================================= */
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden flex flex-col">
+            {/* Barra Superior Informativa com Controles */}
+            <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-blue-100 text-blue-700">
+                  <LayoutDashboard size={16} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                      Recrutamento e Seleção • Controle PADU
+                    </h3>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Ao Vivo
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-mono">
+                    https://controlepadu.netlify.app
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <a
+                  href="https://controlepadu.netlify.app"
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Abrir em nova aba caso prefira tela cheia externa"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all shadow-2xs hover:text-blue-700"
+                >
+                  <ExternalLink size={13} />
+                  <span>Abrir em Nova Aba</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Container Iframe Responsivo em Altura Otimizada */}
+            <div className="w-full relative bg-slate-100" style={{ height: 'calc(100vh - 210px)', minHeight: '680px' }}>
+              <iframe
+                src="https://controlepadu.netlify.app"
+                title="Controle PADU - Recrutamento e Seleção"
+                className="w-full h-full border-0 rounded-b-2xl bg-white"
+                loading="lazy"
+                allow="fullscreen"
+              />
+            </div>
+          </div>
         ) : (
-          /* PÁGINAS DEDICADAS DO QUADRO (PG 3, PG 4) */
+          /* PÁGINAS DEDICADAS DO QUADRO (PG 4) */
           <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center shadow-xs space-y-4">
             <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center mx-auto shadow-2xs">
               <FileSpreadsheet size={28} />
