@@ -215,36 +215,56 @@ const DEFAULT_CATEGORIES: IndicatorCategory[] = [
 
 const WEEKDAYS_PT = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
-export const MONTHS_OPTIONS = [
-  { id: '2026-01', label: 'Janeiro 2026', short: 'jan', year: 2026, monthIdx: 0 },
-  { id: '2026-02', label: 'Fevereiro 2026', short: 'fev', year: 2026, monthIdx: 1 },
-  { id: '2026-03', label: 'Março 2026', short: 'mar', year: 2026, monthIdx: 2 },
-  { id: '2026-04', label: 'Abril 2026', short: 'abr', year: 2026, monthIdx: 3 },
-  { id: '2026-05', label: 'Maio 2026', short: 'mai', year: 2026, monthIdx: 4 },
-  { id: '2026-06', label: 'Junho 2026', short: 'jun', year: 2026, monthIdx: 5 },
-  { id: '2026-07', label: 'Julho 2026', short: 'jul', year: 2026, monthIdx: 6 },
-  { id: '2026-08', label: 'Agosto 2026', short: 'ago', year: 2026, monthIdx: 7 },
-  { id: '2026-09', label: 'Setembro 2026', short: 'set', year: 2026, monthIdx: 8 },
-  { id: '2026-10', label: 'Outubro 2026', short: 'out', year: 2026, monthIdx: 9 },
-  { id: '2026-11', label: 'Novembro 2026', short: 'nov', year: 2026, monthIdx: 10 },
-  { id: '2026-12', label: 'Dezembro 2026', short: 'dez', year: 2026, monthIdx: 11 },
+export const MONTH_NAMES = [
+  { idx: 0, name: 'Janeiro', short: 'jan' },
+  { idx: 1, name: 'Fevereiro', short: 'fev' },
+  { idx: 2, name: 'Março', short: 'mar' },
+  { idx: 3, name: 'Abril', short: 'abr' },
+  { idx: 4, name: 'Maio', short: 'mai' },
+  { idx: 5, name: 'Junho', short: 'jun' },
+  { idx: 6, name: 'Julho', short: 'jul' },
+  { idx: 7, name: 'Agosto', short: 'ago' },
+  { idx: 8, name: 'Setembro', short: 'set' },
+  { idx: 9, name: 'Outubro', short: 'out' },
+  { idx: 10, name: 'Novembro', short: 'nov' },
+  { idx: 11, name: 'Dezembro', short: 'dez' },
 ]
 
+export const AVAILABLE_YEARS = [2024, 2025, 2026, 2027, 2028]
+
+export const MONTHS_OPTIONS = AVAILABLE_YEARS.flatMap(yr =>
+  MONTH_NAMES.map(m => ({
+    id: `${yr}-${(m.idx + 1).toString().padStart(2, '0')}`,
+    label: `${m.name} ${yr}`,
+    short: m.short,
+    year: yr,
+    monthIdx: m.idx
+  }))
+)
+
 export function getDaysForMonth(monthId: string) {
-  const m = MONTHS_OPTIONS.find(item => item.id === monthId) || MONTHS_OPTIONS[9]
-  const totalDays = new Date(m.year, m.monthIdx + 1, 0).getDate()
+  const [yearStr, monthStr] = monthId.split('-')
+  const year = parseInt(yearStr, 10) || 2026
+  const monthIdx = (parseInt(monthStr, 10) || 10) - 1
+  const m = MONTHS_OPTIONS.find(item => item.id === monthId) || {
+    id: monthId,
+    label: `${MONTH_NAMES[monthIdx]?.name || 'Outubro'} ${year}`,
+    short: MONTH_NAMES[monthIdx]?.short || 'out',
+    year,
+    monthIdx
+  }
+  const totalDays = new Date(year, monthIdx + 1, 0).getDate()
   return Array.from({ length: totalDays }, (_, i) => {
     const dayNum = i + 1
-    const dateObj = new Date(m.year, m.monthIdx, dayNum)
+    const dateObj = new Date(year, monthIdx, dayNum)
     const dayName = WEEKDAYS_PT[dateObj.getDay()]
     const dateStr = `${dayNum.toString().padStart(2, '0')}/${m.short}`
-    const fullDateIso = `${m.year}-${(m.monthIdx + 1).toString().padStart(2, '0')}-${dayNum.toString().padStart(2, '0')}`
+    const fullDateIso = `${year}-${(monthIdx + 1).toString().padStart(2, '0')}-${dayNum.toString().padStart(2, '0')}`
     return {
       day: dayName,
       date: dateStr,
       colId: dateStr,
       dayNum,
-      fullDateIso
     }
   })
 }
@@ -1315,26 +1335,57 @@ export const PerformancePage: React.FC = () => {
             <span>Filtros Operacionais:</span>
           </div>
 
-          {/* Seletor do Mês Ativo da Tabela */}
-          <div className="relative shrink-0 flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-lg border border-indigo-300 shadow-2xs">
-            <Calendar size={13} className="text-indigo-600 shrink-0" />
-            <span className="text-[10px] font-extrabold uppercase text-slate-500">Mês:</span>
-            <select
-              value={selectedMonth}
-              onChange={e => {
-                setSelectedMonth(e.target.value)
-                setSelectedDateFilters([])
-                setStartDateFilter('')
-                setEndDateFilter('')
-              }}
-              className="bg-transparent text-xs font-bold text-indigo-950 focus:outline-none cursor-pointer pr-1"
-            >
-              {MONTHS_OPTIONS.map(m => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
+          {/* Seletor do Ano e Mês Ativos da Tabela */}
+          <div className="relative shrink-0 flex items-center gap-2">
+            {/* Seletor de Ano */}
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-indigo-200 hover:border-indigo-400 shadow-2xs transition-colors">
+              <Calendar size={13} className="text-indigo-600 shrink-0" />
+              <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Ano:</span>
+              <select
+                value={selectedMonth.split('-')[0] || '2026'}
+                onChange={e => {
+                  const newYear = e.target.value
+                  const currentMonthNum = selectedMonth.split('-')[1] || '10'
+                  setSelectedMonth(`${newYear}-${currentMonthNum}`)
+                  setSelectedDateFilters([])
+                  setStartDateFilter('')
+                  setEndDateFilter('')
+                }}
+                className="bg-transparent text-xs font-bold text-indigo-950 focus:outline-none cursor-pointer pr-1"
+              >
+                {AVAILABLE_YEARS.map(yr => (
+                  <option key={yr} value={yr}>
+                    {yr}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Seletor de Mês */}
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-indigo-200 hover:border-indigo-400 shadow-2xs transition-colors">
+              <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Mês:</span>
+              <select
+                value={selectedMonth.split('-')[1] || '10'}
+                onChange={e => {
+                  const currentYear = selectedMonth.split('-')[0] || '2026'
+                  const newMonthNum = e.target.value
+                  setSelectedMonth(`${currentYear}-${newMonthNum}`)
+                  setSelectedDateFilters([])
+                  setStartDateFilter('')
+                  setEndDateFilter('')
+                }}
+                className="bg-transparent text-xs font-bold text-indigo-950 focus:outline-none cursor-pointer pr-1"
+              >
+                {MONTH_NAMES.map(m => {
+                  const monthNumStr = (m.idx + 1).toString().padStart(2, '0')
+                  return (
+                    <option key={m.idx} value={monthNumStr}>
+                      {m.name}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
           </div>
 
           {/* Dropdown Multi-Select 1: Indicador (Largura Alinhada com a Coluna 1 da Tabela: w-48 / 12rem) */}
