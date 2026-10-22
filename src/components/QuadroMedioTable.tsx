@@ -7,7 +7,9 @@ import {
   Save,
   Download,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  MessageSquare,
+  X
 } from 'lucide-react'
 
 // Dias da semana simplificados para o cabeçalho (D, S, T, Q, Q, S, S)
@@ -26,6 +28,8 @@ interface SectionData {
   retornoFerias: Record<number, number>
   saidas: Record<number, number>
   entradas: Record<number, number>
+  // Comentários por célula no formato `${field}_${day}`: string
+  comments?: Record<string, string>
 }
 
 interface QuadroMedioState {
@@ -185,6 +189,51 @@ export function QuadroMedioTable() {
     }
     return list
   }, [daysInMonth, selectedMonth, selectedYear])
+
+  // Estado do modal de comentário da célula
+  const [activeCommentCell, setActiveCommentCell] = useState<{
+    section: 'op' | 'cd'
+    field: 'orcado' | 'saidaFerias' | 'retornoFerias' | 'saidas' | 'entradas'
+    day: number
+    label: string
+  } | null>(null)
+  const [commentDraft, setCommentDraft] = useState<string>('')
+
+  const openCommentModal = (
+    section: 'op' | 'cd',
+    field: 'orcado' | 'saidaFerias' | 'retornoFerias' | 'saidas' | 'entradas',
+    day: number,
+    label: string
+  ) => {
+    const key = `${field}_${day}`
+    const existing = data[section]?.comments?.[key] || ''
+    setActiveCommentCell({ section, field, day, label })
+    setCommentDraft(existing)
+  }
+
+  const saveCurrentComment = () => {
+    if (!activeCommentCell) return
+    const { section, field, day } = activeCommentCell
+    const key = `${field}_${day}`
+    const prevComments = data[section].comments || {}
+
+    const newComments = { ...prevComments }
+    if (commentDraft.trim() === '') {
+      delete newComments[key]
+    } else {
+      newComments[key] = commentDraft.trim()
+    }
+
+    const newData: QuadroMedioState = {
+      ...data,
+      [section]: {
+        ...data[section],
+        comments: newComments
+      }
+    }
+    saveData(newData)
+    setActiveCommentCell(null)
+  }
 
   // Função genérica de atualização de célula
   const handleCellChange = (
@@ -383,6 +432,66 @@ export function QuadroMedioTable() {
             ? 'bg-[#00a8e8] text-white font-bold'
             : 'bg-[#80224b] text-white font-bold'
 
+    // Helper para renderizar célula editável com suporte a valor e comentário
+    const renderCellInput = (
+      sec: 'op' | 'cd',
+      field: 'orcado' | 'saidaFerias' | 'retornoFerias' | 'saidas' | 'entradas',
+      day: number,
+      label: string
+    ) => {
+      const val = data[sec][field][day]
+      const commentKey = `${field}_${day}`
+      const comment = data[sec]?.comments?.[commentKey] || ''
+
+      return (
+        <td
+          key={day}
+          className="border border-slate-300 p-0 relative group"
+          onContextMenu={(e) => {
+            e.preventDefault()
+            openCommentModal(sec, field, day, label)
+          }}
+        >
+          <input
+            type="number"
+            value={val ?? ''}
+            onChange={(e) => handleCellChange(sec, field, day, e.target.value)}
+            placeholder=""
+            className="w-full h-7 text-center font-bold text-slate-800 focus:bg-amber-50 focus:outline-blue-500 text-[11px] bg-transparent border-0"
+          />
+
+          {/* Marcador de Comentário (estilo triângulo no canto superior direito do Excel) */}
+          {comment ? (
+            <div
+              className="absolute top-0 right-0 w-0 h-0 border-t-[7px] border-l-[7px] border-t-red-500 border-l-transparent cursor-pointer z-10"
+              title={`Comentário: ${comment}`}
+              onClick={() => openCommentModal(sec, field, day, label)}
+            />
+          ) : (
+            /* Botão discreto no hover para adicionar comentário */
+            <button
+              type="button"
+              onClick={() => openCommentModal(sec, field, day, label)}
+              title="Adicionar comentário (ou clique com botão direito)"
+              className="absolute top-0.5 right-0.5 hidden group-hover:flex items-center justify-center w-3.5 h-3.5 bg-slate-200/90 hover:bg-blue-600 hover:text-white text-slate-600 rounded text-[9px] cursor-pointer z-10 transition"
+            >
+              <MessageSquare size={8} />
+            </button>
+          )}
+
+          {/* Tooltip do comentário ao passar o mouse */}
+          {comment && (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex flex-col z-30 pointer-events-none min-w-[120px] max-w-[200px]">
+              <div className="bg-slate-900 text-white text-[10px] rounded-md px-2 py-1 shadow-lg leading-tight border border-slate-700 whitespace-pre-wrap">
+                <span className="font-bold text-amber-300 block mb-0.5">Comentário:</span>
+                {comment}
+              </div>
+            </div>
+          )}
+        </td>
+      )
+    }
+
     return (
       <div className="bg-white rounded-xl border border-slate-300 shadow-sm overflow-hidden mb-6">
         {/* Barra superior de título e ferramentas */}
@@ -445,17 +554,7 @@ export function QuadroMedioTable() {
                   Quadro Orçado
                 </td>
                 <td className="border border-slate-300 bg-slate-200"></td>
-                {daysList.map((d) => (
-                  <td key={d.day} className="border border-slate-300 p-0">
-                    <input
-                      type="number"
-                      value={data[section].orcado[d.day] ?? ''}
-                      onChange={(e) => handleCellChange(section, 'orcado', d.day, e.target.value)}
-                      placeholder=""
-                      className="w-full h-7 text-center font-semibold text-slate-800 focus:bg-amber-50 focus:outline-blue-500 text-[11px] bg-transparent border-0"
-                    />
-                  </td>
-                ))}
+                {daysList.map((d) => renderCellInput(section, 'orcado', d.day, 'Quadro Orçado'))}
                 {/* Média Orçado (Destaque Amarelo idêntico ao print) */}
                 <td className="border border-slate-300 bg-[#ffff00] font-black text-slate-900 text-xs px-2">
                   {calc.mediaOrcado}
@@ -468,19 +567,7 @@ export function QuadroMedioTable() {
                   Saida de Ferias
                 </td>
                 <td className="border border-slate-300 bg-slate-200"></td>
-                {daysList.map((d) => (
-                  <td key={d.day} className="border border-slate-300 p-0 relative group">
-                    <input
-                      type="number"
-                      value={data[section].saidaFerias[d.day] ?? ''}
-                      onChange={(e) => handleCellChange(section, 'saidaFerias', d.day, e.target.value)}
-                      className="w-full h-7 text-center font-bold text-slate-800 focus:bg-amber-50 focus:outline-blue-500 text-[11px] bg-transparent border-0"
-                    />
-                    {data[section].saidaFerias[d.day] ? (
-                      <span className="absolute top-0 right-0 w-0 h-0 border-t-[5px] border-l-[5px] border-t-amber-500 border-l-transparent pointer-events-none" />
-                    ) : null}
-                  </td>
-                ))}
+                {daysList.map((d) => renderCellInput(section, 'saidaFerias', d.day, 'Saída de Férias'))}
                 <td className="border border-slate-300 bg-slate-50"></td>
               </tr>
 
@@ -490,19 +577,7 @@ export function QuadroMedioTable() {
                   Retorno de Ferias
                 </td>
                 <td className="border border-slate-300 bg-slate-200"></td>
-                {daysList.map((d) => (
-                  <td key={d.day} className="border border-slate-300 p-0 relative">
-                    <input
-                      type="number"
-                      value={data[section].retornoFerias[d.day] ?? ''}
-                      onChange={(e) => handleCellChange(section, 'retornoFerias', d.day, e.target.value)}
-                      className="w-full h-7 text-center font-bold text-slate-800 focus:bg-amber-50 focus:outline-blue-500 text-[11px] bg-transparent border-0"
-                    />
-                    {data[section].retornoFerias[d.day] ? (
-                      <span className="absolute top-0 right-0 w-0 h-0 border-t-[5px] border-l-[5px] border-t-amber-500 border-l-transparent pointer-events-none" />
-                    ) : null}
-                  </td>
-                ))}
+                {daysList.map((d) => renderCellInput(section, 'retornoFerias', d.day, 'Retorno de Férias'))}
                 <td className="border border-slate-300 bg-slate-50"></td>
               </tr>
 
@@ -512,19 +587,7 @@ export function QuadroMedioTable() {
                   Saida(s)
                 </td>
                 <td className="border border-slate-300 bg-slate-200"></td>
-                {daysList.map((d) => (
-                  <td key={d.day} className="border border-slate-300 p-0 relative">
-                    <input
-                      type="number"
-                      value={data[section].saidas[d.day] ?? ''}
-                      onChange={(e) => handleCellChange(section, 'saidas', d.day, e.target.value)}
-                      className="w-full h-7 text-center font-bold text-slate-800 focus:bg-amber-50 focus:outline-blue-500 text-[11px] bg-transparent border-0"
-                    />
-                    {data[section].saidas[d.day] ? (
-                      <span className="absolute top-0 right-0 w-0 h-0 border-t-[5px] border-l-[5px] border-t-amber-500 border-l-transparent pointer-events-none" />
-                    ) : null}
-                  </td>
-                ))}
+                {daysList.map((d) => renderCellInput(section, 'saidas', d.day, 'Saída(s)'))}
                 <td className="border border-slate-300 bg-slate-50"></td>
               </tr>
 
@@ -534,19 +597,7 @@ export function QuadroMedioTable() {
                   Entrada(s)
                 </td>
                 <td className="border border-slate-300 bg-slate-200"></td>
-                {daysList.map((d) => (
-                  <td key={d.day} className="border border-slate-300 p-0 relative">
-                    <input
-                      type="number"
-                      value={data[section].entradas[d.day] ?? ''}
-                      onChange={(e) => handleCellChange(section, 'entradas', d.day, e.target.value)}
-                      className="w-full h-7 text-center font-bold text-slate-800 focus:bg-amber-50 focus:outline-blue-500 text-[11px] bg-transparent border-0"
-                    />
-                    {data[section].entradas[d.day] ? (
-                      <span className="absolute top-0 right-0 w-0 h-0 border-t-[5px] border-l-[5px] border-t-amber-500 border-l-transparent pointer-events-none" />
-                    ) : null}
-                  </td>
-                ))}
+                {daysList.map((d) => renderCellInput(section, 'entradas', d.day, 'Entrada(s)'))}
                 <td className="border border-slate-300 bg-slate-50"></td>
               </tr>
 
@@ -690,6 +741,77 @@ export function QuadroMedioTable() {
 
       {/* Grade 2: OUTUBRO - C&D (Tema Vinho/Bordeaux) */}
       {renderGridSection('C&D', 'cd', cdCalc, 'wine')}
+
+      {/* Modal / Dialog para Visualizar e Editar Comentário da Célula */}
+      {activeCommentCell && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full p-4.5 space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+                  <MessageSquare size={16} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800">Comentário da Célula</h4>
+                  <p className="text-[10px] text-slate-500">
+                    {activeCommentCell.label} &bull; Dia {activeCommentCell.day} ({activeCommentCell.section.toUpperCase()})
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveCommentCell(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <textarea
+              autoFocus
+              value={commentDraft}
+              onChange={(e) => setCommentDraft(e.target.value)}
+              placeholder="Digite sua observação sobre este dia (ex: motivos de saída, colaboradores em férias, alinhamentos)..."
+              rows={4}
+              className="w-full text-xs text-slate-800 border border-slate-200 rounded-xl p-2.5 focus:outline-blue-500 focus:border-blue-500 bg-slate-50/50 resize-none font-sans"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                  saveCurrentComment()
+                }
+              }}
+            />
+
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setCommentDraft('')
+                  // Se salvar vazio, remove o comentário
+                  setTimeout(saveCurrentComment, 0)
+                }}
+                className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
+              >
+                Remover comentário
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveCommentCell(null)}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={saveCurrentComment}
+                  className="px-3.5 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xs transition cursor-pointer"
+                >
+                  Salvar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
