@@ -43,6 +43,7 @@ import {
   Maximize2
 } from 'lucide-react'
 import initialColaboradoresData from '../data/initialColaboradores.json'
+import { QuadroMedioTable } from './QuadroMedioTable'
 import { PmtDailyMatrixTable } from './PmtDailyMatrixTable'
 import { BankHoursPage } from './BankHoursPage'
 import { supabase } from '../lib/supabase'
@@ -1049,7 +1050,7 @@ export const PmtsPage: React.FC = () => {
                 { id: 'pg1', label: 'Quadro TT' },
                 { id: 'pg2', label: 'BH' },
                 { id: 'pg3', label: 'Controle PADU' },
-                { id: 'pg4', label: 'Pg 4' }
+                { id: 'pg4', label: 'Qd Médio' }
               ].map((sub) => {
                 const isSubActive = quadroSubPage === sub.id
                 return (
@@ -1997,8 +1998,11 @@ export const PmtsPage: React.FC = () => {
               />
             </div>
           </div>
+        ) : quadroSubPage === 'pg4' ? (
+          /* PÁGINA QUADRO MÉDIO (PG 4) - MODELO DE GRADE COM CÁLCULOS DINÂMICOS */
+          <QuadroMedioTable />
         ) : (
-          /* PÁGINAS DEDICADAS DO QUADRO (PG 4) */
+          /* DEMAIS PÁGINAS DEDICADAS DO QUADRO SE HOUVER */
           <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center shadow-xs space-y-4">
             <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center mx-auto shadow-2xs">
               <FileSpreadsheet size={28} />
