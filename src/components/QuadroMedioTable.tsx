@@ -441,6 +441,73 @@ export function QuadroMedioTable() {
             ? 'bg-[#00a8e8] text-white font-bold'
             : 'bg-[#80224b] text-white font-bold'
 
+    // Ordem das linhas editáveis na grade
+    const EDITABLE_FIELDS: Array<'orcado' | 'saidaFerias' | 'retornoFerias' | 'saidas' | 'entradas'> = [
+      'orcado',
+      'saidaFerias',
+      'retornoFerias',
+      'saidas',
+      'entradas'
+    ]
+
+    const handleKeyDown = (
+      e: React.KeyboardEvent<HTMLInputElement>,
+      sec: 'op' | 'cd',
+      field: 'orcado' | 'saidaFerias' | 'retornoFerias' | 'saidas' | 'entradas',
+      day: number
+    ) => {
+      let targetSec = sec
+      let targetField = field
+      let targetDay = day
+
+      const fieldIdx = EDITABLE_FIELDS.indexOf(field)
+
+      if (e.key === 'ArrowRight') {
+        if (day < daysInMonth) {
+          targetDay = day + 1
+        } else if (fieldIdx < EDITABLE_FIELDS.length - 1) {
+          targetDay = 1
+          targetField = EDITABLE_FIELDS[fieldIdx + 1]
+        }
+      } else if (e.key === 'ArrowLeft') {
+        if (day > 1) {
+          targetDay = day - 1
+        } else if (fieldIdx > 0) {
+          targetDay = daysInMonth
+          targetField = EDITABLE_FIELDS[fieldIdx - 1]
+        }
+      } else if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        e.preventDefault()
+        if (fieldIdx < EDITABLE_FIELDS.length - 1) {
+          targetField = EDITABLE_FIELDS[fieldIdx + 1]
+        } else if (sec === 'op') {
+          // Passa para a próxima grade (C&D) na mesma coluna
+          targetSec = 'cd'
+          targetField = EDITABLE_FIELDS[0]
+        }
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        if (fieldIdx > 0) {
+          targetField = EDITABLE_FIELDS[fieldIdx - 1]
+        } else if (sec === 'cd') {
+          // Retorna para a grade anterior (OP) na mesma coluna
+          targetSec = 'op'
+          targetField = EDITABLE_FIELDS[EDITABLE_FIELDS.length - 1]
+        }
+      } else {
+        return
+      }
+
+      if (targetSec !== sec || targetField !== field || targetDay !== day) {
+        const nextId = `cell-${targetSec}-${targetField}-${targetDay}`
+        const el = document.getElementById(nextId) as HTMLInputElement | null
+        if (el) {
+          el.focus()
+          el.select()
+        }
+      }
+    }
+
     // Helper para renderizar célula editável com suporte a valor e comentário
     const renderCellInput = (
       sec: 'op' | 'cd',
@@ -451,6 +518,7 @@ export function QuadroMedioTable() {
       const val = data[sec][field][day]
       const commentKey = `${field}_${day}`
       const comment = data[sec]?.comments?.[commentKey] || ''
+      const inputId = `cell-${sec}-${field}-${day}`
 
       return (
         <td
@@ -462,9 +530,11 @@ export function QuadroMedioTable() {
           }}
         >
           <input
+            id={inputId}
             type="number"
             value={val && val >= 1 ? val : ''}
             onChange={(e) => handleCellChange(sec, field, day, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, sec, field, day)}
             placeholder=""
             className="w-full h-7 text-center font-bold text-slate-800 focus:bg-amber-50 focus:outline-blue-500 text-[11px] bg-transparent border-0"
           />
