@@ -504,6 +504,38 @@ export function QuadroMedioTable() {
       }
     }
 
+    // Estilos de cor para cada motivo quando preenchido (> 0)
+    const MOTIVE_CELL_STYLES: Record<
+      'orcado' | 'saidaFerias' | 'retornoFerias' | 'saidas' | 'entradas',
+      { filledBg: string; text: string }
+    > = {
+      // Saída de Férias: Verde conforme solicitado pelo usuário
+      saidaFerias: {
+        filledBg: 'bg-emerald-500',
+        text: 'text-white'
+      },
+      // Retorno de Férias: Roxo / Violeta
+      retornoFerias: {
+        filledBg: 'bg-indigo-500',
+        text: 'text-white'
+      },
+      // Saída(s) (Desligamentos): Vermelho / Coral
+      saidas: {
+        filledBg: 'bg-rose-500',
+        text: 'text-white'
+      },
+      // Entrada(s) (Contratações): Azul vibrante
+      entradas: {
+        filledBg: 'bg-sky-500',
+        text: 'text-white'
+      },
+      // Quadro Orçado
+      orcado: {
+        filledBg: 'bg-transparent',
+        text: 'text-slate-800'
+      }
+    }
+
     // Helper para renderizar célula editável com suporte a valor e comentário
     const renderCellInput = (
       sec: 'op' | 'cd',
@@ -512,14 +544,19 @@ export function QuadroMedioTable() {
       label: string
     ) => {
       const val = data[sec][field][day]
+      const isFilled = Boolean(val && val >= 1)
       const commentKey = `${field}_${day}`
       const comment = data[sec]?.comments?.[commentKey] || ''
       const inputId = `cell-${sec}-${field}-${day}`
 
+      const motiveStyle = MOTIVE_CELL_STYLES[field]
+      const cellBgClass = isFilled ? motiveStyle.filledBg : 'bg-transparent hover:bg-slate-50'
+      const textColorClass = isFilled ? motiveStyle.text : 'text-slate-800'
+
       return (
         <td
           key={day}
-          className="border border-slate-300 p-0 relative group"
+          className={`border border-slate-300 p-0 relative group transition-colors ${cellBgClass}`}
           onContextMenu={(e) => {
             e.preventDefault()
             openCommentModal(sec, field, day, label)
@@ -528,17 +565,19 @@ export function QuadroMedioTable() {
           <input
             id={inputId}
             type="number"
-            value={val && val >= 1 ? val : ''}
+            value={isFilled ? val : ''}
             onChange={(e) => handleCellChange(sec, field, day, e.target.value)}
             onKeyDown={(e) => handleKeyDown(e, sec, field, day)}
             placeholder=""
-            className="w-full h-7 text-center font-bold text-slate-800 focus:bg-amber-50 focus:outline-blue-500 text-[11px] bg-transparent border-0"
+            className={`w-full h-7 text-center font-bold ${textColorClass} focus:bg-amber-100 focus:text-slate-900 focus:outline-blue-500 text-[11px] bg-transparent border-0 transition-colors`}
           />
 
           {/* Marcador de Comentário (estilo triângulo no canto superior direito do Excel) */}
           {comment ? (
             <div
-              className="absolute top-0 right-0 w-0 h-0 border-t-[7px] border-l-[7px] border-t-red-500 border-l-transparent cursor-pointer z-10"
+              className={`absolute top-0 right-0 w-0 h-0 border-t-[7px] border-l-[7px] ${
+                isFilled ? 'border-t-yellow-300' : 'border-t-red-500'
+              } border-l-transparent cursor-pointer z-10`}
               title={`Comentário: ${comment}`}
               onClick={() => openCommentModal(sec, field, day, label)}
             />
@@ -548,7 +587,9 @@ export function QuadroMedioTable() {
               type="button"
               onClick={() => openCommentModal(sec, field, day, label)}
               title="Adicionar comentário (ou clique com botão direito)"
-              className="absolute top-0.5 right-0.5 hidden group-hover:flex items-center justify-center w-3.5 h-3.5 bg-slate-200/90 hover:bg-blue-600 hover:text-white text-slate-600 rounded text-[9px] cursor-pointer z-10 transition"
+              className={`absolute top-0.5 right-0.5 hidden group-hover:flex items-center justify-center w-3.5 h-3.5 ${
+                isFilled ? 'bg-white/80 text-slate-800' : 'bg-slate-200/90 text-slate-600'
+              } hover:bg-blue-600 hover:text-white rounded text-[9px] cursor-pointer z-10 transition`}
             >
               <MessageSquare size={8} />
             </button>
