@@ -22,7 +22,13 @@ import {
   Layers,
   Building2,
   Percent,
-  Sparkles
+  Sparkles,
+  CreditCard,
+  Paperclip,
+  FileText,
+  Upload,
+  Trash,
+  Eye
 } from 'lucide-react'
 
 // Subpáginas disponíveis
@@ -33,6 +39,27 @@ export type BudgetSubPage =
   | 'compromissos_futuros'
   | 'previsto_x_realizado'
   | 'historico_mensal'
+  | 'cartao_corporativo'
+
+export interface CardAttachment {
+  name: string
+  size: string
+  url?: string
+}
+
+export interface CorporateCardExpense {
+  id: string
+  date: string
+  cardHolder: string
+  cardNumberLast4: string
+  description: string
+  establishment: string
+  costCenter: string
+  category: string
+  amount: number
+  status: 'aprovado' | 'pendente' | 'em_prestacao'
+  attachments: CardAttachment[]
+}
 
 interface CostCenter {
   id: string
@@ -104,11 +131,92 @@ const MONTHLY_HISTORY = [
   { month: 'Outubro 2026 (Atual)', budgeted: 2300000, realized: 1525000, variance: 775000, variancePct: 33.7 },
 ]
 
+const INITIAL_CARD_EXPENSES: CorporateCardExpense[] = [
+  {
+    id: 'card1',
+    date: '21/10/2026',
+    cardHolder: 'Johansson Gomes',
+    cardNumberLast4: '4892',
+    description: 'Refeição de emergência equipe plantão descarga noturna',
+    establishment: 'Restaurante Central Grill',
+    costCenter: 'CC-994-01',
+    category: 'Alimentação & Refeições',
+    amount: 385.50,
+    status: 'aprovado',
+    attachments: [
+      { name: 'cupom_fiscal_refeicao_2110.pdf', size: '245 KB' }
+    ]
+  },
+  {
+    id: 'card2',
+    date: '20/10/2026',
+    cardHolder: 'Johansson Gomes',
+    cardNumberLast4: '4892',
+    description: 'Combustível gerador doca 12 (falta momentânea de energia)',
+    establishment: 'Posto Petrobras CD Express',
+    costCenter: 'CC-994-04',
+    category: 'Combustíveis',
+    amount: 520.00,
+    status: 'aprovado',
+    attachments: [
+      { name: 'nf_combustivel_gerador.pdf', size: '312 KB' },
+      { name: 'foto_odometro_recibo.jpg', size: '1.2 MB' }
+    ]
+  },
+  {
+    id: 'card3',
+    date: '18/10/2026',
+    cardHolder: 'Coordenação Logística',
+    cardNumberLast4: '9133',
+    description: 'Cabos de rede e conectores RJ45 para expansão coletores WMS',
+    establishment: 'Kalunga Comércio S/A',
+    costCenter: 'CC-994-05',
+    category: 'Suprimentos & TI',
+    amount: 198.70,
+    status: 'em_prestacao',
+    attachments: [
+      { name: 'danfe_kalunga_88321.pdf', size: '420 KB' }
+    ]
+  },
+  {
+    id: 'card4',
+    date: '15/10/2026',
+    cardHolder: 'Johansson Gomes',
+    cardNumberLast4: '4892',
+    description: 'Cartuchos de fita zebrada e etiquetas de identificação de gaiolas',
+    establishment: 'Dinamica Etiquetas Ind.',
+    costCenter: 'CC-994-01',
+    category: 'Material Operacional',
+    amount: 450.00,
+    status: 'pendente',
+    attachments: []
+  }
+]
+
 export const BudgetManagementPage: React.FC = () => {
   const [activeSubPage, setActiveSubPage] = useState<BudgetSubPage>('visao_geral')
   const [selectedYear, setSelectedYear] = useState('2026')
   const [selectedMonth, setSelectedMonth] = useState('10')
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Estados específicos para Cartão Corporativo
+  const [cardExpenses, setCardExpenses] = useState<CorporateCardExpense[]>(INITIAL_CARD_EXPENSES)
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false)
+  const [cardFilterHolder, setCardFilterHolder] = useState('todos')
+
+  // Formulário do Modal de Cartão Corporativo
+  const [newCardDate, setNewCardDate] = useState(new Date().toISOString().slice(0, 10))
+  const [newCardHolder, setNewCardHolder] = useState('Johansson Gomes')
+  const [newCardLast4, setNewCardLast4] = useState('4892')
+  const [newCardDescription, setNewCardDescription] = useState('')
+  const [newCardEstablishment, setNewCardEstablishment] = useState('')
+  const [newCardCostCenter, setNewCardCostCenter] = useState('CC-994-01')
+  const [newCardCategory, setNewCardCategory] = useState('Alimentação & Refeições')
+  const [newCardAmount, setNewCardAmount] = useState('')
+  const [newCardAttachments, setNewCardAttachments] = useState<CardAttachment[]>([])
+
+  // Modal de visualização de anexos
+  const [viewingAttachments, setViewingAttachments] = useState<{ title: string; files: CardAttachment[] } | null>(null)
 
   // Cálculos globais consolidados
   const totalAllocated = INITIAL_COST_CENTERS.reduce((acc, c) => acc + c.allocated, 0)
@@ -118,8 +226,56 @@ export const BudgetManagementPage: React.FC = () => {
   const executionRate = totalAllocated > 0 ? (totalRealized / totalAllocated) * 100 : 0
   const commitmentRate = totalAllocated > 0 ? ((totalRealized + totalCommitted) / totalAllocated) * 100 : 0
 
+  // Total do Cartão Corporativo
+  const totalCardSpent = cardExpenses.reduce((acc, c) => acc + c.amount, 0)
+
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return
+    const files = Array.from(e.target.files)
+    const newItems: CardAttachment[] = files.map(file => ({
+      name: file.name,
+      size: `${(file.size / 1024).toFixed(0)} KB`,
+      url: URL.createObjectURL(file)
+    }))
+    setNewCardAttachments(prev => [...prev, ...newItems])
+  }
+
+  const handleRemoveAttachment = (index: number) => {
+    setNewCardAttachments(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleSaveCardExpense = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newCardDescription.trim() || !newCardAmount) return
+
+    const parsedAmount = parseFloat(newCardAmount.replace(/\./g, '').replace(',', '.')) || 0
+
+    const newExpense: CorporateCardExpense = {
+      id: `card_${Date.now()}`,
+      date: newCardDate.split('-').reverse().join('/'),
+      cardHolder: newCardHolder,
+      cardNumberLast4: newCardLast4,
+      description: newCardDescription.trim(),
+      establishment: newCardEstablishment.trim() || 'Não especificado',
+      costCenter: newCardCostCenter,
+      category: newCardCategory,
+      amount: parsedAmount,
+      status: 'em_prestacao',
+      attachments: newCardAttachments
+    }
+
+    setCardExpenses(prev => [newExpense, ...prev])
+    setIsCardModalOpen(false)
+
+    // Reset formulário
+    setNewCardDescription('')
+    setNewCardEstablishment('')
+    setNewCardAmount('')
+    setNewCardAttachments([])
   }
 
   // Lista de subpáginas com ícones e rótulos
@@ -130,6 +286,7 @@ export const BudgetManagementPage: React.FC = () => {
     { id: 'compromissos_futuros', label: 'Compromissos Futuros', icon: <FileCheck size={15} /> },
     { id: 'previsto_x_realizado', label: 'Previsto × Realizado', icon: <BarChart4 size={15} /> },
     { id: 'historico_mensal', label: 'Histórico Mensal', icon: <Calendar size={15} /> },
+    { id: 'cartao_corporativo', label: 'Cartão Corporativo', icon: <CreditCard size={15} /> },
   ]
 
   return (
@@ -586,6 +743,407 @@ export const BudgetManagementPage: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+      {activeSubPage === 'cartao_corporativo' && (
+        <div className="space-y-4">
+          {/* Card Resumo do Cartão Corporativo */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-950 text-white border border-slate-800 shadow-md relative overflow-hidden">
+              <div className="flex items-center justify-between text-xs text-slate-400 font-bold mb-1">
+                <span>Gastos Totais no Cartão (Mês)</span>
+                <CreditCard size={18} className="text-emerald-400" />
+              </div>
+              <p className="text-2xl font-black text-white">{formatCurrency(totalCardSpent)}</p>
+              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                <span>{cardExpenses.length} lançamentos efetuados</span>
+                <span className="font-semibold text-emerald-400">Fatura Aberta</span>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+              <div className="flex items-center justify-between text-xs text-slate-500 font-bold mb-1">
+                <span>Prestação de Contas</span>
+                <Receipt size={16} className="text-amber-600" />
+              </div>
+              <p className="text-2xl font-black text-amber-700">
+                {cardExpenses.filter(c => c.status === 'em_prestacao' || c.status === 'pendente').length} pendente(s)
+              </p>
+              <p className="text-[11px] text-slate-500 mt-2">
+                Notas fiscais e comprovantes aguardando validação
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+              <div className="flex items-center justify-between text-xs text-slate-500 font-bold mb-1">
+                <span>Comprovantes Anexados</span>
+                <Paperclip size={16} className="text-blue-600" />
+              </div>
+              <p className="text-2xl font-black text-blue-700">
+                {cardExpenses.reduce((acc, c) => acc + c.attachments.length, 0)} anexo(s)
+              </p>
+              <p className="text-[11px] text-slate-500 mt-2">
+                Total de comprovantes e cupons fiscais arquivados
+              </p>
+            </div>
+          </div>
+
+          {/* Tabela de Lançamentos do Cartão */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2">
+                  <span>Lançamentos do Cartão Corporativo</span>
+                  <span className="text-[10px] bg-indigo-100 text-indigo-800 font-extrabold px-2 py-0.5 rounded-full">
+                    {cardExpenses.length}
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Cadastre as compras efetuadas com o cartão, vincule aos centros de custo e adicione os comprovantes.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar estabelecimento, titular..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsCardModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-sm shadow-blue-600/30 cursor-pointer active:scale-95"
+                >
+                  <Plus size={15} />
+                  <span>Novo Lançamento</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-600 uppercase text-[10px] tracking-wider">
+                    <th className="py-3 px-3 font-extrabold">Data</th>
+                    <th className="py-3 px-3 font-extrabold">Titular / Cartão</th>
+                    <th className="py-3 px-3 font-extrabold">Descrição & Estabelecimento</th>
+                    <th className="py-3 px-3 font-extrabold">Centro Custo</th>
+                    <th className="py-3 px-3 font-extrabold">Categoria</th>
+                    <th className="py-3 px-3 font-extrabold text-right">Valor (R$)</th>
+                    <th className="py-3 px-3 font-extrabold text-center">Comprovantes / Anexos</th>
+                    <th className="py-3 px-3 font-extrabold text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {cardExpenses
+                    .filter(c => 
+                      c.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                      c.establishment.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      c.cardHolder.toLowerCase().includes(searchTerm.toLowerCase())
+                    )
+                    .map(exp => (
+                      <tr key={exp.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3 px-3 font-mono font-semibold text-slate-600 whitespace-nowrap">{exp.date}</td>
+                        <td className="py-3 px-3">
+                          <div className="font-bold text-slate-800">{exp.cardHolder}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">Final •••• {exp.cardNumberLast4}</div>
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="font-bold text-slate-800">{exp.description}</div>
+                          <div className="text-[11px] text-slate-500 font-medium">{exp.establishment}</div>
+                        </td>
+                        <td className="py-3 px-3 font-mono text-slate-500 font-semibold">{exp.costCenter}</td>
+                        <td className="py-3 px-3 text-slate-600">{exp.category}</td>
+                        <td className="py-3 px-3 font-black text-slate-900 text-right whitespace-nowrap">{formatCurrency(exp.amount)}</td>
+                        <td className="py-3 px-3 text-center">
+                          {exp.attachments.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setViewingAttachments({ title: exp.description, files: exp.attachments })}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-bold border border-blue-200 transition-colors cursor-pointer"
+                            >
+                              <Paperclip size={13} />
+                              <span>{exp.attachments.length} anexo(s)</span>
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 italic">
+                              Sem comprovante
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          {exp.status === 'aprovado' && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                              <CheckCircle2 size={12} /> Aprovado
+                            </span>
+                          )}
+                          {exp.status === 'em_prestacao' && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                              <Clock size={12} /> Em Prestação
+                            </span>
+                          )}
+                          {exp.status === 'pendente' && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                              <AlertTriangle size={12} /> Pendente NF
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Novo Lançamento de Cartão Corporativo */}
+      {isCardModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-blue-100 text-blue-600">
+                  <CreditCard size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+                    Novo Lançamento no Cartão Corporativo
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Insira os dados da despesa e anexe o comprovante ou Nota Fiscal.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCardModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCardExpense} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Data da Compra</label>
+                  <input
+                    type="date"
+                    required
+                    value={newCardDate}
+                    onChange={e => setNewCardDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Valor Total (R$)</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: 350,00"
+                    value={newCardAmount}
+                    onChange={e => setNewCardAmount(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Titular do Cartão</label>
+                  <select
+                    value={newCardHolder}
+                    onChange={e => {
+                      setNewCardHolder(e.target.value)
+                      if (e.target.value === 'Johansson Gomes') setNewCardLast4('4892')
+                      else if (e.target.value === 'Coordenação Logística') setNewCardLast4('9133')
+                      else setNewCardLast4('1024')
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="Johansson Gomes">Johansson Gomes (•••• 4892)</option>
+                    <option value="Coordenação Logística">Coordenação Logística (•••• 9133)</option>
+                    <option value="Gerência Geral CD 994">Gerência Geral CD 994 (•••• 1024)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Centro de Custo</label>
+                  <select
+                    value={newCardCostCenter}
+                    onChange={e => setNewCardCostCenter(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                  >
+                    {INITIAL_COST_CENTERS.map(cc => (
+                      <option key={cc.id} value={cc.code}>
+                        {cc.code} - {cc.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Estabelecimento / Fornecedor</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Posto Ipiranga, Kalunga, Restaurante..."
+                  value={newCardEstablishment}
+                  onChange={e => setNewCardEstablishment(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Descrição / Justificativa do Gasto</label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="Ex: Compra emergencial de pilhas para leitores ópticos da separação..."
+                  value={newCardDescription}
+                  onChange={e => setNewCardDescription(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Seção de Upload de Anexos (Comprovantes / Notas Fiscais) */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-dashed border-slate-300 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Paperclip size={16} className="text-blue-600" />
+                    <span className="text-xs font-bold text-slate-700">Anexar Comprovantes ou Notas Fiscais</span>
+                  </div>
+                  <label className="px-3 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200 cursor-pointer transition-colors inline-flex items-center gap-1.5">
+                    <Upload size={13} />
+                    <span>Selecionar Arquivo</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {newCardAttachments.length === 0 ? (
+                  <p className="text-[11px] text-slate-400 italic">
+                    Nenhum arquivo anexado ainda. Você pode anexar fotos de cupons fiscais, recibos ou arquivos PDF de DANFE.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5 pt-1">
+                    {newCardAttachments.map((att, i) => (
+                      <div key={i} className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText size={14} className="text-slate-400 shrink-0" />
+                          <span className="font-semibold text-slate-700 truncate">{att.name}</span>
+                          <span className="text-[10px] text-slate-400 shrink-0">({att.size})</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAttachment(i)}
+                          className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer transition-colors"
+                        >
+                          <Trash size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsCardModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/30 cursor-pointer transition-all active:scale-95"
+                >
+                  Confirmar Lançamento
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Visualizar Anexos de um Lançamento */}
+      {viewingAttachments && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <Paperclip size={18} className="text-blue-600" />
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                  Comprovantes Anexados
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingAttachments(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <p className="text-xs text-slate-600 font-medium">
+                {viewingAttachments.title}
+              </p>
+
+              <div className="space-y-2">
+                {viewingAttachments.files.map((file, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="p-2 rounded-lg bg-white text-blue-600 border border-slate-200 shrink-0">
+                        <FileText size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-800 truncate">{file.name}</p>
+                        <p className="text-[10px] text-slate-400">{file.size}</p>
+                      </div>
+                    </div>
+                    {file.url ? (
+                      <a
+                        href={file.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200 transition-colors"
+                      >
+                        Abrir
+                      </a>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 italic">Arquivo Local</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setViewingAttachments(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-900 text-white cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
