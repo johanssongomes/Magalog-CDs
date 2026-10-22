@@ -1235,9 +1235,62 @@ export const PerformancePage: React.FC = () => {
 
       {/* Painel Duplo de Filtros de Múltipla Seleção (Segmentação por Agrupamento + Multi-select Popovers para Indicador e Sub-indicador) */}
       <div ref={filterBarRef} className="bg-white rounded-xl border border-slate-200 shadow-xs divide-y divide-slate-100">
-        {/* Nível 1: Botões de Segmentação de Agrupamentos (Múltipla Seleção) */}
-        <div className="flex flex-wrap items-center gap-2 p-3">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mr-2 pl-1 shrink-0">
+        {/* Nível 1: Período (Ano & Mês) e Botões de Segmentação de Agrupamentos */}
+        <div className="flex flex-wrap items-center gap-2.5 p-3">
+          {/* Seletor de Ano e Mês posicionado logo no começo */}
+          <div className="flex items-center gap-1.5 shrink-0 pr-1 border-r border-slate-200">
+            {/* Seletor de Ano */}
+            <div className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100/80 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-indigo-300 shadow-2xs transition-colors">
+              <Calendar size={13} className="text-indigo-600 shrink-0" />
+              <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Ano:</span>
+              <select
+                value={selectedMonth.split('-')[0] || '2026'}
+                onChange={e => {
+                  const newYear = e.target.value
+                  const currentMonthNum = selectedMonth.split('-')[1] || '10'
+                  setSelectedMonth(`${newYear}-${currentMonthNum}`)
+                  setSelectedDateFilters([])
+                  setStartDateFilter('')
+                  setEndDateFilter('')
+                }}
+                className="bg-transparent text-xs font-bold text-indigo-950 focus:outline-none cursor-pointer pr-1"
+              >
+                {AVAILABLE_YEARS.map(yr => (
+                  <option key={yr} value={yr}>
+                    {yr}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Seletor de Mês */}
+            <div className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100/80 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-indigo-300 shadow-2xs transition-colors">
+              <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Mês:</span>
+              <select
+                value={selectedMonth.split('-')[1] || '10'}
+                onChange={e => {
+                  const currentYear = selectedMonth.split('-')[0] || '2026'
+                  const newMonthNum = e.target.value
+                  setSelectedMonth(`${currentYear}-${newMonthNum}`)
+                  setSelectedDateFilters([])
+                  setStartDateFilter('')
+                  setEndDateFilter('')
+                }}
+                className="bg-transparent text-xs font-bold text-indigo-950 focus:outline-none cursor-pointer pr-1"
+              >
+                {MONTH_NAMES.map(m => {
+                  const monthNumStr = (m.idx + 1).toString().padStart(2, '0')
+                  return (
+                    <option key={m.idx} value={monthNumStr}>
+                      {m.name}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 pl-1 shrink-0">
             <Filter size={14} className="text-blue-600" />
             <span>Agrupamentos:</span>
           </div>
@@ -1333,59 +1386,6 @@ export const PerformancePage: React.FC = () => {
           <div className="flex items-center gap-1 text-xs font-bold text-slate-700 shrink-0 w-44">
             <ChevronRight size={14} className="text-blue-600" />
             <span>Filtros Operacionais:</span>
-          </div>
-
-          {/* Seletor do Ano e Mês Ativos da Tabela */}
-          <div className="relative shrink-0 flex items-center gap-2">
-            {/* Seletor de Ano */}
-            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-indigo-200 hover:border-indigo-400 shadow-2xs transition-colors">
-              <Calendar size={13} className="text-indigo-600 shrink-0" />
-              <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Ano:</span>
-              <select
-                value={selectedMonth.split('-')[0] || '2026'}
-                onChange={e => {
-                  const newYear = e.target.value
-                  const currentMonthNum = selectedMonth.split('-')[1] || '10'
-                  setSelectedMonth(`${newYear}-${currentMonthNum}`)
-                  setSelectedDateFilters([])
-                  setStartDateFilter('')
-                  setEndDateFilter('')
-                }}
-                className="bg-transparent text-xs font-bold text-indigo-950 focus:outline-none cursor-pointer pr-1"
-              >
-                {AVAILABLE_YEARS.map(yr => (
-                  <option key={yr} value={yr}>
-                    {yr}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Seletor de Mês */}
-            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-indigo-200 hover:border-indigo-400 shadow-2xs transition-colors">
-              <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Mês:</span>
-              <select
-                value={selectedMonth.split('-')[1] || '10'}
-                onChange={e => {
-                  const currentYear = selectedMonth.split('-')[0] || '2026'
-                  const newMonthNum = e.target.value
-                  setSelectedMonth(`${currentYear}-${newMonthNum}`)
-                  setSelectedDateFilters([])
-                  setStartDateFilter('')
-                  setEndDateFilter('')
-                }}
-                className="bg-transparent text-xs font-bold text-indigo-950 focus:outline-none cursor-pointer pr-1"
-              >
-                {MONTH_NAMES.map(m => {
-                  const monthNumStr = (m.idx + 1).toString().padStart(2, '0')
-                  return (
-                    <option key={m.idx} value={monthNumStr}>
-                      {m.name}
-                    </option>
-                  )
-                })}
-              </select>
-            </div>
           </div>
 
           {/* Dropdown Multi-Select 1: Indicador (Largura Alinhada com a Coluna 1 da Tabela: w-48 / 12rem) */}
