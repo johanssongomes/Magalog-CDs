@@ -215,8 +215,8 @@ export function QuadroMedioTable() {
     if (!activeCommentCell) return
     const { section, field, day } = activeCommentCell
     const key = `${field}_${day}`
-    const textToSave = textOverride !== undefined ? textOverride : commentDraft
-    const prevComments = data[section].comments || {}
+    const textToSave = typeof textOverride === 'string' ? textOverride : commentDraft
+    const prevComments = data[section]?.comments || {}
 
     const newComments = { ...prevComments }
     if (textToSave.trim() === '') {
@@ -891,7 +891,7 @@ export function QuadroMedioTable() {
               className="w-full text-xs text-slate-800 border border-slate-200 rounded-xl p-2.5 focus:outline-blue-500 focus:border-blue-500 bg-slate-50/50 resize-none font-sans"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                  saveCurrentComment()
+                  saveCurrentComment(commentDraft)
                 }
               }}
             />
@@ -914,7 +914,7 @@ export function QuadroMedioTable() {
                 </button>
                 <button
                   type="button"
-                  onClick={saveCurrentComment}
+                  onClick={() => saveCurrentComment(commentDraft)}
                   className="px-3.5 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xs transition cursor-pointer"
                 >
                   Salvar
