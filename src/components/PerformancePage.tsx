@@ -1223,14 +1223,22 @@ export const PerformancePage: React.FC = () => {
           </div>
 
           <button
+            type="button"
             onClick={() => setSelectedGroupFilters([])}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${
               selectedGroupFilters.length === 0
-                ? 'bg-slate-800 text-white shadow-sm ring-2 ring-slate-400'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-slate-900 text-white shadow-sm shadow-slate-900/20 ring-1 ring-slate-800'
+                : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 hover:border-slate-300'
             }`}
           >
-            Todos ({categories.length})
+            <span>Todos</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+              selectedGroupFilters.length === 0 
+                ? 'bg-white/20 text-white' 
+                : 'bg-slate-100 text-slate-600'
+            }`}>
+              {categories.length}
+            </span>
           </button>
 
           {groupsList
@@ -1241,25 +1249,58 @@ export const PerformancePage: React.FC = () => {
             .map(group => {
               const count = categories.filter(c => c.groupId === group.id).length
               const isActive = selectedGroupFilters.includes(group.id)
+
+              // Cores temáticas refinadas para cada agrupamento
+              const themeStyles: Record<string, { active: string; idle: string; dot: string }> = {
+                cx_clientes: {
+                  active: 'bg-blue-600 text-white shadow-sm shadow-blue-500/25 border-blue-600',
+                  idle: 'bg-white hover:bg-blue-50/50 text-slate-700 border-slate-200 hover:border-blue-300 hover:text-blue-700',
+                  dot: 'bg-blue-500'
+                },
+                operacoes: {
+                  active: 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/25 border-indigo-600',
+                  idle: 'bg-white hover:bg-indigo-50/50 text-slate-700 border-slate-200 hover:border-indigo-300 hover:text-indigo-700',
+                  dot: 'bg-indigo-500'
+                },
+                gestao: {
+                  active: 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/25 border-emerald-600',
+                  idle: 'bg-white hover:bg-emerald-50/50 text-slate-700 border-slate-200 hover:border-emerald-300 hover:text-emerald-700',
+                  dot: 'bg-emerald-500'
+                },
+                qualidade_cte: {
+                  active: 'bg-amber-600 text-white shadow-sm shadow-amber-500/25 border-amber-600',
+                  idle: 'bg-white hover:bg-amber-50/50 text-slate-700 border-slate-200 hover:border-amber-300 hover:text-amber-700',
+                  dot: 'bg-amber-500'
+                },
+                planejamento: {
+                  active: 'bg-purple-600 text-white shadow-sm shadow-purple-500/25 border-purple-600',
+                  idle: 'bg-white hover:bg-purple-50/50 text-slate-700 border-slate-200 hover:border-purple-300 hover:text-purple-700',
+                  dot: 'bg-purple-500'
+                }
+              }
+
+              const currentTheme = themeStyles[group.id] || {
+                active: 'bg-slate-800 text-white shadow-sm border-slate-800',
+                idle: 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300',
+                dot: 'bg-slate-500'
+              }
+
               return (
                 <button
                   key={group.id}
                   type="button"
                   onClick={() => toggleGroupFilter(group.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                    isActive
-                      ? `${group.color} shadow-sm ring-2 ring-offset-1 ring-blue-500 font-bold`
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 opacity-80 hover:opacity-100'
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 border select-none ${
+                    isActive ? currentTheme.active : currentTheme.idle
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={isActive}
-                    readOnly
-                    className="rounded text-blue-600 focus:ring-0 pointer-events-none w-3.5 h-3.5"
-                  />
+                  <span className={`w-2 h-2 rounded-full transition-transform ${
+                    isActive ? 'bg-white scale-110 shadow-xs' : `${currentTheme.dot} opacity-70`
+                  }`} />
                   <span>{group.name}</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold transition-colors ${
+                    isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                  }`}>
                     {count}
                   </span>
                 </button>
