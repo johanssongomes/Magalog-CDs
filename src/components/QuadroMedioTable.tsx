@@ -6,7 +6,6 @@ import {
   RotateCcw,
   Save,
   Download,
-  Info,
   CheckCircle2,
   AlertCircle
 } from 'lucide-react'
@@ -34,9 +33,42 @@ interface QuadroMedioState {
   cd: SectionData
 }
 
+// Função auxiliar para calcular o Quadro Atual do último dia de um determinado mês/ano
+function getLastDayQuadroAtual(year: number, month: number, section: 'op' | 'cd'): number | null {
+  try {
+    const raw = localStorage.getItem(`quadro_medio_data_${year}_${month}`)
+    if (!raw) return null
+    const parsed: QuadroMedioState = JSON.parse(raw)
+    const sec = parsed[section]
+    if (!sec) return null
+
+    const days = new Date(year, month + 1, 0).getDate()
+    let current = sec.initial || 0
+
+    for (let d = 1; d <= days; d++) {
+      const sFerias = sec.saidaFerias[d] ?? 0
+      const rFerias = sec.retornoFerias[d] ?? 0
+      const saidas = sec.saidas[d] ?? 0
+      const entradas = sec.entradas[d] ?? 0
+      current = current - sFerias + rFerias + entradas - saidas
+    }
+    return current
+  } catch (e) {
+    console.error('Erro ao ler último dia do mês anterior:', e)
+    return null
+  }
+}
+
+// Obtém o valor inicial ideal para uma seção em determinado mês/ano
+function getInitialForMonth(year: number, month: number, section: 'op' | 'cd', defaultVal: number): number {
+  const prevMonth = month === 0 ? 11 : month - 1
+  const prevYear = month === 0 ? year - 1 : year
+  const lastVal = getLastDayQuadroAtual(prevYear, prevMonth, section)
+  return lastVal !== null ? lastVal : defaultVal
+}
+
 export function QuadroMedioTable() {
   const [selectedMonth, setSelectedMonth] = useState<number>(() => {
-    // Padrão atual ou Outubro (índice 9) se for outubro
     const current = new Date().getMonth()
     return current
   })
@@ -49,14 +81,22 @@ export function QuadroMedioTable() {
   const [data, setData] = useState<QuadroMedioState>(() => {
     try {
       const saved = localStorage.getItem(`quadro_medio_data_${selectedYear}_${selectedMonth}`)
-      if (saved) return JSON.parse(saved)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        // Se o mês anterior tiver valor calculado e o atual não tiver sido configurado com outro valor manualmente,
+        // ou se não houver initial salvo:
+        return parsed
+      }
     } catch (e) {
       console.error('Erro ao ler dados salvos:', e)
     }
-    // Valores padrão iniciais ilustrativos conforme imagem do usuário
+
+    const initOp = getInitialForMonth(selectedYear, selectedMonth, 'op', 102)
+    const initCd = getInitialForMonth(selectedYear, selectedMonth, 'cd', 44)
+
     return {
       op: {
-        initial: 102,
+        initial: initOp,
         orcado: { 1: 100, 2: 100, 3: 100, 4: 100, 5: 100, 6: 100, 7: 100, 8: 100, 9: 100, 10: 100, 11: 100, 12: 100, 13: 103, 14: 103, 15: 103, 16: 103, 17: 103, 18: 103, 19: 106, 20: 106, 21: 106, 22: 106, 23: 106, 24: 106, 25: 106, 26: 109, 27: 109, 28: 109, 29: 109, 30: 109, 31: 109 },
         saidaFerias: { 5: 4, 13: 2 },
         retornoFerias: { 1: 6, 17: 1, 21: 1 },
@@ -64,7 +104,7 @@ export function QuadroMedioTable() {
         entradas: { 13: 4, 19: 1, 26: 3 }
       },
       cd: {
-        initial: 44,
+        initial: initCd,
         orcado: { 1: 54, 2: 54, 3: 54, 4: 54, 5: 54, 6: 54, 7: 54, 8: 54, 9: 54, 10: 54, 11: 54, 12: 54, 13: 54, 14: 54, 15: 54, 16: 54, 17: 54, 18: 54, 19: 54, 20: 54, 21: 54, 22: 54, 23: 54, 24: 54, 25: 54, 26: 54, 27: 54, 28: 54, 29: 54, 30: 54, 31: 54 },
         saidaFerias: { 5: 1, 13: 1 },
         retornoFerias: { 1: 1 },
@@ -74,18 +114,40 @@ export function QuadroMedioTable() {
     }
   })
 
-  // Carrega ao mudar mês/ano
+  // Carrega ao mudar mês/ano, propagando o valor final do mês anterior se aplicável
   useEffect(() => {
     try {
+      const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1
+      const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear
+      const prevLastOp = getLastDayQuadroAtual(prevYear, prevMonth, 'op')
+      const prevLastCd = getLastDayQuadroAtual(prevYear, prevMonth, 'cd')
+
       const saved = localStorage.getItem(`quadro_medio_data_${selectedYear}_${selectedMonth}`)
       if (saved) {
-        setData(JSON.parse(saved))
+        const parsed: QuadroMedioState = JSON.parse(saved)
+        // Se existir valor do mês anterior, atualiza o initial (Dia 0) para refletir o último dia do mês anterior
+        let changed = false
+        if (prevLastOp !== null && parsed.op.initial !== prevLastOp) {
+          parsed.op.initial = prevLastOp
+          changed = true
+        }
+        if (prevLastCd !== null && parsed.cd.initial !== prevLastCd) {
+          parsed.cd.initial = prevLastCd
+          changed = true
+        }
+        if (changed) {
+          localStorage.setItem(`quadro_medio_data_${selectedYear}_${selectedMonth}`, JSON.stringify(parsed))
+        }
+        setData(parsed)
       } else {
-        // Inicializa vazio ou padrão
-        setData({
-          op: { initial: 102, orcado: {}, saidaFerias: {}, retornoFerias: {}, saidas: {}, entradas: {} },
-          cd: { initial: 44, orcado: {}, saidaFerias: {}, retornoFerias: {}, saidas: {}, entradas: {} }
-        })
+        // Inicializa vazio herdando do mês anterior
+        const initOp = prevLastOp !== null ? prevLastOp : 102
+        const initCd = prevLastCd !== null ? prevLastCd : 44
+        const defaultState: QuadroMedioState = {
+          op: { initial: initOp, orcado: {}, saidaFerias: {}, retornoFerias: {}, saidas: {}, entradas: {} },
+          cd: { initial: initCd, orcado: {}, saidaFerias: {}, retornoFerias: {}, saidas: {}, entradas: {} }
+        }
+        setData(defaultState)
       }
     } catch (e) {
       console.error(e)
@@ -328,9 +390,6 @@ export function QuadroMedioTable() {
           <div className="flex items-center gap-2">
             <span className="font-black text-sm tracking-wide">
               {MONTH_NAMES[selectedMonth]} - {title}
-            </span>
-            <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded font-mono">
-              Fórmula: Atual = Ant - Férias(S) + Férias(R) + Ent - Saí
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -623,23 +682,6 @@ export function QuadroMedioTable() {
             <Download size={14} />
             <span>Exportar CSV</span>
           </button>
-        </div>
-      </div>
-
-      {/* Informativo explicativo das fórmulas */}
-      <div className="bg-blue-50/60 border border-blue-200/70 rounded-xl p-3 text-xs text-blue-900 flex items-start gap-2.5">
-        <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
-        <div className="space-y-0.5 leading-relaxed">
-          <p className="font-bold">Como funcionam os cálculos da grade:</p>
-          <p className="text-[11px] text-blue-800">
-            &bull; <strong>Quadro Atual (Dia D)</strong> = <code className="bg-white/80 px-1 py-0.5 rounded text-blue-950 font-bold font-mono">Quadro Atual (Dia D-1) - Saída de Férias + Retorno de Férias + Entrada(s) - Saída(s)</code> (inicia no valor do dia 0 / Início).
-          </p>
-          <p className="text-[11px] text-blue-800">
-            &bull; <strong>Gap</strong> = <code className="bg-white/80 px-1 py-0.5 rounded text-blue-950 font-bold font-mono">Quadro Atual - Quadro Orçado</code>.
-          </p>
-          <p className="text-[11px] text-blue-800">
-            &bull; Todos os campos manuais (Orçado, Férias, Entradas e Saídas) são editáveis diretamente e ficam salvos para cada mês e ano.
-          </p>
         </div>
       </div>
 
