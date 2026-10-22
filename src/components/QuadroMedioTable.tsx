@@ -211,17 +211,18 @@ export function QuadroMedioTable() {
     setCommentDraft(existing)
   }
 
-  const saveCurrentComment = () => {
+  const saveCurrentComment = (textOverride?: string) => {
     if (!activeCommentCell) return
     const { section, field, day } = activeCommentCell
     const key = `${field}_${day}`
+    const textToSave = textOverride !== undefined ? textOverride : commentDraft
     const prevComments = data[section].comments || {}
 
     const newComments = { ...prevComments }
-    if (commentDraft.trim() === '') {
+    if (textToSave.trim() === '') {
       delete newComments[key]
     } else {
-      newComments[key] = commentDraft.trim()
+      newComments[key] = textToSave.trim()
     }
 
     const newData: QuadroMedioState = {
@@ -235,6 +236,10 @@ export function QuadroMedioTable() {
     setActiveCommentCell(null)
   }
 
+  const deleteCurrentComment = () => {
+    saveCurrentComment('')
+  }
+
   // Função genérica de atualização de célula
   const handleCellChange = (
     section: 'op' | 'cd',
@@ -245,14 +250,18 @@ export function QuadroMedioTable() {
     const numValue = value === '' ? 0 : Number(value)
     if (isNaN(numValue)) return
 
+    const newFieldMap = { ...data[section][field] }
+    if (numValue < 1) {
+      delete newFieldMap[day]
+    } else {
+      newFieldMap[day] = numValue
+    }
+
     const newData: QuadroMedioState = {
       ...data,
       [section]: {
         ...data[section],
-        [field]: {
-          ...data[section][field],
-          [day]: numValue
-        }
+        [field]: newFieldMap
       }
     }
     saveData(newData)
@@ -454,7 +463,7 @@ export function QuadroMedioTable() {
         >
           <input
             type="number"
-            value={val ?? ''}
+            value={val && val >= 1 ? val : ''}
             onChange={(e) => handleCellChange(sec, field, day, e.target.value)}
             placeholder=""
             className="w-full h-7 text-center font-bold text-slate-800 focus:bg-amber-50 focus:outline-blue-500 text-[11px] bg-transparent border-0"
@@ -783,11 +792,7 @@ export function QuadroMedioTable() {
             <div className="flex items-center justify-between gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => {
-                  setCommentDraft('')
-                  // Se salvar vazio, remove o comentário
-                  setTimeout(saveCurrentComment, 0)
-                }}
+                onClick={deleteCurrentComment}
                 className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
               >
                 Remover comentário
