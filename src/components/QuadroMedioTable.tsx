@@ -431,15 +431,11 @@ export function QuadroMedioTable() {
     const isBlue = themeColor === 'blue'
     const headerBg = isBlue ? 'bg-[#003882]' : 'bg-[#5c1d38]'
     const headerBorder = isBlue ? 'border-[#00275c]' : 'border-[#431427]'
-    const gapHighlightClass = isBlue
-      ? (val: number) =>
-          val >= 0
-            ? 'bg-[#00a8e8] text-white font-bold'
-            : 'bg-[#d9383a] text-white font-bold'
-      : (val: number) =>
-          val >= 0
-            ? 'bg-[#00a8e8] text-white font-bold'
-            : 'bg-[#80224b] text-white font-bold'
+    // Formatação do gap: Azul para >= 0 e Vermelho para < 0 em ambos os painéis
+    const gapHighlightClass = (val: number) =>
+      val >= 0
+        ? 'bg-[#00a8e8] text-white font-bold'
+        : 'bg-[#d9383a] text-white font-bold'
 
     // Ordem das linhas editáveis na grade
     const EDITABLE_FIELDS: Array<'orcado' | 'saidaFerias' | 'retornoFerias' | 'saidas' | 'entradas'> = [
