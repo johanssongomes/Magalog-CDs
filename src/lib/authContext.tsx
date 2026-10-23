@@ -20,9 +20,19 @@ export const DEFAULT_ROLE_PAGES: Record<UserRole, string[]> = {
   colaborador: ['dashboard', 'performance', 'budget', 'inventory', 'links']
 }
 
+export interface OnlineUser {
+  id: string
+  name: string
+  email: string
+  role: UserRole
+  logged_at: string
+  online_at: string
+}
+
 interface AuthContextType {
   user: AppUserProfile | null
   loading: boolean
+  onlineUsers: OnlineUser[]
   login: (email: string, password: string) => Promise<{ error?: string }>
   logout: () => Promise<void>
   hasPermission: (pageId: string) => boolean
@@ -34,6 +44,7 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType)
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AppUserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([])
 
   // Carregar sessão e perfil do Supabase
   const loadProfile = async (authUserId: string, authEmail: string) => {
@@ -222,6 +233,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
+  // 7. Supabase Realtime Presence - Rastreamento de Usuários Online e Horário de Login
+  useEffect(() => {
+    if (!user) {
+      setOnlineUsers([])
+      return
+    }
+
+    // Identificar ou registrar momento do login atual
+    let loginTime = sessionStorage.getItem(`login_time_${user.email}`)
+    if (!loginTime) {
+      loginTime = new Date().toISOString()
+      sessionStorage.setItem(`login_time_${user.email}`, loginTime)
+    }
+
+    const presenceChannel = supabase.channel('online_users_presence', {
+      config: {
+        presence: {
+          key: user.email.toLowerCase()
+        }
+      }
+    })
+
+    const syncPresence = () => {
+      const state = presenceChannel.presenceState()
+      const list: OnlineUser[] = []
+
+      Object.keys(state).forEach((key) => {
+        const presences = state[key] as any[]
+        if (presences && presences.length > 0) {
+          const latest = presences[presences.length - 1]
+          list.push({
+            id: latest.id || key,
+            name: latest.name || key.split('@')[0],
+            email: latest.email || key,
+            role: latest.role || 'colaborador',
+            logged_at: latest.logged_at || latest.online_at || new Date().toISOString(),
+            online_at: latest.online_at || new Date().toISOString()
+          })
+        }
+      })
+
+      // Ordenar por horário de login (mais recentes primeiro)
+      list.sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())
+      setOnlineUsers(list)
+    }
+
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        syncPresence()
+      })
+      .on('presence', { event: 'join' }, () => {
+        syncPresence()
+      })
+      .on('presence', { event: 'leave' }, () => {
+        syncPresence()
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({
+            id: user.id,
+            name: user.name,
+            email: user.email.toLowerCase(),
+            role: user.role,
+            logged_at: loginTime,
+            online_at: new Date().toISOString()
+          })
+        }
+      })
+
+    return () => {
+      supabase.removeChannel(presenceChannel)
+    }
+  }, [user?.email, user?.name, user?.role, user?.id])
+
   const login = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
       setLoading(true)
@@ -351,7 +436,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, hasPermission, refreshProfile }}>
+    <AuthContext.Provider value={{ user, loading, onlineUsers, login, logout, hasPermission, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )

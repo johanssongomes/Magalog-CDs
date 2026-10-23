@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth, DEFAULT_ROLE_PAGES, type AppUserProfile, type UserRole } from '../lib/authContext'
+import { OnlineUsersModal } from './OnlineUsersModal'
 import { 
   Users, 
   ShieldCheck, 
@@ -22,7 +23,8 @@ import {
   Clock,
   Settings,
   Globe,
-  DollarSign
+  DollarSign,
+  Radio
 } from 'lucide-react'
 
 const AVAILABLE_PAGES = [
@@ -38,7 +40,8 @@ const AVAILABLE_PAGES = [
 ]
 
 export const UsersManagementPage: React.FC = () => {
-  const { user: currentUser } = useAuth()
+  const { user: currentUser, onlineUsers } = useAuth()
+  const [isOnlineModalOpen, setIsOnlineModalOpen] = useState(false)
   const [users, setUsers] = useState<AppUserProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -236,13 +239,26 @@ export const UsersManagementPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={handleOpenCreateModal}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer shrink-0"
-        >
-          <UserPlus size={16} />
-          <span>Novo Usuário</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setIsOnlineModalOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer shrink-0"
+          >
+            <Radio size={16} className="text-emerald-600 animate-pulse" />
+            <span>Quem está online</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-200/60 text-emerald-800 font-extrabold">
+              {Math.max(onlineUsers.length, 1)}
+            </span>
+          </button>
+
+          <button
+            onClick={handleOpenCreateModal}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer shrink-0"
+          >
+            <UserPlus size={16} />
+            <span>Novo Usuário</span>
+          </button>
+        </div>
       </div>
 
       {/* Alerta de Feedback */}
@@ -285,6 +301,7 @@ export const UsersManagementPage: React.FC = () => {
             <thead className="bg-slate-50/75 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
               <tr>
                 <th className="px-4 py-3">Usuário</th>
+                <th className="px-4 py-3">Presença / Login</th>
                 <th className="px-4 py-3">Nível de Acesso</th>
                 <th className="px-4 py-3">Páginas Autorizadas</th>
                 <th className="px-4 py-3">Status</th>
@@ -294,19 +311,35 @@ export const UsersManagementPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-8 text-slate-400">
+                  <td colSpan={6} className="text-center py-8 text-slate-400">
                     Carregando usuários...
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-8 text-slate-400">
+                  <td colSpan={6} className="text-center py-8 text-slate-400">
                     Nenhum usuário cadastrado ou localizado.
                   </td>
                 </tr>
               ) : (
                 filteredUsers.map((u) => {
                   const isCurrent = currentUser?.id === u.id || currentUser?.email === u.email
+                  const onlineInfo = onlineUsers.find(
+                    o => o.email?.toLowerCase() === u.email?.toLowerCase()
+                  )
+                  const isOnline = Boolean(onlineInfo || isCurrent)
+                  const loginTime = onlineInfo?.logged_at || (isCurrent ? (sessionStorage.getItem(`login_time_${currentUser.email}`) || new Date().toISOString()) : null)
+
+                  let formattedLogin = 'Não registrado'
+                  if (loginTime) {
+                    try {
+                      const d = new Date(loginTime)
+                      formattedLogin = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                    } catch {
+                      formattedLogin = loginTime
+                    }
+                  }
+
                   return (
                     <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-4 py-3.5">
@@ -319,6 +352,34 @@ export const UsersManagementPage: React.FC = () => {
                           )}
                         </div>
                         <div className="text-[11px] text-slate-400 font-mono mt-0.5">{u.email}</div>
+                      </td>
+
+                      <td className="px-4 py-3.5">
+                        {isOnline ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-600">
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                              </span>
+                              Online agora
+                            </span>
+                            <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                              <Clock size={10} className="text-slate-400" />
+                              Logou às {formattedLogin}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+                              <span className="w-2 h-2 rounded-full bg-slate-300" />
+                              Offline
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              Sem sessão ativa
+                            </span>
+                          </div>
+                        )}
                       </td>
 
                       <td className="px-4 py-3.5">
@@ -554,6 +615,12 @@ export const UsersManagementPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de Usuários Online */}
+      <OnlineUsersModal 
+        isOpen={isOnlineModalOpen} 
+        onClose={() => setIsOnlineModalOpen(false)} 
+      />
     </div>
   )
 }

@@ -16,9 +16,12 @@ import {
   PanelLeftOpen,
   Users,
   LogOut,
-  DollarSign
+  DollarSign,
+  Radio,
+  Activity
 } from 'lucide-react'
 import { useAuth } from '../lib/authContext'
+import { OnlineUsersModal } from './OnlineUsersModal'
 
 export interface NavItem {
   id: string
@@ -93,7 +96,8 @@ export const navItems: NavItem[] = [
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const { user, logout, hasPermission } = useAuth()
+  const [isOnlineModalOpen, setIsOnlineModalOpen] = useState(false)
+  const { user, logout, hasPermission, onlineUsers } = useAuth()
 
   // Filtra itens de acordo com a permissão do usuário
   const visibleNavItems = navItems.filter((item) => hasPermission(item.id))
@@ -188,9 +192,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         {!isCollapsed ? (
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs shrink-0">
-                {user?.name ? user.name.slice(0, 2).toUpperCase() : 'US'}
+              <div className="relative shrink-0">
+                <div className="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs">
+                  {user?.name ? user.name.slice(0, 2).toUpperCase() : 'US'}
+                </div>
+                {/* Indicador de presença verde no próprio avatar */}
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-slate-950"></span>
+                </span>
               </div>
+
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-bold text-white truncate leading-tight">
                   {user?.name || 'Usuário'}
@@ -209,16 +221,39 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
               </div>
             </div>
 
-            <button
-              onClick={() => logout()}
-              title="Encerrar Sessão (Sair)"
-              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer shrink-0"
-            >
-              <LogOut size={16} />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              {/* Botão Ver Quem Está Online */}
+              <button
+                onClick={() => setIsOnlineModalOpen(true)}
+                title="Ver usuários online e horários de login"
+                className="relative p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all cursor-pointer group flex items-center gap-1"
+              >
+                <Radio size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20">
+                  {Math.max(onlineUsers.length, 1)}
+                </span>
+              </button>
+
+              <button
+                onClick={() => logout()}
+                title="Encerrar Sessão (Sair)"
+                className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
+            <button
+              onClick={() => setIsOnlineModalOpen(true)}
+              title={`Ver usuários online (${Math.max(onlineUsers.length, 1)})`}
+              className="relative p-2 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors cursor-pointer"
+            >
+              <Radio size={16} className="text-emerald-400" />
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            </button>
+
             <button
               onClick={() => logout()}
               title="Encerrar Sessão (Sair)"
@@ -229,6 +264,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           </div>
         )}
       </div>
+
+      {/* Modal de Usuários Online */}
+      <OnlineUsersModal 
+        isOpen={isOnlineModalOpen} 
+        onClose={() => setIsOnlineModalOpen(false)} 
+      />
     </aside>
   )
 }
