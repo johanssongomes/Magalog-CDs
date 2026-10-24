@@ -25,26 +25,25 @@ export const LookerCarteiraPage: React.FC = () => {
   }
 
   return (
-    <div className={`space-y-4 animate-in fade-in duration-200 ${isFullScreen ? 'fixed inset-0 z-50 bg-slate-900/95 p-4 flex flex-col' : ''}`}>
-      {/* Barra Superior Informativa e Controles */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md shadow-blue-500/20">
-            <Layers size={20} />
+    <div className={`flex flex-col animate-in fade-in duration-200 ${
+      isFullScreen 
+        ? 'fixed inset-0 z-50 bg-slate-900 p-3' 
+        : 'w-full space-y-2'
+    }`}>
+      {/* Barra de Controles Compacta */}
+      <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 shadow-2xs flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs">
+            <Layers size={15} />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-slate-900 tracking-tight">
-                Carteira CDs &bull; Looker Studio
-              </h2>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Interativo
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500">
-              Navegue pelos modais, filtros e métricas de expedição e transferência sem sair da página.
-            </p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-bold text-slate-900 tracking-tight">
+              Carteira CDs &bull; Looker Studio
+            </h2>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Ao Vivo
+            </span>
           </div>
         </div>
 
@@ -53,26 +52,26 @@ export const LookerCarteiraPage: React.FC = () => {
           <button
             onClick={handleRefresh}
             title="Recarregar dados do painel"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
           >
-            <RotateCw size={14} className={isLoading ? 'animate-spin text-blue-600' : ''} />
-            <span className="hidden sm:inline">Recarregar</span>
+            <RotateCw size={13} className={isLoading ? 'animate-spin text-blue-600' : ''} />
+            <span className="hidden sm:inline text-[11px]">Recarregar</span>
           </button>
 
           <button
             onClick={() => setIsFullScreen(!isFullScreen)}
             title={isFullScreen ? 'Sair do Modo Expandido' : 'Expandir para Tela Cheia'}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
           >
             {isFullScreen ? (
               <>
-                <Minimize2 size={14} />
-                <span className="hidden sm:inline">Recolher</span>
+                <Minimize2 size={13} />
+                <span className="hidden sm:inline text-[11px]">Recolher</span>
               </>
             ) : (
               <>
-                <Maximize2 size={14} />
-                <span className="hidden sm:inline">Tela Cheia</span>
+                <Maximize2 size={13} />
+                <span className="hidden sm:inline text-[11px]">Tela Cheia</span>
               </>
             )}
           </button>
@@ -82,26 +81,28 @@ export const LookerCarteiraPage: React.FC = () => {
             target="_blank"
             rel="noreferrer"
             title="Abrir no Google Looker Studio oficial"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-sm shadow-blue-500/20 cursor-pointer"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer text-[11px]"
           >
-            <ExternalLink size={14} />
+            <ExternalLink size={13} />
             <span>Abrir Externa</span>
           </a>
         </div>
       </div>
 
-      {/* Container do Iframe */}
+      {/* Container do Iframe com Altura Ajustada Exata para Eliminar Rolagem */}
       <div 
-        className={`relative w-full rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs ${
-          isFullScreen ? 'flex-1 min-h-0' : 'h-[calc(100vh-230px)] min-h-[700px]'
+        className={`relative w-full rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs ${
+          isFullScreen 
+            ? 'flex-1 h-full' 
+            : 'h-[calc(100vh-175px)] min-h-[620px]'
         }`}
       >
         {isLoading && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-xs space-y-3">
-            <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-xs space-y-2">
+            <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
             <div className="text-center">
               <p className="text-xs font-bold text-slate-700">Carregando painel Carteira CDs...</p>
-              <p className="text-[11px] text-slate-400">Conectando ao Looker Studio</p>
+              <p className="text-[10px] text-slate-400">Conectando ao Looker Studio</p>
             </div>
           </div>
         )}
@@ -110,22 +111,12 @@ export const LookerCarteiraPage: React.FC = () => {
           key={iframeKey}
           src={embedUrl}
           title="Carteira CDs - Google Looker Studio"
-          className="w-full h-full border-0"
+          className="w-full h-full border-0 block"
+          style={{ overflow: 'hidden' }}
           allowFullScreen
           sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
           onLoad={() => setIsLoading(false)}
         />
-      </div>
-
-      {/* Nota de rodapé explicativa */}
-      <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 font-mono">
-        <span className="flex items-center gap-1.5">
-          <ShieldCheck size={13} className="text-emerald-500" />
-          Renderizado diretamente via Google Looker Studio Embed
-        </span>
-        <span className="hidden sm:inline">
-          ID: 767e51a9-f613-4f6d-9eb5-20ee385d5c5d &bull; p_so686endrd
-        </span>
       </div>
     </div>
   )

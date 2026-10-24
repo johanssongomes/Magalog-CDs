@@ -1019,7 +1019,7 @@ export const PmtsPage: React.FC = () => {
   const isQuadro = activePageId === 3
 
   return (
-    <div className="space-y-6">
+    <div className={activePageId === 6 ? 'space-y-3' : 'space-y-6'}>
       {/* =========================================================================
           1. HEADER DA PÁGINA PMTS COM OS 6 MÓDULOS DE NAVEGAÇÃO
           ========================================================================= */}
