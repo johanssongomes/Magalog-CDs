@@ -48,6 +48,7 @@ import { QuadroMedioTable } from './QuadroMedioTable'
 import { PmtDailyMatrixTable } from './PmtDailyMatrixTable'
 import { BankHoursPage } from './BankHoursPage'
 import { PromocionaisTable } from './PromocionaisTable'
+import { TableauIndicadoresPage } from './TableauIndicadoresPage'
 import { supabase } from '../lib/supabase'
 import { getPmtSummaryFromSupabase } from '../lib/pmtService'
 
@@ -100,12 +101,12 @@ const PMT_PAGES_CONFIG: PmtPageItem[] = [
   },
   {
     id: 5,
-    label: 'Página 5',
-    title: 'Consolidação de Bases & Relatórios PMT',
-    description: 'Exportação de relatórios executivos, histórico de versões comerciais e parametrizações de metas.',
+    label: 'Tableau Indicadores',
+    title: 'Nível de Serviço 1P • SAIDA CD ENTREGA A DOMICILIO (Tableau)',
+    description: 'Painel corporativo do BI Luizalabs com indicadores de nível de serviço, ofensores e desempenho de transportadores.',
     badge: 'Módulo 05',
-    slug: 'pagina-5',
-    icon: <FileSpreadsheet size={18} />
+    slug: 'tableau-indicadores',
+    icon: <BarChart2 size={18} />
   }
 ]
 
@@ -1080,7 +1081,7 @@ export const PmtsPage: React.FC = () => {
           - Botões no Quadro: "Cadastrar" e "Importar Planilha (Cadastro em Massa)", SEM o botão "Atualizar"
           - Se Outros PMTs: Filtro Ano + Mês, Atualizar e Importar PMT
           ========================================================================= */}
-      {activePageId !== 4 && (!isQuadro || quadroSubPage === 'pg1' || quadroSubPage === 'dashboard') && (
+      {activePageId !== 4 && activePageId !== 5 && (!isQuadro || quadroSubPage === 'pg1' || quadroSubPage === 'dashboard') && (
         <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
           {isQuadro ? (
           /* FILTROS ESPECÍFICOS DO QUADRO */
@@ -2032,6 +2033,9 @@ export const PmtsPage: React.FC = () => {
       ) : activePageId === 4 ? (
         /* PÁGINA 4: PROMICIONAIS (CONECTADA À PLANILHA GOOGLE NA ABA NE/NO/CO) */
         <PromocionaisTable />
+      ) : activePageId === 5 ? (
+        /* PÁGINA 5: TABLEAU INDICADORES (PAINEL EMBUTIDO DO BI LUIZALABS) */
+        <TableauIndicadoresPage />
       ) : (
         /* CONTEÚDO PADRÃO PARA DEMAIS SUB-PÁGINAS PMT (Expedição, Recebimento, etc.) */
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
