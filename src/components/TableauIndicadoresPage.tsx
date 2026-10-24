@@ -1,194 +1,232 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { 
   BarChart2, 
   ExternalLink, 
-  Maximize2, 
-  Minimize2, 
-  RefreshCw, 
-  Globe, 
   ShieldCheck, 
-  Sparkles,
+  Lock, 
+  Compass, 
   Info,
-  Layers,
   CheckCircle2,
-  Lock,
-  Compass,
-  AlertTriangle,
-  FolderOpen
+  Layers,
+  ArrowUpRight,
+  TrendingUp,
+  FileSpreadsheet,
+  Globe,
+  Sliders,
+  Sparkles,
+  Building2,
+  Clock
 } from 'lucide-react'
 
-// URL principal solicitada (Explorar Exibições / Views do site Rede)
-const EXPLORAR_VIEWS_URL = 'https://bi.luizalabs.com/#/site/rede/views'
-
-// Dashboard específico de Nível de Serviço 1P
-const NIVEL_SERVICO_URL = 'https://bi.luizalabs.com/#/site/rede/views/NiveldeservicoDEZ2023-PILOTO/PerformanceGeral?:iid=1'
-
-// URLs diretas para tentativa de embed nativo do Tableau Server
-const EMBED_VIEWS_URL = 'https://bi.luizalabs.com/t/rede/views'
-const EMBED_NIVEL_SERVICO_URL = 'https://bi.luizalabs.com/t/rede/views/NiveldeservicoDEZ2023-PILOTO/PerformanceGeral?:embed=y&:showVizHome=n&:toolbar=y'
+// Links oficiais do portal corporativo Tableau / Luizalabs
+const TABLEAU_LINKS = [
+  {
+    id: 'performance-geral',
+    title: 'Nível de Serviço 1P • Performance Geral',
+    subtitle: 'Saída CD Entrega a Domicílio',
+    url: 'https://bi.luizalabs.com/#/site/rede/views/NiveldeservicoDEZ2023-PILOTO/PerformanceGeral?:iid=1',
+    description: 'Acompanhamento consolidado do SLA de entrega por CD de origem, modal de transporte (Courier, Micro, Rodo), ofensores e motivos de atraso.',
+    category: 'Nível de Serviço & SLA',
+    badge: 'Mais Acessado',
+    color: 'from-blue-600 to-indigo-600',
+    iconBg: 'bg-blue-50 text-blue-600 border-blue-200'
+  },
+  {
+    id: 'explorar-views',
+    title: 'Explorar Todas as Exibições (Site Rede)',
+    subtitle: 'Galeria Geral de Pastas de Trabalho',
+    url: 'https://bi.luizalabs.com/#/site/rede/views',
+    description: 'Acesso à lista completa de dashboards e pastas de trabalho publicadas para o time de Logística e Comercial da Rede Magalu.',
+    category: 'Portal Tableau Server',
+    badge: 'Diretório Completo',
+    color: 'from-indigo-600 to-purple-600',
+    iconBg: 'bg-indigo-50 text-indigo-600 border-indigo-200'
+  },
+  {
+    id: 'carteira-courier',
+    title: 'Carteira Courier & Monitoramento',
+    subtitle: 'Gestão de Entregas Expressas',
+    url: 'https://bi.luizalabs.com/#/site/rede/views',
+    description: 'Indicadores operacionais das transportadoras parceiras, prazos de transferência e finalização das remessas expressas.',
+    category: 'Transporte & Modais',
+    badge: 'Operação',
+    color: 'from-sky-600 to-cyan-600',
+    iconBg: 'bg-sky-50 text-sky-600 border-sky-200'
+  },
+  {
+    id: 'qualidade-micro',
+    title: 'Qualidade Detalhe Micro & Prazos Vistos',
+    subtitle: 'Auditoria de Entregas & SLA',
+    url: 'https://bi.luizalabs.com/#/site/rede/views',
+    description: 'Detalhamento das ocorrências, conformidade dos prazos ofertados aos clientes e controle de pendências na malha.',
+    category: 'Qualidade Operacional',
+    badge: 'Qualidade',
+    color: 'from-emerald-600 to-teal-600',
+    iconBg: 'bg-emerald-50 text-emerald-600 border-emerald-200'
+  }
+]
 
 export const TableauIndicadoresPage: React.FC = () => {
-  const [selectedView, setSelectedView] = useState<'explorar' | 'nivel_servico'>('explorar')
-  const [iframeKey, setIframeKey] = useState(0)
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [iframeFailed, setIframeFailed] = useState(false)
-
-  const activeWebUrl = selectedView === 'explorar' ? EXPLORAR_VIEWS_URL : NIVEL_SERVICO_URL
-  const activeEmbedUrl = selectedView === 'explorar' ? EXPLORAR_VIEWS_URL : EMBED_NIVEL_SERVICO_URL
-
-  const handleRefresh = () => {
-    setIsRefreshing(true)
-    setIframeFailed(false)
-    setIframeKey(prev => prev + 1)
-    setTimeout(() => {
-      setIsRefreshing(false)
-    }, 800)
-  }
-
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen)
-  }
-
   return (
-    <div className={`space-y-4 ${isFullscreen ? 'fixed inset-0 z-50 bg-slate-900 p-4 flex flex-col' : ''}`}>
-      {/* Barra Superior com Controles e Informações */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0 shadow-2xs">
-            <BarChart2 size={22} className="text-blue-600" />
-          </div>
-          <div>
+    <div className="space-y-6 animate-in fade-in duration-200">
+      {/* Banner Principal de Boas-Vindas e Conformidade */}
+      <div className="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-xs relative overflow-hidden">
+        {/* Glow sutil de fundo */}
+        <div className="absolute -right-16 -top-16 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute right-32 -bottom-20 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-3 max-w-2xl">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 leading-tight">
-                Tableau Indicadores • BI Luizalabs (Rede)
-              </h2>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-blue-700 border border-blue-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                Tableau Server
+              <span className="px-3 py-1 rounded-full text-xs font-black bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1.5 shadow-2xs">
+                <ShieldCheck size={14} className="text-blue-600" />
+                Em Conformidade com a Política de Segurança LuizaLabs
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                Site: Rede
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Acesso aos painéis operacionais de Performance Geral, Nível de Serviço, Prazos e Expedição.
+
+            <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+              Tableau Indicadores &bull; BI Luizalabs
+            </h1>
+
+            <p className="text-xs md:text-sm text-slate-600 leading-relaxed">
+              Os painéis de Business Intelligence da companhia possuem autenticação corporativa protegida por 
+              <strong> SSO (Google Workspace)</strong> e diretivas de segurança <strong>Same-Origin</strong>. 
+              Utilize os acessos diretos abaixo para navegar com segurança, preservando suas permissões e histórico de filtros.
             </p>
           </div>
-        </div>
 
-        {/* Seleção de Exibição / Abas do BI */}
-        <div className="flex items-center gap-2 flex-wrap shrink-0">
-          <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 border border-slate-200/80">
-            <button
-              onClick={() => { setSelectedView('explorar'); setIframeFailed(false); setIframeKey(k => k + 1); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                selectedView === 'explorar'
-                  ? 'bg-white text-blue-700 shadow-2xs font-extrabold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+          <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0">
+            <a
+              href="https://bi.luizalabs.com/#/site/rede/views/NiveldeservicoDEZ2023-PILOTO/PerformanceGeral?:iid=1"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-lg shadow-blue-500/25 transition-all hover:translate-y-[-1px] cursor-pointer group"
             >
-              <Compass size={13} />
-              <span>Explorar Exibições</span>
-            </button>
+              <BarChart2 size={16} />
+              <span>Abrir Performance Geral (Tableau)</span>
+              <ArrowUpRight size={16} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+            </a>
 
-            <button
-              onClick={() => { setSelectedView('nivel_servico'); setIframeFailed(false); setIframeKey(k => k + 1); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                selectedView === 'nivel_servico'
-                  ? 'bg-white text-blue-700 shadow-2xs font-extrabold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+            <a
+              href="https://bi.luizalabs.com/#/site/rede/views"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer border border-slate-200 shadow-2xs"
             >
-              <BarChart2 size={13} />
-              <span>Nível de Serviço 1P</span>
-            </button>
-          </div>
-
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer disabled:opacity-50 shadow-2xs"
-            title="Recarregar painel Tableau"
-          >
-            <RefreshCw size={14} className={isRefreshing ? 'animate-spin text-blue-600' : ''} />
-            <span>Recarregar</span>
-          </button>
-
-          <button
-            onClick={toggleFullscreen}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-2xs"
-            title={isFullscreen ? 'Sair da tela cheia' : 'Modo tela cheia'}
-          >
-            {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-            <span>{isFullscreen ? 'Restaurar' : 'Tela Cheia'}</span>
-          </button>
-
-          <a
-            href={activeWebUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer"
-            title="Abrir no portal BI Luizalabs em uma nova aba"
-          >
-            <ExternalLink size={14} />
-            <span>Abrir no Tableau</span>
-          </a>
-        </div>
-      </div>
-
-      {/* Container Iframe com Detecção de Bloqueio e Fallback Inteligente */}
-      <div 
-        className={`w-full relative bg-slate-950 border border-slate-200 rounded-2xl overflow-hidden shadow-xs flex-1 flex flex-col ${
-          isFullscreen ? 'h-full' : 'h-[calc(100vh-210px)] min-h-[720px]'
-        }`}
-      >
-        <iframe
-          key={iframeKey}
-          src={activeEmbedUrl}
-          title="Tableau Indicadores - BI Luizalabs"
-          className="w-full flex-1 border-0 rounded-2xl bg-white"
-          allow="fullscreen; clipboard-read; clipboard-write"
-          loading="eager"
-        />
-
-        {/* Card Flutuante de Ajuda & Conexão Corporativa */}
-        <div className="absolute bottom-4 right-4 max-w-md bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl p-3.5 shadow-xl flex items-start gap-3 z-10">
-          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
-            <Lock size={16} />
-          </div>
-          <div className="flex-1 min-w-0 text-xs">
-            <div className="font-bold text-slate-800 flex items-center justify-between">
-              <span>Autenticação Tableau Server</span>
-              <a 
-                href={activeWebUrl} 
-                target="_blank" 
-                rel="noreferrer" 
-                className="text-blue-600 hover:underline flex items-center gap-1 font-semibold text-[11px]"
-              >
-                <span>Acessar Direto</span>
-                <ExternalLink size={11} />
-              </a>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-              Caso o painel exiba tela cinza, o servidor corporativo requer login prévio via SSO Magalu. Clique no botão azul <strong>"Abrir no Tableau"</strong> para logar e recarregue.
-            </p>
+              <Compass size={15} />
+              <span>Explorar Todas as Exibições</span>
+            </a>
           </div>
         </div>
       </div>
 
-      {/* Rodapé Informativo */}
-      {!isFullscreen && (
-        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs text-slate-500">
-          <div className="flex items-center gap-2">
-            <Info size={14} className="text-blue-600 shrink-0" />
-            <span>
-              URL conectada: <code className="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-700 font-mono text-[11px]">{activeWebUrl}</code>
-            </span>
+      {/* Grid de Dashboards Oficiais */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <div>
+            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+              Painéis Operacionais Disponíveis
+            </h2>
+            <p className="text-xs text-slate-500">
+              Selecione o relatório desejado para abrir diretamente na sua sessão autenticada do Tableau.
+            </p>
           </div>
-
-          <span className="font-mono text-[11px] text-slate-400 hidden sm:inline">
-            bi.luizalabs.com • Site: Rede
+          <span className="text-xs font-mono text-slate-400 font-bold hidden sm:inline">
+            bi.luizalabs.com
           </span>
         </div>
-      )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {TABLEAU_LINKS.map((link) => (
+            <div
+              key={link.id}
+              className="bg-white border border-slate-200 hover:border-blue-400 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
+            >
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 shadow-2xs ${link.iconBg}`}>
+                      <BarChart2 size={20} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                        {link.category}
+                      </span>
+                      <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight">
+                        {link.title}
+                      </h3>
+                      <p className="text-[11px] text-blue-600 font-medium">
+                        {link.subtitle}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                    {link.badge}
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {link.description}
+                </p>
+              </div>
+
+              <div className="pt-4 mt-3 border-t border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-mono">
+                  <Lock size={12} className="text-slate-400" />
+                  <span>Acesso Restrito / SSO</span>
+                </div>
+
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                >
+                  <span>Acessar Painel</span>
+                  <ExternalLink size={13} />
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Orientações sobre a Política de Segurança & Como Funciona */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-slate-50/80 border border-slate-200 rounded-2xl p-4 space-y-2">
+          <div className="flex items-center gap-2 text-slate-800 text-xs font-bold">
+            <ShieldCheck size={16} className="text-emerald-600" />
+            <span>Autenticação Centralizada (SSO)</span>
+          </div>
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            O Tableau Server utiliza a conta <strong>@magazineluiza.com.br</strong> para garantir que você visualize exatamente os dados permitidos para a sua gerência e CD.
+          </p>
+        </div>
+
+        <div className="bg-slate-50/80 border border-slate-200 rounded-2xl p-4 space-y-2">
+          <div className="flex items-center gap-2 text-slate-800 text-xs font-bold">
+            <Lock size={16} className="text-blue-600" />
+            <span>Proteção contra Clickjacking</span>
+          </div>
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            O bloqueio de iframe (cabeçalho <em>X-Frame-Options: sameorigin</em>) é uma norma rigorosa de cibersegurança que protege relatórios estratégicos contra interceptações.
+          </p>
+        </div>
+
+        <div className="bg-slate-50/80 border border-slate-200 rounded-2xl p-4 space-y-2">
+          <div className="flex items-center gap-2 text-slate-800 text-xs font-bold">
+            <Clock size={16} className="text-indigo-600" />
+            <span>Atualização em Tempo Real</span>
+          </div>
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            Ao abrir o Tableau diretamente, você tem acesso completo a todos os recursos nativos: filtros dinâmicos, alertas por e-mail e exportação em Excel ou PDF.
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
