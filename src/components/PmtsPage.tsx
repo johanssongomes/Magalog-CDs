@@ -40,12 +40,14 @@ import {
   LayoutDashboard,
   BarChart2,
   ExternalLink,
-  Maximize2
+  Maximize2,
+  Tag
 } from 'lucide-react'
 import initialColaboradoresData from '../data/initialColaboradores.json'
 import { QuadroMedioTable } from './QuadroMedioTable'
 import { PmtDailyMatrixTable } from './PmtDailyMatrixTable'
 import { BankHoursPage } from './BankHoursPage'
+import { PromocionaisTable } from './PromocionaisTable'
 import { supabase } from '../lib/supabase'
 import { getPmtSummaryFromSupabase } from '../lib/pmtService'
 
@@ -89,12 +91,12 @@ const PMT_PAGES_CONFIG: PmtPageItem[] = [
   },
   {
     id: 4,
-    label: 'Página 4',
-    title: 'Tratativa de Desvios & Reprogramação',
-    description: 'Gestão de ocorrências de transporte, reprogramação de cargas excedentes e registro de contingências.',
+    label: 'Promocionais',
+    title: 'Itens Promocionais • Aba NE/NO/CO',
+    description: 'Acompanhamento de SKUs promocionais, campanhas vigentes, datas de início e validade integrados com o Google Sheets.',
     badge: 'Módulo 04',
-    slug: 'pagina-4',
-    icon: <ShieldCheck size={18} />
+    slug: 'promocionais',
+    icon: <Tag size={18} />
   },
   {
     id: 5,
@@ -1078,7 +1080,7 @@ export const PmtsPage: React.FC = () => {
           - Botões no Quadro: "Cadastrar" e "Importar Planilha (Cadastro em Massa)", SEM o botão "Atualizar"
           - Se Outros PMTs: Filtro Ano + Mês, Atualizar e Importar PMT
           ========================================================================= */}
-      {(!isQuadro || quadroSubPage === 'pg1' || quadroSubPage === 'dashboard') && (
+      {activePageId !== 4 && (!isQuadro || quadroSubPage === 'pg1' || quadroSubPage === 'dashboard') && (
         <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
           {isQuadro ? (
           /* FILTROS ESPECÍFICOS DO QUADRO */
@@ -2027,6 +2029,9 @@ export const PmtsPage: React.FC = () => {
             </div>
           </div>
         )
+      ) : activePageId === 4 ? (
+        /* PÁGINA 4: PROMICIONAIS (CONECTADA À PLANILHA GOOGLE NA ABA NE/NO/CO) */
+        <PromocionaisTable />
       ) : (
         /* CONTEÚDO PADRÃO PARA DEMAIS SUB-PÁGINAS PMT (Expedição, Recebimento, etc.) */
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
