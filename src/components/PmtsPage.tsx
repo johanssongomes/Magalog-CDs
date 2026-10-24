@@ -49,6 +49,7 @@ import { PmtDailyMatrixTable } from './PmtDailyMatrixTable'
 import { BankHoursPage } from './BankHoursPage'
 import { PromocionaisTable } from './PromocionaisTable'
 import { TableauIndicadoresPage } from './TableauIndicadoresPage'
+import { LookerCarteiraPage } from './LookerCarteiraPage'
 import { supabase } from '../lib/supabase'
 import { getPmtSummaryFromSupabase } from '../lib/pmtService'
 
@@ -107,6 +108,15 @@ const PMT_PAGES_CONFIG: PmtPageItem[] = [
     badge: 'Módulo 05',
     slug: 'tableau-indicadores',
     icon: <BarChart2 size={18} />
+  },
+  {
+    id: 6,
+    label: 'Carteira CDs',
+    title: 'Carteira CDs • Looker Studio',
+    description: 'Painel operacional de Carteira Rodo, Currier, Prazos e Transferências integrado ao Google Looker Studio.',
+    badge: 'Módulo 06',
+    slug: 'carteira-cds',
+    icon: <Layers size={18} />
   }
 ]
 
@@ -1011,11 +1021,11 @@ export const PmtsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* =========================================================================
-          1. HEADER DA PÁGINA PMTS COM OS 5 MÓDULOS DE NAVEGAÇÃO
+          1. HEADER DA PÁGINA PMTS COM OS 6 MÓDULOS DE NAVEGAÇÃO
           ========================================================================= */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
         {/* Abas Superiores dos Módulos PMT */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           {PMT_PAGES_CONFIG.map((page) => {
             const isActive = activePageId === page.id
             return (
@@ -1081,7 +1091,7 @@ export const PmtsPage: React.FC = () => {
           - Botões no Quadro: "Cadastrar" e "Importar Planilha (Cadastro em Massa)", SEM o botão "Atualizar"
           - Se Outros PMTs: Filtro Ano + Mês, Atualizar e Importar PMT
           ========================================================================= */}
-      {activePageId !== 4 && activePageId !== 5 && (!isQuadro || quadroSubPage === 'pg1' || quadroSubPage === 'dashboard') && (
+      {activePageId !== 4 && activePageId !== 5 && activePageId !== 6 && (!isQuadro || quadroSubPage === 'pg1' || quadroSubPage === 'dashboard') && (
         <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
           {isQuadro ? (
           /* FILTROS ESPECÍFICOS DO QUADRO */
@@ -2036,6 +2046,9 @@ export const PmtsPage: React.FC = () => {
       ) : activePageId === 5 ? (
         /* PÁGINA 5: TABLEAU INDICADORES (PAINEL EMBUTIDO DO BI LUIZALABS) */
         <TableauIndicadoresPage />
+      ) : activePageId === 6 ? (
+        /* PÁGINA 6: CARTEIRA CDS (LOOKER STUDIO EMBED / PAINEL OPERACIONAL) */
+        <LookerCarteiraPage />
       ) : (
         /* CONTEÚDO PADRÃO PARA DEMAIS SUB-PÁGINAS PMT (Expedição, Recebimento, etc.) */
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
