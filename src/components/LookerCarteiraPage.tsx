@@ -153,25 +153,22 @@ export const LookerCarteiraPage: React.FC = () => {
           </div>
         )}
 
-        <div 
-          className="w-full h-full overflow-hidden origin-top-left"
+        <iframe
+          key={iframeKey}
+          src={embedUrl}
+          title="Carteira CDs - Google Looker Studio"
+          className="border-0 block"
           style={{
-            width: `${100 / (zoomLevel / 100)}%`,
-            height: `${100 / (zoomLevel / 100)}%`,
+            width: `${(100 / (zoomLevel / 100)).toFixed(2)}%`,
+            height: `${(100 / (zoomLevel / 100)).toFixed(2)}%`,
             transform: `scale(${zoomLevel / 100})`,
-            transformOrigin: '0 0'
+            transformOrigin: 'top left',
+            zoom: zoomLevel === 100 ? undefined : `${zoomLevel}%`
           }}
-        >
-          <iframe
-            key={iframeKey}
-            src={embedUrl}
-            title="Carteira CDs - Google Looker Studio"
-            className="w-full h-full border-0 block"
-            allowFullScreen
-            sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
-            onLoad={() => setIsLoading(false)}
-          />
-        </div>
+          allowFullScreen
+          sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
+          onLoad={() => setIsLoading(false)}
+        />
       </div>
     </div>
   )
