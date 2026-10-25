@@ -212,8 +212,32 @@ const defaultColaboradorForm: ColaboradorItem = {
 }
 
 export const PmtsPage: React.FC = () => {
-  const [activePageId, setActivePageId] = useState<number>(3)
+  const [activePageId, setActivePageId] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_pmt_active_page_id')
+      if (saved) {
+        const parsed = Number(saved)
+        if (!isNaN(parsed) && PMT_PAGES_CONFIG.some(p => p.id === parsed)) {
+          return parsed
+        }
+      }
+      return 3
+    } catch {
+      return 3
+    }
+  })
   const activePage = PMT_PAGES_CONFIG.find(p => p.id === activePageId) || PMT_PAGES_CONFIG[0]
+
+  // Salva o submódulo do PMT ativo no localStorage
+  useEffect(() => {
+    try {
+      if (activePageId) {
+        localStorage.setItem('magalog_pmt_active_page_id', activePageId.toString())
+      }
+    } catch {
+      // Ignora erro se indisponível
+    }
+  }, [activePageId])
 
   // Sub-página ativa do menu Quadro (Dashboard, Quadro TT, BH, Pg 3, Pg 4)
   const [quadroSubPage, setQuadroSubPage] = useState<'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4'>('dashboard')

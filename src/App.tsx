@@ -16,7 +16,25 @@ import { ShieldAlert, Loader2 } from 'lucide-react'
 
 function AppContent() {
   const { user, loading, hasPermission } = useAuth()
-  const [activeTab, setActiveTab] = useState('performance')
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_active_tab')
+      return saved || 'performance'
+    } catch {
+      return 'performance'
+    }
+  })
+
+  // Salva a aba ativa no localStorage sempre que alterada
+  useEffect(() => {
+    try {
+      if (activeTab) {
+        localStorage.setItem('magalog_active_tab', activeTab)
+      }
+    } catch {
+      // Ignora erro de storage se indisponível
+    }
+  }, [activeTab])
 
   // Se o usuário não tiver permissão para a aba atual, redireciona para a primeira aba permitida
   useEffect(() => {
