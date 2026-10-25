@@ -24,6 +24,9 @@ export const LookerCarteiraPage: React.FC = () => {
     setIframeKey(prev => prev + 1)
   }
 
+  // Estado para controle de altura ideal (Automático / 960px padrão para caber a tabela inteira com todos os CDs)
+  const [alturaCustom, setAlturaCustom] = useState<'fit' | 'expandida'>('expandida')
+
   return (
     <div className={`flex flex-col animate-in fade-in duration-200 ${
       isFullScreen 
@@ -31,7 +34,7 @@ export const LookerCarteiraPage: React.FC = () => {
         : 'w-full space-y-2'
     }`}>
       {/* Barra de Controles Compacta */}
-      <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 shadow-2xs flex items-center justify-between gap-3 shrink-0">
+      <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-2xs flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs">
             <Layers size={15} />
@@ -49,6 +52,32 @@ export const LookerCarteiraPage: React.FC = () => {
 
         {/* Botões de Ação */}
         <div className="flex items-center gap-2">
+          {/* Seletor de Altura para Visualizar Toda a Tabela Sem Barra Interna */}
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[11px] font-medium text-slate-600">
+            <button
+              onClick={() => setAlturaCustom('expandida')}
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                alturaCustom === 'expandida'
+                  ? 'bg-white text-blue-700 font-bold shadow-xs'
+                  : 'hover:text-slate-900'
+              }`}
+              title="Altura Completa: exibe todas as linhas da tabela sem barra de rolagem interna"
+            >
+              Tabela Completa (960px)
+            </button>
+            <button
+              onClick={() => setAlturaCustom('fit')}
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                alturaCustom === 'fit'
+                  ? 'bg-white text-blue-700 font-bold shadow-xs'
+                  : 'hover:text-slate-900'
+              }`}
+              title="Ajustar à Tela (calculado de acordo com a altura da janela)"
+            >
+              Ajustar à Janela
+            </button>
+          </div>
+
           <button
             onClick={handleRefresh}
             title="Recarregar dados do painel"
@@ -89,12 +118,14 @@ export const LookerCarteiraPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Container do Iframe com Altura Ajustada Exata para Eliminar Rolagem */}
+      {/* Container do Iframe com Altura Ajustada Exata para Exibir Toda a Tabela Sem Barra de Rolagem */}
       <div 
         className={`relative w-full rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs ${
           isFullScreen 
             ? 'flex-1 h-full' 
-            : 'h-[calc(100vh-175px)] min-h-[620px]'
+            : alturaCustom === 'expandida'
+              ? 'h-[960px]'
+              : 'h-[calc(100vh-175px)] min-h-[680px]'
         }`}
       >
         {isLoading && (
@@ -112,7 +143,6 @@ export const LookerCarteiraPage: React.FC = () => {
           src={embedUrl}
           title="Carteira CDs - Google Looker Studio"
           className="w-full h-full border-0 block"
-          style={{ overflow: 'hidden' }}
           allowFullScreen
           sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
           onLoad={() => setIsLoading(false)}
