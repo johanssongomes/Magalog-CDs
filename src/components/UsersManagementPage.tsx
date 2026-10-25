@@ -200,13 +200,21 @@ export const UsersManagementPage: React.FC = () => {
 
         // Atualiza os usuários da lista base (187) com dados do banco se houver
         const mergedList = initialList.map(u => {
-          const dbItem = dbMap.get(u.email?.toLowerCase())
+          // Busca no banco pelo e-mail padrão institucional ou alternativo
+          let dbItem = dbMap.get(u.email?.toLowerCase())
+          if (!dbItem && u.name) {
+            // Se o usuário logou com email pessoal/antigo (ex: johanssonmmg@gmail.com), vincula as permissões ao seu registro
+            const legacyMatch = dbData.find(d => {
+              if (d.email?.toLowerCase() === u.email?.toLowerCase()) return true
+              const match = findColaboradorInSpreadsheet(d.email, d.name)
+              return match?.id === u.id
+            })
+            if (legacyMatch) dbItem = legacyMatch
+          }
+
           if (dbItem) {
             return {
               ...u,
-              ...dbItem,
-              id: u.id, // Mantém a matrícula / ID do colaborador em vez do UUID
-              colaborador_id: u.colaborador_id || u.id,
               role: dbItem.role || u.role || u.cargo,
               cargo: u.cargo || dbItem.cargo || dbItem.role,
               allowed_pages: dbItem.allowed_pages || u.allowed_pages,
@@ -216,16 +224,22 @@ export const UsersManagementPage: React.FC = () => {
           return u
         })
 
-        // Adiciona usuários do Supabase que não estavam na lista base, resolvendo o ID da planilha
+        // Adiciona apenas usuários do Supabase que realmente não pertencem a nenhum colaborador da lista (ID único)
         dbData.forEach(d => {
-          if (!mergedList.some(m => m.email?.toLowerCase() === d.email?.toLowerCase())) {
-            const colab = findColaboradorInSpreadsheet(d.email, d.name)
-            const finalColabId = colab?.id || d.colaborador_id || d.id
-            const finalCargo = colab?.cargo || d.cargo || d.role
+          const colab = findColaboradorInSpreadsheet(d.email, d.name)
+          const targetId = colab?.id || d.colaborador_id || d.id
+          
+          // Se já existe um colaborador com esse mesmo ID ou e-mail, NÃO duplica na tabela
+          const alreadyExists = mergedList.some(m => 
+            (m.id && targetId && m.id === targetId) || 
+            (m.email?.toLowerCase() === d.email?.toLowerCase())
+          )
 
+          if (!alreadyExists) {
+            const finalCargo = colab?.cargo || d.cargo || d.role
             mergedList.unshift({
-              id: finalColabId,
-              colaborador_id: finalColabId,
+              id: targetId,
+              colaborador_id: targetId,
               email: d.email,
               name: colab?.contratado || d.name,
               role: finalCargo,
@@ -237,7 +251,7 @@ export const UsersManagementPage: React.FC = () => {
           }
         })
 
-        // Ordena por nome do colaborador para visualização limpa
+        // Ordena alfabeticamente pelo nome para exibição impecável
         mergedList.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
 
         setUsers(mergedList)
