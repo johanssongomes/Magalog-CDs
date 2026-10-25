@@ -24,24 +24,8 @@ export const LookerCarteiraPage: React.FC = () => {
     setIframeKey(prev => prev + 1)
   }
 
-  // Controle de Zoom/Escala real (100%, 85%, 75%, 65%)
-  const [zoomLevel, setZoomLevel] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('magalog_looker_zoom')
-      return saved ? Number(saved) : 80
-    } catch {
-      return 80
-    }
-  })
-
-  const handleZoomChange = (zoom: number) => {
-    setZoomLevel(zoom)
-    try {
-      localStorage.setItem('magalog_looker_zoom', zoom.toString())
-    } catch {
-      // Ignora erro de storage
-    }
-  }
+  // Controle de modo de visualização (Padrão ou Expandido para ver toda a tabela)
+  const [alturaModo, setAlturaModo] = useState<'ajustada' | 'completa'>('completa')
 
   return (
     <div className={`flex flex-col animate-in fade-in duration-200 ${
@@ -67,32 +51,31 @@ export const LookerCarteiraPage: React.FC = () => {
         </div>
 
         {/* Botões de Ação */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Seletor de Zoom Real do Painel */}
-          <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200 text-xs">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mr-1">
-              Zoom:
-            </span>
-            {[
-              { label: '65%', val: 65 },
-              { label: '75%', val: 75 },
-              { label: '80% (Ideal)', val: 80 },
-              { label: '90%', val: 90 },
-              { label: '100%', val: 100 }
-            ].map((item) => (
-              <button
-                key={item.val}
-                onClick={() => handleZoomChange(item.val)}
-                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all cursor-pointer ${
-                  zoomLevel === item.val
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-blue-700 hover:bg-white'
-                }`}
-                title={`Ajustar visualização para ${item.label}`}
-              >
-                {item.label}
-              </button>
-            ))}
+        <div className="flex items-center gap-2">
+          {/* Alternador de Enquadramento */}
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+            <button
+              onClick={() => setAlturaModo('completa')}
+              className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                alturaModo === 'completa'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-blue-700'
+              }`}
+              title="Exibe todo o relatório e a tabela de uma vez sem barra interna"
+            >
+              Ver Tabela Inteira (Sem corte)
+            </button>
+            <button
+              onClick={() => setAlturaModo('ajustada')}
+              className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                alturaModo === 'ajustada'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-blue-700'
+              }`}
+              title="Ajusta o container exatamente à altura visível da janela"
+            >
+              Ajustar à Janela
+            </button>
           </div>
 
           <button
@@ -135,12 +118,14 @@ export const LookerCarteiraPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Container com Escala CSS para o Iframe caber perfeitamente sem barra de rolagem */}
+      {/* Container com Proporção Natural sem deformação do menu lateral */}
       <div 
         className={`relative w-full rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs ${
           isFullScreen 
             ? 'flex-1 h-full' 
-            : 'h-[calc(100vh-175px)] min-h-[620px]'
+            : alturaModo === 'completa'
+              ? 'h-[1050px]'
+              : 'h-[calc(100vh-175px)] min-h-[650px]'
         }`}
       >
         {isLoading && (
@@ -157,14 +142,7 @@ export const LookerCarteiraPage: React.FC = () => {
           key={iframeKey}
           src={embedUrl}
           title="Carteira CDs - Google Looker Studio"
-          className="border-0 block"
-          style={{
-            width: `${(100 / (zoomLevel / 100)).toFixed(2)}%`,
-            height: `${(100 / (zoomLevel / 100)).toFixed(2)}%`,
-            transform: `scale(${zoomLevel / 100})`,
-            transformOrigin: 'top left',
-            zoom: zoomLevel === 100 ? undefined : `${zoomLevel}%`
-          }}
+          className="w-full h-full border-0 block"
           allowFullScreen
           sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
           onLoad={() => setIsLoading(false)}
