@@ -68,7 +68,7 @@ function AppContent() {
   }, [])
 
   // Função para navegar a partir do Command Palette
-  const handleNavigate = (tabId: string, pmtPageId?: number) => {
+  const handleNavigate = (tabId: string, pmtPageId?: number, quadroSubPage?: 'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4') => {
     if (pmtPageId !== undefined) {
       try {
         localStorage.setItem('magalog_pmt_active_page_id', pmtPageId.toString())
@@ -78,6 +78,17 @@ function AppContent() {
       // Notifica componentes que o PMT subpage mudou
       window.dispatchEvent(new CustomEvent('magalog_change_pmt_page', { detail: pmtPageId }))
     }
+
+    if (quadroSubPage !== undefined) {
+      try {
+        localStorage.setItem('magalog_quadro_subpage', quadroSubPage)
+      } catch {
+        // Ignora
+      }
+      // Notifica componentes que a sub-aba do quadro mudou
+      window.dispatchEvent(new CustomEvent('magalog_change_quadro_subpage', { detail: quadroSubPage }))
+    }
+
     setActiveTab(tabId)
   }
 

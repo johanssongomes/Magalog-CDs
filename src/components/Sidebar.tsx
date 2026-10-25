@@ -190,27 +190,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </div>
 
-      {/* Botão de Busca Rápida no topo da barra (Ctrl+L) */}
-      {onOpenSearch && (
-        <div className="px-3 pt-3">
-          <button
-            onClick={onOpenSearch}
-            title="Busca rápida de páginas (Ctrl + L)"
-            className={`w-full flex items-center ${isCollapsed ? 'justify-center p-2.5' : 'justify-between px-3 py-2'} rounded-xl bg-slate-800/70 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 transition-all text-xs font-medium cursor-pointer shadow-xs group`}
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-cyan-400 group-hover:scale-110 transition-transform">🔍</span>
-              {!isCollapsed && <span className="text-[11px] font-semibold text-slate-300">Buscar página...</span>}
-            </div>
-            {!isCollapsed && (
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-900/80 border border-slate-700 text-[10px] font-mono text-cyan-300 font-bold shadow-2xs">
-                Ctrl+L
-              </kbd>
-            )}
-          </button>
-        </div>
-      )}
-
       {/* Navigation */}
       <nav className="flex-1 px-3 py-3 space-y-1.5 overflow-y-auto">
         {!isCollapsed && (

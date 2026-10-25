@@ -253,7 +253,39 @@ export const PmtsPage: React.FC = () => {
   }, [])
 
   // Sub-página ativa do menu Quadro (Dashboard, Quadro TT, BH, Pg 3, Pg 4)
-  const [quadroSubPage, setQuadroSubPage] = useState<'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4'>('dashboard')
+  const [quadroSubPage, setQuadroSubPage] = useState<'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4'>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_quadro_subpage') as any
+      if (['dashboard', 'pg1', 'pg2', 'pg3', 'pg4'].includes(saved)) {
+        return saved
+      }
+      return 'dashboard'
+    } catch {
+      return 'dashboard'
+    }
+  })
+
+  // Salva quadroSubPage no localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('magalog_quadro_subpage', quadroSubPage)
+    } catch {
+      // Ignora
+    }
+  }, [quadroSubPage])
+
+  // Escuta troca de sub-aba do Quadro disparada pelo Command Palette (Ctrl + L)
+  useEffect(() => {
+    const handleQuadroSubPageChange = (e: Event) => {
+      const customEvent = e as CustomEvent<'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4'>
+      if (customEvent.detail && ['dashboard', 'pg1', 'pg2', 'pg3', 'pg4'].includes(customEvent.detail)) {
+        setQuadroSubPage(customEvent.detail)
+      }
+    }
+
+    window.addEventListener('magalog_change_quadro_subpage', handleQuadroSubPageChange)
+    return () => window.removeEventListener('magalog_change_quadro_subpage', handleQuadroSubPageChange)
+  }, [])
 
   // Filtros contextuais do Quadro (Múltipla Seleção)
   const [filtrosCargo, setFiltrosCargo] = useState<string[]>([])

@@ -30,6 +30,7 @@ export interface NavigationTarget {
   category: string
   tabId: string
   pmtPageId?: number
+  quadroSubPage?: 'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4'
   icon: React.ReactNode
   keywords: string[]
 }
@@ -182,14 +183,37 @@ const ALL_NAVIGATION_TARGETS: NavigationTarget[] = [
 
   // Sub-abas específicas do Quadro
   {
+    id: 'sub-quadro-dashboard',
+    title: 'Quadro • Dashboard Geral',
+    subtitle: 'Métricas de Headcount, Lotação por Cargo e Centros de Custo',
+    category: 'Quadro • Sub-abas',
+    tabId: 'pmts',
+    pmtPageId: 3,
+    quadroSubPage: 'dashboard',
+    icon: <Target size={18} className="text-purple-600" />,
+    keywords: ['quadro dashboard', 'headcount', 'efetivo', 'cargos', 'centros de custo']
+  },
+  {
     id: 'sub-quadro-tt',
     title: 'Quadro TT (Base Completa & Cadastro)',
     subtitle: 'Lista individual de colaboradores, filtros avançados e importação em massa',
     category: 'Quadro • Sub-abas',
     tabId: 'pmts',
     pmtPageId: 3,
+    quadroSubPage: 'pg1',
     icon: <Users size={18} className="text-pink-600" />,
-    keywords: ['quadro tt', 'base completa', 'cadastro', 'importar colaboradores', 'efetivo tt']
+    keywords: ['quadro tt', 'base completa', 'cadastro', 'importar colaboradores', 'efetivo tt', 'colaboradores']
+  },
+  {
+    id: 'sub-quadro-bh',
+    title: 'Banco de Horas (No Quadro)',
+    subtitle: 'Apontamentos e horas extras da equipe do Quadro',
+    category: 'Quadro • Sub-abas',
+    tabId: 'pmts',
+    pmtPageId: 3,
+    quadroSubPage: 'pg2',
+    icon: <Clock size={18} className="text-indigo-600" />,
+    keywords: ['banco de horas quadro', 'bh quadro', 'horas quadro']
   },
   {
     id: 'sub-quadro-padu',
@@ -198,6 +222,7 @@ const ALL_NAVIGATION_TARGETS: NavigationTarget[] = [
     category: 'Quadro • Sub-abas',
     tabId: 'pmts',
     pmtPageId: 3,
+    quadroSubPage: 'pg3',
     icon: <LayoutDashboard size={18} className="text-emerald-600" />,
     keywords: ['padu', 'controle padu', 'recrutamento', 'selecao', 'vagas']
   },
@@ -208,6 +233,7 @@ const ALL_NAVIGATION_TARGETS: NavigationTarget[] = [
     category: 'Quadro • Sub-abas',
     tabId: 'pmts',
     pmtPageId: 3,
+    quadroSubPage: 'pg4',
     icon: <BarChart3 size={18} className="text-amber-600" />,
     keywords: ['quadro medio', 'grade', 'dimensionamento', 'media turno']
   }
@@ -216,7 +242,7 @@ const ALL_NAVIGATION_TARGETS: NavigationTarget[] = [
 interface CommandPaletteModalProps {
   isOpen: boolean
   onClose: () => void
-  onNavigate: (tabId: string, pmtPageId?: number) => void
+  onNavigate: (tabId: string, pmtPageId?: number, quadroSubPage?: 'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4') => void
   hasPermission: (tabId: string) => boolean
 }
 
@@ -280,7 +306,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         e.preventDefault()
         if (filteredTargets[selectedIndex]) {
           const target = filteredTargets[selectedIndex]
-          onNavigate(target.tabId, target.pmtPageId)
+          onNavigate(target.tabId, target.pmtPageId, target.quadroSubPage)
           onClose()
         }
       } else if (e.key === 'Escape') {
@@ -346,7 +372,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                 <button
                   key={item.id}
                   onClick={() => {
-                    onNavigate(item.tabId, item.pmtPageId)
+                    onNavigate(item.tabId, item.pmtPageId, item.quadroSubPage)
                     onClose()
                   }}
                   onMouseEnter={() => setSelectedIndex(idx)}
