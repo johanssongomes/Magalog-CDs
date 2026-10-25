@@ -141,3 +141,10 @@ values
   ('Treinamento Operacional: Boas Práticas de Movimentação', 'Treinamentos', 'Capacitação prática sobre manuseio seguro de transpaleteiras e empilhadeiras no CD 994.', (current_date + interval '2 day')::date, '09:00', '11:30', 'Auditório de Treinamento', 'RH & Treinamento', 'Operadores de Empilhadeira e Auxiliares', 'Coordenação Operacional', 'Confirmado'),
   ('Campanha Black Friday 2026: Alinhamento de Pico', 'Campanhas operacionais', 'Preparação estratégica de efetivo, rotas especiais e dimensionamento de expedição.', (current_date + interval '5 day')::date, '15:00', '17:00', 'Sala Principal & Transmissão', 'Diretoria de Operações', 'Liderança e Supervisores', 'Gerente do CD', 'Planejado')
 on conflict do nothing;
+
+-- 8. Ativar Realtime nas tabelas para sincronização em tempo real entre todos os usuários
+alter publication supabase_realtime add table corporate_meetings;
+alter publication supabase_realtime add table corporate_meeting_minutes;
+alter publication supabase_realtime add table corporate_action_plans;
+alter publication supabase_realtime add table corporate_events;
+

@@ -147,6 +147,79 @@ export const CorporateAgendaPage: React.FC = () => {
 
   useEffect(() => {
     loadAllData()
+
+    // Inscrição em TEMPO REAL no Supabase (Atualização instantânea entre múltiplos usuários)
+    const channel = supabase
+      .channel('corporate_agenda_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'corporate_action_plans' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setActions(prev => {
+              if (prev.some(a => a.id === payload.new.id)) return prev
+              return [...prev, payload.new as ActionPlan]
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            setActions(prev => prev.map(a => a.id === payload.new.id ? (payload.new as ActionPlan) : a))
+          } else if (payload.eventType === 'DELETE') {
+            setActions(prev => prev.filter(a => a.id !== payload.old.id))
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'corporate_meetings' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setMeetings(prev => {
+              if (prev.some(m => m.id === payload.new.id)) return prev
+              return [...prev, payload.new as Meeting]
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            setMeetings(prev => prev.map(m => m.id === payload.new.id ? (payload.new as Meeting) : m))
+          } else if (payload.eventType === 'DELETE') {
+            setMeetings(prev => prev.filter(m => m.id !== payload.old.id))
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'corporate_meeting_minutes' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setMinutes(prev => {
+              if (prev.some(min => min.id === payload.new.id)) return prev
+              return [...prev, payload.new as MeetingMinute]
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            setMinutes(prev => prev.map(min => min.id === payload.new.id ? (payload.new as MeetingMinute) : min))
+          } else if (payload.eventType === 'DELETE') {
+            setMinutes(prev => prev.filter(min => min.id !== payload.old.id))
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'corporate_events' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setEvents(prev => {
+              if (prev.some(e => e.id === payload.new.id)) return prev
+              return [...prev, payload.new as CorporateEvent]
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            setEvents(prev => prev.map(e => e.id === payload.new.id ? (payload.new as CorporateEvent) : e))
+          } else if (payload.eventType === 'DELETE') {
+            setEvents(prev => prev.filter(e => e.id !== payload.old.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   // =========================================================================
