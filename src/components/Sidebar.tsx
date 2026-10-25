@@ -18,7 +18,8 @@ import {
   LogOut,
   DollarSign,
   Radio,
-  Activity
+  Activity,
+  CalendarDays
 } from 'lucide-react'
 import { useAuth } from '../lib/authContext'
 import { OnlineUsersModal } from './OnlineUsersModal'
@@ -64,6 +65,12 @@ export const navItems: NavItem[] = [
     label: 'Gestão 360°',
     description: 'Gestão e Acompanhamento de PMTs e Indicadores 360°',
     icon: <BarChart3 size={20} />
+  },
+  {
+    id: 'agenda',
+    label: 'Agenda Corporativa',
+    description: 'Gestão de reuniões, atas, eventos e planos de ação',
+    icon: <CalendarDays size={20} />
   },
   {
     id: 'budget',

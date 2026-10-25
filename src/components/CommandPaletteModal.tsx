@@ -20,7 +20,8 @@ import {
   X, 
   Command, 
   CornerDownLeft,
-  ChevronRight
+  ChevronRight,
+  CalendarDays
 } from 'lucide-react'
 
 export interface NavigationTarget {
@@ -72,6 +73,15 @@ const ALL_NAVIGATION_TARGETS: NavigationTarget[] = [
     tabId: 'pmts',
     icon: <BarChart3 size={18} className="text-indigo-500" />,
     keywords: ['gestao 360', 'pmt', 'pmts', 'transporte', 'metas', 'operacao']
+  },
+  {
+    id: 'nav-agenda',
+    title: 'Agenda Corporativa',
+    subtitle: 'Gestão de reuniões, atas (ATAs), eventos e planos de ação',
+    category: 'Módulos Principais',
+    tabId: 'agenda',
+    icon: <CalendarDays size={18} className="text-blue-600" />,
+    keywords: ['agenda', 'agenda corporativa', 'reunioes', 'atas', 'ata', 'eventos', 'planos de acao', 'pendencias', 'calendario']
   },
   {
     id: 'nav-budget',
