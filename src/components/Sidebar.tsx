@@ -153,7 +153,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [visibleNavItems, activeTab, setActiveTab])
 
   return (
-    <aside className={`${isCollapsed ? 'w-20' : 'w-80'} bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0 shrink-0 transition-all duration-300 z-30 relative`}>
+    <aside className={`${isCollapsed ? 'w-20' : 'w-80'} bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0 shrink-0 transition-all duration-300 z-40 relative`}>
       {/* Faixa decorativa em gradiente colorido na lateral esquerda */}
       <div 
         className="absolute top-0 left-0 bottom-0 w-[4px] pointer-events-none z-10 bg-gradient-to-b from-[#00ff66] via-[#00f2fe] via-[#0066ff] via-[#7b2cbf] to-[#d900ff] shadow-[0_0_12px_rgba(0,242,254,0.4)]" 

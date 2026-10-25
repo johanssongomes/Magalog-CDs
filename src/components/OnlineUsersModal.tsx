@@ -88,7 +88,7 @@ export const OnlineUsersModal: React.FC<OnlineUsersModalProps> = ({ isOpen, onCl
       }] : [])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
         ref={modalRef}
         className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200"
@@ -184,13 +184,13 @@ export const OnlineUsersModal: React.FC<OnlineUsersModalProps> = ({ isOpen, onCl
                           </span>
                         )}
                         <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded ${
-                          onlineUser.role === 'admin'
+                          (onlineUser.cargo || onlineUser.role || '').toLowerCase().includes('admin')
                             ? 'bg-purple-900/60 text-purple-300 border border-purple-500/30'
-                            : onlineUser.role === 'gerente'
+                            : (onlineUser.cargo || onlineUser.role || '').toLowerCase().includes('gerente')
                             ? 'bg-cyan-900/60 text-cyan-300 border border-cyan-500/30'
                             : 'bg-slate-800 text-slate-300 border border-slate-700'
                         }`}>
-                          {onlineUser.role}
+                          {onlineUser.cargo || onlineUser.role}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 truncate mt-0.5">

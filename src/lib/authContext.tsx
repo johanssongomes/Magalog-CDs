@@ -104,6 +104,7 @@ export interface OnlineUser {
   name: string
   email: string
   role: UserRole
+  cargo?: string
   logged_at: string
   online_at: string
 }
@@ -364,11 +365,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const presences = state[key] as any[]
         if (presences && presences.length > 0) {
           const latest = presences[presences.length - 1]
+          const colabInfo = (initialColaboradores as any[]).find(c => 
+            (c.login && (latest.email || key).toLowerCase().includes(c.login.toLowerCase())) ||
+            (c.contratado && latest.name && c.contratado.toLowerCase() === latest.name.toLowerCase())
+          )
           list.push({
             id: latest.id || key,
             name: latest.name || key.split('@')[0],
             email: latest.email || key,
             role: latest.role || 'colaborador',
+            cargo: latest.cargo || colabInfo?.cargo || latest.role || 'colaborador',
             logged_at: latest.logged_at || latest.online_at || new Date().toISOString(),
             online_at: latest.online_at || new Date().toISOString()
           })
@@ -397,6 +403,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             name: user.name,
             email: user.email.toLowerCase(),
             role: user.role,
+            cargo: user.cargo || user.role,
             logged_at: loginTime,
             online_at: new Date().toISOString()
           })
@@ -406,7 +413,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       supabase.removeChannel(presenceChannel)
     }
-  }, [user?.email, user?.name, user?.role, user?.id])
+  }, [user?.email, user?.name, user?.role, user?.cargo, user?.id])
 
   const login = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
