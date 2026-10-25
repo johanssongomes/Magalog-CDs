@@ -53,12 +53,23 @@ import {
   type CorporateEvent
 } from '../lib/agendaService'
 import { useAuth } from '../lib/authContext'
+import { supabase } from '../lib/supabase'
 
 type AgendaTab = 'overview' | 'calendar' | 'meetings' | 'minutes' | 'actions' | 'events'
+
+interface SystemUserOption {
+  id: string
+  name: string
+  email: string
+  role?: string
+}
 
 export const CorporateAgendaPage: React.FC = () => {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<AgendaTab>('overview')
+
+  // Lista de usuários cadastrados no sistema (Supabase app_users)
+  const [registeredUsers, setRegisteredUsers] = useState<SystemUserOption[]>([])
 
   // Estados principais
   const [meetings, setMeetings] = useState<Meeting[]>([])
@@ -97,20 +108,35 @@ export const CorporateAgendaPage: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500)
   }
 
-  // Carregar todos os dados
+  // Carregar todos os dados (incluindo usuários cadastrados no sistema)
   const loadAllData = async () => {
     setLoading(true)
     try {
-      const [m, min, a, e] = await Promise.all([
+      const [m, min, a, e, usersRes] = await Promise.all([
         fetchMeetings(),
         fetchMeetingMinutes(),
         fetchActionPlans(),
-        fetchCorporateEvents()
+        fetchCorporateEvents(),
+        supabase.from('app_users').select('id, name, email, role').order('name', { ascending: true })
       ])
       setMeetings(m)
       setMinutes(min)
       setActions(a)
       setEvents(e)
+
+      if (usersRes.data && usersRes.data.length > 0) {
+        setRegisteredUsers(usersRes.data)
+      } else {
+        // Fallback para usuários cadastrados offline ou mock inicial
+        const fallbackUsers: SystemUserOption[] = [
+          { id: '1', name: 'Johansson Gomes', email: 'johansson@magalog.com.br', role: 'admin' },
+          { id: '2', name: 'Gestor Operacional CD 994', email: 'gestor@magalog.com.br', role: 'gerente' },
+          { id: '3', name: 'Supervisor de Logística', email: 'supervisor@magalog.com.br', role: 'colaborador' },
+          { id: '4', name: 'Líder de Expedição', email: 'expedicao@magalog.com.br', role: 'colaborador' },
+          { id: '5', name: 'Analista de Qualidade & Inventário', email: 'qualidade@magalog.com.br', role: 'colaborador' }
+        ]
+        setRegisteredUsers(fallbackUsers)
+      }
     } catch (err) {
       console.error('Erro ao carregar dados da agenda:', err)
       showToast('Erro ao carregar alguns dados da agenda corporativa', 'error')
@@ -1499,14 +1525,68 @@ export const CorporateAgendaPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700">Participantes (separados por vírgula)</label>
-                <input
-                  type="text"
-                  value={editingMeeting.participants?.join(', ') || ''}
-                  onChange={e => setEditingMeeting({ ...editingMeeting, participants: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-                  placeholder="Ex: Johansson, Supervisores, Qualidade"
-                  className="w-full mt-1 p-2.5 rounded-xl border border-slate-200 outline-none focus:border-blue-600 text-slate-800"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-700 flex items-center gap-1.5">
+                    <Users size={14} className="text-blue-600" />
+                    Participantes da Reunião
+                  </label>
+                  <span className="text-[10px] text-slate-400">Clique para selecionar do sistema</span>
+                </div>
+                
+                {/* Seleção rápida de usuários cadastrados */}
+                <div className="mt-1.5 p-2 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                  <p className="text-[11px] font-semibold text-slate-500">Usuários cadastrados no sistema:</p>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                    {registeredUsers.map(u => {
+                      const isSelected = editingMeeting.participants?.includes(u.name)
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => {
+                            const current = editingMeeting.participants || []
+                            if (isSelected) {
+                              setEditingMeeting({
+                                ...editingMeeting,
+                                participants: current.filter(p => p !== u.name)
+                              })
+                            } else {
+                              setEditingMeeting({
+                                ...editingMeeting,
+                                participants: [...current, u.name]
+                              })
+                            }
+                          }}
+                          className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1 cursor-pointer ${
+                            isSelected 
+                              ? 'bg-blue-600 text-white shadow-xs' 
+                              : 'bg-white border border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50/50'
+                          }`}
+                        >
+                          {isSelected ? <Check size={12} /> : <Plus size={12} className="text-slate-400" />}
+                          <span>{u.name}</span>
+                          {u.role && (
+                            <span className={`text-[9px] px-1 py-0.2 rounded font-normal uppercase ${isSelected ? 'bg-blue-700 text-blue-100' : 'bg-slate-100 text-slate-500'}`}>
+                              {u.role}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Input livre para participantes externos ou customizados */}
+                <div className="mt-2">
+                  <label className="text-[11px] font-medium text-slate-500">Lista final de participantes (ou digite outros separados por vírgula):</label>
+                  <input
+                    type="text"
+                    value={editingMeeting.participants?.join(', ') || ''}
+                    onChange={e => setEditingMeeting({ ...editingMeeting, participants: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                    placeholder="Ex: Johansson Gomes, Supervisores, Qualidade, Visitante Externo"
+                    className="w-full mt-0.5 p-2.5 rounded-xl border border-slate-200 outline-none focus:border-blue-600 text-slate-800 text-xs"
+                  />
+                </div>
               </div>
 
               <div>
@@ -1536,12 +1616,21 @@ export const CorporateAgendaPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="font-bold text-slate-700">Organizador</label>
-                  <input
-                    type="text"
+                  <select
                     value={editingMeeting.organizer || user?.name || ''}
                     onChange={e => setEditingMeeting({ ...editingMeeting, organizer: e.target.value })}
-                    className="w-full mt-1 p-2.5 rounded-xl border border-slate-200 outline-none focus:border-blue-600 text-slate-800"
-                  />
+                    className="w-full mt-1 p-2.5 rounded-xl border border-slate-200 outline-none focus:border-blue-600 text-slate-800 font-medium"
+                  >
+                    <option value="">Selecione um organizador...</option>
+                    {registeredUsers.map(u => (
+                      <option key={u.id} value={u.name}>
+                        {u.name} ({u.role || 'usuário'})
+                      </option>
+                    ))}
+                    {editingMeeting.organizer && !registeredUsers.some(u => u.name === editingMeeting.organizer) && (
+                      <option value={editingMeeting.organizer}>{editingMeeting.organizer}</option>
+                    )}
+                  </select>
                 </div>
               </div>
 
@@ -1618,14 +1707,67 @@ export const CorporateAgendaPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700">Participantes Presentes (separados por vírgula)</label>
-                <input
-                  type="text"
-                  value={editingMinute.present_participants?.join(', ') || ''}
-                  onChange={e => setEditingMinute({ ...editingMinute, present_participants: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-                  placeholder="Ex: Johansson, Carlos, Mariana"
-                  className="w-full mt-1 p-2.5 rounded-xl border border-slate-200 outline-none focus:border-blue-600 text-slate-800"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-700 flex items-center gap-1.5">
+                    <Users size={14} className="text-blue-600" />
+                    Participantes Presentes na ATA
+                  </label>
+                  <span className="text-[10px] text-slate-400">Clique para selecionar do sistema</span>
+                </div>
+                
+                {/* Seleção rápida de usuários cadastrados */}
+                <div className="mt-1.5 p-2 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                  <p className="text-[11px] font-semibold text-slate-500">Usuários cadastrados no sistema:</p>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                    {registeredUsers.map(u => {
+                      const isSelected = editingMinute.present_participants?.includes(u.name)
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => {
+                            const current = editingMinute.present_participants || []
+                            if (isSelected) {
+                              setEditingMinute({
+                                ...editingMinute,
+                                present_participants: current.filter(p => p !== u.name)
+                              })
+                            } else {
+                              setEditingMinute({
+                                ...editingMinute,
+                                present_participants: [...current, u.name]
+                              })
+                            }
+                          }}
+                          className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1 cursor-pointer ${
+                            isSelected 
+                              ? 'bg-blue-600 text-white shadow-xs' 
+                              : 'bg-white border border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50/50'
+                          }`}
+                        >
+                          {isSelected ? <Check size={12} /> : <Plus size={12} className="text-slate-400" />}
+                          <span>{u.name}</span>
+                          {u.role && (
+                            <span className={`text-[9px] px-1 py-0.2 rounded font-normal uppercase ${isSelected ? 'bg-blue-700 text-blue-100' : 'bg-slate-100 text-slate-500'}`}>
+                              {u.role}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="mt-2">
+                  <label className="text-[11px] font-medium text-slate-500">Lista final de presentes (ou digite outros separados por vírgula):</label>
+                  <input
+                    type="text"
+                    value={editingMinute.present_participants?.join(', ') || ''}
+                    onChange={e => setEditingMinute({ ...editingMinute, present_participants: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                    placeholder="Ex: Johansson Gomes, Carlos, Mariana"
+                    className="w-full mt-0.5 p-2.5 rounded-xl border border-slate-200 outline-none focus:border-blue-600 text-slate-800 text-xs"
+                  />
+                </div>
               </div>
 
               <div>
@@ -1797,14 +1939,22 @@ export const CorporateAgendaPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-bold text-slate-700">Responsável *</label>
-                  <input
-                    type="text"
+                  <select
                     required
                     value={editingAction.assignee || ''}
                     onChange={e => setEditingAction({ ...editingAction, assignee: e.target.value })}
-                    placeholder="Nome do responsável"
-                    className="w-full mt-1 p-2.5 rounded-xl border border-slate-200 outline-none focus:border-blue-600 text-slate-800"
-                  />
+                    className="w-full mt-1 p-2.5 rounded-xl border border-slate-200 outline-none focus:border-blue-600 text-slate-800 font-medium"
+                  >
+                    <option value="">Selecione o responsável...</option>
+                    {registeredUsers.map(u => (
+                      <option key={u.id} value={u.name}>
+                        {u.name} ({u.role || 'usuário'})
+                      </option>
+                    ))}
+                    {editingAction.assignee && !registeredUsers.some(u => u.name === editingAction.assignee) && (
+                      <option value={editingAction.assignee}>{editingAction.assignee}</option>
+                    )}
+                  </select>
                 </div>
                 <div>
                   <label className="font-bold text-slate-700">Área Responsável</label>
