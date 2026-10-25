@@ -239,6 +239,19 @@ export const PmtsPage: React.FC = () => {
     }
   }, [activePageId])
 
+  // Escuta troca de página disparada pelo Command Palette (Ctrl + L)
+  useEffect(() => {
+    const handleCustomChange = (e: Event) => {
+      const customEvent = e as CustomEvent<number>
+      if (customEvent.detail && PMT_PAGES_CONFIG.some(p => p.id === customEvent.detail)) {
+        setActivePageId(customEvent.detail)
+      }
+    }
+
+    window.addEventListener('magalog_change_pmt_page', handleCustomChange)
+    return () => window.removeEventListener('magalog_change_pmt_page', handleCustomChange)
+  }, [])
+
   // Sub-página ativa do menu Quadro (Dashboard, Quadro TT, BH, Pg 3, Pg 4)
   const [quadroSubPage, setQuadroSubPage] = useState<'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4'>('dashboard')
 

@@ -13,6 +13,7 @@ import { LinksPage } from './components/LinksPage'
 import { LoginPage } from './components/LoginPage'
 import { AuthProvider, useAuth } from './lib/authContext'
 import { ShieldAlert, Loader2 } from 'lucide-react'
+import { CommandPaletteModal } from './components/CommandPaletteModal'
 
 function AppContent() {
   const { user, loading, hasPermission } = useAuth()
@@ -24,6 +25,61 @@ function AppContent() {
       return 'performance'
     }
   })
+
+  // Estado da barra lateral minimizada (com suporte a atalho de teclado)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('magalog_sidebar_collapsed') === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  // Estado do modal de pesquisa rápida (Ctrl+L)
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
+
+  // Salva o estado da barra lateral no localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('magalog_sidebar_collapsed', isSidebarCollapsed ? 'true' : 'false')
+    } catch {
+      // Ignora erro de storage
+    }
+  }, [isSidebarCollapsed])
+
+  // Listener Global de Atalhos de Teclado (Ctrl + L e Ctrl + B / Cmd + L e Cmd + B)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+L ou Cmd+L: Abre a busca rápida de navegação
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'L')) {
+        e.preventDefault()
+        setIsCommandPaletteOpen(prev => !prev)
+      }
+
+      // Ctrl+B ou Cmd+B: Minimiza/Expande a barra lateral
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault()
+        setIsSidebarCollapsed(prev => !prev)
+      }
+    }
+
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [])
+
+  // Função para navegar a partir do Command Palette
+  const handleNavigate = (tabId: string, pmtPageId?: number) => {
+    if (pmtPageId !== undefined) {
+      try {
+        localStorage.setItem('magalog_pmt_active_page_id', pmtPageId.toString())
+      } catch {
+        // Ignora
+      }
+      // Notifica componentes que o PMT subpage mudou
+      window.dispatchEvent(new CustomEvent('magalog_change_pmt_page', { detail: pmtPageId }))
+    }
+    setActiveTab(tabId)
+  }
 
   // Salva a aba ativa no localStorage sempre que alterada
   useEffect(() => {
@@ -63,12 +119,21 @@ function AppContent() {
 
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900 font-sans notranslate" translate="no">
-      {/* Menu Lateral */}
+      {/* Menu Lateral com Suporte a Minimizar (Ctrl+B) e Busca (Ctrl+L) */}
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
-        isOpen={true} 
-        setIsOpen={() => {}} 
+        isCollapsed={isSidebarCollapsed}
+        setIsCollapsed={setIsSidebarCollapsed}
+        onOpenSearch={() => setIsCommandPaletteOpen(true)}
+      />
+
+      {/* Modal de Navegação Rápida (Command Palette - Ctrl + L) */}
+      <CommandPaletteModal
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onNavigate={handleNavigate}
+        hasPermission={hasPermission}
       />
 
       {/* Conteúdo Principal */}
