@@ -122,17 +122,17 @@ const ALL_NAVIGATION_TARGETS: NavigationTarget[] = [
   {
     id: 'sub-pmt-expedicao',
     title: 'PMT Expedição',
-    subtitle: 'Metas de expedição, janelas de carregamento e saídas',
+    subtitle: 'Metas de transporte para expedição, janelas de carregamento e volumetria',
     category: 'Gestão 360° • Sub-páginas',
     tabId: 'pmts',
     pmtPageId: 1,
     icon: <Truck size={18} className="text-blue-600" />,
-    keywords: ['pmt expedicao', 'expedicao', 'carregamento', 'saidas', 'carretas']
+    keywords: ['pmt expedicao', 'expedicao', 'carregamento', 'saidas', 'carretas', 'viagens']
   },
   {
     id: 'sub-pmt-recebimento',
     title: 'PMT Recebimento',
-    subtitle: 'Metas de descarregamento e volumetria de entrada',
+    subtitle: 'Metas de descarregamento, recebimento e volumetria de entrada',
     category: 'Gestão 360° • Sub-páginas',
     tabId: 'pmts',
     pmtPageId: 2,
@@ -142,42 +142,74 @@ const ALL_NAVIGATION_TARGETS: NavigationTarget[] = [
   {
     id: 'sub-pmt-quadro',
     title: 'Quadro de Colaboradores',
-    subtitle: 'Gestão de efetivo, headcount por cargo e centros de custo',
+    subtitle: 'Dashboard de headcount, lotação por cargo e centros de custo',
     category: 'Gestão 360° • Sub-páginas',
     tabId: 'pmts',
     pmtPageId: 3,
     icon: <Target size={18} className="text-purple-600" />,
-    keywords: ['quadro', 'colaboradores', 'efetivo', 'headcount', 'rh', 'pessoas', 'equipe']
+    keywords: ['quadro', 'colaboradores', 'efetivo', 'headcount', 'rh', 'pessoas', 'equipe', 'turnover']
   },
   {
     id: 'sub-pmt-promocionais',
-    title: 'Itens Promocionais',
-    subtitle: 'Acompanhamento de SKUs promocionais e campanhas (Google Sheets)',
+    title: 'Itens Promocionais • NE/NO/CO',
+    subtitle: 'Acompanhamento de SKUs promocionais, campanhas e validades (Google Sheets)',
     category: 'Gestão 360° • Sub-páginas',
     tabId: 'pmts',
     pmtPageId: 4,
     icon: <Tag size={18} className="text-amber-600" />,
-    keywords: ['promocionais', 'skus', 'campanhas', 'planilha', 'itens']
+    keywords: ['promocionais', 'skus', 'campanhas', 'planilha', 'itens', 'promocoes']
   },
   {
     id: 'sub-pmt-tableau',
     title: 'Tableau Indicadores',
-    subtitle: 'Nível de Serviço 1P e painéis oficiais do BI Luizalabs',
+    subtitle: 'Nível de Serviço 1P, SLA e painéis oficiais do BI Luizalabs',
     category: 'Gestão 360° • Sub-páginas',
     tabId: 'pmts',
     pmtPageId: 5,
     icon: <BarChart2 size={18} className="text-blue-700" />,
-    keywords: ['tableau', 'bi luizalabs', 'indicadores', 'sla', 'nivel de servico']
+    keywords: ['tableau', 'bi luizalabs', 'indicadores', 'sla', 'nivel de servico', 'bi']
   },
   {
     id: 'sub-pmt-carteira-cds',
-    title: 'Carteira CDs (Looker Studio)',
+    title: 'Carteira CDs • Looker Studio',
     subtitle: 'Painel interativo de modais Rodo, Courier, prazos e transferências',
     category: 'Gestão 360° • Sub-páginas',
     tabId: 'pmts',
     pmtPageId: 6,
     icon: <Layers size={18} className="text-indigo-600" />,
-    keywords: ['carteira cds', 'looker studio', 'data studio', 'rodo', 'courier', 'transferencias', 'filiais']
+    keywords: ['carteira cds', 'looker studio', 'data studio', 'rodo', 'courier', 'transferencias', 'filiais', 'carteira']
+  },
+
+  // Sub-abas específicas do Quadro
+  {
+    id: 'sub-quadro-tt',
+    title: 'Quadro TT (Base Completa & Cadastro)',
+    subtitle: 'Lista individual de colaboradores, filtros avançados e importação em massa',
+    category: 'Quadro • Sub-abas',
+    tabId: 'pmts',
+    pmtPageId: 3,
+    icon: <Users size={18} className="text-pink-600" />,
+    keywords: ['quadro tt', 'base completa', 'cadastro', 'importar colaboradores', 'efetivo tt']
+  },
+  {
+    id: 'sub-quadro-padu',
+    title: 'Controle PADU (Recrutamento & Seleção)',
+    subtitle: 'Painel integrado ao vivo do Controle PADU Netlify',
+    category: 'Quadro • Sub-abas',
+    tabId: 'pmts',
+    pmtPageId: 3,
+    icon: <LayoutDashboard size={18} className="text-emerald-600" />,
+    keywords: ['padu', 'controle padu', 'recrutamento', 'selecao', 'vagas']
+  },
+  {
+    id: 'sub-quadro-medio',
+    title: 'Quadro Médio (Grade & Dimensionamento)',
+    subtitle: 'Cálculo de turno, lotação média mensal e dimensionamento operacional',
+    category: 'Quadro • Sub-abas',
+    tabId: 'pmts',
+    pmtPageId: 3,
+    icon: <BarChart3 size={18} className="text-amber-600" />,
+    keywords: ['quadro medio', 'grade', 'dimensionamento', 'media turno']
   }
 ]
 

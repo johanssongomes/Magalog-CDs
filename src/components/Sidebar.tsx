@@ -114,6 +114,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Filtra itens de acordo com a permissão do usuário
   const visibleNavItems = navItems.filter((item) => hasPermission(item.id))
 
+  // Navegação na Barra Lateral usando as Setas do Teclado (ArrowUp e ArrowDown)
+  useEffect(() => {
+    const handleSidebarArrowNavigation = (e: KeyboardEvent) => {
+      // Ignora se o usuário estiver digitando em campos de input, textarea ou com modal aberto
+      const activeTag = document.activeElement?.tagName?.toLowerCase()
+      if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') {
+        return
+      }
+
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        const currentIndex = visibleNavItems.findIndex(item => item.id === activeTab)
+        if (currentIndex === -1) return
+
+        let nextIndex = currentIndex
+        if (e.key === 'ArrowDown') {
+          nextIndex = (currentIndex + 1) % visibleNavItems.length
+        } else if (e.key === 'ArrowUp') {
+          nextIndex = (currentIndex - 1 + visibleNavItems.length) % visibleNavItems.length
+        }
+
+        if (visibleNavItems[nextIndex]) {
+          setActiveTab(visibleNavItems[nextIndex].id)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleSidebarArrowNavigation)
+    return () => window.removeEventListener('keydown', handleSidebarArrowNavigation)
+  }, [visibleNavItems, activeTab, setActiveTab])
+
   return (
     <aside className={`${isCollapsed ? 'w-20' : 'w-80'} bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0 shrink-0 transition-all duration-300 z-30 relative`}>
       {/* Faixa decorativa em gradiente colorido na lateral esquerda */}
