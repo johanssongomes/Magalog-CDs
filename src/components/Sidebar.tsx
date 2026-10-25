@@ -19,10 +19,14 @@ import {
   DollarSign,
   Radio,
   Activity,
-  CalendarDays
+  CalendarDays,
+  Bell,
+  SlidersHorizontal
 } from 'lucide-react'
 import { useAuth } from '../lib/authContext'
 import { OnlineUsersModal } from './OnlineUsersModal'
+import { UserProfileModal } from './UserProfileModal'
+import { NotificationsModal } from './NotificationsModal'
 
 export interface NavItem {
   id: string
@@ -116,6 +120,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const setIsCollapsed = controlledSetIsCollapsed || setInternalCollapsed
 
   const [isOnlineModalOpen, setIsOnlineModalOpen] = useState(false)
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false)
   const { user, logout, hasPermission, onlineUsers } = useAuth()
 
   // Filtra itens de acordo com a permissão do usuário
@@ -240,8 +246,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Perfil Conectado & Logout Footer */}
       <div className="p-3 border-t border-slate-800/80 bg-slate-950/60">
         {!isCollapsed ? (
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex items-center justify-between gap-1.5">
+            <div 
+              onClick={() => setIsProfileModalOpen(true)}
+              title="Clique para ver o Perfil e Ficha Cadastral"
+              className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-90 transition-opacity flex-1"
+            >
               <div className="relative shrink-0">
                 <div className="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs">
                   {user?.name ? user.name.slice(0, 2).toUpperCase() : 'US'}
@@ -271,30 +281,67 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-1 shrink-0">
-              {/* Botão Ver Quem Está Online */}
+            <div className="flex items-center gap-0.5 shrink-0">
+              {/* Botão 1: Engrenagem - Perfil do Usuário */}
+              <button
+                onClick={() => setIsProfileModalOpen(true)}
+                title="Perfil do Usuário & Ficha Cadastral"
+                className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all cursor-pointer group"
+              >
+                <Settings size={15} className="group-hover:rotate-45 transition-transform duration-200" />
+              </button>
+
+              {/* Botão 2: Sino - Notificações de Agendas, Eventos, Reuniões e Avisos */}
+              <button
+                onClick={() => setIsNotificationsModalOpen(true)}
+                title="Notificações de Agendas, Eventos e Reuniões"
+                className="relative p-1.5 text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all cursor-pointer group"
+              >
+                <Bell size={15} className="group-hover:scale-110 transition-transform" />
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+              </button>
+
+              {/* Botão 3: Ver Quem Está Online */}
               <button
                 onClick={() => setIsOnlineModalOpen(true)}
                 title="Ver usuários online e horários de login"
-                className="relative p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all cursor-pointer group flex items-center gap-1"
+                className="relative p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all cursor-pointer group flex items-center gap-0.5"
               >
-                <Radio size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+                <Radio size={15} className="text-emerald-400 group-hover:scale-110 transition-transform" />
                 <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20">
                   {Math.max(onlineUsers.length, 1)}
                 </span>
               </button>
 
+              {/* Botão 4: Sair */}
               <button
                 onClick={() => logout()}
                 title="Encerrar Sessão (Sair)"
                 className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
               >
-                <LogOut size={16} />
+                <LogOut size={15} />
               </button>
             </div>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              title="Perfil do Usuário"
+              className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors cursor-pointer"
+            >
+              <Settings size={16} />
+            </button>
+
+            <button
+              onClick={() => setIsNotificationsModalOpen(true)}
+              title="Notificações de Agendas e Eventos"
+              className="relative p-2 text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors cursor-pointer"
+            >
+              <Bell size={16} />
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            </button>
+
             <button
               onClick={() => setIsOnlineModalOpen(true)}
               title={`Ver usuários online (${Math.max(onlineUsers.length, 1)})`}
@@ -319,6 +366,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <OnlineUsersModal 
         isOpen={isOnlineModalOpen} 
         onClose={() => setIsOnlineModalOpen(false)} 
+      />
+
+      {/* Modal de Perfil do Usuário (Engrenagem) */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
+
+      {/* Modal de Notificações de Agendas e Eventos (Sino) */}
+      <NotificationsModal
+        isOpen={isNotificationsModalOpen}
+        onClose={() => setIsNotificationsModalOpen(false)}
+        onNavigateToAgenda={() => {
+          setActiveTab('agenda')
+        }}
       />
     </aside>
   )
