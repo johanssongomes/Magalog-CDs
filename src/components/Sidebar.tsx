@@ -259,13 +259,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded ${
-                    user?.role === 'admin' 
+                    (user?.role || '').toLowerCase().includes('admin')
                       ? 'bg-purple-900/60 text-purple-300 border border-purple-500/30' 
-                      : user?.role === 'gerente'
+                      : (user?.role || '').toLowerCase().includes('gerente')
                       ? 'bg-blue-900/60 text-blue-300 border border-blue-500/30'
-                      : 'bg-slate-800 text-slate-300'
+                      : 'bg-slate-800 text-slate-300 border border-slate-700'
                   }`}>
-                    {user?.role || 'Colaborador'}
+                    {user?.cargo || user?.role || 'Colaborador'}
                   </span>
                 </div>
               </div>
