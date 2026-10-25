@@ -221,15 +221,15 @@ export const fetchMeetings = async (): Promise<Meeting[]> => {
       .order('meeting_date', { ascending: true })
       .order('start_time', { ascending: true })
 
-    if (error || !data || data.length === 0) {
-      const local = localStorage.getItem(STORAGE_KEYS.MEETINGS)
-      if (local) return JSON.parse(local)
-      localStorage.setItem(STORAGE_KEYS.MEETINGS, JSON.stringify(INITIAL_MEETINGS))
-      return INITIAL_MEETINGS
+    if (!error && data !== null) {
+      localStorage.setItem(STORAGE_KEYS.MEETINGS, JSON.stringify(data))
+      return data as Meeting[]
     }
 
-    localStorage.setItem(STORAGE_KEYS.MEETINGS, JSON.stringify(data))
-    return data as Meeting[]
+    const local = localStorage.getItem(STORAGE_KEYS.MEETINGS)
+    if (local) return JSON.parse(local)
+    localStorage.setItem(STORAGE_KEYS.MEETINGS, JSON.stringify(INITIAL_MEETINGS))
+    return INITIAL_MEETINGS
   } catch (err) {
     const local = localStorage.getItem(STORAGE_KEYS.MEETINGS)
     return local ? JSON.parse(local) : INITIAL_MEETINGS
@@ -283,13 +283,13 @@ export const fetchMeetingMinutes = async (): Promise<MeetingMinute[]> => {
       .select('*')
       .order('meeting_date', { ascending: false })
 
-    if (error || !data || data.length === 0) {
-      const local = localStorage.getItem(STORAGE_KEYS.MINUTES)
-      return local ? JSON.parse(local) : []
+    if (!error && data !== null) {
+      localStorage.setItem(STORAGE_KEYS.MINUTES, JSON.stringify(data))
+      return data as MeetingMinute[]
     }
 
-    localStorage.setItem(STORAGE_KEYS.MINUTES, JSON.stringify(data))
-    return data as MeetingMinute[]
+    const local = localStorage.getItem(STORAGE_KEYS.MINUTES)
+    return local ? JSON.parse(local) : []
   } catch (err) {
     const local = localStorage.getItem(STORAGE_KEYS.MINUTES)
     return local ? JSON.parse(local) : []
@@ -342,15 +342,15 @@ export const fetchActionPlans = async (): Promise<ActionPlan[]> => {
       .select('*')
       .order('due_date', { ascending: true })
 
-    if (error || !data || data.length === 0) {
-      const local = localStorage.getItem(STORAGE_KEYS.ACTIONS)
-      if (local) return JSON.parse(local)
-      localStorage.setItem(STORAGE_KEYS.ACTIONS, JSON.stringify(INITIAL_ACTIONS))
-      return INITIAL_ACTIONS
+    if (!error && data !== null) {
+      localStorage.setItem(STORAGE_KEYS.ACTIONS, JSON.stringify(data))
+      return data as ActionPlan[]
     }
 
-    localStorage.setItem(STORAGE_KEYS.ACTIONS, JSON.stringify(data))
-    return data as ActionPlan[]
+    const local = localStorage.getItem(STORAGE_KEYS.ACTIONS)
+    if (local) return JSON.parse(local)
+    localStorage.setItem(STORAGE_KEYS.ACTIONS, JSON.stringify(INITIAL_ACTIONS))
+    return INITIAL_ACTIONS
   } catch (err) {
     const local = localStorage.getItem(STORAGE_KEYS.ACTIONS)
     return local ? JSON.parse(local) : INITIAL_ACTIONS
@@ -404,15 +404,15 @@ export const fetchCorporateEvents = async (): Promise<CorporateEvent[]> => {
       .order('event_date', { ascending: true })
       .order('start_time', { ascending: true })
 
-    if (error || !data || data.length === 0) {
-      const local = localStorage.getItem(STORAGE_KEYS.EVENTS)
-      if (local) return JSON.parse(local)
-      localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(INITIAL_EVENTS))
-      return INITIAL_EVENTS
+    if (!error && data !== null) {
+      localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(data))
+      return data as CorporateEvent[]
     }
 
-    localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(data))
-    return data as CorporateEvent[]
+    const local = localStorage.getItem(STORAGE_KEYS.EVENTS)
+    if (local) return JSON.parse(local)
+    localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(INITIAL_EVENTS))
+    return INITIAL_EVENTS
   } catch (err) {
     const local = localStorage.getItem(STORAGE_KEYS.EVENTS)
     return local ? JSON.parse(local) : INITIAL_EVENTS
