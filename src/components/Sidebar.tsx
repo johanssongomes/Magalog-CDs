@@ -244,15 +244,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </nav>
 
       {/* Perfil Conectado & Logout Footer */}
-      <div className="p-3 border-t border-slate-800/80 bg-slate-950/60">
+      <div className="p-3 border-t border-slate-800/80 bg-slate-950/70">
         {!isCollapsed ? (
-          <div className="flex items-center justify-between gap-1.5">
+          <div className="space-y-2.5">
+            {/* Linha 1: Avatar, Nome Completo & Cargo */}
             <div 
               onClick={() => setIsProfileModalOpen(true)}
               title="Clique para ver o Perfil e Ficha Cadastral"
-              className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-90 transition-opacity flex-1"
+              className="flex items-start gap-2.5 cursor-pointer hover:opacity-90 transition-opacity"
             >
-              <div className="relative shrink-0">
+              <div className="relative shrink-0 mt-0.5">
                 <div className="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs">
                   {user?.name ? user.name.slice(0, 2).toUpperCase() : 'US'}
                 </div>
@@ -264,11 +265,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-bold text-white truncate leading-tight">
+                {/* Nome Completo Visível (sem truncate) */}
+                <div className="text-xs font-bold text-white leading-tight break-words">
                   {user?.name || 'Usuário'}
                 </div>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded ${
+                <div className="mt-1">
+                  <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded leading-tight break-words max-w-full ${
                     (user?.role || '').toLowerCase().includes('admin')
                       ? 'bg-purple-900/60 text-purple-300 border border-purple-500/30' 
                       : (user?.role || '').toLowerCase().includes('gerente')
@@ -281,46 +283,52 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-0.5 shrink-0">
-              {/* Botão 1: Engrenagem - Perfil do Usuário */}
-              <button
-                onClick={() => setIsProfileModalOpen(true)}
-                title="Perfil do Usuário & Ficha Cadastral"
-                className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all cursor-pointer group"
-              >
-                <Settings size={15} className="group-hover:rotate-45 transition-transform duration-200" />
-              </button>
+            {/* Linha 2: Ações Rápidas (Engrenagem, Sino, Quem está Online e Sair) */}
+            <div className="flex items-center justify-between pt-1.5 border-t border-slate-800/60">
+              <div className="flex items-center gap-1">
+                {/* Botão 1: Engrenagem - Perfil do Usuário */}
+                <button
+                  onClick={() => setIsProfileModalOpen(true)}
+                  title="Perfil do Usuário & Ficha Cadastral"
+                  className="flex items-center gap-1 px-2 py-1 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all cursor-pointer group text-[11px]"
+                >
+                  <Settings size={14} className="group-hover:rotate-45 transition-transform duration-200" />
+                  <span className="font-medium text-slate-400 group-hover:text-blue-300">Perfil</span>
+                </button>
 
-              {/* Botão 2: Sino - Notificações de Agendas, Eventos, Reuniões e Avisos */}
-              <button
-                onClick={() => setIsNotificationsModalOpen(true)}
-                title="Notificações de Agendas, Eventos e Reuniões"
-                className="relative p-1.5 text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all cursor-pointer group"
-              >
-                <Bell size={15} className="group-hover:scale-110 transition-transform" />
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-              </button>
+                {/* Botão 2: Sino - Notificações de Agendas, Eventos, Reuniões e Avisos */}
+                <button
+                  onClick={() => setIsNotificationsModalOpen(true)}
+                  title="Notificações de Agendas, Eventos e Reuniões"
+                  className="relative p-1.5 text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all cursor-pointer group"
+                >
+                  <Bell size={14} className="group-hover:scale-110 transition-transform" />
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                </button>
+              </div>
 
-              {/* Botão 3: Ver Quem Está Online */}
-              <button
-                onClick={() => setIsOnlineModalOpen(true)}
-                title="Ver usuários online e horários de login"
-                className="relative p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all cursor-pointer group flex items-center gap-0.5"
-              >
-                <Radio size={15} className="text-emerald-400 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20">
-                  {Math.max(onlineUsers.length, 1)}
-                </span>
-              </button>
+              <div className="flex items-center gap-1">
+                {/* Botão 3: Ver Quem Está Online */}
+                <button
+                  onClick={() => setIsOnlineModalOpen(true)}
+                  title="Ver usuários online e horários de login"
+                  className="relative p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all cursor-pointer group flex items-center gap-1"
+                >
+                  <Radio size={14} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20">
+                    {Math.max(onlineUsers.length, 1)}
+                  </span>
+                </button>
 
-              {/* Botão 4: Sair */}
-              <button
-                onClick={() => logout()}
-                title="Encerrar Sessão (Sair)"
-                className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
-              >
-                <LogOut size={15} />
-              </button>
+                {/* Botão 4: Sair */}
+                <button
+                  onClick={() => logout()}
+                  title="Encerrar Sessão (Sair)"
+                  className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                >
+                  <LogOut size={14} />
+                </button>
+              </div>
             </div>
           </div>
         ) : (
