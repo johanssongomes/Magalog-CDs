@@ -103,17 +103,29 @@ alter table corporate_meeting_minutes enable row level security;
 alter table corporate_action_plans enable row level security;
 alter table corporate_events enable row level security;
 
--- 6. Políticas de Acesso
+-- 6. Políticas de Acesso (com DROP IF EXISTS para permitir re-execução sem erro)
+drop policy if exists "Permitir leitura total para usuários autenticados" on corporate_meetings;
 create policy "Permitir leitura total para usuários autenticados" on corporate_meetings for select using (true);
+
+drop policy if exists "Permitir gerenciamento total para usuários autenticados" on corporate_meetings;
 create policy "Permitir gerenciamento total para usuários autenticados" on corporate_meetings for all using (true) with check (true);
 
+drop policy if exists "Permitir leitura de atas para autenticados" on corporate_meeting_minutes;
 create policy "Permitir leitura de atas para autenticados" on corporate_meeting_minutes for select using (true);
+
+drop policy if exists "Permitir gerenciamento de atas para autenticados" on corporate_meeting_minutes;
 create policy "Permitir gerenciamento de atas para autenticados" on corporate_meeting_minutes for all using (true) with check (true);
 
+drop policy if exists "Permitir leitura de planos de acao para autenticados" on corporate_action_plans;
 create policy "Permitir leitura de planos de acao para autenticados" on corporate_action_plans for select using (true);
+
+drop policy if exists "Permitir gerenciamento de planos de acao para autenticados" on corporate_action_plans;
 create policy "Permitir gerenciamento de planos de acao para autenticados" on corporate_action_plans for all using (true) with check (true);
 
+drop policy if exists "Permitir leitura de eventos para autenticados" on corporate_events;
 create policy "Permitir leitura de eventos para autenticados" on corporate_events for select using (true);
+
+drop policy if exists "Permitir gerenciamento de eventos para autenticados" on corporate_events;
 create policy "Permitir gerenciamento de eventos para autenticados" on corporate_events for all using (true) with check (true);
 
 -- 7. Dados Iniciais de Demonstração Corporativa para o CD 994
