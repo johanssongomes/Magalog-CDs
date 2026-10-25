@@ -25,7 +25,8 @@ import {
   Globe,
   DollarSign,
   Activity,
-  CalendarDays
+  CalendarDays,
+  Radio
 } from 'lucide-react'
 
 const AVAILABLE_PAGES = [
