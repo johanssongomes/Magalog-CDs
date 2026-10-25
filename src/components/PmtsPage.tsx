@@ -1517,34 +1517,19 @@ export const PmtsPage: React.FC = () => {
         {/* BOTÕES DE AÇÃO À DIREITA */}
         <div className="flex items-center gap-2 shrink-0">
           {isQuadro ? (
-            /* BOTÕES ESPECÍFICOS DO QUADRO (SEM BOTÃO ATUALIZAR, CONFORME SOLICITADO) */
-            <>
+            /* BOTÕES DO QUADRO: REDIRECIONAR / SINCRONIZAR COM A GESTÃO DE USUÁRIOS & PERMISSÕES */
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => {
-                  setCadastroSuccessMsg('')
-                  setIsCadastroModalOpen(true)
+                  fetchColaboradoresFromDb()
                 }}
-                title="Cadastrar Novo Colaborador Individualmente"
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 border-pink-500 bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-bold shadow-sm transition-all hover:translate-y-[-1px] cursor-pointer"
+                title="Sincronizar base do Quadro com a Gestão de Usuários & Permissões"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer"
               >
-                <Plus size={15} className="text-pink-600 stroke-[3]" />
-                <span>+ Cadastrar</span>
+                <RefreshCw size={14} className={isSyncingDb ? 'animate-spin text-blue-600' : 'text-slate-500'} />
+                <span>Sincronizar Base</span>
               </button>
-
-              <button
-                onClick={() => {
-                  setBulkFeedback(null)
-                  setBulkParsedData([])
-                  setBulkFileName('')
-                  setIsImportColaboradoresModalOpen(true)
-                }}
-                title="Importar Planilha Excel/CSV para Cadastro em Massa de Colaboradores"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-500/20 transition-all hover:translate-y-[-1px] cursor-pointer"
-              >
-                <UploadCloud size={16} />
-                <span>Importar Planilha (Cadastro em Massa)</span>
-              </button>
-            </>
+            </div>
           ) : (
             /* BOTÕES DOS DEMAIS PMTS */
             <>
@@ -1911,25 +1896,23 @@ export const PmtsPage: React.FC = () => {
 
                 <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
                   <button
-                    onClick={handleDownloadTemplate}
-                    title="Baixar planilha modelo para importação"
+                    onClick={() => {
+                      fetchColaboradoresFromDb()
+                    }}
+                    title="Recarregar e sincronizar colaboradores com a base de dados central"
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
                   >
-                    <Download size={14} className="text-slate-500" />
-                    <span>Baixar Modelo (.xlsx)</span>
+                    <RefreshCw size={13} className={isSyncingDb ? 'animate-spin text-blue-600' : 'text-slate-500'} />
+                    <span>Recarregar Base</span>
                   </button>
 
                   <button
-                    onClick={() => {
-                      setBulkFeedback(null)
-                      setBulkParsedData([])
-                      setBulkFileName('')
-                      setIsImportColaboradoresModalOpen(true)
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold transition-all cursor-pointer"
+                    onClick={handleDownloadTemplate}
+                    title="Baixar planilha modelo padrão (.xlsx)"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
                   >
-                    <UploadCloud size={14} />
-                    <span>Importar Planilha</span>
+                    <Download size={13} className="text-slate-500" />
+                    <span>Baixar Modelo</span>
                   </button>
 
                   <button
@@ -1937,22 +1920,11 @@ export const PmtsPage: React.FC = () => {
                       setCadastroSuccessMsg('')
                       setIsCadastroModalOpen(true)
                     }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold shadow-sm shadow-pink-500/20 transition-all cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold shadow-sm shadow-pink-500/20 transition-all cursor-pointer"
                   >
                     <Plus size={14} />
-                    <span>Novo Cadastro</span>
+                    <span>+ Novo</span>
                   </button>
-
-                  {colaboradoresList.length > 0 && (
-                    <button
-                      onClick={() => setIsClearAllModalOpen(true)}
-                      title="Excluir todos os colaboradores cadastrados"
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold transition-all cursor-pointer shadow-2xs"
-                    >
-                      <Trash2 size={14} className="text-red-600" />
-                      <span>Deletar Todos</span>
-                    </button>
-                  )}
                 </div>
               </div>
 

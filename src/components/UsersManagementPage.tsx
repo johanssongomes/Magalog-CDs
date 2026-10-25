@@ -11,6 +11,7 @@ import {
 import { OnlineUsersModal } from './OnlineUsersModal'
 import initialUsersData from '../data/initialUsers.json'
 import initialColaboradoresData from '../data/initialColaboradores.json'
+import * as XLSX from 'xlsx'
 import { 
   Users, 
   ShieldCheck, 
@@ -38,7 +39,11 @@ import {
   Briefcase,
   Layers,
   ChevronDown,
-  Info
+  Info,
+  UploadCloud,
+  Download,
+  Loader2,
+  FolderOpen
 } from 'lucide-react'
 
 const AVAILABLE_PAGES = [
@@ -142,6 +147,15 @@ export const UsersManagementPage: React.FC = () => {
   const [formActive, setFormActive] = useState(true)
   const [formColaboradorData, setFormColaboradorData] = useState<ColaboradorData>(defaultColaboradorForm)
   const [saving, setSaving] = useState(false)
+
+  // Estados de Importação de Planilha Excel / CSV
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [bulkFileName, setBulkFileName] = useState('')
+  const [bulkFeedback, setBulkFeedback] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null)
+  const [bulkParsedData, setBulkParsedData] = useState<any[]>([])
+  const [isImporting, setIsImporting] = useState(false)
+  const [replaceExisting, setReplaceExisting] = useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null)
 
   // Gerador automático de e-mail institucional
   const generateEmailFromLoginOrName = (login?: string, name?: string) => {
@@ -556,6 +570,245 @@ export const UsersManagementPage: React.FC = () => {
     }
   }
 
+  // Baixar planilha modelo
+  const handleDownloadTemplate = () => {
+    const link = document.createElement('a')
+    link.href = '/modelo_cadastro_colaboradores.xlsx'
+    link.download = 'Modelo 1.xlsx'
+    link.click()
+  }
+
+  // Processamento do arquivo Excel/CSV selecionado
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setBulkFileName(file.name)
+    setBulkFeedback(null)
+
+    const formatExcelDate = (val: any) => {
+      if (!val) return ''
+      if (typeof val === 'number') {
+        const d = (XLSX.SSF as any).parse_date_code(val)
+        if (d) {
+          const pad = (n: number) => String(n).padStart(2, '0')
+          return `${pad(d.d)}/${pad(d.m)}/${d.y}`
+        }
+      }
+      return String(val).trim()
+    }
+
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result
+        const wb = XLSX.read(bstr, { type: 'binary' })
+        const wsname = wb.SheetNames[0]
+        const ws = wb.Sheets[wsname]
+        const rawJson: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' })
+
+        if (!rawJson || rawJson.length === 0) {
+          setBulkFeedback({ type: 'error', message: 'A planilha selecionada está vazia.' })
+          setBulkParsedData([])
+          return
+        }
+
+        const seenIds = new Set<string>()
+        const parsed: any[] = []
+
+        for (const row of rawJson) {
+          const keys = Object.keys(row)
+          const findVal = (terms: string[]) => {
+            const exactKey = keys.find(k => terms.some(t => k.toLowerCase().trim() === t.toLowerCase().trim()))
+            if (exactKey) return row[exactKey]
+            const partialKey = keys.find(k => terms.some(t => {
+              const normK = k.toLowerCase().trim()
+              const normT = t.toLowerCase().trim()
+              if (normT === 'centro_custo' || normT === 'centro de custo') {
+                return (normK === 'centro_custo' || normK === 'centro de custo') || (normK.includes('centro') && !normK.includes('cod'))
+              }
+              return normK.includes(normT)
+            }))
+            return partialKey ? row[partialKey] : ''
+          }
+
+          const rawId = String(findVal(['id', 'matrícula', 'matricula', 'crachá', 'cracha', 'codigo', 'código'])).trim()
+          const rawContratado = String(findVal(['contratado', 'nome', 'colaborador', 'funcionario', 'funcionário'])).trim()
+
+          if (rawId || rawContratado) {
+            const normId = (rawId || `AUTO-${Math.floor(100000 + Math.random() * 900000)}`).trim()
+            const normNome = (rawContratado || 'SEM NOME').trim().toUpperCase()
+            const idKey = normId.toLowerCase()
+
+            if (seenIds.has(idKey)) continue
+            seenIds.add(idKey)
+
+            const cargo = String(findVal(['cargo']) || 'CONFERENTE').trim().toUpperCase()
+            const login = String(findVal(['login'])).trim().toLowerCase()
+            const email = generateEmailFromLoginOrName(login, normNome)
+
+            const rawCentroCusto = String(findVal(['centro_custo', 'centro de custo', 'centro custo'])).trim().toUpperCase()
+            const rawCodCentroCusto = String(findVal(['cod_centro_custo', 'cod centro custo', 'codigo centro de custo'])).trim()
+
+            const colabItem: ColaboradorData = {
+              id: normId,
+              contratado: normNome,
+              cargo: cargo,
+              centroDeCusto: rawCentroCusto && !/^\d+$/.test(rawCentroCusto) ? rawCentroCusto : (rawCentroCusto || 'GERAL CD 6994'),
+              cd: String(findVal(['cd']) || '6994').trim(),
+              login: login ? login.toUpperCase() : email.split('@')[0].toUpperCase(),
+              cpf: String(findVal(['cpf'])).trim(),
+              rg: String(findVal(['rg'])).trim(),
+              sexo: String(findVal(['sexo'])).trim(),
+              cargoAnterior: String(findVal(['cargo anterior'])).trim(),
+              dataAdmissao: formatExcelDate(findVal(['data_admissao', 'data admissao', 'admissao'])),
+              dataNascimento: formatExcelDate(findVal(['data_nascimento', 'data nascimento', 'nascimento'])),
+              situacaoSistema: String(findVal(['situacao sistema', 'situação sistema', 'situacao']) || 'Em Atividade Normal').trim(),
+              status: String(findVal(['status'])).trim(),
+              possuiMedidas: String(findVal(['possui medidas'])).trim(),
+              possuiFeedback: String(findVal(['possui feedback'])).trim(),
+              idLider: String(findVal(['id lider', 'id líder'])).trim(),
+              nomeLider: String(findVal(['nome lider', 'nome líder'])).trim(),
+              setor: String(findVal(['setor'])).trim(),
+              turno: String(findVal(['turno'])).trim(),
+              ferias: String(findVal(['férias', 'ferias'])).trim(),
+              codCentroCusto: rawCodCentroCusto,
+              gerencia: String(findVal(['gerência', 'gerencia'])).trim(),
+              periodo45Dias: formatExcelDate(findVal(['período 45 dias', 'periodo 45 dias'])),
+              periodo90Dias: formatExcelDate(findVal(['período 90 dias', 'periodo 90 dias'])),
+              diaNiver: String(findVal(['dia niver'])).trim(),
+              mesNiver: String(findVal(['mes niver'])).trim(),
+              aniversario: formatExcelDate(findVal(['aniversário', 'aniversario'])),
+              novaIdade: String(findVal(['nova idade'])).trim(),
+              tempoDeEmpresa: String(findVal(['tempo de empresa'])).trim(),
+              mesAdm: String(findVal(['mês adm', 'mes adm'])).trim(),
+              diaAdm: String(findVal(['dia adm'])).trim(),
+              anoAdm: String(findVal(['ano adm'])).trim()
+            }
+
+            parsed.push({
+              id: normId,
+              colaborador_id: normId,
+              email: email,
+              name: normNome,
+              role: cargo,
+              cargo: cargo,
+              allowed_pages: getDefaultPagesForCargo(cargo),
+              active: true,
+              password_hash: '123456',
+              dados_colaborador: colabItem
+            })
+          }
+        }
+
+        if (parsed.length === 0) {
+          setBulkFeedback({ type: 'error', message: 'Não foi possível encontrar colunas válidas na planilha.' })
+          setBulkParsedData([])
+        } else {
+          setBulkParsedData(parsed)
+          setBulkFeedback({
+            type: 'success',
+            message: `${parsed.length} usuários e colaboradores identificados com sucesso na planilha.`
+          })
+        }
+      } catch (err: any) {
+        setBulkFeedback({ type: 'error', message: 'Erro ao ler arquivo: ' + (err.message || 'formato inválido') })
+        setBulkParsedData([])
+      }
+    }
+    reader.readAsBinaryString(file)
+  }
+
+  // Confirmar Importação e Gravar no Supabase (app_users e colaboradores)
+  const handleConfirmBulkImport = async () => {
+    if (bulkParsedData.length === 0) return
+    setIsImporting(true)
+
+    try {
+      // 1. Preparar dados para a tabela colaboradores
+      const colaboradoresRows = bulkParsedData.map(u => ({
+        id: u.dados_colaborador.id,
+        contratado: u.dados_colaborador.contratado,
+        cargo: u.dados_colaborador.cargo,
+        centro_de_custo: u.dados_colaborador.centroDeCusto,
+        cd: u.dados_colaborador.cd || '6994',
+        login: u.dados_colaborador.login,
+        cpf: u.dados_colaborador.cpf,
+        rg: u.dados_colaborador.rg,
+        sexo: u.dados_colaborador.sexo,
+        cargo_anterior: u.dados_colaborador.cargoAnterior,
+        data_admissao: u.dados_colaborador.dataAdmissao,
+        data_nascimento: u.dados_colaborador.dataNascimento,
+        situacao_sistema: u.dados_colaborador.situacaoSistema,
+        status: u.dados_colaborador.status,
+        possui_medidas: u.dados_colaborador.possuiMedidas,
+        possui_feedback: u.dados_colaborador.possuiFeedback,
+        id_lider: u.dados_colaborador.idLider,
+        nome_lider: u.dados_colaborador.nomeLider,
+        setor: u.dados_colaborador.setor,
+        turno: u.dados_colaborador.turno,
+        ferias: u.dados_colaborador.ferias,
+        cod_centro_custo: u.dados_colaborador.codCentroCusto,
+        gerencia: u.dados_colaborador.gerencia,
+        periodo_45_dias: u.dados_colaborador.periodo45Dias,
+        periodo_90_dias: u.dados_colaborador.periodo90Dias,
+        dia_niver: u.dados_colaborador.diaNiver,
+        mes_niver: u.dados_colaborador.mesNiver,
+        aniversario: u.dados_colaborador.aniversario,
+        nova_idade: u.dados_colaborador.novaIdade,
+        tempo_de_empresa: u.dados_colaborador.tempoDeEmpresa,
+        mes_adm: u.dados_colaborador.mesAdm,
+        dia_adm: u.dados_colaborador.diaAdm,
+        ano_adm: u.dados_colaborador.anoAdm
+      }))
+
+      // 2. Preparar dados para a tabela app_users
+      const appUsersRows = bulkParsedData.map(u => ({
+        email: u.email,
+        name: u.name,
+        role: mapCargoToValidRole(u.cargo),
+        allowed_pages: u.allowed_pages,
+        active: true,
+        password_hash: '123456',
+        updated_at: new Date().toISOString()
+      }))
+
+      // Upsert no Supabase
+      for (let i = 0; i < colaboradoresRows.length; i += 100) {
+        await supabase.from('colaboradores').upsert(colaboradoresRows.slice(i, i + 100), { onConflict: 'id' })
+      }
+
+      for (let i = 0; i < appUsersRows.length; i += 100) {
+        await supabase.from('app_users').upsert(appUsersRows.slice(i, i + 100), { onConflict: 'email' })
+      }
+
+      // Sincronizar cache local magalog_quadro_colaboradores para a Gestão 360°
+      try {
+        const fullColabs = bulkParsedData.map(u => u.dados_colaborador)
+        localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(fullColabs))
+      } catch {}
+
+      await fetchUsers()
+
+      setBulkFeedback({
+        type: 'success',
+        message: `Sucesso! ${bulkParsedData.length} usuários e colaboradores foram salvos e atualizados na base de dados principal.`
+      })
+
+      setTimeout(() => {
+        setIsImportModalOpen(false)
+        setBulkParsedData([])
+        setBulkFileName('')
+        setBulkFeedback(null)
+      }, 1500)
+    } catch (err: any) {
+      console.error('Erro na importação em massa:', err)
+      setBulkFeedback({ type: 'error', message: 'Erro ao salvar no banco: ' + (err.message || 'falha de comunicação') })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   // Filtragem da lista
   const filteredUsers = users.filter(u => {
     const matchesSearch = 
@@ -587,7 +840,30 @@ export const UsersManagementPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={handleDownloadTemplate}
+            title="Baixar planilha modelo para importação de colaboradores"
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold rounded-xl shadow-2xs transition-all cursor-pointer shrink-0"
+          >
+            <Download size={15} className="text-slate-500" />
+            <span>Baixar Modelo (.xlsx)</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setBulkFeedback(null)
+              setBulkParsedData([])
+              setBulkFileName('')
+              setIsImportModalOpen(true)
+            }}
+            title="Importar planilha para cadastro e atualização em massa de usuários e colaboradores"
+            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer shrink-0"
+          >
+            <UploadCloud size={16} className="text-indigo-600" />
+            <span>Importar Planilha</span>
+          </button>
+
           <button
             onClick={() => setIsOnlineModalOpen(true)}
             className="flex items-center gap-2 px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer shrink-0"
@@ -1466,6 +1742,165 @@ export const UsersManagementPage: React.FC = () => {
               </div>
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Importação de Planilha para Cadastro em Massa */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-5 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+                  <UploadCloud size={22} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Importar Planilha de Colaboradores</h3>
+                  <p className="text-xs text-slate-500">Cadastre e atualize perfis de usuários em massa através de arquivo Excel ou CSV</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => { setIsImportModalOpen(false); setBulkFeedback(null); }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Conteúdo */}
+            <div className="space-y-4 text-xs">
+              {/* Baixar Modelo */}
+              <div className="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-200 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <FileSpreadsheet size={20} className="text-blue-600 shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-blue-900">Precisa do modelo padrão?</p>
+                    <p className="text-[11px] text-blue-700/80">Planilha com todos os campos do formato Modelo 1 (ID, Nome, Cargo, Centro de Custo, etc.).</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplate}
+                  className="px-3 py-1.5 bg-white border border-blue-300 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Download size={13} />
+                  <span>Baixar Modelo</span>
+                </button>
+              </div>
+
+              {/* Upload Área */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <FolderOpen size={14} className="text-blue-600" />
+                  Selecione o arquivo no seu computador
+                </label>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileUpload} 
+                  accept=".xlsx, .xls, .csv" 
+                  className="hidden" 
+                />
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/20 rounded-2xl p-6 text-center cursor-pointer transition-all space-y-2"
+                >
+                  <UploadCloud size={30} className="mx-auto text-blue-500" />
+                  {bulkFileName ? (
+                    <div>
+                      <p className="text-xs font-bold text-blue-700">{bulkFileName}</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Clique para escolher outro arquivo se desejar</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">Clique para selecionar a planilha (.xlsx, .xls, .csv)</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Mapeamento automático de todas as colunas da Ficha Cadastral</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Feedback de Importação */}
+              {bulkFeedback && (
+                <div className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${
+                  bulkFeedback.type === 'success' 
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                    : bulkFeedback.type === 'warning'
+                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                    : 'bg-red-50 text-red-800 border border-red-200'
+                }`}>
+                  {bulkFeedback.type === 'success' ? (
+                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle size={16} className="text-red-600 shrink-0 mt-0.5" />
+                  )}
+                  <span className="font-semibold">{bulkFeedback.message}</span>
+                </div>
+              )}
+
+              {/* Prévia dos Primeiros Registros */}
+              {bulkParsedData.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-700">Prévia dos Dados ({bulkParsedData.length} registros)</span>
+                    <span className="text-emerald-600 font-semibold font-mono text-[11px]">Pronto para gravar no banco</span>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-200 text-xs">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase font-bold text-slate-500">
+                        <tr>
+                          <th className="p-2">ID</th>
+                          <th className="p-2">Nome</th>
+                          <th className="p-2">Cargo</th>
+                          <th className="p-2">E-mail Gerado</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {bulkParsedData.slice(0, 5).map((u, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50">
+                            <td className="p-2 font-mono text-blue-700 font-bold">{u.id}</td>
+                            <td className="p-2 font-semibold text-slate-800">{u.name}</td>
+                            <td className="p-2 text-slate-600">{u.cargo}</td>
+                            <td className="p-2 text-slate-500 font-mono text-[11px]">{u.email}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => { setIsImportModalOpen(false); setBulkFeedback(null); }}
+                className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBulkImport}
+                disabled={isImporting || bulkParsedData.length === 0}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white text-xs font-bold shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
+              >
+                {isImporting ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    <span>Salvando no Banco de Dados...</span>
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud size={15} />
+                    <span>Confirmar & Gravar Dados</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
