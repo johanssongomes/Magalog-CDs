@@ -183,19 +183,70 @@ export const UsersManagementPage: React.FC = () => {
     return match
   }
 
-  // Carrega Usuários da Tabela app_users do Supabase ou inicializa com Modelo 1
+  // Helper para mapear linha da tabela colaboradores do Supabase para formato ColaboradorData
+  const mapColaboradorFromSupabase = (row: any): ColaboradorData => ({
+    id: String(row.id || ''),
+    contratado: row.contratado || '',
+    cargo: row.cargo || '',
+    centroDeCusto: row.centro_de_custo || '',
+    cd: row.cd || '6994',
+    login: row.login || '',
+    cpf: row.cpf || '',
+    rg: row.rg || '',
+    sexo: row.sexo || '',
+    cargoAnterior: row.cargo_anterior || '',
+    dataAdmissao: row.data_admissao || '',
+    dataNascimento: row.data_nascimento || '',
+    situacaoSistema: row.situacao_sistema || '',
+    status: row.status || '',
+    possuiMedidas: row.possui_medidas || '',
+    possuiFeedback: row.possui_feedback || '',
+    idLider: row.id_lider || '',
+    nomeLider: row.nome_lider || '',
+    setor: row.setor || '',
+    turno: row.turno || '',
+    ferias: row.ferias || '',
+    codCentroCusto: row.cod_centro_custo || '',
+    gerencia: row.gerencia || '',
+    periodo45Dias: row.periodo_45_dias || '',
+    periodo90Dias: row.periodo_90_dias || '',
+    diaNiver: row.dia_niver || '',
+    mesNiver: row.mes_niver || '',
+    aniversario: row.aniversario || '',
+    novaIdade: row.nova_idade || '',
+    tempoDeEmpresa: row.tempo_de_empresa || '',
+    mesAdm: row.mes_adm || '',
+    diaAdm: row.dia_adm || '',
+    anoAdm: row.ano_adm || ''
+  })
+
+  // Carrega Usuários da Tabela app_users e colaboradores do Supabase
   const fetchUsers = async () => {
     try {
       setLoading(true)
       let initialList = (initialUsersData as unknown as AppUserProfile[]) || []
 
-      // 1. Tentar sincronizar do Supabase app_users
-      const { data: dbData, error } = await supabase
-        .from('app_users')
-        .select('*')
-        .order('created_at', { ascending: false })
+      // 1. Tentar sincronizar em paralelo do Supabase app_users e colaboradores
+      const [appUsersRes, colabRes] = await Promise.all([
+        supabase.from('app_users').select('*').order('created_at', { ascending: false }),
+        supabase.from('colaboradores').select('*')
+      ])
 
-      if (!error && dbData && dbData.length > 0) {
+      const dbData = appUsersRes.data
+      const colabData = colabRes.data
+
+      // Mapa de colaboradores salvos no Supabase por ID e Login
+      const colabMapById = new Map<string, ColaboradorData>()
+      const colabMapByLogin = new Map<string, ColaboradorData>()
+      if (colabData && colabData.length > 0) {
+        colabData.forEach(row => {
+          const mapped = mapColaboradorFromSupabase(row)
+          if (mapped.id) colabMapById.set(String(mapped.id).trim(), mapped)
+          if (mapped.login) colabMapByLogin.set(mapped.login.toLowerCase().trim(), mapped)
+        })
+      }
+
+      if (dbData && dbData.length > 0) {
         // Criar mapa para lookup rápido por email
         const dbMap = new Map(dbData.map(d => [d.email?.toLowerCase(), d]))
 
@@ -204,7 +255,6 @@ export const UsersManagementPage: React.FC = () => {
           // Busca no banco pelo e-mail padrão institucional ou alternativo
           let dbItem = dbMap.get(u.email?.toLowerCase())
           if (!dbItem && u.name) {
-            // Se o usuário logou com email pessoal/antigo (ex: johanssonmmg@gmail.com), vincula as permissões ao seu registro
             const legacyMatch = dbData.find(d => {
               if (d.email?.toLowerCase() === u.email?.toLowerCase()) return true
               const match = findColaboradorInSpreadsheet(d.email, d.name)
@@ -213,16 +263,30 @@ export const UsersManagementPage: React.FC = () => {
             if (legacyMatch) dbItem = legacyMatch
           }
 
+          // Busca dados de colaborador atualizados do banco (Supabase colaboradores)
+          const targetColabId = String(u.id || u.colaborador_id || '').trim()
+          const loginPrefix = (u.email || '').split('@')[0].toLowerCase().trim()
+          const dbColab = colabMapById.get(targetColabId) || colabMapByLogin.get(loginPrefix)
+
+          const finalDadosColaborador = dbColab 
+            ? { ...(u.dados_colaborador || {}), ...dbColab }
+            : u.dados_colaborador
+
           if (dbItem) {
             return {
               ...u,
               role: dbItem.role || u.role || u.cargo,
               cargo: u.cargo || dbItem.cargo || dbItem.role,
               allowed_pages: dbItem.allowed_pages || u.allowed_pages,
-              active: dbItem.active !== undefined ? dbItem.active : u.active
+              active: dbItem.active !== undefined ? dbItem.active : u.active,
+              dados_colaborador: finalDadosColaborador
             }
           }
-          return u
+
+          return {
+            ...u,
+            dados_colaborador: finalDadosColaborador
+          }
         })
 
         // Adiciona apenas usuários do Supabase que realmente não pertencem a nenhum colaborador da lista (ID único)
@@ -237,17 +301,23 @@ export const UsersManagementPage: React.FC = () => {
           )
 
           if (!alreadyExists) {
-            const finalCargo = colab?.cargo || d.cargo || d.role
+            const targetColabId = String(targetId || '').trim()
+            const loginPrefix = (d.email || '').split('@')[0].toLowerCase().trim()
+            const dbColab = colabMapById.get(targetColabId) || colabMapByLogin.get(loginPrefix)
+
+            const finalColab = dbColab ? { ...(colab || {}), ...dbColab } : colab
+            const finalCargo = finalColab?.cargo || d.cargo || d.role
+
             mergedList.unshift({
               id: targetId,
               colaborador_id: targetId,
               email: d.email,
-              name: colab?.contratado || d.name,
+              name: finalColab?.contratado || d.name,
               role: finalCargo,
               cargo: finalCargo,
               allowed_pages: d.allowed_pages || getDefaultPagesForCargo(finalCargo),
               active: d.active !== false,
-              dados_colaborador: colab
+              dados_colaborador: finalColab
             })
           }
         })
@@ -258,9 +328,15 @@ export const UsersManagementPage: React.FC = () => {
         setUsers(mergedList)
         localStorage.setItem('magalog_users_list', JSON.stringify(mergedList))
       } else {
-        // Usa lista local dos 187 colaboradores
-        setUsers(initialList)
-        localStorage.setItem('magalog_users_list', JSON.stringify(initialList))
+        // Se não houver app_users, ainda assim mescla com os colaboradores do Supabase se existirem
+        const mergedList = initialList.map(u => {
+          const targetColabId = String(u.id || u.colaborador_id || '').trim()
+          const loginPrefix = (u.email || '').split('@')[0].toLowerCase().trim()
+          const dbColab = colabMapById.get(targetColabId) || colabMapByLogin.get(loginPrefix)
+          return dbColab ? { ...u, dados_colaborador: { ...(u.dados_colaborador || {}), ...dbColab } } : u
+        })
+        setUsers(mergedList)
+        localStorage.setItem('magalog_users_list', JSON.stringify(mergedList))
       }
     } catch (err: any) {
       console.warn('Carregando base local de usuários:', err)
@@ -402,7 +478,7 @@ export const UsersManagementPage: React.FC = () => {
 
       // Sincronizar também com a tabela colaboradores do Quadro TT
       try {
-        await supabase.from('colaboradores').upsert([{
+        const { error: colabError } = await supabase.from('colaboradores').upsert([{
           id: finalId,
           contratado: updatedColaborador.contratado,
           cargo: updatedColaborador.cargo,
@@ -437,9 +513,16 @@ export const UsersManagementPage: React.FC = () => {
           dia_adm: updatedColaborador.diaAdm,
           ano_adm: updatedColaborador.anoAdm
         }], { onConflict: 'id' })
+
+        if (colabError) {
+          console.error('Erro ao salvar em colaboradores Supabase:', colabError)
+        }
       } catch (colabErr) {
         console.warn('Aviso ao sincronizar colaborador no Supabase:', colabErr)
       }
+
+      // Recarrega todos os dados do Supabase para garantir que a tela e o cache fiquem sincronizados com o banco
+      await fetchUsers()
 
       setMessage({ 
         text: editingUser ? 'Perfil e permissões do usuário atualizados com sucesso!' : 'Novo usuário cadastrado com sucesso!', 
