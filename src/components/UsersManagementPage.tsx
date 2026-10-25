@@ -391,9 +391,17 @@ export const UsersManagementPage: React.FC = () => {
                             ? 'bg-purple-100 text-purple-700 border border-purple-200'
                             : u.role === 'gerente'
                             ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                            : u.role === 'coordenador'
+                            ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                            : u.role === 'supervisor'
+                            ? 'bg-cyan-100 text-cyan-800 border border-cyan-200'
+                            : u.role === 'lider'
+                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                            : u.role === 'bp'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                             : 'bg-slate-100 text-slate-700 border border-slate-200'
                         }`}>
-                          {u.role}
+                          {u.role === 'bp' ? 'BP (Parceiro)' : u.role}
                         </span>
                       </td>
 
@@ -522,19 +530,27 @@ export const UsersManagementPage: React.FC = () => {
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Nível de Permissão (Cargo)
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['admin', 'gerente', 'colaborador'] as UserRole[]).map((r) => (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'admin', label: 'Admin' },
+                    { id: 'gerente', label: 'Gerente' },
+                    { id: 'coordenador', label: 'Coordenador' },
+                    { id: 'supervisor', label: 'Supervisor' },
+                    { id: 'lider', label: 'Líder' },
+                    { id: 'bp', label: 'Parceiro (BP)' },
+                    { id: 'colaborador', label: 'Colaborador' }
+                  ].map((item) => (
                     <button
-                      key={r}
+                      key={item.id}
                       type="button"
-                      onClick={() => handleRoleChange(r)}
-                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
-                        formRole === r
-                          ? 'border-blue-500 bg-blue-50/80 text-blue-900 font-bold shadow-2xs'
+                      onClick={() => handleRoleChange(item.id as UserRole)}
+                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                        formRole === item.id
+                          ? 'border-blue-600 bg-blue-50 text-blue-900 font-bold shadow-xs'
                           : 'border-slate-200 hover:bg-slate-50 text-slate-600'
                       }`}
                     >
-                      <div className="text-xs uppercase">{r}</div>
+                      <div className="text-xs uppercase">{item.label}</div>
                     </button>
                   ))}
                 </div>

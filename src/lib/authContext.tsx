@@ -1,7 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-export type UserRole = 'admin' | 'gerente' | 'colaborador'
+export type UserRole = 
+  | 'admin' 
+  | 'gerente' 
+  | 'coordenador' 
+  | 'supervisor' 
+  | 'lider' 
+  | 'bp' 
+  | 'colaborador'
 
 export interface AppUserProfile {
   id: string
@@ -17,7 +24,11 @@ export interface AppUserProfile {
 export const DEFAULT_ROLE_PAGES: Record<UserRole, string[]> = {
   admin: ['dashboard', 'performance', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'settings', 'links', 'users'],
   gerente: ['dashboard', 'performance', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'links'],
-  colaborador: ['dashboard', 'performance', 'agenda', 'budget', 'inventory', 'links']
+  coordenador: ['dashboard', 'performance', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'links'],
+  supervisor: ['dashboard', 'performance', 'catalog', 'pmts', 'agenda', 'inventory', 'links'],
+  lider: ['dashboard', 'performance', 'catalog', 'agenda', 'inventory', 'links'],
+  bp: ['dashboard', 'performance', 'pmts', 'agenda', 'inventory', 'links'],
+  colaborador: ['dashboard', 'performance', 'agenda', 'inventory', 'links']
 }
 
 export interface OnlineUser {

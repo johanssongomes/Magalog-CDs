@@ -10,12 +10,17 @@ create table if not exists app_users (
   email text not null unique,
   password_hash text,
   name text not null,
-  role text not null check (role in ('admin', 'gerente', 'colaborador')),
+  role text not null check (role in ('admin', 'gerente', 'coordenador', 'supervisor', 'lider', 'bp', 'colaborador')),
   allowed_pages text[] default array['dashboard', 'performance', 'catalog', 'pmts', 'inventory'],
   active boolean default true,
   created_at timestamp with time zone default timezone('utc'::text, now()),
   updated_at timestamp with time zone default timezone('utc'::text, now())
 );
+
+-- Atualizar restrição check da coluna role caso a tabela já exista
+alter table app_users drop constraint if exists app_users_role_check;
+alter table app_users add constraint app_users_role_check 
+  check (role in ('admin', 'gerente', 'coordenador', 'supervisor', 'lider', 'bp', 'colaborador'));
 
 -- Adicionar coluna password_hash caso a tabela já exista
 alter table app_users add column if not exists password_hash text;
