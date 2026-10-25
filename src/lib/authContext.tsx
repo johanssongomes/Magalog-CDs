@@ -1,27 +1,84 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-export type UserRole = 
-  | 'admin' 
-  | 'gerente' 
-  | 'coordenador' 
-  | 'supervisor' 
-  | 'lider' 
-  | 'bp' 
-  | 'colaborador'
+export type UserRole = string
+
+export interface ColaboradorData {
+  cd?: string
+  id: string
+  contratado: string
+  login?: string
+  cpf?: string
+  rg?: string
+  sexo?: string
+  cargoAnterior?: string
+  cargo: string
+  dataAdmissao?: string
+  dataNascimento?: string
+  situacaoSistema?: string
+  status?: string
+  possuiMedidas?: string
+  possuiFeedback?: string
+  idLider?: string
+  nomeLider?: string
+  setor?: string
+  turno?: string
+  ferias?: string
+  codCentroCusto?: string
+  centroDeCusto?: string
+  gerencia?: string
+  periodo45Dias?: string
+  periodo90Dias?: string
+  diaNiver?: string
+  mesNiver?: string
+  aniversario?: string
+  novaIdade?: string
+  tempoDeEmpresa?: string
+  mesAdm?: string
+  diaAdm?: string
+  anoAdm?: string
+}
 
 export interface AppUserProfile {
   id: string
   user_id?: string
+  colaborador_id?: string
   email: string
   name: string
   role: UserRole
+  cargo?: string
   allowed_pages: string[]
   active: boolean
+  password_hash?: string
+  dados_colaborador?: ColaboradorData
 }
 
-// Permissões padrão por cargo
-export const DEFAULT_ROLE_PAGES: Record<UserRole, string[]> = {
+// Permissões padrão por cargo / senioridade
+export const getDefaultPagesForCargo = (cargo: string): string[] => {
+  const c = (cargo || '').toUpperCase()
+  if (c === 'ADMIN' || c.includes('ADMINISTRADOR') || c.includes('DIRETOR')) {
+    return ['dashboard', 'performance', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'settings', 'links', 'users']
+  }
+  if (c.includes('GERENTE')) {
+    return ['dashboard', 'performance', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'links']
+  }
+  if (c.includes('COORDENADOR')) {
+    return ['dashboard', 'performance', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'links']
+  }
+  if (c.includes('SUPERVISOR')) {
+    return ['dashboard', 'performance', 'catalog', 'pmts', 'agenda', 'inventory', 'links']
+  }
+  if (c.includes('LIDER') || c.includes('LÍDER')) {
+    return ['dashboard', 'performance', 'catalog', 'agenda', 'inventory', 'links']
+  }
+  if (c.includes('ANALISTA') || c.includes('CONSULTOR')) {
+    return ['dashboard', 'performance', 'pmts', 'agenda', 'inventory', 'links']
+  }
+  // Conferentes, Operadores, Assistentes, Médicos, etc.
+  return ['dashboard', 'performance', 'agenda', 'inventory', 'links']
+}
+
+export const DEFAULT_ROLE_PAGES: Record<string, string[]> = {
   admin: ['dashboard', 'performance', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'settings', 'links', 'users'],
   gerente: ['dashboard', 'performance', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'links'],
   coordenador: ['dashboard', 'performance', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'links'],
@@ -402,6 +459,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(profile)
           return {}
         }
+      }
+
+      // 4. Fallback local: verificar no localStorage magalog_users_list
+      const localUsersJson = localStorage.getItem('magalog_users_list')
+      if (localUsersJson) {
+        try {
+          const localList: AppUserProfile[] = JSON.parse(localUsersJson)
+          const matched = localList.find(u => u.email.toLowerCase() === cleanEmail)
+          if (matched) {
+            if (!matched.active) {
+              setLoading(false)
+              return { error: 'Este usuário está inativo no sistema. Procure o Administrador.' }
+            }
+            const passOk = matched.password_hash ? matched.password_hash === cleanPass : cleanPass === '123456'
+            if (passOk) {
+              localStorage.setItem('magalog_admin_session', JSON.stringify(matched))
+              setUser(matched)
+              return {}
+            } else {
+              setLoading(false)
+              return { error: 'Senha incorreta para este usuário.' }
+            }
+          }
+        } catch {}
       }
 
       if (authError && !dbUser) {

@@ -1,7 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAuth, DEFAULT_ROLE_PAGES, type AppUserProfile, type UserRole } from '../lib/authContext'
+import { 
+  useAuth, 
+  type AppUserProfile, 
+  type UserRole, 
+  type ColaboradorData,
+  getDefaultPagesForCargo 
+} from '../lib/authContext'
 import { OnlineUsersModal } from './OnlineUsersModal'
+import initialUsersData from '../data/initialUsers.json'
 import { 
   Users, 
   ShieldCheck, 
@@ -11,11 +18,8 @@ import {
   X, 
   Edit2, 
   Trash2, 
-  Lock, 
-  Unlock, 
   CheckCircle2, 
   AlertCircle,
-  KeyRound,
   LayoutDashboard,
   Zap,
   FolderKanban,
@@ -24,9 +28,15 @@ import {
   Settings,
   Globe,
   DollarSign,
-  Activity,
   CalendarDays,
-  Radio
+  Radio,
+  User,
+  KeyRound,
+  FileSpreadsheet,
+  Briefcase,
+  Layers,
+  ChevronDown,
+  Info
 } from 'lucide-react'
 
 const AVAILABLE_PAGES = [
@@ -42,38 +52,177 @@ const AVAILABLE_PAGES = [
   { id: 'users', label: 'Gestão de Usuários', icon: <Users size={14} /> }
 ]
 
+const CARGOS_DISPONIVEIS = [
+  'ANALISTA LOGISTICA JR',
+  'ANALISTA LOGISTICA PL',
+  'ANALISTA LOGISTICA SR',
+  'ANALISTA SUPORTE TECNICO PL',
+  'ASSISTENTE ADMINISTRATIVO II',
+  'ASSISTENTE ADMINISTRATIVO III',
+  'ASSISTENTE LOGISTICA',
+  'AUX ADM APRENDIZ',
+  'AUX LIMPEZA',
+  'AUX MOVIMENTACAO LOGISTICA I',
+  'BOMBEIRO CIVIL',
+  'CONFERENTE',
+  'CONSULTOR INTERNO GP PL',
+  'COORDENADOR LOG SEGUR PATRIMON',
+  'COORDENADOR LOGISTICA',
+  'FARMACEUTICO',
+  'GERENTE REGIONAL LOGISTICA SR',
+  'LIDER DE LOGISTICA',
+  'LIDER MOVIMENTACAO LOGISTICA',
+  'MEDICO TRABALHO JR',
+  'OPERADOR EQUIP MOVIMENTACAO II',
+  'SUPERVISOR LOGISTICA',
+  'TECN SEG TRABALHO PL',
+  'TECNICO MANUTENÇÃO',
+  'ADMIN'
+]
+
+const defaultColaboradorForm: ColaboradorData = {
+  id: '',
+  contratado: '',
+  cargo: 'CONFERENTE',
+  centroDeCusto: 'CD S - CONTROLE DE ESTOQUE',
+  cd: '6994',
+  login: '',
+  cpf: '',
+  rg: '',
+  sexo: 'M',
+  cargoAnterior: '',
+  dataAdmissao: '',
+  dataNascimento: '',
+  situacaoSistema: 'Em Atividade Normal',
+  status: '',
+  possuiMedidas: '',
+  possuiFeedback: '',
+  idLider: '',
+  nomeLider: '',
+  setor: '',
+  turno: '1º',
+  ferias: '',
+  codCentroCusto: '70704',
+  gerencia: 'ARMAZENAGEM OPERACIONAL',
+  periodo45Dias: '',
+  periodo90Dias: '',
+  diaNiver: '',
+  mesNiver: '',
+  aniversario: '',
+  novaIdade: '',
+  tempoDeEmpresa: '',
+  mesAdm: '',
+  diaAdm: '',
+  anoAdm: ''
+}
+
 export const UsersManagementPage: React.FC = () => {
   const { user: currentUser, onlineUsers } = useAuth()
   const [isOnlineModalOpen, setIsOnlineModalOpen] = useState(false)
   const [users, setUsers] = useState<AppUserProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [filterCargo, setFilterCargo] = useState('todos')
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
-  // Modal para Criar / Editar Usuário
+  // Modal para Criar / Editar Perfil do Usuário
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<AppUserProfile | null>(null)
+  const [activeTabModal, setActiveTabModal] = useState<'dados' | 'acesso'>('dados')
+
+  // Estado dos Dados do Perfil / Formulário
+  const [formColabId, setFormColabId] = useState('')
   const [formName, setFormName] = useState('')
   const [formEmail, setFormEmail] = useState('')
   const [formPassword, setFormPassword] = useState('')
-  const [formRole, setFormRole] = useState<UserRole>('colaborador')
+  const [formCargo, setFormCargo] = useState('CONFERENTE')
   const [formAllowedPages, setFormAllowedPages] = useState<string[]>([])
   const [formActive, setFormActive] = useState(true)
+  const [formColaboradorData, setFormColaboradorData] = useState<ColaboradorData>(defaultColaboradorForm)
   const [saving, setSaving] = useState(false)
 
+  // Gerador automático de e-mail institucional
+  const generateEmailFromLoginOrName = (login?: string, name?: string) => {
+    if (login && login.trim()) {
+      return `${login.trim().toLowerCase()}@magalog.com.br`
+    }
+    if (name && name.trim()) {
+      const parts = name.trim().toLowerCase().split(/\s+/)
+      const p1 = parts[0]?.slice(0, 4) || 'user'
+      const p2 = parts[parts.length - 1] || 'cd'
+      return `${p1}_${p2}@magalog.com.br`
+    }
+    return ''
+  }
+
+  // Carrega Usuários da Tabela app_users do Supabase ou inicializa com Modelo 1
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
+      let initialList = (initialUsersData as unknown as AppUserProfile[]) || []
+
+      // 1. Tentar carregar do localStorage primeiro
+      const localUsers = localStorage.getItem('magalog_users_list')
+      if (localUsers) {
+        try {
+          const parsed = JSON.parse(localUsers)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            initialList = parsed
+          }
+        } catch {}
+      }
+
+      // 2. Tentar sincronizar do Supabase app_users
+      const { data: dbData, error } = await supabase
         .from('app_users')
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (error) throw error
-      setUsers(data || [])
+      if (!error && dbData && dbData.length > 0) {
+        // Mesclar dados do banco com dados de perfil enriquecidos
+        const dbMap = new Map(dbData.map(d => [d.email?.toLowerCase(), d]))
+        const mergedList = initialList.map(u => {
+          const dbItem = dbMap.get(u.email?.toLowerCase())
+          if (dbItem) {
+            return {
+              ...u,
+              ...dbItem,
+              role: dbItem.role || u.role || u.cargo,
+              cargo: dbItem.cargo || u.cargo || dbItem.role,
+              allowed_pages: dbItem.allowed_pages || u.allowed_pages,
+              active: dbItem.active !== undefined ? dbItem.active : u.active
+            }
+          }
+          return u
+        })
+
+        // Adicionar usuários criados diretamente no Supabase que não estavam na lista inicial
+        dbData.forEach(d => {
+          if (!mergedList.some(m => m.email?.toLowerCase() === d.email?.toLowerCase())) {
+            mergedList.unshift({
+              id: d.id,
+              colaborador_id: d.colaborador_id || d.id,
+              email: d.email,
+              name: d.name,
+              role: d.role,
+              cargo: d.cargo || d.role,
+              allowed_pages: d.allowed_pages || getDefaultPagesForCargo(d.role),
+              active: d.active !== false
+            })
+          }
+        })
+
+        setUsers(mergedList)
+        localStorage.setItem('magalog_users_list', JSON.stringify(mergedList))
+      } else {
+        // Usa lista local dos 187 colaboradores
+        setUsers(initialList)
+        localStorage.setItem('magalog_users_list', JSON.stringify(initialList))
+      }
     } catch (err: any) {
-      console.error('Erro ao buscar usuários:', err)
-      setMessage({ text: 'Não foi possível carregar a lista de usuários.', type: 'error' })
+      console.warn('Carregando base local de usuários:', err)
+      const baseList = (initialUsersData as unknown as AppUserProfile[]) || []
+      setUsers(baseList)
     } finally {
       setLoading(false)
     }
@@ -83,33 +232,63 @@ export const UsersManagementPage: React.FC = () => {
     fetchUsers()
   }, [])
 
+  // Abrir Modal de Criação de Novo Usuário
   const handleOpenCreateModal = () => {
     setEditingUser(null)
+    setActiveTabModal('dados')
+    const initialCargo = 'CONFERENTE'
+    setFormColabId('')
     setFormName('')
     setFormEmail('')
-    setFormPassword('')
-    setFormRole('colaborador')
-    setFormAllowedPages(DEFAULT_ROLE_PAGES.colaborador)
+    setFormPassword('123456') // Senha padrão solicitada
+    setFormCargo(initialCargo)
+    setFormAllowedPages(getDefaultPagesForCargo(initialCargo))
     setFormActive(true)
+    setFormColaboradorData({
+      ...defaultColaboradorForm,
+      id: '',
+      contratado: '',
+      cargo: initialCargo
+    })
     setIsModalOpen(true)
   }
 
+  // Abrir Modal de Edição / Visualização de Perfil Completo
   const handleOpenEditModal = (u: AppUserProfile) => {
     setEditingUser(u)
+    setActiveTabModal('dados')
+    const colab = u.dados_colaborador || {
+      ...defaultColaboradorForm,
+      id: u.colaborador_id || u.id,
+      contratado: u.name,
+      cargo: u.cargo || u.role || 'CONFERENTE',
+      login: u.email.split('@')[0].toUpperCase()
+    }
+    setFormColabId(u.colaborador_id || u.id)
     setFormName(u.name)
     setFormEmail(u.email)
-    setFormPassword('')
-    setFormRole(u.role)
-    setFormAllowedPages(u.allowed_pages || DEFAULT_ROLE_PAGES[u.role])
-    setFormActive(u.active)
+    setFormPassword(u.password_hash || '123456')
+    const userCargo = u.cargo || u.role || colab.cargo || 'CONFERENTE'
+    setFormCargo(userCargo)
+    setFormAllowedPages(u.allowed_pages || getDefaultPagesForCargo(userCargo))
+    setFormActive(u.active !== false)
+    setFormColaboradorData({
+      ...colab,
+      id: u.colaborador_id || u.id,
+      contratado: u.name,
+      cargo: userCargo
+    })
     setIsModalOpen(true)
   }
 
-  const handleRoleChange = (newRole: UserRole) => {
-    setFormRole(newRole)
-    setFormAllowedPages(DEFAULT_ROLE_PAGES[newRole])
+  // Quando o Cargo muda, atualiza o acesso recomendado e perfil
+  const handleCargoChange = (newCargo: string) => {
+    setFormCargo(newCargo)
+    setFormAllowedPages(getDefaultPagesForCargo(newCargo))
+    setFormColaboradorData(prev => ({ ...prev, cargo: newCargo }))
   }
 
+  // Alterna permissão de página específica
   const togglePagePermission = (pageId: string) => {
     if (formAllowedPages.includes(pageId)) {
       setFormAllowedPages(formAllowedPages.filter(id => id !== pageId))
@@ -118,87 +297,109 @@ export const UsersManagementPage: React.FC = () => {
     }
   }
 
+  // Salvar Criação ou Alterações do Perfil do Usuário
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     setMessage(null)
 
     try {
-      if (editingUser) {
-        // Atualiza perfil no Supabase
-        const updatePayload: any = {
-          name: formName,
-          role: formRole,
-          allowed_pages: formAllowedPages,
-          active: formActive,
-          updated_at: new Date().toISOString()
-        }
-        if (formPassword) {
-          updatePayload.password_hash = formPassword
-        }
+      const finalEmail = formEmail.trim().toLowerCase() || generateEmailFromLoginOrName(formColaboradorData.login, formName)
+      const finalId = formColabId.trim() || formColaboradorData.id || String(Date.now()).slice(-6)
 
-        let { error } = await supabase
-          .from('app_users')
-          .update(updatePayload)
-          .eq('id', editingUser.id)
-
-        // Se o banco ainda não tiver a coluna password_hash adicionada, salva sem ela
-        if (error && error.message?.includes('password_hash')) {
-          delete updatePayload.password_hash
-          const retry = await supabase
-            .from('app_users')
-            .update(updatePayload)
-            .eq('id', editingUser.id)
-          error = retry.error
-        }
-
-        if (error) throw error
-
-        setMessage({ text: 'Usuário atualizado com sucesso!', type: 'success' })
-      } else {
-        // Criação de Usuário
-        // 1. Tenta criar usuário no Supabase Auth se houver senha informada
-        let authUserId = null
-        if (formPassword) {
-          try {
-            const { data: authData } = await supabase.auth.signUp({
-              email: formEmail.trim(),
-              password: formPassword.trim(),
-              options: {
-                data: {
-                  name: formName,
-                  role: formRole
-                }
-              }
-            })
-            if (authData?.user) {
-              authUserId = authData.user.id
-            }
-          } catch (e) {
-            console.warn('Supabase Auth signUp aviso:', e)
-          }
-        }
-
-        // 2. Salva registro na tabela app_users (incluindo password_hash)
-        const { error: insertErr } = await supabase
-          .from('app_users')
-          .insert([{
-            user_id: authUserId,
-            email: formEmail.trim().toLowerCase(),
-            password_hash: formPassword.trim(),
-            name: formName.trim(),
-            role: formRole,
-            allowed_pages: formAllowedPages,
-            active: formActive
-          }])
-
-        if (insertErr) throw insertErr
-
-        setMessage({ text: 'Novo usuário cadastrado com sucesso!', type: 'success' })
+      const updatedColaborador: ColaboradorData = {
+        ...formColaboradorData,
+        id: finalId,
+        contratado: formName.trim().toUpperCase(),
+        cargo: formCargo.trim().toUpperCase(),
+        login: formColaboradorData.login || finalEmail.split('@')[0].toUpperCase()
       }
 
+      const updatedUserProfile: AppUserProfile = {
+        id: editingUser ? editingUser.id : finalId,
+        colaborador_id: finalId,
+        name: formName.trim().toUpperCase(),
+        email: finalEmail,
+        role: formCargo,
+        cargo: formCargo,
+        password_hash: formPassword || '123456',
+        allowed_pages: formAllowedPages,
+        active: formActive,
+        dados_colaborador: updatedColaborador
+      }
+
+      // 1. Atualizar ou Inserir no estado local & localStorage
+      let updatedUsersList: AppUserProfile[]
+      if (editingUser) {
+        updatedUsersList = users.map(u => (u.id === editingUser.id || u.email === editingUser.email) ? updatedUserProfile : u)
+      } else {
+        updatedUsersList = [updatedUserProfile, ...users]
+      }
+      setUsers(updatedUsersList)
+      localStorage.setItem('magalog_users_list', JSON.stringify(updatedUsersList))
+
+      // 2. Persistir no Supabase se disponível
+      try {
+        const payloadSupabase = {
+          email: finalEmail,
+          name: updatedUserProfile.name,
+          role: formCargo,
+          allowed_pages: formAllowedPages,
+          active: formActive,
+          password_hash: updatedUserProfile.password_hash,
+          updated_at: new Date().toISOString()
+        }
+        await supabase.from('app_users').upsert([payloadSupabase], { onConflict: 'email' })
+      } catch (dbErr) {
+        console.warn('Aviso ao sincronizar com app_users no Supabase:', dbErr)
+      }
+
+      // Sincronizar também com a tabela colaboradores do Quadro TT
+      try {
+        await supabase.from('colaboradores').upsert([{
+          id: finalId,
+          contratado: updatedColaborador.contratado,
+          cargo: updatedColaborador.cargo,
+          centro_de_custo: updatedColaborador.centroDeCusto,
+          cd: updatedColaborador.cd || '6994',
+          login: updatedColaborador.login,
+          cpf: updatedColaborador.cpf,
+          rg: updatedColaborador.rg,
+          sexo: updatedColaborador.sexo,
+          cargo_anterior: updatedColaborador.cargoAnterior,
+          data_admissao: updatedColaborador.dataAdmissao,
+          data_nascimento: updatedColaborador.dataNascimento,
+          situacao_sistema: updatedColaborador.situacaoSistema,
+          status: updatedColaborador.status,
+          possui_medidas: updatedColaborador.possuiMedidas,
+          possui_feedback: updatedColaborador.possuiFeedback,
+          id_lider: updatedColaborador.idLider,
+          nome_lider: updatedColaborador.nomeLider,
+          setor: updatedColaborador.setor,
+          turno: updatedColaborador.turno,
+          ferias: updatedColaborador.ferias,
+          cod_centro_custo: updatedColaborador.codCentroCusto,
+          gerencia: updatedColaborador.gerencia,
+          periodo_45_dias: updatedColaborador.periodo45Dias,
+          periodo_90_dias: updatedColaborador.periodo90Dias,
+          dia_niver: updatedColaborador.diaNiver,
+          mes_niver: updatedColaborador.mesNiver,
+          aniversario: updatedColaborador.aniversario,
+          nova_idade: updatedColaborador.novaIdade,
+          tempo_de_empresa: updatedColaborador.tempoDeEmpresa,
+          mes_adm: updatedColaborador.mesAdm,
+          dia_adm: updatedColaborador.diaAdm,
+          ano_adm: updatedColaborador.anoAdm
+        }], { onConflict: 'id' })
+      } catch (colabErr) {
+        console.warn('Aviso ao sincronizar colaborador no Supabase:', colabErr)
+      }
+
+      setMessage({ 
+        text: editingUser ? 'Perfil e permissões do usuário atualizados com sucesso!' : 'Novo usuário cadastrado com sucesso!', 
+        type: 'success' 
+      })
       setIsModalOpen(false)
-      fetchUsers()
     } catch (err: any) {
       console.error('Erro ao salvar usuário:', err)
       setMessage({ text: err.message || 'Erro ao processar dados do usuário.', type: 'error' })
@@ -207,24 +408,39 @@ export const UsersManagementPage: React.FC = () => {
     }
   }
 
+  // Excluir usuário
   const handleDelete = async (u: AppUserProfile) => {
     if (!confirm(`Deseja realmente remover o usuário "${u.name}" (${u.email})?`)) return
 
     try {
-      const { error } = await supabase.from('app_users').delete().eq('id', u.id)
-      if (error) throw error
+      const filtered = users.filter(x => x.id !== u.id && x.email !== u.email)
+      setUsers(filtered)
+      localStorage.setItem('magalog_users_list', JSON.stringify(filtered))
+
+      try {
+        await supabase.from('app_users').delete().eq('email', u.email)
+      } catch {}
+
       setMessage({ text: 'Usuário removido com sucesso.', type: 'success' })
-      fetchUsers()
     } catch (err: any) {
       setMessage({ text: err.message || 'Erro ao remover usuário.', type: 'error' })
     }
   }
 
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase()) ||
-    u.role.toLowerCase().includes(search.toLowerCase())
-  )
+  // Filtragem da lista
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = 
+      (u.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (u.email || '').toLowerCase().includes(search.toLowerCase()) ||
+      (u.cargo || u.role || '').toLowerCase().includes(search.toLowerCase()) ||
+      (u.colaborador_id || u.id || '').toLowerCase().includes(search.toLowerCase())
+
+    const matchesCargo = filterCargo === 'todos' || (u.cargo || u.role) === filterCargo
+    return matchesSearch && matchesCargo
+  })
+
+  // Lista única de cargos para filtro
+  const uniqueCargos = Array.from(new Set(users.map(u => u.cargo || u.role).filter(Boolean))).sort()
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -238,7 +454,7 @@ export const UsersManagementPage: React.FC = () => {
             <h1 className="text-xl font-bold text-slate-800">Controle de Usuários & Permissões</h1>
           </div>
           <p className="text-xs text-slate-500">
-            Gerencie o acesso de Administradores, Gerentes e Colaboradores às telas do sistema CD 994.
+            Gerencie o perfil completo, matrículas (ID), credenciais e autorização de acesso às páginas por Cargo.
           </p>
         </div>
 
@@ -281,32 +497,52 @@ export const UsersManagementPage: React.FC = () => {
 
       {/* Tabela de Usuários */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-        {/* Barra de Filtro */}
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-sm">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nome, e-mail ou cargo..."
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-blue-500"
-            />
+        {/* Barra de Filtro e Busca */}
+        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-50/50">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
+            <div className="relative flex-1 max-w-sm">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por ID, nome, e-mail ou cargo..."
+                className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 shadow-2xs"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">Filtrar Cargo:</span>
+              <select
+                value={filterCargo}
+                onChange={(e) => setFilterCargo(e.target.value)}
+                className="text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-blue-500 text-slate-700 font-medium shadow-2xs max-w-[220px] truncate"
+              >
+                <option value="todos">Todos os Cargos ({users.length})</option>
+                {uniqueCargos.map(cargo => (
+                  <option key={cargo} value={cargo}>{cargo}</option>
+                ))}
+              </select>
+            </div>
           </div>
-          <span className="text-xs text-slate-400 font-medium">
-            Total: <strong className="text-slate-700">{filteredUsers.length}</strong> usuários
-          </span>
+
+          <div className="text-xs text-slate-500 flex items-center gap-1.5 self-end md:self-auto">
+            <span>Listando:</span>
+            <strong className="text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md font-mono">{filteredUsers.length}</strong>
+            <span>de {users.length} usuários</span>
+          </div>
         </div>
 
-        {/* Tabela */}
+        {/* Tabela de Dados */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50/75 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+            <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="px-4 py-3">Usuário</th>
-                <th className="px-4 py-3">Presença / Login</th>
-                <th className="px-4 py-3">Nível de Acesso</th>
+                <th className="px-4 py-3">ID / Matrícula</th>
+                <th className="px-4 py-3">Usuário & E-mail</th>
+                <th className="px-4 py-3">Cargo (Permissão)</th>
                 <th className="px-4 py-3">Páginas Autorizadas</th>
+                <th className="px-4 py-3">Presença</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-6 py-3 text-right min-w-[120px]">Ações</th>
               </tr>
@@ -314,14 +550,17 @@ export const UsersManagementPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-8 text-slate-400">
-                    Carregando usuários...
+                  <td colSpan={7} className="text-center py-10 text-slate-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                      <span>Carregando usuários da planilha Modelo 1...</span>
+                    </div>
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-8 text-slate-400">
-                    Nenhum usuário cadastrado ou localizado.
+                  <td colSpan={7} className="text-center py-10 text-slate-400">
+                    Nenhum colaborador ou usuário encontrado para a busca.
                   </td>
                 </tr>
               ) : (
@@ -331,20 +570,19 @@ export const UsersManagementPage: React.FC = () => {
                     o => o.email?.toLowerCase() === u.email?.toLowerCase()
                   )
                   const isOnline = Boolean(onlineInfo || isCurrent)
-                  const loginTime = onlineInfo?.logged_at || (isCurrent ? (sessionStorage.getItem(`login_time_${currentUser.email}`) || new Date().toISOString()) : null)
-
-                  let formattedLogin = 'Não registrado'
-                  if (loginTime) {
-                    try {
-                      const d = new Date(loginTime)
-                      formattedLogin = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-                    } catch {
-                      formattedLogin = loginTime
-                    }
-                  }
+                  const colabId = u.colaborador_id || u.id || '-'
+                  const userCargo = u.cargo || u.role || 'CONFERENTE'
 
                   return (
-                    <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={u.id || u.email} className="hover:bg-slate-50/90 transition-colors">
+                      {/* ID / Matrícula */}
+                      <td className="px-4 py-3.5">
+                        <span className="px-2 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-700 font-mono font-bold text-[11px]">
+                          {colabId}
+                        </span>
+                      </td>
+
+                      {/* Usuário & E-mail */}
                       <td className="px-4 py-3.5">
                         <div className="font-bold text-slate-800 flex items-center gap-1.5">
                           {u.name}
@@ -354,60 +592,23 @@ export const UsersManagementPage: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">{u.email}</div>
+                        <div className="text-[11px] text-blue-600 font-mono mt-0.5 flex items-center gap-1">
+                          <span>{u.email}</span>
+                        </div>
                       </td>
 
+                      {/* Cargo (Substituiu os Níveis) */}
                       <td className="px-4 py-3.5">
-                        {isOnline ? (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-600">
-                              <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                              </span>
-                              Online agora
-                            </span>
-                            <span className="text-[10px] text-slate-500 flex items-center gap-1">
-                              <Clock size={10} className="text-slate-400" />
-                              Logou às {formattedLogin}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
-                              <span className="w-2 h-2 rounded-full bg-slate-300" />
-                              Offline
-                            </span>
-                            <span className="text-[10px] text-slate-400">
-                              Sem sessão ativa
-                            </span>
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="px-4 py-3.5">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          u.role === 'admin'
-                            ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                            : u.role === 'gerente'
-                            ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                            : u.role === 'coordenador'
-                            ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                            : u.role === 'supervisor'
-                            ? 'bg-cyan-100 text-cyan-800 border border-cyan-200'
-                            : u.role === 'lider'
-                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                            : u.role === 'bp'
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            : 'bg-slate-100 text-slate-700 border border-slate-200'
-                        }`}>
-                          {u.role === 'bp' ? 'BP (Parceiro)' : u.role}
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-800 border border-slate-300">
+                          <Briefcase size={11} className="mr-1 text-slate-500" />
+                          {userCargo}
                         </span>
                       </td>
 
+                      {/* Páginas Autorizadas */}
                       <td className="px-4 py-3.5">
-                        <div className="flex flex-wrap gap-1 max-w-md">
-                          {u.role === 'admin' ? (
+                        <div className="flex flex-wrap gap-1 max-w-sm">
+                          {userCargo.toUpperCase().includes('ADMIN') ? (
                             <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium text-[10px] border border-emerald-200">
                               Acesso Total (Todas as Telas)
                             </span>
@@ -424,19 +625,39 @@ export const UsersManagementPage: React.FC = () => {
                         </div>
                       </td>
 
+                      {/* Presença Online */}
                       <td className="px-4 py-3.5">
-                        <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${u.active ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${u.active ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                          {u.active ? 'Ativo' : 'Inativo'}
+                        {isOnline ? (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-600">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            Online
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                            Offline
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-3.5">
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${u.active !== false ? 'text-emerald-600' : 'text-slate-400'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${u.active !== false ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                          {u.active !== false ? 'Ativo' : 'Inativo'}
                         </span>
                       </td>
 
+                      {/* Ações */}
                       <td className="px-6 py-3.5 text-right min-w-[120px]">
                         <div className="flex items-center justify-end gap-2 pr-1">
                           <button
                             type="button"
                             onClick={() => handleOpenEditModal(u)}
-                            title="Editar Usuário & Permissões"
+                            title="Editar Perfil Completo & Permissões"
                             className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100/70 rounded-xl transition-all cursor-pointer border border-transparent hover:border-blue-200 shadow-2xs"
                           >
                             <Edit2 size={15} />
@@ -462,175 +683,660 @@ export const UsersManagementPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal de Criação / Edição */}
+      {/* MODAL DE PERFIL DO USUÁRIO & PERMISSÕES COM 2 ABAS */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-blue-100 text-blue-600">
-                  <ShieldCheck size={18} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            
+            {/* Cabeçalho do Perfil */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-500/20">
+                  <User size={22} />
                 </div>
-                <h3 className="font-bold text-slate-800 text-sm">
-                  {editingUser ? 'Editar Usuário e Permissões' : 'Cadastrar Novo Usuário'}
-                </h3>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <span>{formName || 'Novo Usuário do Sistema'}</span>
+                    {formColabId && (
+                      <span className="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-800 text-xs font-mono font-bold">
+                        MATRÍCULA / ID: {formColabId}
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Ficha cadastral completa com todos os dados do formato <span className="font-semibold text-slate-700">Modelo Pessoas (Modelo 1)</span>
+                  </p>
+                </div>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
-                <X size={18} />
+
+              <button 
+                onClick={() => setIsModalOpen(false)} 
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="p-6 space-y-4">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Nome Completo
-                </label>
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  placeholder="Ex: João da Silva"
-                  required
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
+            {/* ABAS DE NAVEGAÇÃO DO MODAL */}
+            <div className="flex border-b border-slate-200 px-6 bg-white gap-4">
+              <button
+                type="button"
+                onClick={() => setActiveTabModal('dados')}
+                className={`py-3 text-xs font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+                  activeTabModal === 'dados'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <FileSpreadsheet size={16} />
+                <span>Aba 1: Dados do Colaborador (Planilha)</span>
+              </button>
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  E-mail de Acesso
-                </label>
-                <input
-                  type="email"
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
-                  placeholder="usuario@magalog.com.br"
-                  required
-                  disabled={!!editingUser}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-blue-500 disabled:opacity-60"
-                />
-              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTabModal('acesso')}
+                className={`py-3 text-xs font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+                  activeTabModal === 'acesso'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <KeyRound size={16} />
+                <span>Aba 2: Dados de Acesso & Permissões por Cargo</span>
+              </button>
+            </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  {editingUser ? 'Nova Senha (deixe em branco para manter a atual)' : 'Senha de Acesso'}
-                </label>
-                <input
-                  type="password"
-                  value={formPassword}
-                  onChange={(e) => setFormPassword(e.target.value)}
-                  placeholder={editingUser ? '•••••••• (opcional)' : 'Mínimo 6 caracteres'}
-                  required={!editingUser}
-                  minLength={formPassword ? 6 : undefined}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
+            {/* CONTEÚDO DO FORMULÁRIO */}
+            <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
+              <div className="overflow-y-auto p-6 space-y-5 flex-1">
 
-              {/* Nível / Cargo */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Nível de Permissão (Cargo)
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { id: 'admin', label: 'Admin' },
-                    { id: 'gerente', label: 'Gerente' },
-                    { id: 'coordenador', label: 'Coordenador' },
-                    { id: 'supervisor', label: 'Supervisor' },
-                    { id: 'lider', label: 'Líder' },
-                    { id: 'bp', label: 'Parceiro (BP)' },
-                    { id: 'colaborador', label: 'Colaborador' }
-                  ].map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => handleRoleChange(item.id as UserRole)}
-                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                        formRole === item.id
-                          ? 'border-blue-600 bg-blue-50 text-blue-900 font-bold shadow-xs'
-                          : 'border-slate-200 hover:bg-slate-50 text-slate-600'
-                      }`}
-                    >
-                      <div className="text-xs uppercase">{item.label}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+                {/* ======================================================== */}
+                {/* ABA 1: DADOS DO COLABORADOR (PLANILHA MODELO 1)          */}
+                {/* ======================================================== */}
+                {activeTabModal === 'dados' && (
+                  <div className="space-y-5 animate-in fade-in duration-150">
+                    
+                    {/* SEÇÃO 1: DADOS PRINCIPAIS & LOTAÇÃO */}
+                    <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4">
+                      <div className="flex items-center gap-2 pb-3 mb-3 border-b border-slate-200/60">
+                        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold">1</span>
+                        <h4 className="text-xs font-bold text-slate-800 tracking-wide uppercase">Dados Principais & Lotação</h4>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        <div className="space-y-1 sm:col-span-1">
+                          <label className="text-[11px] font-bold text-slate-700">ID / Matrícula</label>
+                          <input
+                            type="text"
+                            required
+                            value={formColabId}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              setFormColabId(val)
+                              setFormColaboradorData({ ...formColaboradorData, id: val })
+                            }}
+                            placeholder="Ex: 435638"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-slate-800 outline-none"
+                          />
+                        </div>
 
-              {/* Lista de Telas com Permissão Individual */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                    Páginas com Acesso Autorizado
-                  </label>
-                  {formRole === 'admin' && (
-                    <span className="text-[10px] text-purple-600 font-bold">Admin possui todas</span>
-                  )}
-                </div>
+                        <div className="space-y-1 sm:col-span-2 md:col-span-3">
+                          <label className="text-[11px] font-bold text-slate-700">Nome do Contratado</label>
+                          <input
+                            type="text"
+                            required
+                            value={formName}
+                            onChange={(e) => {
+                              const val = e.target.value.toUpperCase()
+                              setFormName(val)
+                              setFormColaboradorData({ ...formColaboradorData, contratado: val })
+                              if (!editingUser && !formEmail) {
+                                setFormEmail(generateEmailFromLoginOrName(formColaboradorData.login, val))
+                              }
+                            }}
+                            placeholder="Ex: ACISNE MELO VICTOR"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
 
-                <div className="grid grid-cols-2 gap-2 border border-slate-100 rounded-2xl p-3 bg-slate-50/50 max-h-44 overflow-y-auto">
-                  {AVAILABLE_PAGES.map((page) => {
-                    const isChecked = formRole === 'admin' || formAllowedPages.includes(page.id)
-                    return (
-                      <label
-                        key={page.id}
-                        className={`flex items-center gap-2 p-2 rounded-xl border text-xs cursor-pointer transition-all ${
-                          isChecked 
-                            ? 'bg-blue-50 border-blue-200 text-blue-900 font-semibold' 
-                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          disabled={formRole === 'admin'}
-                          onChange={() => togglePagePermission(page.id)}
-                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="flex items-center gap-1.5 truncate">
-                          {page.icon}
-                          <span className="truncate">{page.label}</span>
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Cargo Atual</label>
+                          <select
+                            value={formCargo}
+                            onChange={(e) => handleCargoChange(e.target.value)}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          >
+                            {CARGOS_DISPONIVEIS.map(c => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Cargo Anterior</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.cargoAnterior || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, cargoAnterior: e.target.value.toUpperCase() })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1">
+                          <label className="text-[11px] font-bold text-slate-700">CD</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.cd || '6994'}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, cd: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Centro de Custo</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.centroDeCusto || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, centroDeCusto: e.target.value.toUpperCase() })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1">
+                          <label className="text-[11px] font-bold text-slate-700">Cód. Centro Custo</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.codCentroCusto || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, codCentroCusto: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Gerência</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.gerencia || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, gerencia: e.target.value.toUpperCase() })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Situação Sistema</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.situacaoSistema || 'Em Atividade Normal'}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, situacaoSistema: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SEÇÃO 2: LIDERANÇA, TURNO & SETOR */}
+                    <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4">
+                      <div className="flex items-center gap-2 pb-3 mb-3 border-b border-slate-200/60">
+                        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold">2</span>
+                        <h4 className="text-xs font-bold text-slate-800 tracking-wide uppercase">Liderança, Turno & Setor</h4>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        <div className="space-y-1 sm:col-span-1">
+                          <label className="text-[11px] font-bold text-slate-700">ID Líder</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.idLider || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, idLider: e.target.value })}
+                            placeholder="Ex: 204403"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-2 md:col-span-3">
+                          <label className="text-[11px] font-bold text-slate-700">Nome do Líder</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.nomeLider || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, nomeLider: e.target.value.toUpperCase() })}
+                            placeholder="Ex: FRANCISCO MICHAEL LIMA BATISTA"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Setor</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.setor || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, setor: e.target.value.toUpperCase() })}
+                            placeholder="Ex: SUPRIMENTO, EXPEDIÇÃO"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Turno</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.turno || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, turno: e.target.value })}
+                            placeholder="Ex: 1º, 2º, 3º, Adm"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1 md:col-span-1">
+                          <label className="text-[11px] font-bold text-slate-700">Status</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.status || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, status: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1 md:col-span-1">
+                          <label className="text-[11px] font-bold text-slate-700">Possui Medidas</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.possuiMedidas || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, possuiMedidas: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Possui Feedback</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.possuiFeedback || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, possuiFeedback: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SEÇÃO 3: ADMISSÃO, EXPERIÊNCIA & FÉRIAS */}
+                    <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4">
+                      <div className="flex items-center gap-2 pb-3 mb-3 border-b border-slate-200/60">
+                        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-amber-600 text-white text-[10px] font-bold">3</span>
+                        <h4 className="text-xs font-bold text-slate-800 tracking-wide uppercase">Admissão, Experiência & Férias</h4>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Data de Admissão</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.dataAdmissao || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, dataAdmissao: e.target.value })}
+                            placeholder="DD/MM/AAAA"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Tempo de Empresa</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.tempoDeEmpresa || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, tempoDeEmpresa: e.target.value })}
+                            placeholder="Ex: 6a-10m-10d"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Férias</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.ferias || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, ferias: e.target.value })}
+                            placeholder="Ex: Gozando Férias"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Período 45 Dias (Experiência)</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.periodo45Dias || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, periodo45Dias: e.target.value })}
+                            placeholder="DD/MM/AAAA"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Período 90 Dias (Experiência)</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.periodo90Dias || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, periodo90Dias: e.target.value })}
+                            placeholder="DD/MM/AAAA"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-2 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Dia / Mês / Ano Adm</label>
+                          <div className="grid grid-cols-3 gap-1">
+                            <input
+                              type="text"
+                              value={formColaboradorData.diaAdm || ''}
+                              onChange={(e) => setFormColaboradorData({ ...formColaboradorData, diaAdm: e.target.value })}
+                              placeholder="Dia"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-center font-semibold"
+                            />
+                            <input
+                              type="text"
+                              value={formColaboradorData.mesAdm || ''}
+                              onChange={(e) => setFormColaboradorData({ ...formColaboradorData, mesAdm: e.target.value })}
+                              placeholder="Mês"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-center font-semibold"
+                            />
+                            <input
+                              type="text"
+                              value={formColaboradorData.anoAdm || ''}
+                              onChange={(e) => setFormColaboradorData({ ...formColaboradorData, anoAdm: e.target.value })}
+                              placeholder="Ano"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-center font-semibold"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SEÇÃO 4: DOCUMENTOS & DADOS PESSOAIS */}
+                    <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4">
+                      <div className="flex items-center gap-2 pb-3 mb-3 border-b border-slate-200/60">
+                        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold">4</span>
+                        <h4 className="text-xs font-bold text-slate-800 tracking-wide uppercase">Documentos & Dados Pessoais</h4>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Login Corporativo</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.login || ''}
+                            onChange={(e) => {
+                              const val = e.target.value.toUpperCase()
+                              setFormColaboradorData({ ...formColaboradorData, login: val })
+                              if (!editingUser) {
+                                setFormEmail(generateEmailFromLoginOrName(val, formName))
+                              }
+                            }}
+                            placeholder="Ex: JSEP_SILVA"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">CPF</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.cpf || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, cpf: e.target.value })}
+                            placeholder="000.000.000-00"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">RG</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.rg || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, rg: e.target.value })}
+                            placeholder="Registro Geral"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1">
+                          <label className="text-[11px] font-bold text-slate-700">Sexo</label>
+                          <select
+                            value={formColaboradorData.sexo || 'M'}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, sexo: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          >
+                            <option value="M">Masculino (M)</option>
+                            <option value="F">Feminino (F)</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Data de Nascimento</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.dataNascimento || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, dataNascimento: e.target.value })}
+                            placeholder="DD/MM/AAAA"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1">
+                          <label className="text-[11px] font-bold text-slate-700">Idade Atual</label>
+                          <input
+                            type="text"
+                            value={formColaboradorData.novaIdade || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, novaIdade: e.target.value })}
+                            placeholder="Ex: 50"
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-2 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700">Dia e Mês de Aniversário</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={formColaboradorData.diaNiver || ''}
+                              onChange={(e) => setFormColaboradorData({ ...formColaboradorData, diaNiver: e.target.value })}
+                              placeholder="Dia (Ex: 20)"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-center font-semibold"
+                            />
+                            <input
+                              type="text"
+                              value={formColaboradorData.mesNiver || ''}
+                              onChange={(e) => setFormColaboradorData({ ...formColaboradorData, mesNiver: e.target.value })}
+                              placeholder="Mês (Ex: 9)"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-center font-semibold"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+
+                {/* ======================================================== */}
+                {/* ABA 2: DADOS DE ACESSO & PERMISSÕES POR CARGO            */}
+                {/* ======================================================== */}
+                {activeTabModal === 'acesso' && (
+                  <div className="space-y-5 animate-in fade-in duration-150">
+                    
+                    {/* Bloco de Credenciais */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                      <div className="flex items-center gap-2 pb-2 border-b border-slate-200 text-slate-800">
+                        <KeyRound size={16} className="text-blue-600" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider">Credenciais de Autenticação</h4>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                            E-mail Institucional (@magalog.com.br)
+                          </label>
+                          <input
+                            type="email"
+                            required
+                            value={formEmail}
+                            onChange={(e) => setFormEmail(e.target.value.toLowerCase())}
+                            placeholder="usuario@magalog.com.br"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono focus:border-blue-500 outline-none"
+                          />
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            Padrão: <code>login@magalog.com.br</code> (ex: <code>jsep_silva@magalog.com.br</code>)
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                            Senha de Acesso (Padrão 123456)
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={formPassword}
+                            onChange={(e) => setFormPassword(e.target.value)}
+                            placeholder="123456"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold focus:border-blue-500 outline-none"
+                          />
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            Senha inicial padrão: <code>123456</code>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bloco de Cargo & Permissão */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                        <div className="flex items-center gap-2 text-slate-800">
+                          <Briefcase size={16} className="text-blue-600" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider">
+                            Nível de Permissão pelo Cargo
+                          </h4>
+                        </div>
+                        <span className="text-[11px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                          {formCargo}
                         </span>
-                      </label>
-                    )
-                  })}
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">
+                          Selecione o Cargo para atribuir permissões automáticas:
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1 bg-white border border-slate-200 rounded-xl">
+                          {CARGOS_DISPONIVEIS.map((cargoOption) => {
+                            const isSelected = formCargo === cargoOption
+                            return (
+                              <button
+                                key={cargoOption}
+                                type="button"
+                                onClick={() => handleCargoChange(cargoOption)}
+                                className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'border-blue-600 bg-blue-50 text-blue-900 font-bold shadow-2xs'
+                                    : 'border-slate-100 hover:bg-slate-50 text-slate-600'
+                                }`}
+                              >
+                                <div className="text-[10px] font-bold uppercase truncate">{cargoOption}</div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Páginas com Acesso Autorizado */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <Layers size={14} className="text-slate-500" />
+                            Páginas com Acesso Autorizado para este Usuário
+                          </label>
+                          {formCargo.toUpperCase().includes('ADMIN') && (
+                            <span className="text-[10px] text-purple-600 font-bold bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
+                              Administrador: Acesso Total
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 p-3 bg-white border border-slate-200 rounded-xl">
+                          {AVAILABLE_PAGES.map((page) => {
+                            const isChecked = formCargo.toUpperCase().includes('ADMIN') || formAllowedPages.includes(page.id)
+                            return (
+                              <label
+                                key={page.id}
+                                className={`flex items-center gap-2.5 p-2 rounded-xl border text-xs cursor-pointer transition-all ${
+                                  isChecked 
+                                    ? 'bg-blue-50/80 border-blue-200 text-blue-900 font-semibold shadow-2xs' 
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  disabled={formCargo.toUpperCase().includes('ADMIN')}
+                                  onChange={() => togglePagePermission(page.id)}
+                                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                />
+                                <span className="flex items-center gap-1.5 truncate">
+                                  {page.icon}
+                                  <span className="truncate">{page.label}</span>
+                                </span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Usuário Ativo / Inativo */}
+                      <div className="flex items-center justify-between pt-2">
+                        <div>
+                          <span className="text-xs font-bold text-slate-700">Status da Conta no Sistema</span>
+                          <p className="text-[10px] text-slate-400">Usuários inativos têm o acesso bloqueado imediatamente.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFormActive(!formActive)}
+                          className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
+                            formActive ? 'bg-blue-600' : 'bg-slate-300'
+                          }`}
+                        >
+                          <div
+                            className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                              formActive ? 'translate-x-6' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                    </div>
+
+                  </div>
+                )}
+
+              </div>
+
+              {/* Rodapé com Botões de Ação */}
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs text-slate-500">
+                  {activeTabModal === 'dados' ? 'Aba 1: Dados do Colaborador' : 'Aba 2: Dados de Acesso & Permissões'}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Check size={16} />
+                    <span>{saving ? 'Salvando...' : 'Salvar Alterações'}</span>
+                  </button>
                 </div>
-              </div>
-
-              {/* Status Ativo / Inativo */}
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-xs font-semibold text-slate-700">Usuário Ativo no Sistema</span>
-                <button
-                  type="button"
-                  onClick={() => setFormActive(!formActive)}
-                  className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
-                    formActive ? 'bg-blue-600' : 'bg-slate-300'
-                  }`}
-                >
-                  <div
-                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                      formActive ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 disabled:opacity-50 cursor-pointer"
-                >
-                  {saving ? 'Salvando...' : 'Salvar Usuário'}
-                </button>
               </div>
             </form>
+
           </div>
         </div>
       )}
