@@ -9,6 +9,7 @@ import {
 } from '../lib/authContext'
 import { OnlineUsersModal } from './OnlineUsersModal'
 import initialUsersData from '../data/initialUsers.json'
+import initialColaboradoresData from '../data/initialColaboradores.json'
 import { 
   Users, 
   ShieldCheck, 
@@ -155,40 +156,59 @@ export const UsersManagementPage: React.FC = () => {
     return ''
   }
 
+  // Função auxiliar para encontrar colaborador na planilha por e-mail ou nome
+  const findColaboradorInSpreadsheet = (email?: string, name?: string): ColaboradorData | undefined => {
+    const list = (initialColaboradoresData as unknown as ColaboradorData[]) || []
+    const cleanEmail = (email || '').toLowerCase().trim()
+    const prefix = cleanEmail.split('@')[0].replace(/[._-]/g, '')
+    const cleanName = (name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+
+    // 1. Procura direta por login
+    let match = list.find(c => {
+      if (!c.login) return false
+      const l = c.login.toLowerCase().replace(/[._-]/g, '')
+      return l === prefix || prefix.includes(l) || l.includes(prefix)
+    })
+    if (match) return match
+
+    // 2. Procura por partes do nome
+    const nameParts = cleanName.split(/\s+/).filter(p => p.length >= 3)
+    if (nameParts.length > 0) {
+      match = list.find(c => {
+        const cName = (c.contratado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        return nameParts.every(part => cName.includes(part))
+      })
+    }
+    return match
+  }
+
   // Carrega Usuários da Tabela app_users do Supabase ou inicializa com Modelo 1
   const fetchUsers = async () => {
     try {
       setLoading(true)
       let initialList = (initialUsersData as unknown as AppUserProfile[]) || []
 
-      // 1. Tentar carregar do localStorage primeiro
-      const localUsers = localStorage.getItem('magalog_users_list')
-      if (localUsers) {
-        try {
-          const parsed = JSON.parse(localUsers)
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            initialList = parsed
-          }
-        } catch {}
-      }
-
-      // 2. Tentar sincronizar do Supabase app_users
+      // 1. Tentar sincronizar do Supabase app_users
       const { data: dbData, error } = await supabase
         .from('app_users')
         .select('*')
         .order('created_at', { ascending: false })
 
       if (!error && dbData && dbData.length > 0) {
-        // Mesclar dados do banco com dados de perfil enriquecidos
+        // Criar mapa para lookup rápido por email
         const dbMap = new Map(dbData.map(d => [d.email?.toLowerCase(), d]))
+
+        // Atualiza os usuários da lista base (187) com dados do banco se houver
         const mergedList = initialList.map(u => {
           const dbItem = dbMap.get(u.email?.toLowerCase())
           if (dbItem) {
             return {
               ...u,
               ...dbItem,
+              id: u.id, // Mantém a matrícula / ID do colaborador em vez do UUID
+              colaborador_id: u.colaborador_id || u.id,
               role: dbItem.role || u.role || u.cargo,
-              cargo: dbItem.cargo || u.cargo || dbItem.role,
+              cargo: u.cargo || dbItem.cargo || dbItem.role,
               allowed_pages: dbItem.allowed_pages || u.allowed_pages,
               active: dbItem.active !== undefined ? dbItem.active : u.active
             }
@@ -196,21 +216,29 @@ export const UsersManagementPage: React.FC = () => {
           return u
         })
 
-        // Adicionar usuários criados diretamente no Supabase que não estavam na lista inicial
+        // Adiciona usuários do Supabase que não estavam na lista base, resolvendo o ID da planilha
         dbData.forEach(d => {
           if (!mergedList.some(m => m.email?.toLowerCase() === d.email?.toLowerCase())) {
+            const colab = findColaboradorInSpreadsheet(d.email, d.name)
+            const finalColabId = colab?.id || d.colaborador_id || d.id
+            const finalCargo = colab?.cargo || d.cargo || d.role
+
             mergedList.unshift({
-              id: d.id,
-              colaborador_id: d.colaborador_id || d.id,
+              id: finalColabId,
+              colaborador_id: finalColabId,
               email: d.email,
-              name: d.name,
-              role: d.role,
-              cargo: d.cargo || d.role,
-              allowed_pages: d.allowed_pages || getDefaultPagesForCargo(d.role),
-              active: d.active !== false
+              name: colab?.contratado || d.name,
+              role: finalCargo,
+              cargo: finalCargo,
+              allowed_pages: d.allowed_pages || getDefaultPagesForCargo(finalCargo),
+              active: d.active !== false,
+              dados_colaborador: colab
             })
           }
         })
+
+        // Ordena por nome do colaborador para visualização limpa
+        mergedList.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
 
         setUsers(mergedList)
         localStorage.setItem('magalog_users_list', JSON.stringify(mergedList))
