@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import initialColaboradores from '../data/initialColaboradores.json'
 
 export type UserRole = string
 
@@ -88,6 +89,16 @@ export const DEFAULT_ROLE_PAGES: Record<string, string[]> = {
   colaborador: ['dashboard', 'performance', 'agenda', 'inventory', 'links']
 }
 
+export const mapCargoToValidRole = (cargo: string): string => {
+  const c = (cargo || '').toUpperCase()
+  if (c.includes('ADMIN')) return 'admin'
+  if (c.includes('GERENTE')) return 'gerente'
+  if (c.includes('COORDENADOR')) return 'coordenador'
+  if (c.includes('SUPERVISOR')) return 'supervisor'
+  if (c.includes('LIDER') || c.includes('LÍDER')) return 'lider'
+  if (c.includes('ANALISTA') || c.includes('CONSULTOR')) return 'bp'
+  return 'colaborador'
+}
 export interface OnlineUser {
   id: string
   name: string
@@ -124,7 +135,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle()
 
       if (data && !error) {
-        setUser(data as AppUserProfile)
+        const colabInfo = (initialColaboradores as any[]).find(c => 
+          (c.login && data.email.toLowerCase().includes(c.login.toLowerCase())) ||
+          (c.contratado && data.name && c.contratado.toLowerCase() === data.name.toLowerCase())
+        )
+        const enriched: AppUserProfile = {
+          ...data,
+          colaborador_id: colabInfo?.id || data.colaborador_id || data.id,
+          cargo: colabInfo?.cargo || data.cargo || data.role
+        }
+        setUser(enriched)
         return
       }
 
@@ -222,13 +242,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 return
               }
 
+              const colabInfo = (initialColaboradores as any[]).find(c => 
+                (c.login && row.email?.toLowerCase().includes(c.login.toLowerCase())) ||
+                (c.contratado && row.name && c.contratado.toLowerCase() === row.name.toLowerCase())
+              )
               const newProf: AppUserProfile = {
                 id: row.id,
                 user_id: row.user_id || currentObj.user_id,
+                colaborador_id: colabInfo?.id || currentObj.colaborador_id,
                 email: row.email,
                 name: row.name,
                 role: row.role as UserRole,
-                allowed_pages: row.allowed_pages || DEFAULT_ROLE_PAGES[row.role as UserRole],
+                cargo: colabInfo?.cargo || row.cargo || row.role,
+                allowed_pages: row.allowed_pages || [],
                 active: row.active
               }
               applyProfileUpdate(newProf)
@@ -264,13 +290,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const latestPages = (latest.allowed_pages || []).slice().sort().join(',')
 
           if (currentPages !== latestPages || u.role !== latest.role || u.active !== latest.active) {
+            // Encontrar cargo real da planilha
+            const colabInfo = (initialColaboradores as any[]).find(c => 
+              (c.login && latest.email.toLowerCase().includes(c.login.toLowerCase())) ||
+              (c.contratado && latest.name && c.contratado.toLowerCase() === latest.name.toLowerCase())
+            )
             const newProf: AppUserProfile = {
               id: latest.id,
               user_id: latest.user_id || u.user_id,
+              colaborador_id: colabInfo?.id || u.colaborador_id,
               email: latest.email,
               name: latest.name,
               role: latest.role as UserRole,
-              allowed_pages: latest.allowed_pages || DEFAULT_ROLE_PAGES[latest.role as UserRole],
+              cargo: colabInfo?.cargo || latest.cargo || latest.role,
+              allowed_pages: latest.allowed_pages || [],
               active: latest.active
             }
             applyProfileUpdate(newProf)

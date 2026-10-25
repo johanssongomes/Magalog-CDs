@@ -5,7 +5,8 @@ import {
   type AppUserProfile, 
   type UserRole, 
   type ColaboradorData,
-  getDefaultPagesForCargo 
+  getDefaultPagesForCargo,
+  mapCargoToValidRole
 } from '../lib/authContext'
 import { OnlineUsersModal } from './OnlineUsersModal'
 import initialUsersData from '../data/initialUsers.json'
@@ -385,13 +386,16 @@ export const UsersManagementPage: React.FC = () => {
         const payloadSupabase = {
           email: finalEmail,
           name: updatedUserProfile.name,
-          role: formCargo,
+          role: mapCargoToValidRole(formCargo),
           allowed_pages: formAllowedPages,
           active: formActive,
           password_hash: updatedUserProfile.password_hash,
           updated_at: new Date().toISOString()
         }
-        await supabase.from('app_users').upsert([payloadSupabase], { onConflict: 'email' })
+        const { error: upsertErr } = await supabase.from('app_users').upsert([payloadSupabase], { onConflict: 'email' })
+        if (upsertErr) {
+          console.error('Erro ao salvar no app_users Supabase:', upsertErr)
+        }
       } catch (dbErr) {
         console.warn('Aviso ao sincronizar com app_users no Supabase:', dbErr)
       }
