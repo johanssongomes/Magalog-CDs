@@ -155,6 +155,7 @@ export const UsersManagementPage: React.FC = () => {
   const [bulkParsedData, setBulkParsedData] = useState<any[]>([])
   const [isImporting, setIsImporting] = useState(false)
   const [replaceExisting, setReplaceExisting] = useState(false)
+  const [duplicatesBlockedCount, setDuplicatesBlockedCount] = useState(0)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
 
   // Gerador automático de e-mail institucional
@@ -613,8 +614,16 @@ export const UsersManagementPage: React.FC = () => {
           return
         }
 
+        // Sets para impedir duplicados internos na própria planilha
         const seenIds = new Set<string>()
+        const seenEmails = new Set<string>()
+
+        // Sets de IDs e e-mails já cadastrados na base do sistema
+        const existingIds = new Set(users.map(u => String(u.id || u.colaborador_id || '').trim().toLowerCase()).filter(Boolean))
+        const existingEmails = new Set(users.map(u => (u.email || '').trim().toLowerCase()).filter(Boolean))
+
         const parsed: any[] = []
+        let duplicatesBlocked = 0
 
         for (const row of rawJson) {
           const keys = Object.keys(row)
@@ -640,12 +649,24 @@ export const UsersManagementPage: React.FC = () => {
             const normNome = (rawContratado || 'SEM NOME').trim().toUpperCase()
             const idKey = normId.toLowerCase()
 
-            if (seenIds.has(idKey)) continue
-            seenIds.add(idKey)
-
             const cargo = String(findVal(['cargo']) || 'CONFERENTE').trim().toUpperCase()
             const login = String(findVal(['login'])).trim().toLowerCase()
-            const email = generateEmailFromLoginOrName(login, normNome)
+            const email = generateEmailFromLoginOrName(login, normNome).toLowerCase()
+
+            // 1. Bloqueia se já apareceu na própria planilha
+            if (seenIds.has(idKey) || (email && seenEmails.has(email))) {
+              duplicatesBlocked++
+              continue
+            }
+
+            // 2. Bloqueia se o ID ou E-mail já estiver cadastrado no sistema
+            if (existingIds.has(idKey) || (email && existingEmails.has(email))) {
+              duplicatesBlocked++
+              continue
+            }
+
+            seenIds.add(idKey)
+            if (email) seenEmails.add(email)
 
             const rawCentroCusto = String(findVal(['centro_custo', 'centro de custo', 'centro custo'])).trim().toUpperCase()
             const rawCodCentroCusto = String(findVal(['cod_centro_custo', 'cod centro custo', 'codigo centro de custo'])).trim()
@@ -701,14 +722,23 @@ export const UsersManagementPage: React.FC = () => {
           }
         }
 
+        setDuplicatesBlockedCount(duplicatesBlocked)
+
         if (parsed.length === 0) {
-          setBulkFeedback({ type: 'error', message: 'Não foi possível encontrar colunas válidas na planilha.' })
+          if (duplicatesBlocked > 0) {
+            setBulkFeedback({ 
+              type: 'warning', 
+              message: `Todos os ${duplicatesBlocked} registros da planilha foram ignorados por já estarem cadastrados no sistema (IDs ou e-mails já existentes). Nenhum dado duplicado foi importado.` 
+            })
+          } else {
+            setBulkFeedback({ type: 'error', message: 'Não foi possível encontrar colunas válidas na planilha.' })
+          }
           setBulkParsedData([])
         } else {
           setBulkParsedData(parsed)
           setBulkFeedback({
             type: 'success',
-            message: `${parsed.length} usuários e colaboradores identificados com sucesso na planilha.`
+            message: `${parsed.length} novos usuários identificados para cadastro.${duplicatesBlocked > 0 ? ` (${duplicatesBlocked} registros com ID já cadastrado foram ignorados e bloqueados)` : ''}`
           })
         }
       } catch (err: any) {
@@ -1828,15 +1858,17 @@ export const UsersManagementPage: React.FC = () => {
                   bulkFeedback.type === 'success' 
                     ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
                     : bulkFeedback.type === 'warning'
-                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                    ? 'bg-amber-50 text-amber-900 border border-amber-200'
                     : 'bg-red-50 text-red-800 border border-red-200'
                 }`}>
                   {bulkFeedback.type === 'success' ? (
                     <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                  ) : bulkFeedback.type === 'warning' ? (
+                    <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
                   ) : (
                     <AlertCircle size={16} className="text-red-600 shrink-0 mt-0.5" />
                   )}
-                  <span className="font-semibold">{bulkFeedback.message}</span>
+                  <span className="font-semibold leading-relaxed">{bulkFeedback.message}</span>
                 </div>
               )}
 
