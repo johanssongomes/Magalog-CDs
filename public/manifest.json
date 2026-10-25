@@ -1,0 +1,24 @@
+{
+  "name": "CD 994 | Gestão Logística - Painel Operacional",
+  "short_name": "CD 994 Magalog",
+  "description": "Painel Operacional e Gestão Logística CD 994",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a101d",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/magalog-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/magalog-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

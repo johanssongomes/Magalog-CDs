@@ -5,10 +5,22 @@
     <meta name="google" content="notranslate" />
     <link rel="icon" type="image/png" href="/magalog-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gerenciamento Diario CD 994</title>
+    <meta name="theme-color" content="#0f172a" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/magalog-logo.png" />
+    <title>CD 994 | Gestão Logística - Painel Operacional</title>
   </head>
   <body class="notranslate" translate="no">
     <div id="root" class="notranslate" translate="no"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.warn('ServiceWorker registration failed: ', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
