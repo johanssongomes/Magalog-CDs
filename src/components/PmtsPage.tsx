@@ -500,9 +500,46 @@ export const PmtsPage: React.FC = () => {
     }
   }
 
-  // Executa o carregamento inicial do Banco de Dados
+  // Executa o carregamento inicial do Banco de Dados e assina atualizações em tempo real (Supabase Realtime)
   useEffect(() => {
     fetchColaboradoresFromDb()
+
+    // Supabase Realtime para sincronização automática instantânea
+    const channel = supabase
+      .channel('colaboradores_quadro_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'colaboradores' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newItem = mapFromSupabase(payload.new)
+            setColaboradoresList((prev) => {
+              const updated = [newItem, ...prev.filter((c) => String(c.id).trim() !== String(newItem.id).trim())]
+              try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch {}
+              return updated
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedItem = mapFromSupabase(payload.new)
+            setColaboradoresList((prev) => {
+              const updated = prev.map((c) => String(c.id).trim() === String(updatedItem.id).trim() ? updatedItem : c)
+              try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch {}
+              return updated
+            })
+          } else if (payload.eventType === 'DELETE') {
+            const deletedId = String(payload.old?.id || '').trim()
+            setColaboradoresList((prev) => {
+              const updated = prev.filter((c) => String(c.id).trim() !== deletedId)
+              try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch {}
+              return updated
+            })
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   const handleSalvarCadastro = async (e: React.FormEvent) => {
@@ -1516,21 +1553,8 @@ export const PmtsPage: React.FC = () => {
 
         {/* BOTÕES DE AÇÃO À DIREITA */}
         <div className="flex items-center gap-2 shrink-0">
-          {isQuadro ? (
-            /* BOTÕES DO QUADRO: REDIRECIONAR / SINCRONIZAR COM A GESTÃO DE USUÁRIOS & PERMISSÕES */
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  fetchColaboradoresFromDb()
-                }}
-                title="Sincronizar base do Quadro com a Gestão de Usuários & Permissões"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer"
-              >
-                <RefreshCw size={14} className={isSyncingDb ? 'animate-spin text-blue-600' : 'text-slate-500'} />
-                <span>Sincronizar Base</span>
-              </button>
-            </div>
-          ) : (
+          {isQuadro ? null : (
+            /* BOTÕES DOS DEMAIS PMTS */
             /* BOTÕES DOS DEMAIS PMTS */
             <>
               <button
@@ -1895,36 +1919,13 @@ export const PmtsPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-                  <button
-                    onClick={() => {
-                      fetchColaboradoresFromDb()
-                    }}
-                    title="Recarregar e sincronizar colaboradores com a base de dados central"
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
-                  >
-                    <RefreshCw size={13} className={isSyncingDb ? 'animate-spin text-blue-600' : 'text-slate-500'} />
-                    <span>Recarregar Base</span>
-                  </button>
-
-                  <button
-                    onClick={handleDownloadTemplate}
-                    title="Baixar planilha modelo padrão (.xlsx)"
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
-                  >
-                    <Download size={13} className="text-slate-500" />
-                    <span>Baixar Modelo</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setCadastroSuccessMsg('')
-                      setIsCadastroModalOpen(true)
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold shadow-sm shadow-pink-500/20 transition-all cursor-pointer"
-                  >
-                    <Plus size={14} />
-                    <span>+ Novo</span>
-                  </button>
+                  <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs font-semibold shadow-2xs">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span>Sincronização em Tempo Real Ativa</span>
+                  </span>
                 </div>
               </div>
 
@@ -1932,7 +1933,7 @@ export const PmtsPage: React.FC = () => {
                 <div className="p-8 text-center border border-dashed border-slate-200 rounded-xl space-y-2">
                   <Users size={32} className="mx-auto text-slate-300" />
                   <p className="text-xs font-bold text-slate-600">Nenhum colaborador encontrado</p>
-                  <p className="text-xs text-slate-400">Verifique os filtros selecionados ou cadastre colaboradores manualmente / via planilha.</p>
+                  <p className="text-xs text-slate-400">Verifique os filtros selecionados ou cadastre colaboradores na tela de Controle de Usuários & Permissões.</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -1944,7 +1945,6 @@ export const PmtsPage: React.FC = () => {
                         <th className="p-3">Cargo</th>
                         <th className="p-3">Centro de Custo</th>
                         <th className="p-3">Situação Sistema</th>
-                        <th className="p-3 text-right w-20">Ações</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1968,24 +1968,6 @@ export const PmtsPage: React.FC = () => {
                             }`}>
                               {colab.situacaoSistema || 'Em Atividade Normal'}
                             </span>
-                          </td>
-                          <td className="p-3 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                onClick={() => handleOpenEdit(colab)}
-                                title="Editar / Ver todos os dados do colaborador (Modelo Pessoas)"
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
-                              >
-                                <Edit size={14} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteColaborador(colab.id)}
-                                title="Remover Colaborador"
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
                           </td>
                         </tr>
                       ))}
