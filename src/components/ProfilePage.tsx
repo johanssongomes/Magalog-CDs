@@ -186,8 +186,8 @@ export function ProfilePage() {
     return colabData?.dataAdmissao || 'Não informado'
   }
 
-  // Upload/Alteração de Foto de Perfil
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Upload/Alteração de Foto de Perfil com salvamento instantâneo
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -197,11 +197,17 @@ export function ProfilePage() {
     }
 
     const reader = new FileReader()
-    reader.onload = (uploadEvent) => {
+    reader.onload = async (uploadEvent) => {
       const result = uploadEvent.target?.result as string
       if (result) {
         setAvatarUrl(result)
-        setFeedback({ text: 'Foto carregada! Clique em "Salvar Perfil" para aplicar.', type: 'success' })
+        try {
+          await updateProfile({ avatar_url: result })
+          setFeedback({ text: 'Foto de perfil salva e atualizada com sucesso!', type: 'success' })
+        } catch (err) {
+          console.error('Erro ao salvar foto de perfil:', err)
+          setFeedback({ text: 'Foto carregada! Clique em "Salvar Alterações" para confirmar.', type: 'success' })
+        }
       }
     }
     reader.readAsDataURL(file)
@@ -388,7 +394,7 @@ export function ProfilePage() {
             {/* Nome, Cargo e Crachá com proteção contra estouro */}
             <div className="space-y-1.5 min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight break-words">
+                <h1 className="text-lg sm:text-2xl md:text-3xl font-black text-white tracking-tight whitespace-nowrap truncate max-w-full">
                   {user.name}
                 </h1>
                 {(colabData?.id || user.colaborador_id) && (

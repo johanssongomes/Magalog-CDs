@@ -306,7 +306,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 role: row.role as UserRole,
                 cargo: colabInfo?.cargo || row.cargo || row.role,
                 allowed_pages: row.allowed_pages || [],
-                active: row.active
+                active: row.active,
+                avatar_url: row.avatar_url || currentObj.avatar_url,
+                bio: row.bio || currentObj.bio,
+                phone: row.phone || currentObj.phone
               }
               applyProfileUpdate(newProf)
             }
@@ -355,7 +358,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               role: latest.role as UserRole,
               cargo: colabInfo?.cargo || latest.cargo || latest.role,
               allowed_pages: latest.allowed_pages || [],
-              active: latest.active
+              active: latest.active,
+              avatar_url: latest.avatar_url || u.avatar_url,
+              bio: latest.bio || u.bio,
+              phone: latest.phone || u.phone
             }
             applyProfileUpdate(newProf)
           }
