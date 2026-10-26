@@ -557,6 +557,33 @@ export const UsersManagementPage: React.FC = () => {
         console.warn('Aviso ao sincronizar colaborador no Supabase:', colabErr)
       }
 
+      // Atualiza o cache do Quadro TT em tempo real e dispara evento de sincronização instantânea
+      try {
+        const storedQuadro = localStorage.getItem('magalog_quadro_colaboradores')
+        if (storedQuadro) {
+          const quadroList = JSON.parse(storedQuadro)
+          const targetColabId = String(finalColaboradorId).trim().toLowerCase()
+          let found = false
+          const updatedQuadro = quadroList.map((c: any) => {
+            if (String(c.id || '').trim().toLowerCase() === targetColabId) {
+              found = true
+              return { ...c, ...updatedColaborador }
+            }
+            return c
+          })
+          if (!found) {
+            updatedQuadro.unshift(updatedColaborador)
+          }
+          localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedQuadro))
+        }
+      } catch {}
+
+      try {
+        window.dispatchEvent(new CustomEvent('magalog_users_updated', {
+          detail: { action: editingUser ? 'update' : 'create', id: finalColaboradorId, colaborador: updatedColaborador }
+        }))
+      } catch {}
+
       // Recarrega todos os dados do Supabase para garantir que a tela e o cache fiquem sincronizados com o banco
       await fetchUsers()
 
