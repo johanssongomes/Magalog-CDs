@@ -131,9 +131,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true)
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([])
 
+  // Helper para persistência dedicada e imediata do avatar por e-mail no navegador
+  const getStoredAvatar = (email?: string): string => {
+    if (!email) return ''
+    try {
+      const clean = email.trim().toLowerCase()
+      return localStorage.getItem(`magalog_avatar_${clean}`) || ''
+    } catch {
+      return ''
+    }
+  }
+
+  const setStoredAvatar = (email: string | undefined, avatar: string | undefined) => {
+    if (!email) return
+    try {
+      const clean = email.trim().toLowerCase()
+      if (avatar) {
+        localStorage.setItem(`magalog_avatar_${clean}`, avatar)
+      }
+    } catch {}
+  }
+
   // Carregar sessão e perfil do Supabase
   const loadProfile = async (authUserId: string, authEmail: string) => {
     const cleanEmail = authEmail.trim().toLowerCase()
+    const cachedAvatar = getStoredAvatar(cleanEmail)
     try {
       const { data, error } = await supabase
         .from('app_users')
@@ -161,9 +183,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } catch {}
 
+        const finalAvatar = data.avatar_url || extraProfile?.avatar_url || cachedAvatar || undefined
+        if (finalAvatar) setStoredAvatar(cleanEmail, finalAvatar)
+
         const enriched: AppUserProfile = {
           ...data,
-          avatar_url: data.avatar_url || extraProfile?.avatar_url,
+          avatar_url: finalAvatar,
           bio: data.bio || extraProfile?.bio,
           phone: data.phone || extraProfile?.phone,
           colaborador_id: colabInfo?.id || data.colaborador_id || data.id,
@@ -198,6 +223,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const determinedRole = knownUser?.role ? mapCargoToValidRole(knownUser.role) : (isInitialAdmin ? 'admin' : mapCargoToValidRole(determinedCargo))
       const determinedPages = knownUser?.allowed_pages || getDefaultPagesForCargo(determinedCargo)
 
+      const fallbackAvatar = knownUser?.avatar_url || cachedAvatar || undefined
+      if (fallbackAvatar) setStoredAvatar(cleanEmail, fallbackAvatar)
+
       const fallbackUser: AppUserProfile = {
         id: knownUser?.id || authUserId,
         user_id: authUserId,
@@ -207,6 +235,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cargo: determinedCargo,
         role: determinedRole,
         allowed_pages: determinedPages,
+        avatar_url: fallbackAvatar,
         active: knownUser?.active !== undefined ? knownUser.active : true
       }
 
@@ -224,6 +253,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: fallbackRole,
         cargo: isInitialAdmin ? 'Administrador' : 'Colaborador',
         allowed_pages: DEFAULT_ROLE_PAGES[fallbackRole],
+        avatar_url: cachedAvatar || undefined,
         active: true
       })
     }
@@ -235,7 +265,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('magalog_admin_session')
       setUser(null)
     } else {
-      localStorage.setItem('magalog_admin_session', JSON.stringify(updatedProfile))
+      if (updatedProfile.avatar_url && updatedProfile.email) {
+        setStoredAvatar(updatedProfile.email, updatedProfile.avatar_url)
+      } else if (!updatedProfile.avatar_url && updatedProfile.email) {
+        const cached = getStoredAvatar(updatedProfile.email)
+        if (cached) updatedProfile.avatar_url = cached
+      }
+      try {
+        localStorage.setItem('magalog_admin_session', JSON.stringify(updatedProfile))
+      } catch (err) {
+        console.warn('Quota exceeded on magalog_admin_session, storing without large avatar in session object:', err)
+        // Se a sessão exceder localStorage, guarda na sessão sem estourar
+        const trimmed = { ...updatedProfile, avatar_url: undefined }
+        try {
+          localStorage.setItem('magalog_admin_session', JSON.stringify(trimmed))
+        } catch {}
+      }
       setUser(updatedProfile)
     }
   }
@@ -245,7 +290,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const localSession = localStorage.getItem('magalog_admin_session')
     if (localSession) {
       try {
-        const parsed = JSON.parse(localSession)
+        const parsed: AppUserProfile = JSON.parse(localSession)
+        if (parsed.email && !parsed.avatar_url) {
+          const cached = getStoredAvatar(parsed.email)
+          if (cached) parsed.avatar_url = cached
+        }
         setUser(parsed)
         setLoading(false)
       } catch {}

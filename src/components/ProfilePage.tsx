@@ -57,7 +57,9 @@ export function ProfilePage() {
     setName(user.name || '')
     setBio(user.bio || '')
     setPhone(user.phone || '')
-    setAvatarUrl(user.avatar_url || '')
+    const cleanEmail = (user.email || '').trim().toLowerCase()
+    const storedAvatar = localStorage.getItem(`magalog_avatar_${cleanEmail}`)
+    setAvatarUrl(user.avatar_url || storedAvatar || '')
 
     const loadColaborador = async () => {
       setLoading(true)
@@ -186,6 +188,46 @@ export function ProfilePage() {
     return colabData?.dataAdmissao || 'Não informado'
   }
 
+  // Função para compactar e redimensionar imagens pesadas (até 3MB) em resolução ideal para avatar (500x500 WebP/JPEG ~60KB)
+  const resizeImageToAvatar = (dataUrl: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        const MAX_WIDTH = 500
+        const MAX_HEIGHT = 500
+        let width = img.width
+        let height = img.height
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width)
+            width = MAX_WIDTH
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round((width * MAX_HEIGHT) / height)
+            height = MAX_HEIGHT
+          }
+        }
+
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve(dataUrl)
+          return
+        }
+        ctx.drawImage(img, 0, 0, width, height)
+        // Exporta como jpeg compacto de alta qualidade (qualidade 0.85 = ~50-80kb)
+        const optimized = canvas.toDataURL('image/jpeg', 0.85)
+        resolve(optimized)
+      }
+      img.onerror = () => resolve(dataUrl)
+      img.src = dataUrl
+    })
+  }
+
   // Upload/Alteração de Foto de Perfil com salvamento instantâneo
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -198,11 +240,21 @@ export function ProfilePage() {
 
     const reader = new FileReader()
     reader.onload = async (uploadEvent) => {
-      const result = uploadEvent.target?.result as string
-      if (result) {
-        setAvatarUrl(result)
+      const rawResult = uploadEvent.target?.result as string
+      if (rawResult) {
         try {
-          await updateProfile({ avatar_url: result })
+          // Compacta a imagem para caber com folga no localStorage e Supabase
+          const compressed = await resizeImageToAvatar(rawResult)
+          setAvatarUrl(compressed)
+          
+          const cleanEmail = (user.email || '').trim().toLowerCase()
+          if (cleanEmail) {
+            try {
+              localStorage.setItem(`magalog_avatar_${cleanEmail}`, compressed)
+            } catch {}
+          }
+
+          await updateProfile({ avatar_url: compressed })
           setFeedback({ text: 'Foto de perfil salva e atualizada com sucesso!', type: 'success' })
         } catch (err) {
           console.error('Erro ao salvar foto de perfil:', err)
@@ -391,10 +443,10 @@ export function ProfilePage() {
               </span>
             </div>
 
-            {/* Nome, Cargo e Crachá com proteção contra estouro */}
+            {/* Nome, Cargo e Crachá com proteção contra quebra de linha */}
             <div className="space-y-1.5 min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-lg sm:text-2xl md:text-3xl font-black text-white tracking-tight whitespace-nowrap truncate max-w-full">
+                <h1 className="text-base sm:text-xl md:text-2xl lg:text-3xl font-black text-white tracking-tight whitespace-nowrap overflow-x-auto scrollbar-none">
                   {user.name}
                 </h1>
                 {(colabData?.id || user.colaborador_id) && (
