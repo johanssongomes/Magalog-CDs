@@ -52,6 +52,7 @@ import { TableauIndicadoresPage } from './TableauIndicadoresPage'
 import { LookerCarteiraPage } from './LookerCarteiraPage'
 import { supabase } from '../lib/supabase'
 import { getPmtSummaryFromSupabase } from '../lib/pmtService'
+import { useAuth } from '../lib/authContext'
 
 export interface PmtPageItem {
   id: number
@@ -212,6 +213,7 @@ const defaultColaboradorForm: ColaboradorItem = {
 }
 
 export const PmtsPage: React.FC = () => {
+  const { user: currentUser } = useAuth()
   const [activePageId, setActivePageId] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('magalog_pmt_active_page_id')
@@ -2255,31 +2257,65 @@ export const PmtsPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {filteredColaboradores.map((colab) => (
-                        <tr key={colab.id} className="hover:bg-slate-50/70 transition-colors group">
-                          <td className="p-3 font-mono font-bold text-blue-700">{colab.id}</td>
-                          <td className="p-3 font-bold text-slate-800">{colab.contratado}</td>
-                          <td className="p-3 text-slate-600 uppercase text-[11px] font-semibold">{colab.cargo}</td>
-                          <td className="p-3 text-slate-600 uppercase text-[11px] font-semibold">{colab.centroDeCusto}</td>
-                          <td className="p-3">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                              (colab.situacaoSistema || '').toLowerCase().includes('atividade normal')
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
-                                : (colab.situacaoSistema || '').toLowerCase().includes('férias') || (colab.situacaoSistema || '').toLowerCase().includes('ferias')
-                                  ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
-                                  : (colab.situacaoSistema || '').toLowerCase().includes('licença') || (colab.situacaoSistema || '').toLowerCase().includes('licenca') || (colab.situacaoSistema || '').toLowerCase().includes('maternidade')
-                                    ? 'bg-purple-50 text-purple-700 border border-purple-200/60'
-                                    : (colab.situacaoSistema || '').toLowerCase().includes('auxílio') || (colab.situacaoSistema || '').toLowerCase().includes('doença')
-                                      ? 'bg-rose-50 text-rose-700 border border-rose-200/60'
-                                      : 'bg-slate-100 text-slate-700 border border-slate-200'
-                            }`}>
-                              {colab.situacaoSistema || 'Em Atividade Normal'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {filteredColaboradores.map((colab) => {
+                        const isCurrentColab = 
+                          (currentUser?.colaborador_id && String(currentUser.colaborador_id) === String(colab.id)) ||
+                          (currentUser?.id && String(currentUser.id) === String(colab.id)) ||
+                          (currentUser?.name && colab.contratado && currentUser.name.toLowerCase().trim() === colab.contratado.toLowerCase().trim())
+                        
+                        let colabAvatar = isCurrentColab && currentUser?.avatar_url ? currentUser.avatar_url : ''
+                        if (!colabAvatar) {
+                          try {
+                            const storedUsers = localStorage.getItem('magalog_users_list')
+                            if (storedUsers) {
+                              const list = JSON.parse(storedUsers)
+                              const found = list.find((u: any) => 
+                                (u.colaborador_id && String(u.colaborador_id) === String(colab.id)) ||
+                                (u.id && String(u.id) === String(colab.id)) ||
+                                (u.name && colab.contratado && u.name.toLowerCase().trim() === colab.contratado.toLowerCase().trim())
+                              )
+                              if (found?.avatar_url) colabAvatar = found.avatar_url
+                            }
+                          } catch {}
+                        }
+
+                        return (
+                          <tr key={colab.id} className="hover:bg-slate-50/70 transition-colors group">
+                            <td className="p-3 font-mono font-bold text-blue-700">{colab.id}</td>
+                            <td className="p-3 font-bold text-slate-800">
+                              <div className="flex items-center gap-2.5">
+                                <div className="shrink-0 w-8 h-8 rounded-lg overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-800 text-white flex items-center justify-center font-bold text-[11px] shadow-2xs border border-slate-200">
+                                  {colabAvatar ? (
+                                    <img src={colabAvatar} alt={colab.contratado} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span>{(colab.contratado || 'CO').slice(0, 2).toUpperCase()}</span>
+                                  )}
+                                </div>
+                                <span className="truncate">{colab.contratado}</span>
+                              </div>
+                            </td>
+                            <td className="p-3 text-slate-600 uppercase text-[11px] font-semibold">{colab.cargo}</td>
+                            <td className="p-3 text-slate-600 uppercase text-[11px] font-semibold">{colab.centroDeCusto}</td>
+                            <td className="p-3">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+                                (colab.situacaoSistema || '').toLowerCase().includes('atividade normal')
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                  : (colab.situacaoSistema || '').toLowerCase().includes('férias') || (colab.situacaoSistema || '').toLowerCase().includes('ferias')
+                                    ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                                    : (colab.situacaoSistema || '').toLowerCase().includes('licença') || (colab.situacaoSistema || '').toLowerCase().includes('licenca') || (colab.situacaoSistema || '').toLowerCase().includes('maternidade')
+                                      ? 'bg-purple-50 text-purple-700 border border-purple-200/60'
+                                      : (colab.situacaoSistema || '').toLowerCase().includes('auxílio') || (colab.situacaoSistema || '').toLowerCase().includes('doença')
+                                        ? 'bg-rose-50 text-rose-700 border border-rose-200/60'
+                                        : 'bg-slate-100 text-slate-700 border border-slate-200'
+                              }`}>
+                                {colab.situacaoSistema || 'Em Atividade Normal'}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
-                  </table>
+                    </table>
                 </div>
               )}
             </div>

@@ -348,12 +348,14 @@ export const UsersManagementPage: React.FC = () => {
               cargo: u.cargo || dbItem.cargo || dbItem.role,
               allowed_pages: dbItem.allowed_pages || u.allowed_pages,
               active: dbItem.active !== undefined ? dbItem.active : u.active,
+              avatar_url: dbItem.avatar_url || u.avatar_url,
               dados_colaborador: finalDadosColaborador
             }
           }
 
           return {
             ...u,
+            avatar_url: u.avatar_url,
             dados_colaborador: finalDadosColaborador
           }
         })
@@ -386,6 +388,7 @@ export const UsersManagementPage: React.FC = () => {
               cargo: finalCargo,
               allowed_pages: d.allowed_pages || getDefaultPagesForCargo(finalCargo),
               active: d.active !== false,
+              avatar_url: d.avatar_url,
               dados_colaborador: finalColab
             })
           }
@@ -1193,6 +1196,7 @@ export const UsersManagementPage: React.FC = () => {
                   const isOnline = Boolean(onlineInfo || isCurrent)
                   const colabId = u.colaborador_id || u.id || '-'
                   const userCargo = u.cargo || u.role || 'CONFERENTE'
+                  const effectiveAvatar = (isCurrent && currentUser?.avatar_url) ? currentUser.avatar_url : u.avatar_url
 
                   return (
                     <tr key={u.id || u.email} className="hover:bg-slate-50/90 transition-colors">
@@ -1203,18 +1207,31 @@ export const UsersManagementPage: React.FC = () => {
                         </span>
                       </td>
 
-                      {/* Usuário & E-mail */}
+                      {/* Usuário & E-mail com Foto de Perfil */}
                       <td className="px-4 py-3.5">
-                        <div className="font-bold text-slate-800 flex items-center gap-1.5">
-                          {u.name}
-                          {isCurrent && (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] bg-blue-100 text-blue-700 font-semibold">
-                              Você
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-blue-600 font-mono mt-0.5 flex items-center gap-1">
-                          <span>{u.email}</span>
+                        <div className="flex items-center gap-3">
+                          {/* Avatar com Foto do Perfil ou Iniciais */}
+                          <div className="relative shrink-0 w-9 h-9 rounded-xl overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-800 text-white flex items-center justify-center font-bold text-xs shadow-xs border border-slate-200">
+                            {effectiveAvatar ? (
+                              <img src={effectiveAvatar} alt={u.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span>{(u.name || 'US').slice(0, 2).toUpperCase()}</span>
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="font-bold text-slate-800 flex items-center gap-1.5 truncate">
+                              <span className="truncate">{u.name}</span>
+                              {isCurrent && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] bg-blue-100 text-blue-700 font-semibold shrink-0">
+                                  Você
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-blue-600 font-mono mt-0.5 flex items-center gap-1 truncate">
+                              <span className="truncate">{u.email}</span>
+                            </div>
+                          </div>
                         </div>
                       </td>
 
