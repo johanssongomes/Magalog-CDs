@@ -443,10 +443,10 @@ export function ProfilePage() {
               </span>
             </div>
 
-            {/* Nome, Cargo e Crachá com proteção contra quebra de linha */}
+            {/* Nome, Cargo e Crachá */}
             <div className="space-y-1.5 min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-base sm:text-xl md:text-2xl lg:text-3xl font-black text-white tracking-tight whitespace-nowrap overflow-x-auto scrollbar-none">
+                <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-black text-white tracking-tight whitespace-nowrap">
                   {user.name}
                 </h1>
                 {(colabData?.id || user.colaborador_id) && (
