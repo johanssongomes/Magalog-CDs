@@ -72,7 +72,7 @@ export const navItems: NavItem[] = [
   },
   {
     id: 'agenda',
-    label: 'Agenda Corporativa',
+    label: 'Agenda & Reuniões',
     description: 'Gestão de reuniões, atas, eventos e planos de ação',
     icon: <CalendarDays size={20} />
   },

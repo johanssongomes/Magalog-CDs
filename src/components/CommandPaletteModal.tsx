@@ -76,12 +76,12 @@ const ALL_NAVIGATION_TARGETS: NavigationTarget[] = [
   },
   {
     id: 'nav-agenda',
-    title: 'Agenda Corporativa',
+    title: 'Agenda & Reuniões',
     subtitle: 'Gestão de reuniões, atas (ATAs), eventos e planos de ação',
     category: 'Módulos Principais',
     tabId: 'agenda',
     icon: <CalendarDays size={18} className="text-blue-600" />,
-    keywords: ['agenda', 'agenda corporativa', 'reunioes', 'atas', 'ata', 'eventos', 'planos de acao', 'pendencias', 'calendario']
+    keywords: ['agenda', 'agenda e reunioes', 'reunioes', 'atas', 'ata', 'eventos', 'planos de acao', 'pendencias', 'calendario']
   },
   {
     id: 'nav-budget',

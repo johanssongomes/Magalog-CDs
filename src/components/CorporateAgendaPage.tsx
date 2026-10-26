@@ -449,7 +449,7 @@ export const CorporateAgendaPage: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
-                  Agenda Corporativa
+                  Agenda & Reuniões
                 </h1>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
                   CD 994 &bull; Fuso Fortaleza

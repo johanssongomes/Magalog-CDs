@@ -358,7 +358,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                 }}
                 className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-md shadow-blue-500/20 cursor-pointer transition-all"
               >
-                <span>Abrir Agenda Corporativa</span>
+                <span>Abrir Agenda & Reuniões</span>
                 <ArrowRight size={14} />
               </button>
             )}
