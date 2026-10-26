@@ -172,8 +172,8 @@ export function ProfilePage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 2 * 1024 * 1024) {
-      setFeedback({ text: 'A imagem deve ter no máximo 2MB.', type: 'error' })
+    if (file.size > 3 * 1024 * 1024) {
+      setFeedback({ text: 'A imagem deve ter no máximo 3MB.', type: 'error' })
       return
     }
 
