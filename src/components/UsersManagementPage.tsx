@@ -241,6 +241,13 @@ export const UsersManagementPage: React.FC = () => {
       setLoading(true)
       let initialList = (initialUsersData as unknown as AppUserProfile[]) || []
 
+      // Carregar lista de IDs excluídos armazenados localmente e no banco
+      let deletedIds: string[] = []
+      try {
+        const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
+        if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
+      } catch {}
+
       // 1. Tentar sincronizar em paralelo do Supabase app_users e colaboradores
       const [appUsersRes, colabRes] = await Promise.all([
         supabase.from('app_users').select('*').order('created_at', { ascending: false }),
@@ -249,6 +256,16 @@ export const UsersManagementPage: React.FC = () => {
 
       const dbData = appUsersRes.data
       const colabData = colabRes.data
+
+      // Filtra da lista inicial qualquer registro que tenha sido excluído
+      const deletedSet = new Set(deletedIds.map(id => id.toLowerCase().trim()))
+      if (deletedSet.size > 0) {
+        initialList = initialList.filter(u => {
+          const uId = String(u.id || u.colaborador_id || '').toLowerCase().trim()
+          const uEmail = (u.email || '').toLowerCase().trim()
+          return !deletedSet.has(uId) && !deletedSet.has(uEmail)
+        })
+      }
 
       // Mapa de colaboradores salvos no Supabase por ID e Login
       const colabMapById = new Map<string, ColaboradorData>()
@@ -552,21 +569,55 @@ export const UsersManagementPage: React.FC = () => {
     }
   }
 
-  // Excluir usuário
+  // Excluir usuário definitivamente
   const handleDelete = async (u: AppUserProfile) => {
     if (!confirm(`Deseja realmente remover o usuário "${u.name}" (${u.email})?`)) return
 
     try {
-      const filtered = users.filter(x => x.id !== u.id && x.email !== u.email)
+      const targetId = String(u.id || u.colaborador_id || '').trim()
+      const targetEmail = (u.email || '').trim().toLowerCase()
+
+      // 1. Atualizar estado local
+      const filtered = users.filter(x => {
+        const xId = String(x.id || x.colaborador_id || '').trim()
+        const xEmail = (x.email || '').trim().toLowerCase()
+        return xId !== targetId && xEmail !== targetEmail
+      })
       setUsers(filtered)
       localStorage.setItem('magalog_users_list', JSON.stringify(filtered))
 
+      // 2. Registrar na lista persistente de excluídos (evita que o initialUsers.json reintroduza o colaborador)
       try {
-        await supabase.from('app_users').delete().eq('email', u.email)
+        const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
+        const currentDeleted: string[] = storedDeleted ? JSON.parse(storedDeleted) : []
+        if (targetId && !currentDeleted.includes(targetId)) currentDeleted.push(targetId)
+        if (targetEmail && !currentDeleted.includes(targetEmail)) currentDeleted.push(targetEmail)
+        localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(currentDeleted))
       } catch {}
 
-      setMessage({ text: 'Usuário removido com sucesso.', type: 'success' })
+      // 3. Deletar do Supabase (app_users e colaboradores)
+      try {
+        await Promise.all([
+          supabase.from('app_users').delete().eq('email', targetEmail),
+          targetId ? supabase.from('colaboradores').delete().eq('id', targetId) : Promise.resolve()
+        ])
+      } catch (dbErr) {
+        console.warn('Aviso ao deletar do Supabase:', dbErr)
+      }
+
+      // 4. Sincronizar cache da Gestão 360° (Quadro TT)
+      try {
+        const storedQuadro = localStorage.getItem('magalog_quadro_colaboradores')
+        if (storedQuadro) {
+          const quadroList = JSON.parse(storedQuadro)
+          const updatedQuadro = quadroList.filter((c: any) => String(c.id).trim() !== targetId)
+          localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedQuadro))
+        }
+      } catch {}
+
+      setMessage({ text: `Usuário "${u.name}" removido com sucesso.`, type: 'success' })
     } catch (err: any) {
+      console.error('Erro ao remover usuário:', err)
       setMessage({ text: err.message || 'Erro ao remover usuário.', type: 'error' })
     }
   }
