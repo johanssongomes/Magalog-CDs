@@ -21,7 +21,8 @@ import {
   Command, 
   CornerDownLeft,
   ChevronRight,
-  CalendarDays
+  CalendarDays,
+  User
 } from 'lucide-react'
 
 export interface NavigationTarget {
