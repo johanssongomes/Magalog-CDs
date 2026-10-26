@@ -1671,8 +1671,22 @@ export const PmtsPage: React.FC = () => {
 
         {/* BOTÕES DE AÇÃO À DIREITA */}
         <div className="flex items-center gap-2 shrink-0">
-          {isQuadro ? null : (
-            /* BOTÕES DOS DEMAIS PMTS */
+          {isQuadro ? (
+            <button
+              onClick={() => {
+                try {
+                  localStorage.removeItem('magalog_quadro_colaboradores')
+                  localStorage.removeItem('magalog_deleted_user_ids')
+                } catch {}
+                fetchColaboradoresFromDb()
+              }}
+              title="Sincronizar base completa e restaurar colaboradores cadastrados"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-blue-200 bg-blue-50/80 text-blue-700 hover:bg-blue-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+            >
+              <RefreshCw size={14} className={isSyncingDb ? 'animate-spin text-blue-600' : ''} />
+              <span>Sincronizar com Usuários</span>
+            </button>
+          ) : (
             /* BOTÕES DOS DEMAIS PMTS */
             <>
               <button
