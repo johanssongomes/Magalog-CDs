@@ -557,6 +557,21 @@ export const UsersManagementPage: React.FC = () => {
         console.warn('Aviso ao sincronizar colaborador no Supabase:', colabErr)
       }
 
+      // Se o usuário estava na lista de excluídos anteriormente, remove-o de magalog_deleted_user_ids
+      try {
+        const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
+        if (storedDeleted) {
+          const currentDeleted: string[] = JSON.parse(storedDeleted)
+          const targetId = String(finalColaboradorId || '').toLowerCase().trim()
+          const targetEmail = (finalEmail || '').toLowerCase().trim()
+          const cleaned = currentDeleted.filter(id => {
+            const low = String(id || '').toLowerCase().trim()
+            return low !== targetId && low !== targetEmail
+          })
+          localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(cleaned))
+        }
+      } catch {}
+
       // Atualiza o cache do Quadro TT em tempo real e dispara evento de sincronização instantânea
       try {
         const storedQuadro = localStorage.getItem('magalog_quadro_colaboradores')
@@ -900,10 +915,41 @@ export const UsersManagementPage: React.FC = () => {
         await supabase.from('app_users').upsert(appUsersRows.slice(i, i + 100), { onConflict: 'email' })
       }
 
-      // Sincronizar cache local magalog_quadro_colaboradores para a Gestão 360°
+      // 3. Limpar da lista de excluídos todos os IDs e e-mails que foram reimportados
+      try {
+        const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
+        if (storedDeleted) {
+          const currentDeleted: string[] = JSON.parse(storedDeleted)
+          const importedIds = new Set(bulkParsedData.map(u => String(u.dados_colaborador?.id || u.colaborador_id || u.id || '').toLowerCase().trim()))
+          const importedEmails = new Set(bulkParsedData.map(u => String(u.email || '').toLowerCase().trim()))
+          const cleaned = currentDeleted.filter(d => {
+            const low = String(d || '').toLowerCase().trim()
+            return !importedIds.has(low) && !importedEmails.has(low)
+          })
+          localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(cleaned))
+        }
+      } catch {}
+
+      // 4. Sincronizar cache local magalog_quadro_colaboradores para a Gestão 360°
       try {
         const fullColabs = bulkParsedData.map(u => u.dados_colaborador)
-        localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(fullColabs))
+        const storedQuadro = localStorage.getItem('magalog_quadro_colaboradores')
+        let mergedQuadro = fullColabs
+        if (storedQuadro && !replaceExisting) {
+          const existingList = JSON.parse(storedQuadro)
+          const colabMap = new Map<string, any>()
+          existingList.forEach((c: any) => colabMap.set(String(c.id).toLowerCase().trim(), c))
+          fullColabs.forEach((c: any) => colabMap.set(String(c.id).toLowerCase().trim(), c))
+          mergedQuadro = Array.from(colabMap.values())
+        }
+        localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(mergedQuadro))
+      } catch {}
+
+      // 5. Dispara evento customizado para atualização instantânea em tempo real em todas as abas e componentes
+      try {
+        window.dispatchEvent(new CustomEvent('magalog_users_updated', {
+          detail: { action: 'bulk_import', count: bulkParsedData.length }
+        }))
       } catch {}
 
       await fetchUsers()

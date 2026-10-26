@@ -621,6 +621,12 @@ export const PmtsPage: React.FC = () => {
             .filter(id => id.length > 0 && id !== 'undefined' && id !== 'null')
         )
 
+        if (e && (e as CustomEvent).type === 'magalog_users_updated') {
+          // Quando houver importação ou recadastro, recarrega a base mesclada diretamente
+          fetchColaboradoresFromDb()
+          return
+        }
+
         if (storedQuadro) {
           const list: ColaboradorItem[] = JSON.parse(storedQuadro)
           if (Array.isArray(list) && list.length > 0) {
