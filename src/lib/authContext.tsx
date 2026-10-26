@@ -56,8 +56,8 @@ export interface AppUserProfile {
 
 // Permissões padrão por cargo / senioridade
 export const getDefaultPagesForCargo = (cargo: string): string[] => {
-  const c = (cargo || '').toUpperCase()
-  if (c === 'ADMIN' || c.includes('ADMINISTRADOR') || c.includes('DIRETOR')) {
+  const c = (cargo || '').trim().toUpperCase()
+  if (c === 'ADMIN' || c === 'ADMINISTRADOR' || c.startsWith('ADMIN ') || c.endsWith(' ADMIN') || c.includes('DIRETOR')) {
     return ['dashboard', 'performance', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'settings', 'links', 'users']
   }
   if (c.includes('GERENTE')) {
@@ -90,8 +90,8 @@ export const DEFAULT_ROLE_PAGES: Record<string, string[]> = {
 }
 
 export const mapCargoToValidRole = (cargo: string): string => {
-  const c = (cargo || '').toUpperCase()
-  if (c.includes('ADMIN')) return 'admin'
+  const c = (cargo || '').trim().toUpperCase()
+  if (c === 'ADMIN' || c === 'ADMINISTRADOR' || c.startsWith('ADMIN ') || c.endsWith(' ADMIN')) return 'admin'
   if (c.includes('GERENTE')) return 'gerente'
   if (c.includes('COORDENADOR')) return 'coordenador'
   if (c.includes('SUPERVISOR')) return 'supervisor'
@@ -557,8 +557,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const hasPermission = (pageId: string): boolean => {
     if (!user) return false
+    // Acesso irrestrito apenas para o Admin Master do sistema
+    if (user.id === 'admin-master' || user.email === 'johansson.gomes@magazineluiza.com.br') return true
+    
+    // Se o usuário tem uma lista personalizada de páginas permitidas, respeita a lista
+    if (Array.isArray(user.allowed_pages)) {
+      return user.allowed_pages.includes(pageId)
+    }
+
     if (user.role === 'admin') return true
-    return user.allowed_pages?.includes(pageId) ?? false
+    return false
   }
 
   const refreshProfile = async () => {

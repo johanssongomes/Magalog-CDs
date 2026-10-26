@@ -271,9 +271,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <div className="mt-1">
                   <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded leading-tight break-words max-w-full ${
-                    (user?.role || '').toLowerCase().includes('admin')
+                    (user?.role === 'admin' || (user?.cargo || '').toUpperCase() === 'ADMIN')
                       ? 'bg-purple-900/60 text-purple-300 border border-purple-500/30' 
-                      : (user?.role || '').toLowerCase().includes('gerente')
+                      : (user?.role || user?.cargo || '').toLowerCase().includes('gerente')
                       ? 'bg-blue-900/60 text-blue-300 border border-blue-500/30'
                       : 'bg-slate-800 text-slate-300 border border-slate-700'
                   }`}>

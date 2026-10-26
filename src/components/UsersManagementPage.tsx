@@ -632,6 +632,25 @@ export const UsersManagementPage: React.FC = () => {
         }))
       } catch {}
 
+      // Se o usuário editado for o próprio usuário atualmente conectado, atualiza a sessão imediatamente
+      if (currentUser && (currentUser.email?.toLowerCase() === finalEmail || currentUser.id === finalId)) {
+        try {
+          const sessionUpdate = {
+            ...currentUser,
+            ...updatedUserProfile,
+            role: mapCargoToValidRole(formCargo),
+            cargo: formCargo,
+            allowed_pages: formAllowedPages
+          }
+          localStorage.setItem('magalog_admin_session', JSON.stringify(sessionUpdate))
+          // Dispara evento para o authContext sincronizar na mesma janela
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'magalog_admin_session',
+            newValue: JSON.stringify(sessionUpdate)
+          }))
+        } catch {}
+      }
+
       // Recarrega todos os dados do Supabase para garantir que a tela e o cache fiquem sincronizados com o banco
       await fetchUsers()
 
