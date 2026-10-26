@@ -270,15 +270,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {user?.name || 'Usuário'}
                 </div>
                 <div className="mt-1">
-                  <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded leading-tight break-words max-w-full ${
-                    (user?.role === 'admin' || (user?.cargo || '').toUpperCase() === 'ADMIN')
-                      ? 'bg-purple-900/60 text-purple-300 border border-purple-500/30' 
-                      : (user?.role || user?.cargo || '').toLowerCase().includes('gerente')
-                      ? 'bg-blue-900/60 text-blue-300 border border-blue-500/30'
-                      : 'bg-slate-800 text-slate-300 border border-slate-700'
-                  }`}>
-                    {user?.cargo || user?.role || 'Colaborador'}
-                  </span>
+                  {(() => {
+                    const displayCargo = user?.cargo || (user?.role === 'admin' ? 'Administrador' : user?.role) || 'Colaborador'
+                    const isStrictAdmin = user?.role === 'admin' || (user?.cargo || '').trim().toUpperCase() === 'ADMIN' || (user?.cargo || '').trim().toUpperCase() === 'ADMINISTRADOR'
+                    const isGerente = (user?.cargo || user?.role || '').toLowerCase().includes('gerente')
+
+                    return (
+                      <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded leading-tight break-words max-w-full ${
+                        isStrictAdmin
+                          ? 'bg-purple-900/60 text-purple-300 border border-purple-500/30' 
+                          : isGerente
+                          ? 'bg-blue-900/60 text-blue-300 border border-blue-500/30'
+                          : 'bg-slate-800 text-slate-300 border border-slate-700'
+                      }`}>
+                        {displayCargo}
+                      </span>
+                    )
+                  })()}
                 </div>
               </div>
             </div>

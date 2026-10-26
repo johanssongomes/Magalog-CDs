@@ -4764,19 +4764,10 @@
     "email": "nadila.santos@magalog.com.br",
     "name": "NADILA FRANCIELE LUCIANO DOS S",
     "cargo": "ASSISTENTE ADMINISTRATIVO II",
-    "role": "ASSISTENTE ADMINISTRATIVO II",
+    "role": "colaborador",
     "password_hash": "123456",
     "allowed_pages": [
-      "dashboard",
-      "performance",
-      "catalog",
-      "pmts",
-      "agenda",
-      "budget",
-      "inventory",
-      "settings",
-      "links",
-      "users"
+      "performance"
     ],
     "active": true,
     "dados_colaborador": {

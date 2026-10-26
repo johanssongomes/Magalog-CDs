@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import initialColaboradores from '../data/initialColaboradores.json'
+import initialUsers from '../data/initialUsers.json'
 
 export type UserRole = string
 
@@ -128,11 +129,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Carregar sessão e perfil do Supabase
   const loadProfile = async (authUserId: string, authEmail: string) => {
+    const cleanEmail = authEmail.trim().toLowerCase()
     try {
       const { data, error } = await supabase
         .from('app_users')
         .select('*')
-        .or(`user_id.eq.${authUserId},email.eq.${authEmail}`)
+        .or(`user_id.eq.${authUserId},email.eq.${cleanEmail}`)
         .maybeSingle()
 
       if (data && !error) {
@@ -143,23 +145,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const enriched: AppUserProfile = {
           ...data,
           colaborador_id: colabInfo?.id || data.colaborador_id || data.id,
-          cargo: colabInfo?.cargo || data.cargo || data.role
+          cargo: colabInfo?.cargo || data.cargo || data.role,
+          role: data.role || (colabInfo?.cargo ? mapCargoToValidRole(colabInfo.cargo) : 'colaborador')
         }
         setUser(enriched)
         return
       }
 
-      // Se não existir registro no app_users, cria perfil inicial
-      const isInitialAdmin = authEmail.includes('admin') || authEmail.includes('joh_gomes')
-      const initialRole: UserRole = isInitialAdmin ? 'admin' : 'colaborador'
+      // Se não existir registro no app_users, busca do cache local ou initialUsers
+      let knownUser: any = null
+      try {
+        const localUsers = localStorage.getItem('magalog_users_list')
+        if (localUsers) {
+          const parsed = JSON.parse(localUsers)
+          knownUser = parsed.find((u: any) => (u.email || '').trim().toLowerCase() === cleanEmail)
+        }
+      } catch {}
+
+      if (!knownUser) {
+        knownUser = (initialUsers as any[]).find(u => (u.email || '').trim().toLowerCase() === cleanEmail)
+      }
+
+      const colabInfo = (initialColaboradores as any[]).find(c => 
+        (c.login && cleanEmail.includes(c.login.toLowerCase())) ||
+        (c.contratado && knownUser?.name && c.contratado.toLowerCase() === knownUser.name.toLowerCase())
+      )
+
+      const isInitialAdmin = cleanEmail.includes('admin') || cleanEmail.includes('joh_gomes') || cleanEmail === 'johansson.gomes@magazineluiza.com.br'
+      const determinedCargo = knownUser?.cargo || colabInfo?.cargo || (isInitialAdmin ? 'Administrador' : 'Colaborador')
+      const determinedRole = knownUser?.role ? mapCargoToValidRole(knownUser.role) : (isInitialAdmin ? 'admin' : mapCargoToValidRole(determinedCargo))
+      const determinedPages = knownUser?.allowed_pages || getDefaultPagesForCargo(determinedCargo)
+
       const fallbackUser: AppUserProfile = {
-        id: authUserId,
+        id: knownUser?.id || authUserId,
         user_id: authUserId,
-        email: authEmail,
-        name: authEmail.split('@')[0],
-        role: initialRole,
-        allowed_pages: DEFAULT_ROLE_PAGES[initialRole],
-        active: true
+        colaborador_id: colabInfo?.id || knownUser?.colaborador_id || knownUser?.id || authUserId,
+        email: cleanEmail,
+        name: knownUser?.name || cleanEmail.split('@')[0],
+        cargo: determinedCargo,
+        role: determinedRole,
+        allowed_pages: determinedPages,
+        active: knownUser?.active !== undefined ? knownUser.active : true
       }
 
       // Salva no Supabase app_users se possível
@@ -167,13 +193,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(fallbackUser)
     } catch (err) {
       console.warn('Erro ao carregar perfil:', err)
-      // Fallback local seguro
+      const isInitialAdmin = cleanEmail.includes('admin') || cleanEmail.includes('joh_gomes') || cleanEmail === 'johansson.gomes@magazineluiza.com.br'
+      const fallbackRole = isInitialAdmin ? 'admin' : 'colaborador'
       setUser({
         id: authUserId,
-        email: authEmail,
-        name: authEmail.split('@')[0],
-        role: 'admin',
-        allowed_pages: DEFAULT_ROLE_PAGES.admin,
+        email: cleanEmail,
+        name: cleanEmail.split('@')[0],
+        role: fallbackRole,
+        cargo: isInitialAdmin ? 'Administrador' : 'Colaborador',
+        allowed_pages: DEFAULT_ROLE_PAGES[fallbackRole],
         active: true
       })
     }
@@ -485,13 +513,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Se autenticou no Auth OU a senha confere com a salva no cadastro
         const passwordMatches = dbUser.password_hash ? dbUser.password_hash === cleanPass : true
         if (authUser || passwordMatches) {
+          const colabInfo = (initialColaboradores as any[]).find(c => 
+            (c.login && cleanEmail.includes(c.login.toLowerCase())) ||
+            (c.contratado && dbUser.name && c.contratado.toLowerCase() === dbUser.name.toLowerCase())
+          )
+          const resolvedCargo = colabInfo?.cargo || dbUser.cargo || (dbUser.role ? String(dbUser.role) : 'Colaborador')
+          const resolvedRole = mapCargoToValidRole(dbUser.role || resolvedCargo)
+
           const profile: AppUserProfile = {
             id: dbUser.id,
             user_id: dbUser.user_id || dbUser.id,
+            colaborador_id: colabInfo?.id || dbUser.colaborador_id || dbUser.id,
             email: dbUser.email,
             name: dbUser.name,
-            role: dbUser.role as UserRole,
-            allowed_pages: dbUser.allowed_pages || DEFAULT_ROLE_PAGES[dbUser.role as UserRole],
+            cargo: resolvedCargo,
+            role: resolvedRole as UserRole,
+            allowed_pages: dbUser.allowed_pages || getDefaultPagesForCargo(resolvedCargo),
             active: dbUser.active
           }
 
@@ -501,28 +538,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // 4. Fallback local: verificar no localStorage magalog_users_list
+      // 4. Fallback local: verificar no localStorage magalog_users_list ou initialUsers
+      let localMatched: any = null
       const localUsersJson = localStorage.getItem('magalog_users_list')
       if (localUsersJson) {
         try {
           const localList: AppUserProfile[] = JSON.parse(localUsersJson)
-          const matched = localList.find(u => u.email.toLowerCase() === cleanEmail)
-          if (matched) {
-            if (!matched.active) {
-              setLoading(false)
-              return { error: 'Este usuário está inativo no sistema. Procure o Administrador.' }
-            }
-            const passOk = matched.password_hash ? matched.password_hash === cleanPass : cleanPass === '123456'
-            if (passOk) {
-              localStorage.setItem('magalog_admin_session', JSON.stringify(matched))
-              setUser(matched)
-              return {}
-            } else {
-              setLoading(false)
-              return { error: 'Senha incorreta para este usuário.' }
-            }
-          }
+          localMatched = localList.find(u => (u.email || '').toLowerCase() === cleanEmail)
         } catch {}
+      }
+
+      if (!localMatched) {
+        localMatched = (initialUsers as any[]).find(u => (u.email || '').toLowerCase() === cleanEmail)
+      }
+
+      if (localMatched) {
+        if (!localMatched.active) {
+          setLoading(false)
+          return { error: 'Este usuário está inativo no sistema. Procure o Administrador.' }
+        }
+        const passOk = localMatched.password_hash ? localMatched.password_hash === cleanPass : cleanPass === '123456'
+        if (passOk) {
+          const colabInfo = (initialColaboradores as any[]).find(c => 
+            (c.login && cleanEmail.includes(c.login.toLowerCase())) ||
+            (c.contratado && localMatched.name && c.contratado.toLowerCase() === localMatched.name.toLowerCase())
+          )
+          const resolvedCargo = localMatched.cargo || colabInfo?.cargo || 'Colaborador'
+          const resolvedRole = mapCargoToValidRole(localMatched.role || resolvedCargo)
+
+          const enrichedProfile: AppUserProfile = {
+            ...localMatched,
+            cargo: resolvedCargo,
+            role: resolvedRole,
+            colaborador_id: colabInfo?.id || localMatched.colaborador_id || localMatched.id,
+            allowed_pages: localMatched.allowed_pages || getDefaultPagesForCargo(resolvedCargo)
+          }
+
+          localStorage.setItem('magalog_admin_session', JSON.stringify(enrichedProfile))
+          setUser(enrichedProfile)
+          return {}
+        } else {
+          setLoading(false)
+          return { error: 'Senha incorreta para este usuário.' }
+        }
       }
 
       if (authError && !dbUser) {
