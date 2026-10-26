@@ -317,12 +317,48 @@ export const PmtsPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [colaboradoresList, setColaboradoresList] = useState<ColaboradorItem[]>(() => {
-    // 1. Carrega IDs deletados para garantir que colaboradores excluídos nunca reapareçam
+    // 1. Carrega usuários ativos da Central de Usuários (Fonte Primária da Aplicação)
+    let activeUsersList: any[] = []
+    try {
+      const storedUsers = localStorage.getItem('magalog_users_list')
+      if (storedUsers) {
+        activeUsersList = JSON.parse(storedUsers)
+      }
+    } catch {}
+
+    const activeUserIds = new Set<string>()
+    const activeUserNames = new Set<string>()
+    if (Array.isArray(activeUsersList) && activeUsersList.length > 0) {
+      activeUsersList.forEach(u => {
+        if (u.active !== false) {
+          const id = String(u.id || u.colaborador_id || '').toLowerCase().trim()
+          const name = String(u.name || u.dados_colaborador?.contratado || '').toLowerCase().trim()
+          if (id) activeUserIds.add(id)
+          if (name) activeUserNames.add(name)
+        }
+      })
+    }
+
+    // 2. Carrega IDs deletados e desconsidera qualquer ID que esteja ATIVO na Central de Usuários
     let deletedIds: string[] = []
     try {
       const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
       if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
     } catch {}
+
+    if (activeUserIds.size > 0) {
+      const cleanedDeleted = deletedIds.filter(id => {
+        const low = String(id || '').toLowerCase().trim()
+        return !activeUserIds.has(low) && !activeUserNames.has(low)
+      })
+      if (cleanedDeleted.length !== deletedIds.length) {
+        try {
+          localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(cleanedDeleted))
+        } catch {}
+      }
+      deletedIds = cleanedDeleted
+    }
+
     const deletedSet = new Set(
       deletedIds
         .map(id => String(id || '').toLowerCase().trim())
@@ -335,6 +371,55 @@ export const PmtsPage: React.FC = () => {
       if (item.id) fullDataMap.set(item.id.trim().toLowerCase(), item)
       if (item.contratado) fullDataMap.set(item.contratado.trim().toUpperCase(), item)
     })
+
+    // Se houver usuários na Central de Usuários com dados_colaborador ou correspondência, usa como fonte direta
+    if (Array.isArray(activeUsersList) && activeUsersList.length > 0) {
+      const listFromUsers = activeUsersList
+        .filter(u => u.active !== false)
+        .map(u => {
+          const uId = String(u.id || u.colaborador_id || '').trim()
+          const uName = String(u.name || '').trim().toUpperCase()
+          const baseMatch = fullDataMap.get(uId.toLowerCase()) || fullDataMap.get(uName)
+          const dados = u.dados_colaborador || {}
+
+          const item: ColaboradorItem = {
+            ...(baseMatch || {}),
+            ...dados,
+            id: uId || dados.id || baseMatch?.id || '',
+            contratado: uName || dados.contratado || baseMatch?.contratado || '',
+            cargo: dados.cargo || u.cargo || u.role || baseMatch?.cargo || 'CONFERENTE',
+            centroDeCusto: dados.centroDeCusto || baseMatch?.centroDeCusto || 'GERAL CD 6994',
+            cd: dados.cd || baseMatch?.cd || '6994',
+            situacaoSistema: dados.situacaoSistema || baseMatch?.situacaoSistema || 'Em Atividade Normal',
+            login: dados.login || (u.email ? u.email.split('@')[0].toUpperCase() : '') || baseMatch?.login || '',
+            cpf: dados.cpf || baseMatch?.cpf || '',
+            rg: dados.rg || baseMatch?.rg || '',
+            sexo: dados.sexo || baseMatch?.sexo || 'M',
+            dataNascimento: dados.dataNascimento || baseMatch?.dataNascimento || '',
+            dataAdmissao: dados.dataAdmissao || baseMatch?.dataAdmissao || '',
+            novaIdade: dados.novaIdade || baseMatch?.novaIdade || '',
+            diaNiver: dados.diaNiver || baseMatch?.diaNiver || '',
+            mesNiver: dados.mesNiver || baseMatch?.mesNiver || '',
+            idLider: dados.idLider || baseMatch?.idLider || '',
+            nomeLider: dados.nomeLider || baseMatch?.nomeLider || '',
+            setor: dados.setor || baseMatch?.setor || '',
+            turno: dados.turno || baseMatch?.turno || '1º'
+          }
+          return item
+        })
+        .filter(colab => {
+          const cId = String(colab.id || '').toLowerCase().trim()
+          const cName = String(colab.contratado || '').toLowerCase().trim()
+          return (!cId || !deletedSet.has(cId)) && (!cName || !deletedSet.has(cName))
+        })
+
+      if (listFromUsers.length > 0) {
+        try {
+          localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(listFromUsers))
+        } catch {}
+        return listFromUsers
+      }
+    }
 
     try {
       const saved = localStorage.getItem('magalog_quadro_colaboradores')
@@ -491,17 +576,110 @@ export const PmtsPage: React.FC = () => {
     try {
       setIsSyncingDb(true)
 
-      // Carregar lista de IDs excluídos armazenados localmente
+      // 1. Carrega usuários ativos da Central de Usuários (Fonte Principal de Cadastro)
+      let activeUsersList: any[] = []
+      try {
+        const storedUsers = localStorage.getItem('magalog_users_list')
+        if (storedUsers) {
+          activeUsersList = JSON.parse(storedUsers)
+        }
+      } catch {}
+
+      const activeUserIds = new Set<string>()
+      const activeUserNames = new Set<string>()
+      if (Array.isArray(activeUsersList) && activeUsersList.length > 0) {
+        activeUsersList.forEach(u => {
+          if (u.active !== false) {
+            const id = String(u.id || u.colaborador_id || '').toLowerCase().trim()
+            const name = String(u.name || u.dados_colaborador?.contratado || '').toLowerCase().trim()
+            if (id) activeUserIds.add(id)
+            if (name) activeUserNames.add(name)
+          }
+        })
+      }
+
+      // 2. Carregar lista de IDs excluídos armazenados localmente e desconsidera qualquer usuário ativo
       let deletedIds: string[] = []
       try {
         const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
         if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
       } catch {}
+
+      if (activeUserIds.size > 0) {
+        const cleanedDeleted = deletedIds.filter(id => {
+          const low = String(id || '').toLowerCase().trim()
+          return !activeUserIds.has(low) && !activeUserNames.has(low)
+        })
+        if (cleanedDeleted.length !== deletedIds.length) {
+          try {
+            localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(cleanedDeleted))
+          } catch {}
+        }
+        deletedIds = cleanedDeleted
+      }
+
       const deletedSet = new Set(
         deletedIds
           .map(id => String(id || '').toLowerCase().trim())
           .filter(id => id.length > 0 && id !== 'undefined' && id !== 'null')
       )
+
+      const initialList = (initialColaboradoresData as ColaboradorItem[]) || []
+      const fullDataMap = new Map<string, ColaboradorItem>()
+      initialList.forEach(item => {
+        if (item.id) fullDataMap.set(item.id.trim().toLowerCase(), item)
+        if (item.contratado) fullDataMap.set(item.contratado.trim().toUpperCase(), item)
+      })
+
+      // Se temos a Central de Usuários ativa com dados, sincroniza diretamente para que o Quadro TT reflita 100% da Central
+      if (Array.isArray(activeUsersList) && activeUsersList.length > 0) {
+        const listFromUsers = activeUsersList
+          .filter(u => u.active !== false)
+          .map(u => {
+            const uId = String(u.id || u.colaborador_id || '').trim()
+            const uName = String(u.name || '').trim().toUpperCase()
+            const baseMatch = fullDataMap.get(uId.toLowerCase()) || fullDataMap.get(uName)
+            const dados = u.dados_colaborador || {}
+
+            const item: ColaboradorItem = {
+              ...(baseMatch || {}),
+              ...dados,
+              id: uId || dados.id || baseMatch?.id || '',
+              contratado: uName || dados.contratado || baseMatch?.contratado || '',
+              cargo: dados.cargo || u.cargo || u.role || baseMatch?.cargo || 'CONFERENTE',
+              centroDeCusto: dados.centroDeCusto || baseMatch?.centroDeCusto || 'GERAL CD 6994',
+              cd: dados.cd || baseMatch?.cd || '6994',
+              situacaoSistema: dados.situacaoSistema || baseMatch?.situacaoSistema || 'Em Atividade Normal',
+              login: dados.login || (u.email ? u.email.split('@')[0].toUpperCase() : '') || baseMatch?.login || '',
+              cpf: dados.cpf || baseMatch?.cpf || '',
+              rg: dados.rg || baseMatch?.rg || '',
+              sexo: dados.sexo || baseMatch?.sexo || 'M',
+              dataNascimento: dados.dataNascimento || baseMatch?.dataNascimento || '',
+              dataAdmissao: dados.dataAdmissao || baseMatch?.dataAdmissao || '',
+              novaIdade: dados.novaIdade || baseMatch?.novaIdade || '',
+              diaNiver: dados.diaNiver || baseMatch?.diaNiver || '',
+              mesNiver: dados.mesNiver || baseMatch?.mesNiver || '',
+              idLider: dados.idLider || baseMatch?.idLider || '',
+              nomeLider: dados.nomeLider || baseMatch?.nomeLider || '',
+              setor: dados.setor || baseMatch?.setor || '',
+              turno: dados.turno || baseMatch?.turno || '1º'
+            }
+            return item
+          })
+          .filter(c => {
+            const cId = String(c.id || '').toLowerCase().trim()
+            const cName = String(c.contratado || '').toLowerCase().trim()
+            return (!cId || !deletedSet.has(cId)) && (!cName || !deletedSet.has(cName))
+          })
+
+        if (listFromUsers.length > 0) {
+          setColaboradoresList(listFromUsers)
+          try {
+            localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(listFromUsers))
+          } catch {}
+          return
+        }
+      }
 
       // 1. Tenta carregar direto do Supabase (Essencial para Vercel)
       try {
@@ -520,8 +698,7 @@ export const PmtsPage: React.FC = () => {
             if (item.contratado) supaMap.set(String(item.contratado).trim().toUpperCase(), item)
           })
 
-          // Mescla com a base completa de 187 colaboradores padrão
-          const initialList = (initialColaboradoresData as ColaboradorItem[]) || []
+          // Mescla com a base completa de colaboradores padrão
           const mergedBase = initialList.map(baseItem => {
             const dbMatch = supaMap.get(String(baseItem.id).trim().toLowerCase()) ||
                             supaMap.get(String(baseItem.contratado).trim().toUpperCase())
@@ -579,7 +756,6 @@ export const PmtsPage: React.FC = () => {
       }
 
       // 3. Fallback: Base local inicial enriquecida (187 colaboradores padrão)
-      const initialList = (initialColaboradoresData as ColaboradorItem[]) || []
       const filteredInitial = initialList.filter(c => {
         const cId = String(c.id || '').toLowerCase().trim()
         const cName = String(c.contratado || '').toLowerCase().trim()
@@ -606,37 +782,10 @@ export const PmtsPage: React.FC = () => {
   useEffect(() => {
     fetchColaboradoresFromDb()
 
-    // Sincronização entre abas e eventos do mesmo navegador (quando um usuário é deletado ou alterado)
+    // Sincronização entre abas e eventos do mesmo navegador (quando um usuário é deletado, alterado ou importado)
     const handleStorageUpdate = (e?: StorageEvent | CustomEvent) => {
       try {
-        const storedQuadro = localStorage.getItem('magalog_quadro_colaboradores')
-        let deletedIds: string[] = []
-        try {
-          const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
-          if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
-        } catch {}
-        const deletedSet = new Set(
-          deletedIds
-            .map(id => String(id || '').toLowerCase().trim())
-            .filter(id => id.length > 0 && id !== 'undefined' && id !== 'null')
-        )
-
-        if (e && (e as CustomEvent).type === 'magalog_users_updated') {
-          // Quando houver importação ou recadastro, recarrega a base mesclada diretamente
-          fetchColaboradoresFromDb()
-          return
-        }
-
-        if (storedQuadro) {
-          const list: ColaboradorItem[] = JSON.parse(storedQuadro)
-          if (Array.isArray(list) && list.length > 0) {
-            setColaboradoresList(list.filter(c => {
-              const cId = String(c.id || '').toLowerCase().trim()
-              const cName = String(c.contratado || '').toLowerCase().trim()
-              return (!cId || !deletedSet.has(cId)) && (!cName || !deletedSet.has(cName))
-            }))
-          }
-        }
+        fetchColaboradoresFromDb()
       } catch {}
     }
 
