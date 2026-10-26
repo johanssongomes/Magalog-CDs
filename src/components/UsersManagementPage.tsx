@@ -241,6 +241,39 @@ export const UsersManagementPage: React.FC = () => {
       setLoading(true)
       let initialList = (initialUsersData as unknown as AppUserProfile[]) || []
 
+      // Se houver lista salva localmente no navegador, aproveita as alterações já feitas
+      try {
+        const storedUsers = localStorage.getItem('magalog_users_list')
+        if (storedUsers) {
+          const parsed = JSON.parse(storedUsers)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const localMap = new Map<string, AppUserProfile>()
+            parsed.forEach((item: AppUserProfile) => {
+              if (item.id) localMap.set(String(item.id).trim().toLowerCase(), item)
+              if (item.email) localMap.set(item.email.trim().toLowerCase(), item)
+            })
+
+            initialList = initialList.map(u => {
+              const uId = String(u.id || u.colaborador_id || '').trim().toLowerCase()
+              const uEmail = (u.email || '').trim().toLowerCase()
+              const localItem = localMap.get(uId) || localMap.get(uEmail)
+              if (localItem) {
+                return {
+                  ...u,
+                  ...localItem,
+                  cargo: localItem.cargo || u.cargo,
+                  role: localItem.role || u.role,
+                  allowed_pages: localItem.allowed_pages !== undefined ? localItem.allowed_pages : u.allowed_pages,
+                  active: localItem.active !== undefined ? localItem.active : u.active,
+                  dados_colaborador: { ...(u.dados_colaborador || {}), ...(localItem.dados_colaborador || {}) }
+                }
+              }
+              return u
+            })
+          }
+        }
+      } catch {}
+
       // Carregar lista de IDs excluídos armazenados localmente e no banco
       let deletedIds: string[] = []
       try {
@@ -562,7 +595,7 @@ export const UsersManagementPage: React.FC = () => {
         const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
         if (storedDeleted) {
           const currentDeleted: string[] = JSON.parse(storedDeleted)
-          const targetId = String(finalColaboradorId || '').toLowerCase().trim()
+          const targetId = String(finalId || '').toLowerCase().trim()
           const targetEmail = (finalEmail || '').toLowerCase().trim()
           const cleaned = currentDeleted.filter(id => {
             const low = String(id || '').toLowerCase().trim()
@@ -577,7 +610,7 @@ export const UsersManagementPage: React.FC = () => {
         const storedQuadro = localStorage.getItem('magalog_quadro_colaboradores')
         if (storedQuadro) {
           const quadroList = JSON.parse(storedQuadro)
-          const targetColabId = String(finalColaboradorId).trim().toLowerCase()
+          const targetColabId = String(finalId).trim().toLowerCase()
           let found = false
           const updatedQuadro = quadroList.map((c: any) => {
             if (String(c.id || '').trim().toLowerCase() === targetColabId) {
@@ -595,7 +628,7 @@ export const UsersManagementPage: React.FC = () => {
 
       try {
         window.dispatchEvent(new CustomEvent('magalog_users_updated', {
-          detail: { action: editingUser ? 'update' : 'create', id: finalColaboradorId, colaborador: updatedColaborador }
+          detail: { action: editingUser ? 'update' : 'create', id: finalId, colaborador: updatedColaborador }
         }))
       } catch {}
 
@@ -1177,12 +1210,16 @@ export const UsersManagementPage: React.FC = () => {
                       {/* Páginas Autorizadas */}
                       <td className="px-4 py-3.5">
                         <div className="flex flex-wrap gap-1 max-w-sm">
-                          {userCargo.toUpperCase().includes('ADMIN') ? (
+                          {u.allowed_pages && u.allowed_pages.length === AVAILABLE_PAGES.length ? (
                             <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium text-[10px] border border-emerald-200">
-                              Acesso Total (Todas as Telas)
+                              Acesso Total ({AVAILABLE_PAGES.length} Telas)
+                            </span>
+                          ) : !u.allowed_pages || u.allowed_pages.length === 0 ? (
+                            <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-medium text-[10px] border border-rose-200">
+                              Sem Acesso
                             </span>
                           ) : (
-                            u.allowed_pages?.map(pId => {
+                            u.allowed_pages.map(pId => {
                               const page = AVAILABLE_PAGES.find(p => p.id === pId)
                               return (
                                 <span key={pId} className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium text-[10px]">
