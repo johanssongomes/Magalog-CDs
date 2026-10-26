@@ -317,6 +317,14 @@ export const PmtsPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [colaboradoresList, setColaboradoresList] = useState<ColaboradorItem[]>(() => {
+    // 1. Carrega IDs deletados para garantir que colaboradores excluídos nunca reapareçam
+    let deletedIds: string[] = []
+    try {
+      const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
+      if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
+    } catch {}
+    const deletedSet = new Set(deletedIds.map(id => String(id).toLowerCase().trim()))
+
     try {
       const saved = localStorage.getItem('magalog_quadro_colaboradores')
       if (saved) {
@@ -330,36 +338,38 @@ export const PmtsPage: React.FC = () => {
             fullDataMap.set(item.contratado.trim().toUpperCase(), item)
           })
 
-          const upgraded = parsed.map(colab => {
-            const match = fullDataMap.get(colab.id.trim().toLowerCase()) || fullDataMap.get(colab.contratado.trim().toUpperCase())
-            if (match) {
-              const isCcNumeric = /^\d+$/.test(colab.centroDeCusto || '')
-              const fixedCentroDeCusto = isCcNumeric ? match.centroDeCusto : (colab.centroDeCusto || match.centroDeCusto)
-              const fixedCodCentroCusto = colab.codCentroCusto || (isCcNumeric ? colab.centroDeCusto : match.codCentroCusto)
+          const upgraded = parsed
+            .filter(colab => !deletedSet.has(String(colab.id).toLowerCase().trim()))
+            .map(colab => {
+              const match = fullDataMap.get(colab.id.trim().toLowerCase()) || fullDataMap.get(colab.contratado.trim().toUpperCase())
+              if (match) {
+                const isCcNumeric = /^\d+$/.test(colab.centroDeCusto || '')
+                const fixedCentroDeCusto = isCcNumeric ? match.centroDeCusto : (colab.centroDeCusto || match.centroDeCusto)
+                const fixedCodCentroCusto = colab.codCentroCusto || (isCcNumeric ? colab.centroDeCusto : match.codCentroCusto)
 
-              return {
-                ...match,
-                ...colab,
-                centroDeCusto: fixedCentroDeCusto,
-                codCentroCusto: fixedCodCentroCusto,
-                login: colab.login || match.login,
-                cpf: colab.cpf || match.cpf,
-                rg: colab.rg || match.rg,
-                sexo: colab.sexo || match.sexo,
-                dataNascimento: colab.dataNascimento || match.dataNascimento,
-                dataAdmissao: colab.dataAdmissao || match.dataAdmissao,
-                novaIdade: colab.novaIdade || match.novaIdade,
-                diaNiver: colab.diaNiver || match.diaNiver,
-                mesNiver: colab.mesNiver || match.mesNiver,
-                idLider: colab.idLider || match.idLider,
-                nomeLider: colab.nomeLider || match.nomeLider,
-                setor: colab.setor || match.setor,
-                turno: colab.turno || match.turno,
-                situacaoSistema: colab.situacaoSistema || match.situacaoSistema
+                return {
+                  ...match,
+                  ...colab,
+                  centroDeCusto: fixedCentroDeCusto,
+                  codCentroCusto: fixedCodCentroCusto,
+                  login: colab.login || match.login,
+                  cpf: colab.cpf || match.cpf,
+                  rg: colab.rg || match.rg,
+                  sexo: colab.sexo || match.sexo,
+                  dataNascimento: colab.dataNascimento || match.dataNascimento,
+                  dataAdmissao: colab.dataAdmissao || match.dataAdmissao,
+                  novaIdade: colab.novaIdade || match.novaIdade,
+                  diaNiver: colab.diaNiver || match.diaNiver,
+                  mesNiver: colab.mesNiver || match.mesNiver,
+                  idLider: colab.idLider || match.idLider,
+                  nomeLider: colab.nomeLider || match.nomeLider,
+                  setor: colab.setor || match.setor,
+                  turno: colab.turno || match.turno,
+                  situacaoSistema: colab.situacaoSistema || match.situacaoSistema
+                }
               }
-            }
-            return colab
-          })
+              return colab
+            })
 
           try {
             localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(upgraded))
@@ -368,8 +378,9 @@ export const PmtsPage: React.FC = () => {
         }
       }
     } catch {}
-    // Carrega a base padrão com os 187 colaboradores completos do arquivo "Modelo Pessoas Modelo 1.xlsx"
-    return (initialColaboradoresData as ColaboradorItem[]) || []
+    // Carrega a base padrão com os colaboradores completos, excluindo os IDs deletados
+    const initialRaw = (initialColaboradoresData as ColaboradorItem[]) || []
+    return initialRaw.filter(c => !deletedSet.has(String(c.id).toLowerCase().trim()))
   })
   const [cadastroSuccessMsg, setCadastroSuccessMsg] = useState('')
   const [isSyncingDb, setIsSyncingDb] = useState(false)
@@ -454,6 +465,14 @@ export const PmtsPage: React.FC = () => {
     try {
       setIsSyncingDb(true)
 
+      // Carregar lista de IDs excluídos armazenados localmente
+      let deletedIds: string[] = []
+      try {
+        const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
+        if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
+      } catch {}
+      const deletedSet = new Set(deletedIds.map(id => String(id).toLowerCase().trim()))
+
       // 1. Tenta carregar direto do Supabase (Essencial para Vercel)
       try {
         const { data: supaData, error: supaErr } = await supabase
@@ -462,7 +481,9 @@ export const PmtsPage: React.FC = () => {
           .order('contratado', { ascending: true })
 
         if (!supaErr && Array.isArray(supaData) && supaData.length > 0) {
-          const list = supaData.map(mapFromSupabase)
+          const list = supaData
+            .map(mapFromSupabase)
+            .filter(c => !deletedSet.has(String(c.id).toLowerCase().trim()))
           setColaboradoresList(list)
           try {
             localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(list))
@@ -478,9 +499,11 @@ export const PmtsPage: React.FC = () => {
         const res = await fetch('http://localhost:3001/api/colaboradores')
         const json = await res.json()
         if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
-          setColaboradoresList(json.data)
+          const list = (json.data as ColaboradorItem[])
+            .filter(c => !deletedSet.has(String(c.id).toLowerCase().trim()))
+          setColaboradoresList(list)
           try {
-            localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(json.data))
+            localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(list))
           } catch {}
           return
         }
@@ -490,8 +513,9 @@ export const PmtsPage: React.FC = () => {
 
       // 3. Fallback: Base local inicial
       const initialList = (initialColaboradoresData as ColaboradorItem[]) || []
-      if (initialList.length > 0) {
-        setColaboradoresList(initialList)
+      const filteredInitial = initialList.filter(c => !deletedSet.has(String(c.id).toLowerCase().trim()))
+      if (filteredInitial.length > 0) {
+        setColaboradoresList(filteredInitial)
       }
     } catch (err) {
       console.warn('Banco de dados local/remoto não respondeu, utilizando base em memória/local:', err)
@@ -503,6 +527,27 @@ export const PmtsPage: React.FC = () => {
   // Executa o carregamento inicial do Banco de Dados e assina atualizações em tempo real (Supabase Realtime)
   useEffect(() => {
     fetchColaboradoresFromDb()
+
+    // Sincronização entre abas e eventos do mesmo navegador (quando um usuário é deletado ou alterado)
+    const handleStorageUpdate = (e?: StorageEvent | CustomEvent) => {
+      try {
+        const storedQuadro = localStorage.getItem('magalog_quadro_colaboradores')
+        let deletedIds: string[] = []
+        try {
+          const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
+          if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
+        } catch {}
+        const deletedSet = new Set(deletedIds.map(id => String(id).toLowerCase().trim()))
+
+        if (storedQuadro) {
+          const list: ColaboradorItem[] = JSON.parse(storedQuadro)
+          setColaboradoresList(list.filter(c => !deletedSet.has(String(c.id).toLowerCase().trim())))
+        }
+      } catch {}
+    }
+
+    window.addEventListener('storage', handleStorageUpdate)
+    window.addEventListener('magalog_users_updated', handleStorageUpdate)
 
     // Supabase Realtime para sincronização automática instantânea
     const channel = supabase
@@ -526,9 +571,12 @@ export const PmtsPage: React.FC = () => {
               return updated
             })
           } else if (payload.eventType === 'DELETE') {
-            const deletedId = String(payload.old?.id || '').trim()
+            const deletedId = String(payload.old?.id || (payload as any).old_record?.id || '').trim().toLowerCase()
             setColaboradoresList((prev) => {
-              const updated = prev.filter((c) => String(c.id).trim() !== deletedId)
+              const updated = prev.filter((c) => {
+                const cId = String(c.id).trim().toLowerCase()
+                return cId !== deletedId
+              })
               try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch {}
               return updated
             })
@@ -538,6 +586,8 @@ export const PmtsPage: React.FC = () => {
       .subscribe()
 
     return () => {
+      window.removeEventListener('storage', handleStorageUpdate)
+      window.removeEventListener('magalog_users_updated', handleStorageUpdate)
       supabase.removeChannel(channel)
     }
   }, [])

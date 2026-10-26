@@ -65,3 +65,16 @@ BEGIN
     WITH CHECK (true);
   END IF;
 END $$;
+
+-- Habilitar Realtime para a tabela colaboradores
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'colaboradores'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.colaboradores;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;

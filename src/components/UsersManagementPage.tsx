@@ -610,9 +610,15 @@ export const UsersManagementPage: React.FC = () => {
         const storedQuadro = localStorage.getItem('magalog_quadro_colaboradores')
         if (storedQuadro) {
           const quadroList = JSON.parse(storedQuadro)
-          const updatedQuadro = quadroList.filter((c: any) => String(c.id).trim() !== targetId)
+          const normTargetId = targetId.toLowerCase()
+          const updatedQuadro = quadroList.filter((c: any) => String(c.id || '').trim().toLowerCase() !== normTargetId)
           localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedQuadro))
         }
+      } catch {}
+
+      // 5. Dispara evento customizado para atualização instantânea em componentes na mesma janela
+      try {
+        window.dispatchEvent(new CustomEvent('magalog_users_updated', { detail: { action: 'delete', id: targetId, email: targetEmail } }))
       } catch {}
 
       setMessage({ text: `Usuário "${u.name}" removido com sucesso.`, type: 'success' })
