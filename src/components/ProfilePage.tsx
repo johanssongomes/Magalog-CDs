@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 import { useAuth, type ColaboradorData } from '../lib/authContext'
 import { supabase } from '../lib/supabase'
+import initialColaboradores from '../data/initialColaboradores.json'
 
 export function ProfilePage() {
   const { user, refreshProfile, updateProfile } = useAuth()
@@ -64,47 +65,57 @@ export function ProfilePage() {
         const targetId = user.colaborador_id || user.id
         const loginPrefix = (user.email || '').split('@')[0].toLowerCase()
 
+        // 1. Tenta buscar no banco Supabase
         const { data, error } = await supabase
           .from('colaboradores')
           .select('*')
           .or(`id.eq.${targetId},login.ilike.${loginPrefix}`)
           .maybeSingle()
 
-        if (data && !error) {
+        // 2. Busca também na base oficial de colaboradores
+        const localFound = (initialColaboradores as any[]).find(c => 
+          (c.id && String(c.id) === String(targetId)) ||
+          (c.login && c.login.toLowerCase() === loginPrefix) ||
+          (c.contratado && user.name && c.contratado.toLowerCase() === user.name.toLowerCase())
+        )
+
+        const source = data || localFound
+
+        if (source) {
           setColabData({
-            id: String(data.id || targetId),
-            contratado: data.contratado || user.name,
-            cargo: data.cargo || user.cargo || user.role,
-            centroDeCusto: data.centro_de_custo || '',
-            cd: data.cd || '6994',
-            login: data.login || loginPrefix.toUpperCase(),
-            cpf: data.cpf || '',
-            rg: data.rg || '',
-            sexo: data.sexo || '',
-            cargoAnterior: data.cargo_anterior || '',
-            dataAdmissao: data.data_admissao || '',
-            dataNascimento: data.data_nascimento || '',
-            situacaoSistema: data.situacao_sistema || 'Em Atividade Normal',
-            status: data.status || '',
-            possuiMedidas: data.possui_medidas || '',
-            possuiFeedback: data.possui_feedback || '',
-            idLider: data.id_lider || '',
-            nomeLider: data.nome_lider || '',
-            setor: data.setor || '',
-            turno: data.turno || '',
-            ferias: data.ferias || '',
-            codCentroCusto: data.cod_centro_custo || '',
-            gerencia: data.gerencia || '',
-            periodo45Dias: data.periodo_45_dias || '',
-            periodo90Dias: data.periodo_90_dias || '',
-            diaNiver: data.dia_niver || '',
-            mesNiver: data.mes_niver || '',
-            aniversario: data.aniversario || '',
-            novaIdade: data.nova_idade || '',
-            tempoDeEmpresa: data.tempo_de_empresa || '',
-            mesAdm: data.mes_adm || '',
-            diaAdm: data.dia_adm || '',
-            anoAdm: data.ano_adm || ''
+            id: String(source.id || targetId),
+            contratado: source.contratado || user.name,
+            cargo: source.cargo || user.cargo || user.role,
+            centroDeCusto: source.centro_de_custo || source.centroDeCusto || '',
+            cd: source.cd || '6994',
+            login: source.login || loginPrefix.toUpperCase(),
+            cpf: source.cpf || '',
+            rg: source.rg || '',
+            sexo: source.sexo || '',
+            cargoAnterior: source.cargo_anterior || source.cargoAnterior || '',
+            dataAdmissao: source.data_admissao || source.dataAdmissao || '',
+            dataNascimento: source.data_nascimento || source.dataNascimento || '',
+            situacaoSistema: source.situacao_sistema || source.situacaoSistema || 'Em Atividade Normal',
+            status: source.status || '',
+            possuiMedidas: source.possui_medidas || source.possuiMedidas || '',
+            possuiFeedback: source.possui_feedback || source.possuiFeedback || '',
+            idLider: source.id_lider || source.idLider || '',
+            nomeLider: source.nome_lider || source.nomeLider || '',
+            setor: source.setor || '',
+            turno: source.turno || '',
+            ferias: source.ferias || '',
+            codCentroCusto: source.cod_centro_custo || source.codCentroCusto || '',
+            gerencia: source.gerencia || '',
+            periodo45Dias: source.periodo_45_dias || source.periodo45Dias || '',
+            periodo90Dias: source.periodo_90_dias || source.periodo90Dias || '',
+            diaNiver: source.dia_niver || source.diaNiver || '',
+            mesNiver: source.mes_niver || source.mesNiver || '',
+            aniversario: source.aniversario || '',
+            novaIdade: source.nova_idade || source.novaIdade || '',
+            tempoDeEmpresa: source.tempo_de_empresa || source.tempoDeEmpresa || '',
+            mesAdm: source.mes_adm || source.mesAdm || '',
+            diaAdm: source.dia_adm || source.diaAdm || '',
+            anoAdm: source.ano_adm || source.anoAdm || ''
           })
         } else if (user.dados_colaborador) {
           setColabData(user.dados_colaborador)
@@ -114,7 +125,9 @@ export function ProfilePage() {
             contratado: user.name,
             cargo: user.cargo || user.role,
             login: loginPrefix.toUpperCase(),
-            cd: '6994'
+            cd: '6994',
+            idLider: '',
+            nomeLider: ''
           })
         }
       } catch (err) {
@@ -625,7 +638,9 @@ export function ProfilePage() {
               <div className="mt-4 pt-4 border-t border-slate-800/80 space-y-2 text-xs">
                 <div className="flex justify-between text-slate-400">
                   <span>Líder Direto:</span>
-                  <span className="font-bold text-white text-right">{colabData?.nomeLider || 'Bruno Rafael Gomes'}</span>
+                  <span className="font-bold text-white text-right">
+                    {colabData?.nomeLider && colabData.nomeLider.trim() !== '' ? colabData.nomeLider : 'Não informado'}
+                  </span>
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span>Login Corporativo:</span>
