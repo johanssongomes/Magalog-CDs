@@ -142,6 +142,25 @@ export function ProfilePage() {
 
   if (!user) return null
 
+  // Cálculo de anos trabalhados para as medalhas de tempo de casa (1 medalha para cada 5 anos)
+  const getYearsOfService = (): number => {
+    if (colabData?.tempoDeEmpresa) {
+      const match = colabData.tempoDeEmpresa.match(/(\d+)\s*a/i)
+      if (match) return parseInt(match[1], 10)
+    }
+    if (colabData?.dataAdmissao) {
+      const parts = colabData.dataAdmissao.split('/')
+      if (parts.length === 3) {
+        const admDate = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]))
+        const now = new Date()
+        const diffMs = now.getTime() - admDate.getTime()
+        const diffYears = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365.25))
+        return Math.max(0, diffYears)
+      }
+    }
+    return 0
+  }
+
   // Cálculo de tempo de casa inteligente caso não venha da planilha
   const calculateCompanyTime = () => {
     if (colabData?.tempoDeEmpresa && colabData.tempoDeEmpresa.trim() !== '') {
@@ -158,10 +177,10 @@ export function ProfilePage() {
         const years = Math.floor(diffDays / 365)
         const months = Math.floor((diffDays % 365) / 30)
 
-        if (years > 0 && months > 0) return `${years} ano(s) e ${months} mês(es)`
-        if (years > 0) return `${years} ano(s)`
-        if (months > 0) return `${months} mês(es)`
-        return `${diffDays} dia(s)`
+        if (years > 0 && months > 0) return `${years}a ${months}m`
+        if (years > 0) return `${years}a`
+        if (months > 0) return `${months}m`
+        return `${diffDays}d`
       }
     } catch {}
     return colabData?.dataAdmissao || 'Não informado'
@@ -311,6 +330,8 @@ export function ProfilePage() {
 
   const initials = user.name ? user.name.slice(0, 2).toUpperCase() : 'US'
   const companyTime = calculateCompanyTime()
+  const yearsOfService = getYearsOfService()
+  const quinquennios = Math.floor(yearsOfService / 5)
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12 animate-in fade-in duration-200">
@@ -329,11 +350,11 @@ export function ProfilePage() {
         </div>
 
         {/* Informações Principais do Usuário sobrepostas */}
-        <div className="px-6 pb-6 pt-0 relative -mt-16 sm:-mt-20 flex flex-col md:flex-row md:items-end justify-between gap-5">
-          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4.5">
+        <div className="px-5 sm:px-6 pb-6 pt-0 relative -mt-16 sm:-mt-20 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 min-w-0 flex-1">
             {/* Foto de Perfil / Avatar Interativo com Botão de Upload */}
-            <div className="relative group">
-              <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-slate-900 border-4 border-slate-900 overflow-hidden shadow-2xl flex items-center justify-center text-blue-300 font-black text-3xl">
+            <div className="relative group shrink-0">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-slate-900 border-4 border-slate-900 overflow-hidden shadow-2xl flex items-center justify-center text-blue-300 font-black text-2xl sm:text-3xl">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt={user.name} className="w-full h-full object-cover" />
                 ) : (
@@ -346,9 +367,9 @@ export function ProfilePage() {
               {/* Botão de Upload de Foto */}
               <label 
                 title="Alterar Foto de Perfil"
-                className="absolute bottom-1 right-1 p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl cursor-pointer shadow-lg border-2 border-slate-900 transition-transform group-hover:scale-105"
+                className="absolute bottom-0 right-0 p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl cursor-pointer shadow-lg border-2 border-slate-900 transition-transform group-hover:scale-105"
               >
-                <Camera size={16} />
+                <Camera size={15} />
                 <input 
                   type="file" 
                   accept="image/*" 
@@ -358,54 +379,83 @@ export function ProfilePage() {
               </label>
 
               {/* Indicador de Status Online */}
-              <span className="absolute top-2 left-2 flex h-3.5 w-3.5">
+              <span className="absolute top-1.5 left-1.5 flex h-3.5 w-3.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-slate-900"></span>
               </span>
             </div>
 
-            {/* Nome, Cargo e Crachá */}
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            {/* Nome, Cargo e Crachá com proteção contra estouro */}
+            <div className="space-y-1.5 min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight break-words">
                   {user.name}
                 </h1>
                 {(colabData?.id || user.colaborador_id) && (
-                  <span className="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                  <span className="shrink-0 px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
                     ID: {colabData?.id || user.colaborador_id}
                   </span>
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-300">
-                <span className="font-semibold text-blue-400 flex items-center gap-1.5">
-                  <Briefcase size={15} />
-                  {user.cargo || colabData?.cargo || user.role}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-slate-300">
+                <span className="font-semibold text-blue-400 flex items-center gap-1.5 truncate max-w-full">
+                  <Briefcase size={14} className="shrink-0" />
+                  <span className="truncate">{user.cargo || colabData?.cargo || user.role}</span>
                 </span>
-                <span>&bull;</span>
-                <span className="text-slate-400 flex items-center gap-1.5">
-                  <Mail size={15} />
-                  {user.email}
+                <span className="hidden sm:inline text-slate-600">&bull;</span>
+                <span className="text-slate-400 flex items-center gap-1.5 truncate max-w-full">
+                  <Mail size={14} className="shrink-0" />
+                  <span className="truncate">{user.email}</span>
                 </span>
               </div>
+
+              {/* Medalhas de Tempo de Casa (1 a cada 5 anos) */}
+              {quinquennios > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  {Array.from({ length: quinquennios }).map((_, idx) => (
+                    <span
+                      key={idx}
+                      title={`Medalha de ${(idx + 1) * 5} anos de dedicação na empresa (${yearsOfService} anos totais)`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-xs backdrop-blur-xs transition hover:scale-105"
+                    >
+                      <Award size={13} className="text-amber-400 fill-amber-400/30 shrink-0" />
+                      <span>{(idx + 1) * 5} Anos</span>
+                    </span>
+                  ))}
+                  <span className="text-[11px] text-amber-400/70 font-medium ml-1">
+                    {quinquennios === 1 ? '1ª Medalha de Carreira' : `${quinquennios} Medalhas de Carreira`}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Badges Rápidos de Carreira e Tempo de Casa */}
-          <div className="flex flex-wrap items-center gap-2 self-start md:self-end">
-            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl px-4 py-2 text-center">
-              <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Tempo de Casa</span>
-              <span className="font-extrabold text-sm text-white flex items-center gap-1">
-                <Clock size={14} className="text-amber-400" />
-                {companyTime}
+          <div className="flex flex-wrap sm:flex-nowrap items-stretch gap-2.5 shrink-0 self-start lg:self-end mt-2 lg:mt-0">
+            {/* Card Tempo de Casa */}
+            <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl px-3.5 py-2 min-w-[130px] flex flex-col justify-center">
+              <div className="flex items-center justify-between gap-1 mb-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tempo de Casa</span>
+                {quinquennios > 0 && (
+                  <span className="inline-flex items-center text-[10px] text-amber-400 font-extrabold" title={`${quinquennios} medalha(s) ganha(s)`}>
+                    <Award size={12} className="fill-amber-400" />
+                    {quinquennios}x
+                  </span>
+                )}
+              </div>
+              <span className="font-extrabold text-xs sm:text-sm text-white flex items-center gap-1.5 truncate">
+                <Clock size={13} className="text-amber-400 shrink-0" />
+                <span className="truncate">{companyTime}</span>
               </span>
             </div>
 
-            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl px-4 py-2 text-center">
-              <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Situação</span>
-              <span className="font-extrabold text-sm text-emerald-400 flex items-center gap-1">
-                <CheckCircle2 size={14} />
-                {colabData?.situacaoSistema || 'Atividade Normal'}
+            {/* Card Situação */}
+            <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl px-3.5 py-2 min-w-[130px] flex flex-col justify-center">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Situação</span>
+              <span className="font-extrabold text-xs sm:text-sm text-emerald-400 flex items-center gap-1.5 truncate">
+                <CheckCircle2 size={13} className="shrink-0" />
+                <span className="truncate">{colabData?.situacaoSistema || 'Em Atividade'}</span>
               </span>
             </div>
           </div>
