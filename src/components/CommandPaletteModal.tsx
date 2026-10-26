@@ -32,7 +32,7 @@ export interface NavigationTarget {
   category: string
   tabId: string
   pmtPageId?: number
-  quadroSubPage?: 'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4'
+  quadroSubPage?: 'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4' | 'pg5'
   icon: React.ReactNode
   keywords: string[]
 }
@@ -256,13 +256,24 @@ const ALL_NAVIGATION_TARGETS: NavigationTarget[] = [
     quadroSubPage: 'pg4',
     icon: <BarChart3 size={18} className="text-amber-600" />,
     keywords: ['quadro medio', 'grade', 'dimensionamento', 'media turno']
+  },
+  {
+    id: 'sub-apontamento',
+    title: 'Apontamento Diário (Presenças, DSR, BH)',
+    subtitle: 'Matriz mensal de presenças, folgas, faltas ATM, férias, DSRs e banco de horas',
+    category: 'Quadro • Sub-abas',
+    tabId: 'pmts',
+    pmtPageId: 3,
+    quadroSubPage: 'pg5',
+    icon: <Calendar size={18} className="text-blue-600" />,
+    keywords: ['apontamento', 'presenca', 'folga', 'falta', 'ferias', 'dsr', 'banco de horas']
   }
 ]
 
 interface CommandPaletteModalProps {
   isOpen: boolean
   onClose: () => void
-  onNavigate: (tabId: string, pmtPageId?: number, quadroSubPage?: 'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4') => void
+  onNavigate: (tabId: string, pmtPageId?: number, quadroSubPage?: 'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4' | 'pg5') => void
   hasPermission: (tabId: string) => boolean
 }
 

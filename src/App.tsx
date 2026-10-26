@@ -70,7 +70,7 @@ function AppContent() {
   }, [])
 
   // Função para navegar a partir do Command Palette
-  const handleNavigate = (tabId: string, pmtPageId?: number, quadroSubPage?: 'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4') => {
+  const handleNavigate = (tabId: string, pmtPageId?: number, quadroSubPage?: 'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4' | 'pg5') => {
     if (pmtPageId !== undefined) {
       try {
         localStorage.setItem('magalog_pmt_active_page_id', pmtPageId.toString())

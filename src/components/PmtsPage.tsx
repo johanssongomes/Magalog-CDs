@@ -45,6 +45,7 @@ import {
 } from 'lucide-react'
 import initialColaboradoresData from '../data/initialColaboradores.json'
 import { QuadroMedioTable } from './QuadroMedioTable'
+import { ApontamentoPage } from './ApontamentoPage'
 import { PmtDailyMatrixTable } from './PmtDailyMatrixTable'
 import { BankHoursPage } from './BankHoursPage'
 import { PromocionaisTable } from './PromocionaisTable'
@@ -254,11 +255,11 @@ export const PmtsPage: React.FC = () => {
     return () => window.removeEventListener('magalog_change_pmt_page', handleCustomChange)
   }, [])
 
-  // Sub-página ativa do menu Quadro (Dashboard, Quadro TT, BH, Pg 3, Pg 4)
-  const [quadroSubPage, setQuadroSubPage] = useState<'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4'>(() => {
+  // Sub-página ativa do menu Quadro (Dashboard, Quadro TT, BH, Pg 3, Pg 4, Pg 5)
+  const [quadroSubPage, setQuadroSubPage] = useState<'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4' | 'pg5'>(() => {
     try {
       const saved = localStorage.getItem('magalog_quadro_subpage') as any
-      if (['dashboard', 'pg1', 'pg2', 'pg3', 'pg4'].includes(saved)) {
+      if (['dashboard', 'pg1', 'pg2', 'pg3', 'pg4', 'pg5'].includes(saved)) {
         return saved
       }
       return 'dashboard'
@@ -1479,7 +1480,8 @@ export const PmtsPage: React.FC = () => {
                 { id: 'pg1', label: 'Quadro TT' },
                 { id: 'pg2', label: 'BH' },
                 { id: 'pg3', label: 'Controle PADU' },
-                { id: 'pg4', label: 'Qd Médio' }
+                { id: 'pg4', label: 'Qd Médio' },
+                { id: 'pg5', label: 'Apontamento' }
               ].map((sub) => {
                 const isSubActive = quadroSubPage === sub.id
                 return (
@@ -2380,6 +2382,9 @@ export const PmtsPage: React.FC = () => {
         ) : quadroSubPage === 'pg4' ? (
           /* PÁGINA QUADRO MÉDIO (PG 4) - MODELO DE GRADE COM CÁLCULOS DINÂMICOS */
           <QuadroMedioTable />
+        ) : quadroSubPage === 'pg5' ? (
+          /* PÁGINA DE APONTAMENTO DIÁRIO (PG 5) - LANÇAMENTOS, DSR E BH */
+          <ApontamentoPage />
         ) : (
           /* DEMAIS PÁGINAS DEDICADAS DO QUADRO SE HOUVER */
           <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center shadow-xs space-y-4">
