@@ -258,12 +258,16 @@ export const UsersManagementPage: React.FC = () => {
       const colabData = colabRes.data
 
       // Filtra da lista inicial qualquer registro que tenha sido excluído
-      const deletedSet = new Set(deletedIds.map(id => id.toLowerCase().trim()))
+      const deletedSet = new Set(
+        deletedIds
+          .map(id => String(id || '').toLowerCase().trim())
+          .filter(id => id.length > 0 && id !== 'undefined' && id !== 'null')
+      )
       if (deletedSet.size > 0) {
         initialList = initialList.filter(u => {
           const uId = String(u.id || u.colaborador_id || '').toLowerCase().trim()
           const uEmail = (u.email || '').toLowerCase().trim()
-          return !deletedSet.has(uId) && !deletedSet.has(uEmail)
+          return (!uId || !deletedSet.has(uId)) && (!uEmail || !deletedSet.has(uEmail))
         })
       }
 

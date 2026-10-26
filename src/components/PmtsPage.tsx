@@ -323,25 +323,33 @@ export const PmtsPage: React.FC = () => {
       const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
       if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
     } catch {}
-    const deletedSet = new Set(deletedIds.map(id => String(id).toLowerCase().trim()))
+    const deletedSet = new Set(
+      deletedIds
+        .map(id => String(id || '').toLowerCase().trim())
+        .filter(id => id.length > 0 && id !== 'undefined' && id !== 'null')
+    )
+
+    const initialRaw = (initialColaboradoresData as ColaboradorItem[]) || []
+    const fullDataMap = new Map<string, ColaboradorItem>()
+    initialRaw.forEach(item => {
+      if (item.id) fullDataMap.set(item.id.trim().toLowerCase(), item)
+      if (item.contratado) fullDataMap.set(item.contratado.trim().toUpperCase(), item)
+    })
 
     try {
       const saved = localStorage.getItem('magalog_quadro_colaboradores')
       if (saved) {
         const parsed: ColaboradorItem[] = JSON.parse(saved)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Se os registros salvos forem antigos (sem campos detalhados como login/cpf),
-          // mescla com a base completa do Modelo 1 para preencher todos os dados
-          const fullDataMap = new Map<string, ColaboradorItem>()
-          ;(initialColaboradoresData as ColaboradorItem[]).forEach(item => {
-            fullDataMap.set(item.id.trim().toLowerCase(), item)
-            fullDataMap.set(item.contratado.trim().toUpperCase(), item)
-          })
-
           const upgraded = parsed
-            .filter(colab => !deletedSet.has(String(colab.id).toLowerCase().trim()))
+            .filter(colab => {
+              const cId = String(colab.id || '').toLowerCase().trim()
+              const cName = String(colab.contratado || '').toLowerCase().trim()
+              return (!cId || !deletedSet.has(cId)) && (!cName || !deletedSet.has(cName))
+            })
             .map(colab => {
-              const match = fullDataMap.get(colab.id.trim().toLowerCase()) || fullDataMap.get(colab.contratado.trim().toUpperCase())
+              const match = fullDataMap.get(String(colab.id || '').trim().toLowerCase()) || 
+                            fullDataMap.get(String(colab.contratado || '').trim().toUpperCase())
               if (match) {
                 const isCcNumeric = /^\d+$/.test(colab.centroDeCusto || '')
                 const fixedCentroDeCusto = isCcNumeric ? match.centroDeCusto : (colab.centroDeCusto || match.centroDeCusto)
@@ -371,16 +379,22 @@ export const PmtsPage: React.FC = () => {
               return colab
             })
 
-          try {
-            localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(upgraded))
-          } catch {}
-          return upgraded
+          if (upgraded.length > 0) {
+            try {
+              localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(upgraded))
+            } catch {}
+            return upgraded
+          }
         }
       }
     } catch {}
+
     // Carrega a base padrão com os colaboradores completos, excluindo os IDs deletados
-    const initialRaw = (initialColaboradoresData as ColaboradorItem[]) || []
-    return initialRaw.filter(c => !deletedSet.has(String(c.id).toLowerCase().trim()))
+    return initialRaw.filter(c => {
+      const cId = String(c.id || '').toLowerCase().trim()
+      const cName = String(c.contratado || '').toLowerCase().trim()
+      return (!cId || !deletedSet.has(cId)) && (!cName || !deletedSet.has(cName))
+    })
   })
   const [cadastroSuccessMsg, setCadastroSuccessMsg] = useState('')
   const [isSyncingDb, setIsSyncingDb] = useState(false)
@@ -471,7 +485,11 @@ export const PmtsPage: React.FC = () => {
         const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
         if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
       } catch {}
-      const deletedSet = new Set(deletedIds.map(id => String(id).toLowerCase().trim()))
+      const deletedSet = new Set(
+        deletedIds
+          .map(id => String(id || '').toLowerCase().trim())
+          .filter(id => id.length > 0 && id !== 'undefined' && id !== 'null')
+      )
 
       // 1. Tenta carregar direto do Supabase (Essencial para Vercel)
       try {
@@ -483,12 +501,19 @@ export const PmtsPage: React.FC = () => {
         if (!supaErr && Array.isArray(supaData) && supaData.length > 0) {
           const list = supaData
             .map(mapFromSupabase)
-            .filter(c => !deletedSet.has(String(c.id).toLowerCase().trim()))
-          setColaboradoresList(list)
-          try {
-            localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(list))
-          } catch {}
-          return
+            .filter(c => {
+              const cId = String(c.id || '').toLowerCase().trim()
+              const cName = String(c.contratado || '').toLowerCase().trim()
+              return (!cId || !deletedSet.has(cId)) && (!cName || !deletedSet.has(cName))
+            })
+
+          if (list.length > 0) {
+            setColaboradoresList(list)
+            try {
+              localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(list))
+            } catch {}
+            return
+          }
         }
       } catch (e) {
         // Ignora e tenta local API
@@ -500,22 +525,40 @@ export const PmtsPage: React.FC = () => {
         const json = await res.json()
         if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
           const list = (json.data as ColaboradorItem[])
-            .filter(c => !deletedSet.has(String(c.id).toLowerCase().trim()))
-          setColaboradoresList(list)
-          try {
-            localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(list))
-          } catch {}
-          return
+            .filter(c => {
+              const cId = String(c.id || '').toLowerCase().trim()
+              const cName = String(c.contratado || '').toLowerCase().trim()
+              return (!cId || !deletedSet.has(cId)) && (!cName || !deletedSet.has(cName))
+            })
+
+          if (list.length > 0) {
+            setColaboradoresList(list)
+            try {
+              localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(list))
+            } catch {}
+            return
+          }
         }
       } catch (e) {
         // Local server indisponível (ex: ambiente Vercel)
       }
 
-      // 3. Fallback: Base local inicial
+      // 3. Fallback: Base local inicial enriquecida (187 colaboradores padrão)
       const initialList = (initialColaboradoresData as ColaboradorItem[]) || []
-      const filteredInitial = initialList.filter(c => !deletedSet.has(String(c.id).toLowerCase().trim()))
+      const filteredInitial = initialList.filter(c => {
+        const cId = String(c.id || '').toLowerCase().trim()
+        const cName = String(c.contratado || '').toLowerCase().trim()
+        return (!cId || !deletedSet.has(cId)) && (!cName || !deletedSet.has(cName))
+      })
+
       if (filteredInitial.length > 0) {
-        setColaboradoresList(filteredInitial)
+        setColaboradoresList(prev => prev.length > 0 ? prev : filteredInitial)
+        try {
+          const existing = localStorage.getItem('magalog_quadro_colaboradores')
+          if (!existing || JSON.parse(existing).length === 0) {
+            localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(filteredInitial))
+          }
+        } catch {}
       }
     } catch (err) {
       console.warn('Banco de dados local/remoto não respondeu, utilizando base em memória/local:', err)
@@ -537,11 +580,21 @@ export const PmtsPage: React.FC = () => {
           const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
           if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
         } catch {}
-        const deletedSet = new Set(deletedIds.map(id => String(id).toLowerCase().trim()))
+        const deletedSet = new Set(
+          deletedIds
+            .map(id => String(id || '').toLowerCase().trim())
+            .filter(id => id.length > 0 && id !== 'undefined' && id !== 'null')
+        )
 
         if (storedQuadro) {
           const list: ColaboradorItem[] = JSON.parse(storedQuadro)
-          setColaboradoresList(list.filter(c => !deletedSet.has(String(c.id).toLowerCase().trim())))
+          if (Array.isArray(list) && list.length > 0) {
+            setColaboradoresList(list.filter(c => {
+              const cId = String(c.id || '').toLowerCase().trim()
+              const cName = String(c.contratado || '').toLowerCase().trim()
+              return (!cId || !deletedSet.has(cId)) && (!cName || !deletedSet.has(cName))
+            }))
+          }
         }
       } catch {}
     }
@@ -549,46 +602,61 @@ export const PmtsPage: React.FC = () => {
     window.addEventListener('storage', handleStorageUpdate)
     window.addEventListener('magalog_users_updated', handleStorageUpdate)
 
-    // Supabase Realtime para sincronização automática instantânea
-    const channel = supabase
-      .channel('colaboradores_quadro_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'colaboradores' },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newItem = mapFromSupabase(payload.new)
-            setColaboradoresList((prev) => {
-              const updated = [newItem, ...prev.filter((c) => String(c.id).trim() !== String(newItem.id).trim())]
-              try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch {}
-              return updated
-            })
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedItem = mapFromSupabase(payload.new)
-            setColaboradoresList((prev) => {
-              const updated = prev.map((c) => String(c.id).trim() === String(updatedItem.id).trim() ? updatedItem : c)
-              try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch {}
-              return updated
-            })
-          } else if (payload.eventType === 'DELETE') {
-            const deletedId = String(payload.old?.id || (payload as any).old_record?.id || '').trim().toLowerCase()
-            setColaboradoresList((prev) => {
-              const updated = prev.filter((c) => {
-                const cId = String(c.id).trim().toLowerCase()
-                return cId !== deletedId
+    // Supabase Realtime para sincronização automática instantânea com tratamento de status
+    let channel: any = null
+    try {
+      channel = supabase
+        .channel('colaboradores_quadro_realtime')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'colaboradores' },
+          (payload) => {
+            if (payload.eventType === 'INSERT') {
+              const newItem = mapFromSupabase(payload.new)
+              setColaboradoresList((prev) => {
+                const updated = [newItem, ...prev.filter((c) => String(c.id).trim() !== String(newItem.id).trim())]
+                try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch {}
+                return updated
               })
-              try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch {}
-              return updated
-            })
+            } else if (payload.eventType === 'UPDATE') {
+              const updatedItem = mapFromSupabase(payload.new)
+              setColaboradoresList((prev) => {
+                const updated = prev.map((c) => String(c.id).trim() === String(updatedItem.id).trim() ? updatedItem : c)
+                try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch {}
+                return updated
+              })
+            } else if (payload.eventType === 'DELETE') {
+              const deletedId = String(payload.old?.id || (payload as any).old_record?.id || '').trim().toLowerCase()
+              if (deletedId) {
+                setColaboradoresList((prev) => {
+                  const updated = prev.filter((c) => {
+                    const cId = String(c.id).trim().toLowerCase()
+                    return cId !== deletedId
+                  })
+                  try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch {}
+                  return updated
+                })
+              }
+            }
           }
-        }
-      )
-      .subscribe()
+        )
+        .subscribe((status: string) => {
+          if (status === 'SUBSCRIBED') {
+            // Realtime conectado
+          }
+        })
+    } catch (realtimeErr) {
+      console.warn('Realtime subscription error ignored:', realtimeErr)
+    }
 
     return () => {
       window.removeEventListener('storage', handleStorageUpdate)
       window.removeEventListener('magalog_users_updated', handleStorageUpdate)
-      supabase.removeChannel(channel)
+      if (channel) {
+        try {
+          supabase.removeChannel(channel)
+        } catch {}
+      }
     }
   }, [])
 
