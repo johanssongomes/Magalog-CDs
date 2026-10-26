@@ -1817,16 +1817,28 @@ export const UsersManagementPage: React.FC = () => {
                             <Layers size={14} className="text-slate-500" />
                             Páginas com Acesso Autorizado para este Usuário
                           </label>
-                          {formCargo.toUpperCase().includes('ADMIN') && (
-                            <span className="text-[10px] text-purple-600 font-bold bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
-                              Administrador: Acesso Total
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setFormAllowedPages(AVAILABLE_PAGES.map(p => p.id))}
+                              className="text-[10px] text-blue-600 hover:text-blue-800 font-semibold hover:underline cursor-pointer"
+                            >
+                              Marcar Todas
+                            </button>
+                            <span className="text-slate-300">|</span>
+                            <button
+                              type="button"
+                              onClick={() => setFormAllowedPages([])}
+                              className="text-[10px] text-slate-500 hover:text-slate-700 font-semibold hover:underline cursor-pointer"
+                            >
+                              Desmarcar Todas
+                            </button>
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 p-3 bg-white border border-slate-200 rounded-xl">
                           {AVAILABLE_PAGES.map((page) => {
-                            const isChecked = formCargo.toUpperCase().includes('ADMIN') || formAllowedPages.includes(page.id)
+                            const isChecked = formAllowedPages.includes(page.id)
                             return (
                               <label
                                 key={page.id}
@@ -1839,7 +1851,6 @@ export const UsersManagementPage: React.FC = () => {
                                 <input
                                   type="checkbox"
                                   checked={isChecked}
-                                  disabled={formCargo.toUpperCase().includes('ADMIN')}
                                   onChange={() => togglePagePermission(page.id)}
                                   className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                                 />
