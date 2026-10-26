@@ -379,11 +379,23 @@ export const PmtsPage: React.FC = () => {
               return colab
             })
 
-          if (upgraded.length > 0) {
+          let mergedList = upgraded
+          if (upgraded.length < initialRaw.length) {
+            // Se o cache tiver apenas uma amostra parcial (ex: 11 itens), complementa com a base completa
+            const existingIdSet = new Set(upgraded.map(u => String(u.id || '').trim().toLowerCase()))
+            const missing = initialRaw.filter(i => {
+              const iId = String(i.id || '').trim().toLowerCase()
+              const iName = String(i.contratado || '').trim().toLowerCase()
+              return !existingIdSet.has(iId) && (!iId || !deletedSet.has(iId)) && (!iName || !deletedSet.has(iName))
+            })
+            mergedList = [...upgraded, ...missing]
+          }
+
+          if (mergedList.length > 0) {
             try {
-              localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(upgraded))
+              localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(mergedList))
             } catch {}
-            return upgraded
+            return mergedList
           }
         }
       }
@@ -499,18 +511,41 @@ export const PmtsPage: React.FC = () => {
           .order('contratado', { ascending: true })
 
         if (!supaErr && Array.isArray(supaData) && supaData.length > 0) {
-          const list = supaData
-            .map(mapFromSupabase)
-            .filter(c => {
-              const cId = String(c.id || '').toLowerCase().trim()
-              const cName = String(c.contratado || '').toLowerCase().trim()
-              return (!cId || !deletedSet.has(cId)) && (!cName || !deletedSet.has(cName))
-            })
+          const supaList = supaData.map(mapFromSupabase)
+          
+          // Mapeia por ID e Nome os dados vindos do Supabase
+          const supaMap = new Map<string, ColaboradorItem>()
+          supaList.forEach(item => {
+            if (item.id) supaMap.set(String(item.id).trim().toLowerCase(), item)
+            if (item.contratado) supaMap.set(String(item.contratado).trim().toUpperCase(), item)
+          })
 
-          if (list.length > 0) {
-            setColaboradoresList(list)
+          // Mescla com a base completa de 187 colaboradores padrão
+          const initialList = (initialColaboradoresData as ColaboradorItem[]) || []
+          const mergedBase = initialList.map(baseItem => {
+            const dbMatch = supaMap.get(String(baseItem.id).trim().toLowerCase()) ||
+                            supaMap.get(String(baseItem.contratado).trim().toUpperCase())
+            return dbMatch ? { ...baseItem, ...dbMatch } : baseItem
+          })
+
+          // Adiciona quaisquer novos colaboradores criados no Supabase que não estavam na base inicial
+          const initialIdSet = new Set(initialList.map(i => String(i.id).trim().toLowerCase()))
+          supaList.forEach(supaItem => {
+            if (supaItem.id && !initialIdSet.has(String(supaItem.id).trim().toLowerCase())) {
+              mergedBase.unshift(supaItem)
+            }
+          })
+
+          const finalList = mergedBase.filter(c => {
+            const cId = String(c.id || '').toLowerCase().trim()
+            const cName = String(c.contratado || '').toLowerCase().trim()
+            return (!cId || !deletedSet.has(cId)) && (!cName || !deletedSet.has(cName))
+          })
+
+          if (finalList.length > 0) {
+            setColaboradoresList(finalList)
             try {
-              localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(list))
+              localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(finalList))
             } catch {}
             return
           }
