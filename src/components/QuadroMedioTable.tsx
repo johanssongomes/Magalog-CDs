@@ -9,8 +9,11 @@ import {
   CheckCircle2,
   AlertCircle,
   MessageSquare,
-  X
+  X,
+  Cloud,
+  CloudOff
 } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
 // Dias da semana simplificados para o cabeçalho (D, S, T, Q, Q, S, S)
 const WEEKDAY_ABBR = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
@@ -118,31 +121,72 @@ export function QuadroMedioTable() {
     }
   })
 
-  // Carrega ao mudar mês/ano, propagando o valor final do mês anterior se aplicável
+  // Estado de sincronização com o banco
+  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false)
+  const [saveStatus, setSaveStatus] = useState<string | null>(null)
+
+  // Carrega ao mudar mês/ano, sincronizando com Supabase e localStorage
   useEffect(() => {
-    try {
+    let isCancelled = false
+    const remoteKey = `_quadro_medio_${selectedYear}_${selectedMonth}`
+
+    const loadData = async () => {
       const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1
       const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear
       const prevLastOp = getLastDayQuadroAtual(prevYear, prevMonth, 'op')
       const prevLastCd = getLastDayQuadroAtual(prevYear, prevMonth, 'cd')
 
-      const saved = localStorage.getItem(`quadro_medio_data_${selectedYear}_${selectedMonth}`)
-      if (saved) {
-        const parsed: QuadroMedioState = JSON.parse(saved)
+      let loadedData: QuadroMedioState | null = null
+
+      // 1. Tenta carregar do localStorage primeiro para exibição instantânea
+      try {
+        const saved = localStorage.getItem(`quadro_medio_data_${selectedYear}_${selectedMonth}`)
+        if (saved) {
+          loadedData = JSON.parse(saved)
+        }
+      } catch (e) {
+        console.error('Erro ao ler cache local:', e)
+      }
+
+      // 2. Busca os dados mais recentes no Supabase (performance_metrics)
+      try {
+        const { data: dbRows, error } = await supabase
+          .from('performance_metrics')
+          .select('cell_key, value')
+          .eq('cell_key', remoteKey)
+          .maybeSingle()
+
+        if (!error && dbRows && dbRows.value) {
+          try {
+            const remoteParsed: QuadroMedioState = JSON.parse(dbRows.value)
+            if (remoteParsed && !isCancelled) {
+              loadedData = remoteParsed
+              localStorage.setItem(`quadro_medio_data_${selectedYear}_${selectedMonth}`, dbRows.value)
+              setIsCloudSynced(true)
+            }
+          } catch {}
+        }
+      } catch (err) {
+        console.warn('Erro ao consultar Supabase para Quadro Médio:', err)
+      }
+
+      if (isCancelled) return
+
+      if (loadedData) {
         // Se existir valor do mês anterior, atualiza o initial (Dia 0) para refletir o último dia do mês anterior
         let changed = false
-        if (prevLastOp !== null && parsed.op.initial !== prevLastOp) {
-          parsed.op.initial = prevLastOp
+        if (prevLastOp !== null && loadedData.op.initial !== prevLastOp) {
+          loadedData.op.initial = prevLastOp
           changed = true
         }
-        if (prevLastCd !== null && parsed.cd.initial !== prevLastCd) {
-          parsed.cd.initial = prevLastCd
+        if (prevLastCd !== null && loadedData.cd.initial !== prevLastCd) {
+          loadedData.cd.initial = prevLastCd
           changed = true
         }
         if (changed) {
-          localStorage.setItem(`quadro_medio_data_${selectedYear}_${selectedMonth}`, JSON.stringify(parsed))
+          localStorage.setItem(`quadro_medio_data_${selectedYear}_${selectedMonth}`, JSON.stringify(loadedData))
         }
-        setData(parsed)
+        setData(loadedData)
       } else {
         // Inicializa vazio herdando do mês anterior
         const initOp = prevLastOp !== null ? prevLastOp : 102
@@ -153,21 +197,73 @@ export function QuadroMedioTable() {
         }
         setData(defaultState)
       }
-    } catch (e) {
-      console.error(e)
+    }
+
+    loadData()
+
+    // 3. Ouvinte Realtime Supabase para refletir alterações feitas por outros usuários simultaneamente
+    const channel = supabase
+      .channel(`realtime_quadro_medio_${selectedYear}_${selectedMonth}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'performance_metrics' },
+        (payload: any) => {
+          const row = payload.new
+          if (row && row.cell_key === remoteKey && row.value) {
+            try {
+              const incoming = JSON.parse(row.value)
+              setData(incoming)
+              localStorage.setItem(`quadro_medio_data_${selectedYear}_${selectedMonth}`, row.value)
+              setIsCloudSynced(true)
+            } catch {}
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      isCancelled = true
+      supabase.removeChannel(channel)
     }
   }, [selectedMonth, selectedYear])
 
-  // Salva no localStorage sempre que houver alteração
-  const [saveStatus, setSaveStatus] = useState<string | null>(null)
-  const saveData = (newData: QuadroMedioState) => {
+  // Salva no localStorage e no Supabase (nuvem) sempre que houver alteração
+  const saveData = async (newData: QuadroMedioState) => {
     setData(newData)
+    const json = JSON.stringify(newData)
+    const remoteKey = `_quadro_medio_${selectedYear}_${selectedMonth}`
+
+    // Salva localmente primeiro
     try {
-      localStorage.setItem(`quadro_medio_data_${selectedYear}_${selectedMonth}`, JSON.stringify(newData))
-      setSaveStatus('Salvo!')
-      setTimeout(() => setSaveStatus(null), 1500)
+      localStorage.setItem(`quadro_medio_data_${selectedYear}_${selectedMonth}`, json)
+      setSaveStatus('Salvo localmente!')
     } catch (e) {
-      console.error('Erro ao salvar:', e)
+      console.error('Erro ao salvar local:', e)
+    }
+
+    // Persiste no Supabase para que todos os usuários vejam
+    try {
+      const { error } = await supabase
+        .from('performance_metrics')
+        .upsert({
+          cell_key: remoteKey,
+          value: json,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'cell_key' })
+
+      if (error) {
+        console.warn('Erro ao salvar na nuvem Supabase:', error.message)
+        setIsCloudSynced(false)
+        setSaveStatus('Salvo localmente (offline)')
+      } else {
+        setIsCloudSynced(true)
+        setSaveStatus('Salvo na nuvem!')
+      }
+    } catch (err) {
+      console.warn('Falha na conexão ao salvar:', err)
+      setIsCloudSynced(false)
+    } finally {
+      setTimeout(() => setSaveStatus(null), 2000)
     }
   }
 
@@ -834,6 +930,19 @@ export function QuadroMedioTable() {
 
         {/* Status e Ações */}
         <div className="flex items-center gap-2">
+          {/* Indicador de Conexão com Nuvem */}
+          <div 
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border transition ${
+              isCloudSynced 
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                : 'bg-amber-50 text-amber-700 border-amber-200'
+            }`}
+            title={isCloudSynced ? 'Sincronizado em tempo real na nuvem Supabase' : 'Conectando à nuvem...'}
+          >
+            {isCloudSynced ? <Cloud size={14} className="text-emerald-600" /> : <CloudOff size={14} className="text-amber-600" />}
+            <span className="hidden sm:inline">{isCloudSynced ? 'Nuvem Conectada' : 'Offline / Cache'}</span>
+          </div>
+
           {saveStatus && (
             <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1 animate-fade-in">
               <CheckCircle2 size={13} />
