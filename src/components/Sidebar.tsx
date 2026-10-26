@@ -249,13 +249,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="space-y-2.5">
             {/* Linha 1: Avatar, Nome Completo & Cargo */}
             <div 
-              onClick={() => setIsProfileModalOpen(true)}
-              title="Clique para ver o Perfil e Ficha Cadastral"
+              onClick={() => setActiveTab('profile')}
+              title="Clique para abrir a Página de Perfil Geral"
               className="flex items-start gap-2.5 cursor-pointer hover:opacity-90 transition-opacity"
             >
               <div className="relative shrink-0 mt-0.5">
-                <div className="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs">
-                  {user?.name ? user.name.slice(0, 2).toUpperCase() : 'US'}
+                <div className="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 overflow-hidden flex items-center justify-center text-blue-400 font-bold text-xs">
+                  {user?.avatar_url ? (
+                    <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    user?.name ? user.name.slice(0, 2).toUpperCase() : 'US'
+                  )}
                 </div>
                 {/* Indicador de presença verde no próprio avatar */}
                 <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
@@ -296,8 +300,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="flex items-center gap-1">
                 {/* Botão 1: Engrenagem - Perfil do Usuário */}
                 <button
-                  onClick={() => setIsProfileModalOpen(true)}
-                  title="Perfil do Usuário & Ficha Cadastral"
+                  onClick={() => setActiveTab('profile')}
+                  title="Página de Perfil Geral"
                   className="flex items-center gap-1 px-2 py-1 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all cursor-pointer group text-[11px]"
                 >
                   <Settings size={14} className="group-hover:rotate-45 transition-transform duration-200" />
@@ -342,8 +346,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ) : (
           <div className="flex flex-col items-center gap-2">
             <button
-              onClick={() => setIsProfileModalOpen(true)}
-              title="Perfil do Usuário"
+              onClick={() => setActiveTab('profile')}
+              title="Página de Perfil Geral"
               className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors cursor-pointer"
             >
               <Settings size={16} />

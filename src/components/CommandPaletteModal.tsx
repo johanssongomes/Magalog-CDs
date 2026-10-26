@@ -128,6 +128,15 @@ const ALL_NAVIGATION_TARGETS: NavigationTarget[] = [
     icon: <Users size={18} className="text-rose-500" />,
     keywords: ['usuarios', 'permissoes', 'acesso', 'contas', 'seguranca']
   },
+  {
+    id: 'nav-profile',
+    title: 'Meu Perfil & Ficha Cadastral',
+    subtitle: 'Acessar página de perfil geral, foto, biografia e tempo de casa',
+    category: 'Módulos Principais',
+    tabId: 'profile',
+    icon: <User size={18} className="text-blue-500" />,
+    keywords: ['perfil', 'minha conta', 'foto', 'bio', 'tempo de casa', 'senha', 'cracha', 'meu perfil']
+  },
 
   // Sub-Páginas da Gestão 360° (PMT)
   {

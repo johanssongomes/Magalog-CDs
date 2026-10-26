@@ -52,6 +52,9 @@ export interface AppUserProfile {
   allowed_pages: string[]
   active: boolean
   password_hash?: string
+  avatar_url?: string
+  bio?: string
+  phone?: string
   dados_colaborador?: ColaboradorData
 }
 
@@ -118,6 +121,7 @@ interface AuthContextType {
   logout: () => Promise<void>
   hasPermission: (pageId: string) => boolean
   refreshProfile: () => Promise<void>
+  updateProfile: (updates: Partial<AppUserProfile>) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType)
@@ -142,8 +146,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           (c.login && data.email.toLowerCase().includes(c.login.toLowerCase())) ||
           (c.contratado && data.name && c.contratado.toLowerCase() === data.name.toLowerCase())
         )
+
+        // Tenta buscar campos extras de perfil (foto, bio, phone)
+        let extraProfile: any = null
+        try {
+          const profileStorageKey = `_user_extra_profile_${cleanEmail}`
+          const { data: extraRow } = await supabase
+            .from('performance_metrics')
+            .select('value')
+            .eq('cell_key', profileStorageKey)
+            .maybeSingle()
+          if (extraRow?.value) {
+            extraProfile = JSON.parse(extraRow.value)
+          }
+        } catch {}
+
         const enriched: AppUserProfile = {
           ...data,
+          avatar_url: data.avatar_url || extraProfile?.avatar_url,
+          bio: data.bio || extraProfile?.bio,
+          phone: data.phone || extraProfile?.phone,
           colaborador_id: colabInfo?.id || data.colaborador_id || data.id,
           cargo: colabInfo?.cargo || data.cargo || data.role,
           role: data.role || (colabInfo?.cargo ? mapCargoToValidRole(colabInfo.cargo) : 'colaborador')
@@ -615,6 +637,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const hasPermission = (pageId: string): boolean => {
     if (!user) return false
+    // Página de Perfil Pessoal sempre permitida para todo usuário logado
+    if (pageId === 'profile') return true
+
     // Acesso irrestrito apenas para o Admin Master do sistema
     if (user.id === 'admin-master' || user.email === 'johansson.gomes@magazineluiza.com.br') return true
     
@@ -633,8 +658,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  const updateProfile = async (updates: Partial<AppUserProfile>) => {
+    if (!user) return
+    const merged: AppUserProfile = {
+      ...user,
+      ...updates
+    }
+    applyProfileUpdate(merged)
+
+    // Sincroniza no Supabase app_users se possível
+    try {
+      const dbPayload: any = {
+        updated_at: new Date().toISOString()
+      }
+      if (updates.name !== undefined) dbPayload.name = updates.name
+      if (updates.bio !== undefined) dbPayload.bio = updates.bio
+      if (updates.phone !== undefined) dbPayload.phone = updates.phone
+      if (updates.avatar_url !== undefined) dbPayload.avatar_url = updates.avatar_url
+      if (updates.password_hash !== undefined) dbPayload.password_hash = updates.password_hash
+
+      await supabase
+        .from('app_users')
+        .update(dbPayload)
+        .eq('email', user.email)
+    } catch (err) {
+      console.warn('Aviso ao sincronizar perfil no Supabase:', err)
+    }
+
+    // Sincroniza também no armazenamento em nuvem de perfis estendidos (performance_metrics)
+    try {
+      const profileStorageKey = `_user_extra_profile_${user.email.toLowerCase().trim()}`
+      await supabase
+        .from('performance_metrics')
+        .upsert({
+          cell_key: profileStorageKey,
+          value: JSON.stringify({
+            avatar_url: merged.avatar_url,
+            bio: merged.bio,
+            phone: merged.phone
+          }),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'cell_key' })
+    } catch {}
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, onlineUsers, login, logout, hasPermission, refreshProfile }}>
+    <AuthContext.Provider value={{ user, loading, onlineUsers, login, logout, hasPermission, refreshProfile, updateProfile }}>
       {children}
     </AuthContext.Provider>
   )

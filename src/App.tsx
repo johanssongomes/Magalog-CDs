@@ -11,6 +11,7 @@ import { UsersManagementPage } from './components/UsersManagementPage'
 import { BudgetManagementPage } from './components/BudgetManagementPage'
 import { LinksPage } from './components/LinksPage'
 import { CorporateAgendaPage } from './components/CorporateAgendaPage'
+import { ProfilePage } from './components/ProfilePage'
 import { LoginPage } from './components/LoginPage'
 import { AuthProvider, useAuth } from './lib/authContext'
 import { ShieldAlert, Loader2 } from 'lucide-react'
@@ -181,7 +182,8 @@ function AppContent() {
               {activeTab === 'links' && <LinksPage />}
               {activeTab === 'agenda' && <CorporateAgendaPage />}
               {activeTab === 'users' && <UsersManagementPage />}
-              {activeTab !== 'dashboard' && activeTab !== 'catalog' && activeTab !== 'performance' && activeTab !== 'budget' && activeTab !== 'inventory' && activeTab !== 'pmts' && activeTab !== 'reports' && activeTab !== 'settings' && activeTab !== 'central-operacional' && activeTab !== 'links' && activeTab !== 'agenda' && activeTab !== 'users' && (
+              {activeTab === 'profile' && <ProfilePage />}
+              {activeTab !== 'dashboard' && activeTab !== 'catalog' && activeTab !== 'performance' && activeTab !== 'budget' && activeTab !== 'inventory' && activeTab !== 'pmts' && activeTab !== 'reports' && activeTab !== 'settings' && activeTab !== 'central-operacional' && activeTab !== 'links' && activeTab !== 'agenda' && activeTab !== 'users' && activeTab !== 'profile' && (
                 <BlankPage 
                   title={activeItem.label} 
                   description={`Esta é a ${activeItem.description}. Você pode preencher este espaço com componentes, listas e formulários conforme desenvolver a aplicação.`} 
