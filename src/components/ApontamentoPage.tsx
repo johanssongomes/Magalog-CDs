@@ -366,7 +366,9 @@ export function ApontamentoPage() {
                 cargo: u.cargo || u.colaborador?.cargo || '',
                 setor: u.setor || u.colaborador?.setor || '',
                 turno: u.turno || u.colaborador?.turno || '',
-                cd: u.cd || '6994'
+                cd: u.cd || '6994',
+                idLider: u.dados_colaborador?.idLider || u.colaborador?.idLider || u.idLider || '',
+                nomeLider: u.dados_colaborador?.nomeLider || u.colaborador?.nomeLider || u.nomeLider || ''
               }))
             }
           }
@@ -394,7 +396,9 @@ export function ApontamentoPage() {
                 contratado: sc.contratado || item.contratado,
                 cargo: sc.cargo || item.cargo,
                 setor: sc.setor || item.setor,
-                turno: sc.turno || item.turno
+                turno: sc.turno || item.turno,
+                idLider: sc.id_lider !== undefined ? sc.id_lider : item.idLider,
+                nomeLider: sc.nome_lider !== undefined ? sc.nome_lider : item.nomeLider
               }
             }
             return item
@@ -684,8 +688,17 @@ export function ApontamentoPage() {
   }
 
   const getLeadershipNames = (colab: any) => {
-    const directLeaderName = colab.nomeLider || ''
+    const directLeaderName = (colab.nomeLider || '').trim()
     const directLeaderId = String(colab.idLider || '').trim().toLowerCase()
+
+    // Se o colaborador não possui ID nem Nome de líder cadastrado
+    if (!directLeaderName && !directLeaderId) {
+      return {
+        supervisorFirstName: '-',
+        liderFirstName: '-'
+      }
+    }
+
     const directLeaderObj = directLeaderId ? colabMapById.get(directLeaderId) : null
 
     let liderNome = directLeaderName
