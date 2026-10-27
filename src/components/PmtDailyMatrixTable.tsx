@@ -10,6 +10,9 @@ import {
   ArrowUpDown,
   CheckCircle2,
   Calendar,
+  CalendarDays,
+  RotateCcw,
+  X,
   Sparkles,
   InboxIcon
 } from 'lucide-react'
@@ -57,6 +60,28 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
   const [searchModal, setSearchModal] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
+  // Filtros de Calendário (Mês Todo, Dias Úteis, Quinzenas, Dias Específicos e Faixa de Datas)
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false)
+  const [selectedDays, setSelectedDays] = useState<number[]>([]) // Array de números de dias selecionados
+  const [startDateFilter, setStartDateFilter] = useState<string>('')
+  const [endDateFilter, setEndDateFilter] = useState<string>('')
+
+  // Reseta filtros de calendário ao trocar de mês ou ano
+  useEffect(() => {
+    setSelectedDays([])
+    setStartDateFilter('')
+    setEndDateFilter('')
+    setIsDateDropdownOpen(false)
+  }, [ano, mes])
+
+  const toggleDayFilter = (dayNum: number) => {
+    if (selectedDays.includes(dayNum)) {
+      setSelectedDays(selectedDays.filter(d => d !== dayNum))
+    } else {
+      setSelectedDays([...selectedDays, dayNum])
+    }
+  }
+
   // Carrega dados dinâmicos do Supabase (ou local se offline) sempre que ano/mês/cd/groupBy mudam
   useEffect(() => {
     let isMounted = true
@@ -100,15 +125,46 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
     return name.replace(/^\d+\.\s*/, '').trim()
   }
 
-  // Lista de modais filtrada por busca (permitindo buscar pelo nome original ou sem numeração)
-  const filteredModals = useMemo(() => {
-    if (!matrix) return []
-    if (!searchModal.trim()) return matrix.modals
-    const term = searchModal.toLowerCase()
-    return matrix.modals.filter(m => 
-      m.toLowerCase().includes(term) || cleanModalName(m).toLowerCase().includes(term)
-    )
-  }, [matrix, searchModal])
+  // Dias ativos filtrados pelo Calendário
+  const activeFilteredDays = useMemo(() => {
+    if (!matrix || !matrix.days) return []
+    
+    // Se não há filtro ativo, retorna todos os dias do mês
+    if (selectedDays.length === 0 && !startDateFilter && !endDateFilter) {
+      return matrix.days
+    }
+
+    return matrix.days.filter(d => {
+      // 1. Filtro por clique em dias individuais ou presets
+      const matchDayClick = selectedDays.length > 0 && selectedDays.includes(d.day)
+
+      // 2. Filtro por Range de Datas (Início / Fim)
+      let matchRange = false
+      if (startDateFilter || endDateFilter) {
+        const dayIso = `${ano}-${String(mes).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`
+        if (startDateFilter && endDateFilter) {
+          matchRange = dayIso >= startDateFilter && dayIso <= endDateFilter
+        } else if (startDateFilter) {
+          matchRange = dayIso >= startDateFilter
+        } else if (endDateFilter) {
+          matchRange = dayIso <= endDateFilter
+        }
+      }
+
+      if (selectedDays.length > 0 && (startDateFilter || endDateFilter)) {
+        return matchDayClick || matchRange
+      }
+      if (selectedDays.length > 0) return matchDayClick
+      if (startDateFilter || endDateFilter) return matchRange
+      return true
+    })
+  }, [matrix, selectedDays, startDateFilter, endDateFilter, ano, mes])
+
+  // Recalcula totais dinâmicos de cada linha e de cada modal considerando apenas os dias filtrados
+  const getRowTotal = (rowData: Record<string, number> | undefined) => {
+    if (!rowData) return 0
+    return activeFilteredDays.reduce((acc, d) => acc + (rowData[d.dayStr] || 0), 0)
+  }
 
   // Formatação de números padrão brasileiro
   const formatNum = (val: number | undefined | null) => {
@@ -208,8 +264,245 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
           </p>
         </div>
 
-        {/* Controles: Agrupamento (Modal vs Categoria), Abas de Seções, Filtro de Busca e Exportação */}
+        {/* Controles: Filtro de Calendário, Agrupamento (Modal vs Categoria), Abas de Seções, Filtro de Busca e Exportação */}
         <div className="flex flex-wrap items-center gap-2">
+          
+          {/* BOTÃO E POPOVER DO FILTRO DE CALENDÁRIO */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs font-bold shadow-2xs cursor-pointer ${
+                selectedDays.length > 0 || startDateFilter || endDateFilter
+                  ? 'bg-amber-50 border-amber-300 text-amber-900 ring-2 ring-amber-400/20'
+                  : 'bg-amber-50/60 hover:bg-amber-100/70 border-amber-200/80 text-amber-900'
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <CalendarDays size={14} className="text-amber-600" />
+                <span className="text-[10px] uppercase tracking-wider text-amber-700/80 font-mono">PERÍODO:</span>
+                <span className="font-extrabold">
+                  {selectedDays.length === 0 && !startDateFilter && !endDateFilter
+                    ? `Mês Completo (${matrix.days.length}d)`
+                    : `${activeFilteredDays.length} dia(s)`}
+                </span>
+              </div>
+              <span className="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full font-extrabold shadow-2xs">
+                {activeFilteredDays.length}
+              </span>
+            </button>
+
+            {isDateDropdownOpen && (
+              <div className="absolute top-full right-0 lg:left-0 lg:right-auto mt-2 w-[340px] sm:w-[360px] bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 p-4 space-y-3.5 animate-in fade-in zoom-in-95">
+                {/* Cabeçalho do Calendário */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
+                      <CalendarDays size={16} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Filtro de Calendário</h4>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        {mes.toString().padStart(2, '0')}/{ano}
+                      </p>
+                    </div>
+                  </div>
+                  {(selectedDays.length > 0 || startDateFilter || endDateFilter) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedDays([])
+                        setStartDateFilter('')
+                        setEndDateFilter('')
+                      }}
+                      className="flex items-center gap-1 text-[11px] text-amber-600 hover:text-amber-800 font-bold bg-amber-50 hover:bg-amber-100/80 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <RotateCcw size={12} />
+                      Limpar
+                    </button>
+                  )}
+                </div>
+
+                {/* Atalhos Rápidos (Presets) */}
+                <div className="grid grid-cols-4 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDays([])
+                      setStartDateFilter('')
+                      setEndDateFilter('')
+                    }}
+                    className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all cursor-pointer ${
+                      selectedDays.length === 0 && !startDateFilter && !endDateFilter
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60'
+                    }`}
+                  >
+                    Mês Todo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Segunda a Sexta do mês
+                      const workDays = matrix.days.filter(d => {
+                        const dt = new Date(ano, mes - 1, d.day)
+                        const w = dt.getDay()
+                        return w !== 0 && w !== 6
+                      }).map(d => d.day)
+                      setSelectedDays(workDays)
+                      setStartDateFilter('')
+                      setEndDateFilter('')
+                    }}
+                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
+                  >
+                    Dias Úteis
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // 1ª Quinzena (dias 1 a 15)
+                      const firstHalf = matrix.days.filter(d => d.day <= 15).map(d => d.day)
+                      setSelectedDays(firstHalf)
+                      setStartDateFilter('')
+                      setEndDateFilter('')
+                    }}
+                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
+                  >
+                    1ª Quinzena
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // 2ª Quinzena (dias 16 até o final)
+                      const secondHalf = matrix.days.filter(d => d.day > 15).map(d => d.day)
+                      setSelectedDays(secondHalf)
+                      setStartDateFilter('')
+                      setEndDateFilter('')
+                    }}
+                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
+                  >
+                    2ª Quinzena
+                  </button>
+                </div>
+
+                {/* Grade Visual do Calendário Mensal */}
+                <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-200/80">
+                  {/* Cabeçalho dos Dias da Semana */}
+                  <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
+                    {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((dia, idx) => (
+                      <span 
+                        key={dia} 
+                        className={`text-[9px] font-bold uppercase tracking-wider ${
+                          idx === 0 || idx === 6 ? 'text-amber-600' : 'text-slate-400'
+                        }`}
+                      >
+                        {dia}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Células de Dias */}
+                  {(() => {
+                    const firstDayWeekIdx = new Date(ano, mes - 1, 1).getDay()
+                    const emptyPrefixSlots = Array.from({ length: firstDayWeekIdx })
+
+                    return (
+                      <div className="grid grid-cols-7 gap-1">
+                        {emptyPrefixSlots.map((_, i) => (
+                          <div key={`empty-${i}`} className="h-7 rounded-lg" />
+                        ))}
+                        {matrix.days.map(d => {
+                          const isSingleSelected = selectedDays.includes(d.day)
+                          const dayIso = `${ano}-${String(mes).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`
+                          const isInRange = Boolean(
+                            (startDateFilter && endDateFilter && dayIso >= startDateFilter && dayIso <= endDateFilter) ||
+                            (startDateFilter && !endDateFilter && dayIso === startDateFilter) ||
+                            (!startDateFilter && endDateFilter && dayIso === endDateFilter)
+                          )
+                          const isSelected = isSingleSelected || isInRange
+                          const dt = new Date(ano, mes - 1, d.day)
+                          const isWeekend = dt.getDay() === 0 || dt.getDay() === 6
+
+                          return (
+                            <button
+                              key={`cal-btn-${d.day}`}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setStartDateFilter('')
+                                setEndDateFilter('')
+                                toggleDayFilter(d.day)
+                              }}
+                              title={`Dia ${d.day}`}
+                              className={`h-7 rounded-lg text-[11px] font-bold flex flex-col items-center justify-center transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30 scale-105 z-10'
+                                  : isWeekend
+                                    ? 'bg-amber-100/50 hover:bg-amber-200/60 text-amber-900 border border-amber-200/40'
+                                    : 'bg-white hover:bg-slate-200/60 text-slate-700 border border-slate-200/50 hover:border-slate-300'
+                              }`}
+                            >
+                              <span>{d.day}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* Seletor de Faixa de Datas (Início / Fim) */}
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-tight">FAIXA DE DATAS:</span>
+                    {(startDateFilter || endDateFilter) && (
+                      <span className="text-[9px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded">Range Ativo</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="block text-[9px] font-semibold text-slate-400 mb-0.5 uppercase">INÍCIO</span>
+                      <input
+                        type="date"
+                        value={startDateFilter}
+                        onChange={e => {
+                          setStartDateFilter(e.target.value)
+                          setSelectedDays([])
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] text-slate-700 font-medium focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <span className="block text-[9px] font-semibold text-slate-400 mb-0.5 uppercase">FIM</span>
+                      <input
+                        type="date"
+                        value={endDateFilter}
+                        onChange={e => {
+                          setEndDateFilter(e.target.value)
+                          setSelectedDays([])
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] text-slate-700 font-medium focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rodapé do Dropdown */}
+                <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
+                  <span>{activeFilteredDays.length} de {matrix.days.length} dias exibidos</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsDateDropdownOpen(false)}
+                    className="text-amber-600 hover:text-amber-800 font-bold cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Alternador de Agrupamento: Modal vs Categoria de Produtividade */}
           <div className="inline-flex p-1 bg-amber-50/80 border border-amber-200/80 rounded-xl text-xs font-semibold text-amber-900">
             <button
@@ -321,9 +614,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                   </div>
                 </th>
 
-                {/* Colunas dos Dias (1 a 31 com Letra do dia da semana e Número) */}
-                {matrix.days.map((d) => {
-                  const isWeekend = d.weekdayLetter === 'S' || d.weekdayLetter === 'D'
+                {/* Colunas dos Dias (com Letra do dia da semana e Número filtrados) */}
+                {activeFilteredDays.map((d) => {
+                  const dt = new Date(ano, mes - 1, d.day)
+                  const isWeekend = dt.getDay() === 0 || dt.getDay() === 6
                   return (
                     <th
                       key={d.dayStr}
@@ -358,6 +652,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                 <>
                   {filteredModals.map((modalName) => {
                     const rowData = matrix.data.pedidos[modalName] || { total: 0 }
+                    const dynamicTotal = getRowTotal(rowData)
                     return (
                       <tr key={`ped-${modalName}`} className="hover:bg-blue-50/40 transition-colors">
                         {/* Nome do Modal (sem numeração) */}
@@ -366,7 +661,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                         </td>
 
                         {/* Valores diários */}
-                        {matrix.days.map((d) => {
+                        {activeFilteredDays.map((d) => {
                           const val = rowData[d.dayStr] || 0
                           const isZero = val === 0
                           return (
@@ -383,7 +678,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
 
                         {/* Total do Modal */}
                         <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
-                          {formatNum(rowData.total)}
+                          {formatNum(dynamicTotal)}
                         </td>
                       </tr>
                     )
@@ -394,7 +689,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                     <td className="sticky left-0 z-20 bg-[#e0f2fe] px-3 py-2 font-bold text-blue-900 border-r border-sky-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)]">
                       Pedidos TT
                     </td>
-                    {matrix.days.map((d) => (
+                    {activeFilteredDays.map((d) => (
                       <td 
                         key={`ped-tt-${d.dayStr}`}
                         className="px-1.5 py-2 text-center font-mono font-bold text-blue-900 border-r border-sky-200 text-[11px]"
@@ -403,14 +698,14 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                       </td>
                     ))}
                     <td className="sticky right-0 z-20 bg-[#e0f2fe] px-3 py-2 text-right font-mono font-bold text-blue-900 border-l border-sky-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
-                      {formatNum(matrix.totals.pedidos.total)}
+                      {formatNum(getRowTotal(matrix.totals.pedidos))}
                     </td>
                   </tr>
 
                   {/* Espaçador visual se 'all' estiver ativo */}
                   {selectedSection === 'all' && (
                     <tr className="bg-slate-100/50 h-3">
-                      <td colSpan={matrix.days.length + 2} className="p-0 border-y border-slate-200"></td>
+                      <td colSpan={activeFilteredDays.length + 2} className="p-0 border-y border-slate-200"></td>
                     </tr>
                   )}
                 </>
@@ -423,6 +718,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                 <>
                   {filteredModals.map((modalName) => {
                     const rowData = matrix.data.pecas[modalName] || { total: 0 }
+                    const dynamicTotal = getRowTotal(rowData)
                     return (
                       <tr key={`pec-${modalName}`} className="hover:bg-blue-50/40 transition-colors">
                         {/* Nome do Modal (sem numeração) */}
@@ -431,7 +727,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                         </td>
 
                         {/* Valores diários */}
-                        {matrix.days.map((d) => {
+                        {activeFilteredDays.map((d) => {
                           const val = rowData[d.dayStr] || 0
                           const isZero = val === 0
                           return (
@@ -448,7 +744,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
 
                         {/* Total do Modal */}
                         <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
-                          {formatNum(rowData.total)}
+                          {formatNum(dynamicTotal)}
                         </td>
                       </tr>
                     )
@@ -459,7 +755,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                     <td className="sticky left-0 z-20 bg-[#e0f2fe] px-3 py-2 font-bold text-blue-900 border-r border-sky-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)]">
                       Peças TT
                     </td>
-                    {matrix.days.map((d) => (
+                    {activeFilteredDays.map((d) => (
                       <td 
                         key={`pec-tt-${d.dayStr}`}
                         className="px-1.5 py-2 text-center font-mono font-bold text-blue-900 border-r border-sky-200 text-[11px]"
@@ -468,14 +764,14 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                       </td>
                     ))}
                     <td className="sticky right-0 z-20 bg-[#e0f2fe] px-3 py-2 text-right font-mono font-bold text-blue-900 border-l border-sky-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
-                      {formatNum(matrix.totals.pecas.total)}
+                      {formatNum(getRowTotal(matrix.totals.pecas))}
                     </td>
                   </tr>
 
                   {/* Espaçador visual se 'all' estiver ativo */}
                   {selectedSection === 'all' && (
                     <tr className="bg-slate-100/50 h-3">
-                      <td colSpan={matrix.days.length + 2} className="p-0 border-y border-slate-200"></td>
+                      <td colSpan={activeFilteredDays.length + 2} className="p-0 border-y border-slate-200"></td>
                     </tr>
                   )}
                 </>
@@ -488,6 +784,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                 <>
                   {filteredModals.map((modalName) => {
                     const rowData = matrix.data.cubagem[modalName] || { total: 0 }
+                    const dynamicTotal = getRowTotal(rowData)
                     return (
                       <tr key={`cub-${modalName}`} className="hover:bg-blue-50/40 transition-colors">
                         {/* Nome do Modal (sem numeração) */}
@@ -496,7 +793,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                         </td>
 
                         {/* Valores diários */}
-                        {matrix.days.map((d) => {
+                        {activeFilteredDays.map((d) => {
                           const val = rowData[d.dayStr] || 0
                           const isZero = val === 0
                           return (
@@ -513,7 +810,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
 
                         {/* Total do Modal */}
                         <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
-                          {formatNum(rowData.total)}
+                          {formatNum(dynamicTotal)}
                         </td>
                       </tr>
                     )
@@ -524,7 +821,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                     <td className="sticky left-0 z-20 bg-[#e0f2fe] px-3 py-2 font-bold text-blue-900 border-r border-sky-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)]">
                       Cubagem TT
                     </td>
-                    {matrix.days.map((d) => (
+                    {activeFilteredDays.map((d) => (
                       <td 
                         key={`cub-tt-${d.dayStr}`}
                         className="px-1.5 py-2 text-center font-mono font-bold text-blue-900 border-r border-sky-200 text-[11px]"
@@ -533,7 +830,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                       </td>
                     ))}
                     <td className="sticky right-0 z-20 bg-[#e0f2fe] px-3 py-2 text-right font-mono font-bold text-blue-900 border-l border-sky-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
-                      {formatNum(matrix.totals.cubagem.total)}
+                      {formatNum(getRowTotal(matrix.totals.cubagem))}
                     </td>
                   </tr>
                 </>
