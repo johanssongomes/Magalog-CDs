@@ -79,6 +79,7 @@ export type ApontamentoStatus =
   | 'T'    // Trabalhou
   | 'FLG'  // Folga
   | 'F'    // Compatibilidade Folga antiga
+  | 'FLT'  // Falta
   | 'ATM'  // Falta ATM
   | 'FER'  // Férias
   | 'REM'  // Remoto
@@ -126,6 +127,16 @@ export const APONTAMENTO_STATUS_CONFIG: Record<string, StatusConfig> = {
     text: 'text-blue-700 font-extrabold',
     border: 'border-blue-300',
     badgeBg: 'bg-blue-500',
+    badgeText: 'text-white'
+  },
+  FLT: {
+    code: 'FLT',
+    label: 'FLT',
+    shortLabel: 'FLT',
+    bg: 'bg-red-50 hover:bg-red-100',
+    text: 'text-red-700 font-extrabold',
+    border: 'border-red-300',
+    badgeBg: 'bg-red-600',
     badgeText: 'text-white'
   },
   ATM: {
@@ -223,6 +234,12 @@ export function ApontamentoPage() {
   const [selectedCargos, setSelectedCargos] = useState<string[]>([])
   const [openFilterDropdown, setOpenFilterDropdown] = useState<'setor' | 'turno' | 'cargo' | null>(null)
 
+  // Filtro Interativo de Calendário (Dias e Período)
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false)
+  const [selectedDays, setSelectedDays] = useState<number[]>([])
+  const [startDateFilter, setStartDateFilter] = useState<string>('')
+  const [endDateFilter, setEndDateFilter] = useState<string>('')
+
   // Modal para Marcar Intervalo (ex: Férias de dia X até dia Y)
   const [intervalModal, setIntervalModal] = useState<{
     isOpen: boolean
@@ -243,7 +260,7 @@ export function ApontamentoPage() {
     return new Date(selectedYear, selectedMonth + 1, 0).getDate()
   }, [selectedYear, selectedMonth])
 
-  // Lista de dias com metadados
+  // Lista de todos os dias do mês com metadados
   const monthDaysList = useMemo(() => {
     const list: { day: number; dateStr: string; weekdayName: string; isSunday: boolean; isSaturday: boolean }[] = []
     for (let d = 1; d <= daysInMonth; d++) {
@@ -261,18 +278,131 @@ export function ApontamentoPage() {
     return list
   }, [selectedYear, selectedMonth, daysInMonth])
 
-  // 1. Carregar Colaboradores (da base local / supabase)
-  useEffect(() => {
-    try {
-      const localCached = localStorage.getItem('magalog_colaboradores_list')
-      let list = localCached ? JSON.parse(localCached) : null
-      if (!Array.isArray(list) || list.length === 0) {
-        list = initialColaboradoresData
-      }
-      setColaboradores(list || [])
-    } catch {
-      setColaboradores(initialColaboradoresData as any[])
+  // Dias ativos filtrados pelo Calendário Interativo
+  const activeFilteredDays = useMemo(() => {
+    if (selectedDays.length === 0 && !startDateFilter && !endDateFilter) {
+      return monthDaysList
     }
+
+    return monthDaysList.filter(d => {
+      // 1. Filtro por clique em dias individuais ou presets
+      const matchDayClick = selectedDays.length > 0 && selectedDays.includes(d.day)
+
+      // 2. Filtro por Range de Datas (Início / Fim)
+      let matchRange = false
+      if (startDateFilter || endDateFilter) {
+        const dayIso = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`
+        if (startDateFilter && endDateFilter) {
+          matchRange = dayIso >= startDateFilter && dayIso <= endDateFilter
+        } else if (startDateFilter) {
+          matchRange = dayIso >= startDateFilter
+        } else if (endDateFilter) {
+          matchRange = dayIso <= endDateFilter
+        }
+      }
+
+      if (selectedDays.length > 0 && (startDateFilter || endDateFilter)) {
+        return matchDayClick || matchRange
+      }
+      if (selectedDays.length > 0) return matchDayClick
+      if (startDateFilter || endDateFilter) return matchRange
+      return true
+    })
+  }, [monthDaysList, selectedDays, startDateFilter, endDateFilter, selectedYear, selectedMonth])
+
+  // Presets do Calendário
+  const applyDatePreset = (preset: 'all' | 'workdays' | 'q1' | 'q2') => {
+    setStartDateFilter('')
+    setEndDateFilter('')
+    if (preset === 'all') {
+      setSelectedDays([])
+    } else if (preset === 'workdays') {
+      setSelectedDays(monthDaysList.filter(d => !d.isSunday && !d.isSaturday).map(d => d.day))
+    } else if (preset === 'q1') {
+      setSelectedDays(monthDaysList.filter(d => d.day <= 15).map(d => d.day))
+    } else if (preset === 'q2') {
+      setSelectedDays(monthDaysList.filter(d => d.day > 15).map(d => d.day))
+    }
+  }
+
+  const toggleDayFilter = (day: number) => {
+    setStartDateFilter('')
+    setEndDateFilter('')
+    setSelectedDays(prev => 
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort((a, b) => a - b)
+    )
+  }
+
+  // 1. Carregar Colaboradores (sincronizado com Quadro e Cadastro)
+  useEffect(() => {
+    const loadColaboradores = async () => {
+      let baseList: any[] = []
+
+      // 1. Tenta carregar da lista mais atualizada do Quadro de Colaboradores ou Usuários
+      try {
+        const quadroCached = localStorage.getItem('magalog_quadro_colaboradores')
+        if (quadroCached) {
+          const parsed = JSON.parse(quadroCached)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            baseList = parsed
+          }
+        }
+      } catch {}
+
+      if (baseList.length === 0) {
+        try {
+          const usersCached = localStorage.getItem('magalog_users_list')
+          if (usersCached) {
+            const parsed = JSON.parse(usersCached)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              baseList = parsed.map(u => ({
+                id: u.colaborador_id || u.id || '',
+                contratado: u.colaborador?.contratado || u.name || '',
+                cargo: u.cargo || u.colaborador?.cargo || '',
+                setor: u.setor || u.colaborador?.setor || '',
+                turno: u.turno || u.colaborador?.turno || '',
+                cd: u.cd || '6994'
+              }))
+            }
+          }
+        } catch {}
+      }
+
+      if (baseList.length === 0) {
+        baseList = initialColaboradoresData
+      }
+
+      // 2. Mescla com nomes e dados atualizados do Supabase (tabela colaboradores)
+      try {
+        const { data: supaColabs } = await supabase.from('colaboradores').select('*')
+        if (supaColabs && supaColabs.length > 0) {
+          const supaMap = new Map<string, any>()
+          supaColabs.forEach(sc => {
+            if (sc.id) supaMap.set(String(sc.id).trim(), sc)
+          })
+
+          baseList = baseList.map(item => {
+            const sc = supaMap.get(String(item.id || '').trim())
+            if (sc) {
+              return {
+                ...item,
+                contratado: sc.contratado || item.contratado,
+                cargo: sc.cargo || item.cargo,
+                setor: sc.setor || item.setor,
+                turno: sc.turno || item.turno
+              }
+            }
+            return item
+          })
+        }
+      } catch (e) {
+        console.warn('Aviso ao sincronizar colaboradores com Supabase:', e)
+      }
+
+      setColaboradores(baseList)
+    }
+
+    loadColaboradores()
   }, [])
 
   // 2. Carregar Saldos de Banco de Horas (Saldo Líquido Débito ou Crédito) da planilha Google Sheets
@@ -713,6 +843,205 @@ export function ApontamentoPage() {
             </button>
           </div>
 
+          {/* Filtro Interativo de Período e Calendário (Presets, Faixa e Dias) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
+                selectedDays.length > 0 || startDateFilter || endDateFilter
+                  ? 'bg-amber-500 border-amber-600 text-white shadow-amber-500/20'
+                  : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
+              }`}
+            >
+              <Calendar size={13} className={selectedDays.length > 0 || startDateFilter || endDateFilter ? 'text-white' : 'text-slate-500'} />
+              <span>
+                {selectedDays.length === 0 && !startDateFilter && !endDateFilter ? (
+                  `PERÍODO: Mês Todo (${daysInMonth}d)`
+                ) : selectedDays.length > 0 ? (
+                  `PERÍODO: ${selectedDays.length} dia(s)`
+                ) : (
+                  'PERÍODO: Faixa'
+                )}
+              </span>
+              <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+                selectedDays.length > 0 || startDateFilter || endDateFilter
+                  ? 'bg-white/20 text-white'
+                  : 'bg-amber-100 text-amber-800'
+              }`}>
+                {activeFilteredDays.length}
+              </span>
+            </button>
+
+            {/* Dropdown Popover do Calendário */}
+            {isDateDropdownOpen && (
+              <div 
+                className="absolute left-0 mt-2 z-50 bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 w-[340px] space-y-3 animate-in fade-in zoom-in-95 duration-100"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Cabeçalho do Dropdown */}
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-1.5 text-slate-800 font-bold text-xs">
+                    <Calendar size={14} className="text-amber-500" />
+                    <span>Filtrar por Dias do Mês</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => applyDatePreset('all')}
+                    className="text-[10px] text-amber-600 hover:text-amber-700 font-bold hover:underline cursor-pointer"
+                  >
+                    Resetar Filtro
+                  </button>
+                </div>
+
+                {/* Presets Rápidos */}
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => applyDatePreset('all')}
+                    className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center border transition-all cursor-pointer ${
+                      selectedDays.length === 0 && !startDateFilter && !endDateFilter
+                        ? 'bg-amber-500 text-white border-amber-600 shadow-2xs'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200/60'
+                    }`}
+                  >
+                    Mês Todo ({daysInMonth}d)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyDatePreset('workdays')}
+                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
+                  >
+                    Dias Úteis (Seg - Sex)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyDatePreset('q1')}
+                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
+                  >
+                    1ª Quinzena (01-15)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyDatePreset('q2')}
+                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
+                  >
+                    2ª Quinzena (16-{daysInMonth})
+                  </button>
+                </div>
+
+                {/* Grade Visual do Calendário Mensal */}
+                <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-200/80">
+                  <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
+                    {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((dia, idx) => (
+                      <span 
+                        key={dia} 
+                        className={`text-[9px] font-bold uppercase tracking-wider ${
+                          idx === 0 || idx === 6 ? 'text-amber-600' : 'text-slate-400'
+                        }`}
+                      >
+                        {dia}
+                      </span>
+                    ))}
+                  </div>
+
+                  {(() => {
+                    const firstDayWeekIdx = new Date(selectedYear, selectedMonth, 1).getDay()
+                    const emptyPrefixSlots = Array.from({ length: firstDayWeekIdx })
+
+                    return (
+                      <div className="grid grid-cols-7 gap-1">
+                        {emptyPrefixSlots.map((_, i) => (
+                          <div key={`empty-${i}`} className="h-7 rounded-lg" />
+                        ))}
+                        {monthDaysList.map(d => {
+                          const isSingleSelected = selectedDays.includes(d.day)
+                          const dayIso = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`
+                          const isInRange = Boolean(
+                            (startDateFilter && endDateFilter && dayIso >= startDateFilter && dayIso <= endDateFilter) ||
+                            (startDateFilter && !endDateFilter && dayIso === startDateFilter) ||
+                            (!startDateFilter && endDateFilter && dayIso === endDateFilter)
+                          )
+                          const isSelected = isSingleSelected || isInRange
+                          const isWeekend = d.isSunday || d.isSaturday
+
+                          return (
+                            <button
+                              key={`cal-btn-${d.day}`}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                toggleDayFilter(d.day)
+                              }}
+                              title={`Dia ${d.day}`}
+                              className={`h-7 rounded-lg text-[11px] font-bold flex flex-col items-center justify-center transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-amber-500 text-white shadow-xs shadow-amber-500/30 scale-105 z-10'
+                                  : isWeekend
+                                    ? 'bg-amber-100/50 hover:bg-amber-200/60 text-amber-900 border border-amber-200/40'
+                                    : 'bg-white hover:bg-slate-200/60 text-slate-700 border border-slate-200/50 hover:border-slate-300'
+                              }`}
+                            >
+                              <span>{d.day}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* Seletor de Faixa de Datas (Início / Fim) */}
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-tight">FAIXA DE DATAS:</span>
+                    {(startDateFilter || endDateFilter) && (
+                      <span className="text-[9px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded">Range Ativo</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="block text-[9px] font-semibold text-slate-400 mb-0.5 uppercase">INÍCIO</span>
+                      <input
+                        type="date"
+                        value={startDateFilter}
+                        onChange={e => {
+                          setStartDateFilter(e.target.value)
+                          setSelectedDays([])
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] text-slate-700 font-medium focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <span className="block text-[9px] font-semibold text-slate-400 mb-0.5 uppercase">FIM</span>
+                      <input
+                        type="date"
+                        value={endDateFilter}
+                        onChange={e => {
+                          setEndDateFilter(e.target.value)
+                          setSelectedDays([])
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] text-slate-700 font-medium focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rodapé do Dropdown */}
+                <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
+                  <span>{activeFilteredDays.length} de {daysInMonth} dias exibidos</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsDateDropdownOpen(false)}
+                    className="text-amber-600 hover:text-amber-800 font-bold cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Busca por Nome ou ID (Compacta) */}
           <div className="relative min-w-[200px] max-w-[280px] flex-1">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -881,13 +1210,16 @@ export function ApontamentoPage() {
           </div>
 
           {/* Limpar todos os filtros ativos */}
-          {(selectedSetores.length > 0 || selectedTurnos.length > 0 || selectedCargos.length > 0 || search) && (
+          {(selectedSetores.length > 0 || selectedTurnos.length > 0 || selectedCargos.length > 0 || search || selectedDays.length > 0 || startDateFilter || endDateFilter) && (
             <button
               onClick={() => {
                 setSelectedSetores([])
                 setSelectedTurnos([])
                 setSelectedCargos([])
                 setSearch('')
+                setSelectedDays([])
+                setStartDateFilter('')
+                setEndDateFilter('')
               }}
               className="text-xs text-rose-600 hover:text-rose-700 font-bold px-2 py-1 rounded-lg hover:bg-rose-50 transition"
             >
@@ -905,7 +1237,7 @@ export function ApontamentoPage() {
       {/* 4. TABELA MATRIZ DIÁRIA DE APONTAMENTO */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto max-h-[720px] scrollbar-thin">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className={`${activeFilteredDays.length < 15 ? 'w-auto' : 'w-full'} text-left border-collapse text-xs`}>
             {/* Cabeçalho da Tabela */}
             <thead className="sticky top-0 z-30 bg-slate-100 shadow-xs border-b border-slate-200">
               
@@ -934,10 +1266,10 @@ export function ApontamentoPage() {
                 </th>
 
                 {/* Colunas Diárias: Dia da Semana */}
-                {monthDaysList.map(m => (
+                {activeFilteredDays.map(m => (
                   <th
                     key={`w-${m.day}`}
-                    className={`px-1 py-1.5 text-center min-w-[62px] border-r border-blue-500/50 text-[10px] font-bold ${
+                    className={`px-1 py-1.5 text-center min-w-[50px] w-[54px] border-r border-blue-500/50 text-[10px] font-bold ${
                       m.isSunday ? 'bg-amber-500 text-slate-950 font-black' : m.isSaturday ? 'bg-blue-700 text-blue-100' : ''
                     }`}
                   >
@@ -951,10 +1283,10 @@ export function ApontamentoPage() {
                 <th colSpan={7} className="sticky left-0 z-40 bg-slate-200 border-r-2 border-slate-400 px-3 py-1 text-slate-500 text-right">
                   Data do Apontamento &rarr;
                 </th>
-                {monthDaysList.map(m => (
+                {activeFilteredDays.map(m => (
                   <th
                     key={`d-${m.day}`}
-                    className={`px-1 py-1 text-center border-r border-slate-300 text-[10px] ${
+                    className={`px-1 py-1 text-center min-w-[50px] w-[54px] border-r border-slate-300 text-[10px] ${
                       m.isSunday ? 'bg-amber-100 text-amber-900 font-black' : m.isSaturday ? 'bg-blue-100/70 text-blue-900 font-bold' : ''
                     }`}
                   >
@@ -968,7 +1300,7 @@ export function ApontamentoPage() {
             <tbody className="divide-y divide-slate-100">
               {filteredColaboradores.length === 0 ? (
                 <tr>
-                  <td colSpan={7 + daysInMonth} className="p-12 text-center text-slate-500 font-medium">
+                  <td colSpan={7 + activeFilteredDays.length} className="p-12 text-center text-slate-500 font-medium">
                     Nenhum colaborador encontrado com os filtros selecionados.
                   </td>
                 </tr>
@@ -1057,7 +1389,7 @@ export function ApontamentoPage() {
                       </td>
 
                       {/* Células Diárias de Apontamento com Dropdown Rápido */}
-                      {monthDaysList.map(m => {
+                      {activeFilteredDays.map(m => {
                         const currentStatus = colabApont[m.day] || ''
                         const cfg = currentStatus ? APONTAMENTO_STATUS_CONFIG[currentStatus as ApontamentoStatus] : null
 
@@ -1082,6 +1414,7 @@ export function ApontamentoPage() {
                                 <option value="" className="text-slate-400 bg-white font-normal">-</option>
                                 <option value="T" className="text-emerald-700 font-bold bg-white">T</option>
                                 <option value="FLG" className="text-blue-700 font-bold bg-white">FLG</option>
+                                <option value="FLT" className="text-red-700 font-bold bg-white">FLT</option>
                                 <option value="ATM" className="text-rose-700 font-bold bg-white">ATM</option>
                                 <option value="FER" className="text-amber-700 font-bold bg-white">FER</option>
                                 <option value="REM" className="text-purple-700 font-bold bg-white">REM</option>
@@ -1140,6 +1473,7 @@ export function ApontamentoPage() {
                   <option value="FER">FER</option>
                   <option value="T">T</option>
                   <option value="FLG">FLG</option>
+                  <option value="FLT">FLT</option>
                   <option value="ATM">ATM</option>
                   <option value="REM">REM</option>
                   <option value="BH">BH</option>
