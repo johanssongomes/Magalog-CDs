@@ -285,11 +285,33 @@ export function ApontamentoPage() {
           }
         }
 
-        // Calcula o Saldo Líquido Exato por colaborador
-        // (Soma Créditos e subtrai Débitos de cada colaborador, gerando o saldo consolidado positivo ou negativo)
+        // Identifica a data mais recente registrada para cada colaborador na planilha
+        // (A planilha contém snapshots diários cumulativos; somar todos os dias acumula o saldo repetidas vezes)
+        const parseDateBR = (dateStr: string): number => {
+          if (!dateStr) return 0
+          const parts = dateStr.split('/').map(Number)
+          if (parts.length < 3) return 0
+          const [dia, mes, ano] = parts
+          return new Date(ano || 2026, (mes || 1) - 1, dia || 1).getTime()
+        }
+
+        const latestDateByEmp = new Map<string, string>()
+        const sortedRecords = [...records].sort((a, b) => parseDateBR(a.data) - parseDateBR(b.data))
+        sortedRecords.forEach(item => {
+          const key = `${item.id}-${item.contratado}`
+          latestDateByEmp.set(key, item.data)
+        })
+
+        // Filtra mantendo apenas a posição atual / data mais recente do colaborador
+        const snapshotRecords = records.filter(item => {
+          const key = `${item.id}-${item.contratado}`
+          return latestDateByEmp.get(key) === item.data
+        })
+
+        // Calcula o Saldo Líquido da Posição Atual (Crédito - Débito)
         const employeeNetMap = new Map<string, { totalCredito: number; totalDebito: number }>()
 
-        records.forEach(r => {
+        snapshotRecords.forEach(r => {
           if (!r.id && !r.contratado) return
           const key = String(r.id || r.contratado).trim().toUpperCase()
           const current = employeeNetMap.get(key) || { totalCredito: 0, totalDebito: 0 }
