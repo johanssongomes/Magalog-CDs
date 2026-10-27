@@ -98,7 +98,7 @@ export interface StatusConfig {
 export const APONTAMENTO_STATUS_CONFIG: Record<ApontamentoStatus, StatusConfig> = {
   T: {
     code: 'T',
-    label: 'Trabalhou',
+    label: 'T',
     shortLabel: 'T',
     bg: 'bg-emerald-50 hover:bg-emerald-100',
     text: 'text-emerald-700 font-extrabold',
@@ -108,7 +108,7 @@ export const APONTAMENTO_STATUS_CONFIG: Record<ApontamentoStatus, StatusConfig> 
   },
   F: {
     code: 'F',
-    label: 'Folga',
+    label: 'F',
     shortLabel: 'F',
     bg: 'bg-blue-50 hover:bg-blue-100',
     text: 'text-blue-700 font-extrabold',
@@ -118,7 +118,7 @@ export const APONTAMENTO_STATUS_CONFIG: Record<ApontamentoStatus, StatusConfig> 
   },
   ATM: {
     code: 'ATM',
-    label: 'Falta ATM',
+    label: 'ATM',
     shortLabel: 'ATM',
     bg: 'bg-rose-50 hover:bg-rose-100',
     text: 'text-rose-700 font-extrabold',
@@ -128,7 +128,7 @@ export const APONTAMENTO_STATUS_CONFIG: Record<ApontamentoStatus, StatusConfig> 
   },
   FER: {
     code: 'FER',
-    label: 'Férias',
+    label: 'FER',
     shortLabel: 'FER',
     bg: 'bg-amber-50 hover:bg-amber-100',
     text: 'text-amber-700 font-extrabold',
@@ -138,7 +138,7 @@ export const APONTAMENTO_STATUS_CONFIG: Record<ApontamentoStatus, StatusConfig> 
   },
   HO: {
     code: 'HO',
-    label: 'Home Office',
+    label: 'HO',
     shortLabel: 'HO',
     bg: 'bg-purple-50 hover:bg-purple-100',
     text: 'text-purple-700 font-extrabold',
@@ -148,7 +148,7 @@ export const APONTAMENTO_STATUS_CONFIG: Record<ApontamentoStatus, StatusConfig> 
   },
   BH: {
     code: 'BH',
-    label: 'Banco de Horas',
+    label: 'BH',
     shortLabel: 'BH',
     bg: 'bg-sky-50 hover:bg-sky-100',
     text: 'text-sky-700 font-extrabold',
@@ -158,7 +158,7 @@ export const APONTAMENTO_STATUS_CONFIG: Record<ApontamentoStatus, StatusConfig> 
   },
   DSR: {
     code: 'DSR',
-    label: 'DSR Feriado',
+    label: 'DSR',
     shortLabel: 'DSR',
     bg: 'bg-indigo-50 hover:bg-indigo-100',
     text: 'text-indigo-700 font-extrabold',
@@ -253,7 +253,7 @@ export function ApontamentoPage() {
     }
   }, [])
 
-  // 2. Carregar Saldos de Banco de Horas (Débito ou Crédito) da planilha Google Sheets
+  // 2. Carregar Saldos de Banco de Horas (Saldo Líquido Débito ou Crédito) da planilha Google Sheets
   useEffect(() => {
     const loadBh = async () => {
       setLoadingBh(true)
@@ -265,15 +265,17 @@ export function ApontamentoPage() {
           const res = await fetch(`${DEFAULT_SHEET_CSV_URL}&_ts=${Date.now()}`)
           if (res.ok) {
             const text = await res.text()
-            const lines = text.split('\n').map(l => l.split(',').map(c => c.replace(/^"|"$/g, '').trim()))
-            if (lines.length > 1) {
-              const headers = lines[0].map(h => h.toLowerCase())
-              const idxId = headers.findIndex(h => h.includes('id') || h.includes('matricula'))
+            const parsed = parseCSV(text)
+            if (parsed.length > 1) {
+              const headers = parsed[0].map(h => h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))
+              const idxData = headers.findIndex(h => h.includes('data'))
+              const idxId = headers.findIndex(h => h === 'id' || h.includes('matricula'))
               const idxNome = headers.findIndex(h => h.includes('contratado') || h.includes('nome'))
-              const idxTipo = headers.findIndex(h => h.includes('tipo') || h.includes('crédito') || h.includes('debito'))
-              const idxHoras = headers.findIndex(h => h.includes('qtd') || h.includes('hora'))
-              
-              records = lines.slice(1).map(r => ({
+              const idxTipo = headers.findIndex(h => h.includes('tipo') || h.includes('credito') || h.includes('debito'))
+              const idxHoras = headers.findIndex(h => h.includes('hora') || h.includes('qtd'))
+
+              records = parsed.slice(1).map(r => ({
+                data: r[idxData] || '',
                 id: r[idxId] || '',
                 contratado: r[idxNome] || '',
                 tipo: r[idxTipo] || '',
@@ -283,22 +285,51 @@ export function ApontamentoPage() {
           }
         }
 
-        const map: Record<string, { saldoStr: string; saldoDec: number }> = {}
+        // Calcula o Saldo Líquido Exato por colaborador
+        // (Soma Créditos e subtrai Débitos de cada colaborador, gerando o saldo consolidado positivo ou negativo)
+        const employeeNetMap = new Map<string, { totalCredito: number; totalDebito: number }>()
+
         records.forEach(r => {
           if (!r.id && !r.contratado) return
-          const isDebito = (r.tipo || '').toLowerCase().includes('debito')
-          const timeParts = (r.qtdHoras || '00:00').split(':').map(Number)
-          const dec = (timeParts[0] || 0) + ((timeParts[1] || 0) / 60)
-          const val = isDebito ? -dec : dec
-          const formatted = `${isDebito ? '-' : '+'}${r.qtdHoras || '00:00'}h`
+          const key = String(r.id || r.contratado).trim().toUpperCase()
+          const current = employeeNetMap.get(key) || { totalCredito: 0, totalDebito: 0 }
 
-          if (r.id) map[String(r.id).trim()] = { saldoStr: formatted, saldoDec: val }
-          if (r.contratado) map[String(r.contratado).trim().toUpperCase()] = { saldoStr: formatted, saldoDec: val }
+          // Converte tempo para horas decimais
+          const timeParts = (r.qtdHoras || '00:00').trim().replace(/["\s]/g, '').split(':').map(Number)
+          const decHours = (timeParts[0] || 0) + ((timeParts[1] || 0) / 60) + ((timeParts[2] || 0) / 3600)
+
+          const normTipo = (r.tipo || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          if (normTipo.includes('credito')) {
+            current.totalCredito += decHours
+          } else if (normTipo.includes('debito')) {
+            current.totalDebito += decHours
+          }
+
+          employeeNetMap.set(key, current)
+          if (r.id) employeeNetMap.set(String(r.id).trim(), current)
+          if (r.contratado) employeeNetMap.set(String(r.contratado).trim().toUpperCase(), current)
+        })
+
+        const map: Record<string, { saldoStr: string; saldoDec: number }> = {}
+
+        employeeNetMap.forEach((val, key) => {
+          const netDecimal = val.totalCredito - val.totalDebito
+          const isNegative = netDecimal < 0
+          const abs = Math.abs(netDecimal)
+          const h = Math.floor(abs)
+          const m = Math.round((abs - h) * 60)
+          const sign = isNegative ? '-' : '+'
+          const formatted = `${sign}${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}h`
+
+          map[key] = {
+            saldoStr: formatted,
+            saldoDec: netDecimal
+          }
         })
 
         setBhBalances(map)
       } catch (err) {
-        console.warn('Erro ao carregar saldo de BH para Apontamento:', err)
+        console.warn('Erro ao carregar saldo líquido de BH para Apontamento:', err)
       } finally {
         setLoadingBh(false)
       }
@@ -1029,10 +1060,10 @@ export function ApontamentoPage() {
                             }`}
                           >
                             <div className="relative w-full h-full flex items-center justify-center">
-                              <select
+                                <select
                                 value={currentStatus}
                                 onChange={(e) => handleCellChange(colabId, m.day, e.target.value as any)}
-                                title={`${m.weekdayName} (${m.dateStr}): ${cfg?.label || 'Sem apontamento'}`}
+                                title={`${m.weekdayName} (${m.dateStr})`}
                                 className={`w-full py-1 text-center font-black rounded-md outline-hidden border transition cursor-pointer text-[11px] appearance-none ${
                                   cfg
                                     ? `${cfg.bg} ${cfg.text} ${cfg.border}`
@@ -1040,13 +1071,13 @@ export function ApontamentoPage() {
                                 }`}
                               >
                                 <option value="" className="text-slate-400 bg-white font-normal">-</option>
-                                <option value="T" className="text-emerald-700 font-bold bg-white">T (Trabalhou)</option>
-                                <option value="F" className="text-blue-700 font-bold bg-white">F (Folga)</option>
-                                <option value="ATM" className="text-rose-700 font-bold bg-white">ATM (Falta ATM)</option>
-                                <option value="FER" className="text-amber-700 font-bold bg-white">FER (Férias)</option>
-                                <option value="HO" className="text-purple-700 font-bold bg-white">HO (Home Office)</option>
-                                <option value="BH" className="text-sky-700 font-bold bg-white">BH (Banco Horas)</option>
-                                <option value="DSR" className="text-indigo-700 font-bold bg-white">DSR (DSR Feriado)</option>
+                                <option value="T" className="text-emerald-700 font-bold bg-white">T</option>
+                                <option value="F" className="text-blue-700 font-bold bg-white">F</option>
+                                <option value="ATM" className="text-rose-700 font-bold bg-white">ATM</option>
+                                <option value="FER" className="text-amber-700 font-bold bg-white">FER</option>
+                                <option value="HO" className="text-purple-700 font-bold bg-white">HO</option>
+                                <option value="BH" className="text-sky-700 font-bold bg-white">BH</option>
+                                <option value="DSR" className="text-indigo-700 font-bold bg-white">DSR</option>
                               </select>
                             </div>
                           </td>
@@ -1097,13 +1128,13 @@ export function ApontamentoPage() {
                   onChange={(e) => setIntervalModal({ ...intervalModal, status: e.target.value as ApontamentoStatus })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 outline-hidden focus:ring-2 focus:ring-blue-500/20"
                 >
-                  <option value="FER">Férias (FER)</option>
-                  <option value="T">Trabalhou (T)</option>
-                  <option value="F">Folga (F)</option>
-                  <option value="ATM">Falta ATM (ATM)</option>
-                  <option value="HO">Home Office (HO)</option>
-                  <option value="BH">Banco de Horas (BH)</option>
-                  <option value="DSR">DSR Feriado (DSR)</option>
+                  <option value="FER">FER</option>
+                  <option value="T">T</option>
+                  <option value="F">F</option>
+                  <option value="ATM">ATM</option>
+                  <option value="HO">HO</option>
+                  <option value="BH">BH</option>
+                  <option value="DSR">DSR</option>
                 </select>
               </div>
 
