@@ -599,58 +599,68 @@ export function ApontamentoPage() {
   }
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-200">
+    <div className="space-y-3 animate-in fade-in duration-200">
       
-      {/* 1. BARRA SUPERIOR: TÍTULO, SELETOR DE ANO/MÊS E AÇÕES */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        
+      {/* 1. BARRA SUPERIOR COMPACTA COM TÍTULO E AÇÃO DE EXPORTAR */}
+      <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Identificação da Página */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
-            <CalendarDays size={20} />
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs shrink-0">
+            <CalendarDays size={17} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+              <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight">
                 Controle e Apontamento Diário
               </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 font-mono">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 font-mono">
                 Mês {String(selectedMonth + 1).padStart(2, '0')}/{selectedYear}
               </span>
               {isSaving ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 animate-pulse">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 animate-pulse">
                   Salvando...
                 </span>
               ) : lastSaved ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600" title={`Salvo às ${lastSaved}`}>
-                  <CheckCircle2 size={13} /> Salvo
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600" title={`Salvo às ${lastSaved}`}>
+                  <CheckCircle2 size={12} /> Salvo
                 </span>
               ) : null}
             </div>
-            <p className="text-xs text-slate-500 font-medium">
+            <p className="text-[11px] text-slate-500 font-medium">
               Gestão de presenças, folgas, falta ATM, férias, home office, banco de horas e saldo de DSRs.
             </p>
           </div>
         </div>
 
-        {/* Seletor de Mês e Ano + Ações */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        {/* Botão Exportar Planilha */}
+        <button
+          onClick={handleExportCSV}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition shadow-2xs cursor-pointer hover:border-slate-400 self-start sm:self-auto"
+        >
+          <Download size={13} className="text-slate-500" />
+          <span>Exportar Planilha</span>
+        </button>
+      </div>
+
+      {/* 2. BARRA DE FILTROS E SELEÇÃO DE MÊS/ANO INTEGRADA (LAYOUT COMPACTO) */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-2.5 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2">
           
-          {/* Navegação Rápida de Mês */}
-          <div className="inline-flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 shadow-2xs">
+          {/* Navegação Rápida de Mês e Ano */}
+          <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 shadow-2xs shrink-0">
             <button
               onClick={handlePrevMonth}
               title="Mês Anterior"
-              className="p-1.5 rounded-lg hover:bg-white text-slate-600 hover:text-blue-600 transition cursor-pointer"
+              className="p-1 rounded-lg hover:bg-white text-slate-600 hover:text-blue-600 transition cursor-pointer"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={15} />
             </button>
 
             {/* Dropdown de Mês */}
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(Number(e.target.value))}
-              className="bg-transparent font-black text-xs text-slate-800 px-2 py-1 outline-hidden cursor-pointer"
+              className="bg-transparent font-black text-xs text-slate-800 px-1.5 py-1 outline-hidden cursor-pointer"
             >
               {MONTH_NAMES.map((name, idx) => (
                 <option key={idx} value={idx}>
@@ -675,73 +685,28 @@ export function ApontamentoPage() {
             <button
               onClick={handleNextMonth}
               title="Próximo Mês"
-              className="p-1.5 rounded-lg hover:bg-white text-slate-600 hover:text-blue-600 transition cursor-pointer"
+              className="p-1 rounded-lg hover:bg-white text-slate-600 hover:text-blue-600 transition cursor-pointer"
             >
-              <ChevronRight size={16} />
+              <ChevronRight size={15} />
             </button>
           </div>
 
-          {/* Botão Exportar Planilha */}
-          <button
-            onClick={handleExportCSV}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition shadow-2xs cursor-pointer hover:border-slate-400"
-          >
-            <Download size={14} className="text-slate-500" />
-            <span>Exportar Planilha</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 2. LEGENDA DE STATUS E ATALHOS RÁPIDOS */}
-      <div className="bg-slate-900 text-white rounded-2xl p-3.5 shadow-md border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="font-extrabold uppercase tracking-wider text-[11px] text-blue-400 font-mono">
-            Legenda de Apontamento:
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {Object.values(APONTAMENTO_STATUS_CONFIG).map(cfg => (
-            <div
-              key={cfg.code}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 shadow-2xs"
-            >
-              <span className={`w-5 h-5 rounded-md ${cfg.badgeBg} ${cfg.badgeText} flex items-center justify-center font-black text-[10px]`}>
-                {cfg.shortLabel}
-              </span>
-              <span className="text-[11px] font-bold text-slate-200">
-                {cfg.label}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
-          <Info size={13} className="text-amber-400 shrink-0" />
-          <span>Domingo trabalhado soma <strong>+1 DSR</strong>. Apontar DSR subtrai <strong>-1</strong>.</span>
-        </div>
-      </div>
-
-      {/* 3. BARRA DE FILTROS COM MÚLTIPLA ESCOLHA */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-xs space-y-3">
-        <div className="flex flex-wrap items-center gap-2.5">
-          
-          {/* Busca por Nome ou ID */}
-          <div className="relative min-w-[240px] flex-1">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          {/* Busca por Nome ou ID (Compacta) */}
+          <div className="relative min-w-[200px] max-w-[280px] flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar colaborador por nome, ID ou cargo..."
+              placeholder="Buscar nome, ID, cargo..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50/50"
+              className="w-full pl-8 pr-7 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50/50"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
-                <X size={13} />
+                <X size={12} />
               </button>
             )}
           </div>
@@ -750,15 +715,15 @@ export function ApontamentoPage() {
           <div className="relative">
             <button
               onClick={() => setOpenFilterDropdown(openFilterDropdown === 'setor' ? null : 'setor')}
-              className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
                 selectedSetores.length > 0
                   ? 'bg-blue-50 border-blue-300 text-blue-700'
                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <Building2 size={14} className="text-slate-400" />
+              <Building2 size={13} className="text-slate-400" />
               <span>Setor {selectedSetores.length > 0 ? `(${selectedSetores.length})` : ''}</span>
-              <ChevronDown size={13} className="text-slate-400" />
+              <ChevronDown size={12} className="text-slate-400" />
             </button>
 
             {openFilterDropdown === 'setor' && (
@@ -799,15 +764,15 @@ export function ApontamentoPage() {
           <div className="relative">
             <button
               onClick={() => setOpenFilterDropdown(openFilterDropdown === 'turno' ? null : 'turno')}
-              className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
                 selectedTurnos.length > 0
                   ? 'bg-blue-50 border-blue-300 text-blue-700'
                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <Clock size={14} className="text-slate-400" />
+              <Clock size={13} className="text-slate-400" />
               <span>Turno {selectedTurnos.length > 0 ? `(${selectedTurnos.length})` : ''}</span>
-              <ChevronDown size={13} className="text-slate-400" />
+              <ChevronDown size={12} className="text-slate-400" />
             </button>
 
             {openFilterDropdown === 'turno' && (
@@ -848,15 +813,15 @@ export function ApontamentoPage() {
           <div className="relative">
             <button
               onClick={() => setOpenFilterDropdown(openFilterDropdown === 'cargo' ? null : 'cargo')}
-              className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
                 selectedCargos.length > 0
                   ? 'bg-blue-50 border-blue-300 text-blue-700'
                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <Briefcase size={14} className="text-slate-400" />
+              <Briefcase size={13} className="text-slate-400" />
               <span>Cargo {selectedCargos.length > 0 ? `(${selectedCargos.length})` : ''}</span>
-              <ChevronDown size={13} className="text-slate-400" />
+              <ChevronDown size={12} className="text-slate-400" />
             </button>
 
             {openFilterDropdown === 'cargo' && (
@@ -909,7 +874,7 @@ export function ApontamentoPage() {
           )}
 
           {/* Contador de Exibição */}
-          <div className="ml-auto text-xs font-bold text-slate-500">
+          <div className="ml-auto text-xs font-bold text-slate-500 shrink-0">
             Exibindo <span className="text-blue-600 font-black">{filteredColaboradores.length}</span> de {colaboradores.length} colaboradores
           </div>
         </div>
