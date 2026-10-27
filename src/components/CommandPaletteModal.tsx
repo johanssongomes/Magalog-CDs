@@ -22,6 +22,7 @@ import {
   CornerDownLeft,
   ChevronRight,
   CalendarDays,
+  Calendar,
   User
 } from 'lucide-react'
 
