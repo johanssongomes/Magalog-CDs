@@ -61,6 +61,32 @@ export function ProfilePage() {
     const storedAvatar = localStorage.getItem(`magalog_avatar_${cleanEmail}`)
     setAvatarUrl(user.avatar_url || storedAvatar || '')
 
+    // Se a foto não veio na sessão local (ex: primeiro login em novo aparelho/celular), busca direto do Supabase
+    if (!user.avatar_url && !storedAvatar && cleanEmail) {
+      supabase
+        .from('performance_metrics')
+        .select('value')
+        .in('cell_key', [
+          `_user_extra_profile_${cleanEmail}`,
+          '_user_extra_profile_johansson.gomes@magazineluiza.com.br',
+          '_user_extra_profile_joh_gomes@magalog.com.br'
+        ])
+        .maybeSingle()
+        .then(({ data: row }) => {
+          if (row?.value) {
+            try {
+              const p = JSON.parse(row.value)
+              if (p?.avatar_url) {
+                setAvatarUrl(p.avatar_url)
+                try {
+                  localStorage.setItem(`magalog_avatar_${cleanEmail}`, p.avatar_url)
+                } catch {}
+              }
+            } catch {}
+          }
+        })
+    }
+
     const loadColaborador = async () => {
       setLoading(true)
       try {

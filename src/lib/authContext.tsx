@@ -601,6 +601,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // segue mesmo se offline
         }
 
+        // Busca foto de perfil do banco se já existir cadastrada
+        let remoteAvatar: string | undefined = getStoredAvatar(cleanEmail) || undefined
+        try {
+          const { data: avatarRow } = await supabase
+            .from('performance_metrics')
+            .select('value')
+            .in('cell_key', [
+              `_user_extra_profile_${cleanEmail}`,
+              '_user_extra_profile_johansson.gomes@magazineluiza.com.br',
+              '_user_extra_profile_joh_gomes@magalog.com.br'
+            ])
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          if (avatarRow?.value) {
+            const p = JSON.parse(avatarRow.value)
+            if (p?.avatar_url) {
+              remoteAvatar = p.avatar_url
+              setStoredAvatar(cleanEmail, remoteAvatar)
+            }
+          }
+        } catch {}
+
         const adminMaster: AppUserProfile = {
           id: cleanEmail === 'joh_gomes@magalog.com.br' ? '169959' : 'admin-master',
           colaborador_id: '169959',
@@ -609,6 +632,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           cargo: 'COORDENADOR LOGISTICA',
           role: 'admin',
           allowed_pages: DEFAULT_ROLE_PAGES.admin,
+          avatar_url: remoteAvatar,
           active: true
         }
 
