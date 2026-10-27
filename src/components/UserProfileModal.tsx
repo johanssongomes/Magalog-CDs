@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { 
   X, 
   User, 
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useAuth, type ColaboradorData } from '../lib/authContext'
 import { supabase } from '../lib/supabase'
+import initialColaboradoresData from '../data/initialColaboradores.json'
 
 interface UserProfileModalProps {
   isOpen: boolean
@@ -30,6 +31,31 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+
+  // Lista de líderes disponíveis com ID e Nome para autocompletar e seleção bidirecional
+  const listaLideresOpcoes = useMemo(() => {
+    const map = new Map<string, { id: string; nome: string }>()
+    try {
+      const stored = localStorage.getItem('magalog_quadro_colaboradores')
+      const list = stored ? JSON.parse(stored) : initialColaboradoresData
+      if (Array.isArray(list)) {
+        list.forEach((c: any) => {
+          const cargo = (c.cargo || '').toUpperCase()
+          const isLeaderRole = cargo.includes('LIDER') || cargo.includes('SUPERVISOR') || cargo.includes('COORDENADOR') || cargo.includes('GERENTE')
+          if (isLeaderRole && c.contratado && c.id) {
+            map.set(String(c.id).trim(), { id: String(c.id).trim(), nome: String(c.contratado).trim().toUpperCase() })
+          }
+          if (c.idLider && c.nomeLider) {
+            const idTrim = String(c.idLider).trim()
+            if (!map.has(idTrim)) {
+              map.set(idTrim, { id: idTrim, nome: String(c.nomeLider).trim().toUpperCase() })
+            }
+          }
+        })
+      }
+    } catch {}
+    return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome))
+  }, [isOpen])
 
   // Campos de troca de senha
   const [newPassword, setNewPassword] = useState('')
@@ -383,19 +409,47 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                     <label className="text-[10px] font-bold text-slate-500 uppercase">ID Líder</label>
                     <input
                       type="text"
+                      list="profile-lideres-id-list"
                       value={colabData?.idLider || ''}
-                      onChange={e => setColabData(prev => prev ? ({ ...prev, idLider: e.target.value }) : null)}
+                      onChange={e => {
+                        const newId = e.target.value
+                        const found = listaLideresOpcoes.find(l => l.id.toLowerCase() === newId.trim().toLowerCase())
+                        setColabData(prev => prev ? ({
+                          ...prev,
+                          idLider: newId,
+                          nomeLider: found ? found.nome : prev.nomeLider
+                        }) : null)
+                      }}
                       className="w-full mt-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-slate-800 font-medium focus:border-blue-500 focus:outline-none"
                     />
+                    <datalist id="profile-lideres-id-list">
+                      {listaLideresOpcoes.map(l => (
+                        <option key={`prof-id-${l.id}`} value={l.id}>{l.nome}</option>
+                      ))}
+                    </datalist>
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 uppercase">Nome do Líder</label>
                     <input
                       type="text"
+                      list="profile-lideres-nome-list"
                       value={colabData?.nomeLider || ''}
-                      onChange={e => setColabData(prev => prev ? ({ ...prev, nomeLider: e.target.value }) : null)}
+                      onChange={e => {
+                        const newName = e.target.value.toUpperCase()
+                        const found = listaLideresOpcoes.find(l => l.nome.toLowerCase() === newName.trim().toLowerCase())
+                        setColabData(prev => prev ? ({
+                          ...prev,
+                          nomeLider: newName,
+                          idLider: found ? found.id : prev.idLider
+                        }) : null)
+                      }}
                       className="w-full mt-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-slate-800 font-medium focus:border-blue-500 focus:outline-none"
                     />
+                    <datalist id="profile-lideres-nome-list">
+                      {listaLideresOpcoes.map(l => (
+                        <option key={`prof-nome-${l.id}`} value={l.nome}>{`ID: ${l.id}`}</option>
+                      ))}
+                    </datalist>
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 uppercase">Turno / Setor</label>

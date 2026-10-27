@@ -1272,6 +1272,25 @@ export const PmtsPage: React.FC = () => {
   const listaCentrosCusto = Array.from(new Set(colaboradoresList.map(c => c.centroDeCusto || '(vazio)'))).sort()
   const listaGerencias = Array.from(new Set(colaboradoresList.map(c => c.gerencia || '(vazio)'))).sort()
 
+  // Lista de líderes disponíveis com ID e Nome para autocompletar e seleção bidirecional
+  const listaLideresOpcoes = useMemo(() => {
+    const map = new Map<string, { id: string; nome: string }>()
+    colaboradoresList.forEach(c => {
+      const cargo = (c.cargo || '').toUpperCase()
+      const isLeaderRole = cargo.includes('LIDER') || cargo.includes('SUPERVISOR') || cargo.includes('COORDENADOR') || cargo.includes('GERENTE')
+      if (isLeaderRole && c.contratado && c.id) {
+        map.set(c.id.trim(), { id: c.id.trim(), nome: c.contratado.trim().toUpperCase() })
+      }
+      if (c.idLider && c.nomeLider) {
+        const idTrim = c.idLider.trim()
+        if (!map.has(idTrim)) {
+          map.set(idTrim, { id: idTrim, nome: c.nomeLider.trim().toUpperCase() })
+        }
+      }
+    })
+    return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome))
+  }, [colaboradoresList])
+
   // Tabelas de resumo ordenadas por quantidade descrescente (igual à tabela dinâmica solicitada)
   const totalGeral = colaboradoresList.length
 
@@ -3206,22 +3225,50 @@ export const PmtsPage: React.FC = () => {
                       <label className="text-[11px] font-bold text-slate-700">ID Líder</label>
                       <input
                         type="text"
+                        list="pmt-lideres-id-list"
                         value={editingColaborador.idLider || ''}
-                        onChange={(e) => setEditingColaborador({ ...editingColaborador, idLider: e.target.value })}
+                        onChange={(e) => {
+                          const newId = e.target.value
+                          const found = listaLideresOpcoes.find(l => l.id.toLowerCase() === newId.trim().toLowerCase())
+                          setEditingColaborador({
+                            ...editingColaborador,
+                            idLider: newId,
+                            nomeLider: found ? found.nome : editingColaborador.nomeLider
+                          })
+                        }}
                         placeholder="Ex: 204403"
                         className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
                       />
+                      <datalist id="pmt-lideres-id-list">
+                        {listaLideresOpcoes.map(l => (
+                          <option key={`id-${l.id}`} value={l.id}>{l.nome}</option>
+                        ))}
+                      </datalist>
                     </div>
 
                     <div className="space-y-1 sm:col-span-2 md:col-span-3">
                       <label className="text-[11px] font-bold text-slate-700">Nome do Líder</label>
                       <input
                         type="text"
+                        list="pmt-lideres-nome-list"
                         value={editingColaborador.nomeLider || ''}
-                        onChange={(e) => setEditingColaborador({ ...editingColaborador, nomeLider: e.target.value.toUpperCase() })}
+                        onChange={(e) => {
+                          const newName = e.target.value.toUpperCase()
+                          const found = listaLideresOpcoes.find(l => l.nome.toLowerCase() === newName.trim().toLowerCase())
+                          setEditingColaborador({
+                            ...editingColaborador,
+                            nomeLider: newName,
+                            idLider: found ? found.id : editingColaborador.idLider
+                          })
+                        }}
                         placeholder="Ex: FRANCISCO MICHAEL LIMA BATISTA"
                         className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
                       />
+                      <datalist id="pmt-lideres-nome-list">
+                        {listaLideresOpcoes.map(l => (
+                          <option key={`nome-${l.id}`} value={l.nome}>{`ID: ${l.id}`}</option>
+                        ))}
+                      </datalist>
                     </div>
 
                     <div className="space-y-1 sm:col-span-1 md:col-span-2">

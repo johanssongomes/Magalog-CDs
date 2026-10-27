@@ -423,6 +423,26 @@ export const UsersManagementPage: React.FC = () => {
     fetchUsers()
   }, [])
 
+  // Lista de líderes disponíveis com ID e Nome para autocompletar e seleção bidirecional
+  const listaLideresOpcoes = useMemo(() => {
+    const map = new Map<string, { id: string; nome: string }>()
+    users.forEach(u => {
+      const cargo = (u.cargo || u.dados_colaborador?.cargo || '').toUpperCase()
+      const isLeaderRole = cargo.includes('LIDER') || cargo.includes('SUPERVISOR') || cargo.includes('COORDENADOR') || cargo.includes('GERENTE')
+      const id = String(u.colaborador_id || u.id || u.dados_colaborador?.id || '').trim()
+      const nome = String(u.name || u.dados_colaborador?.contratado || '').trim().toUpperCase()
+      if (isLeaderRole && id && nome) {
+        map.set(id, { id, nome })
+      }
+      const cLiderId = String(u.dados_colaborador?.idLider || '').trim()
+      const cLiderNome = String(u.dados_colaborador?.nomeLider || '').trim().toUpperCase()
+      if (cLiderId && cLiderNome && !map.has(cLiderId)) {
+        map.set(cLiderId, { id: cLiderId, nome: cLiderNome })
+      }
+    })
+    return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome))
+  }, [users])
+
   // Abrir Modal de Criação de Novo Usuário
   const handleOpenCreateModal = () => {
     setEditingUser(null)
@@ -1526,22 +1546,50 @@ export const UsersManagementPage: React.FC = () => {
                           <label className="text-[11px] font-bold text-slate-700">ID Líder</label>
                           <input
                             type="text"
+                            list="user-mgmt-lideres-id-list"
                             value={formColaboradorData.idLider || ''}
-                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, idLider: e.target.value })}
+                            onChange={(e) => {
+                              const newId = e.target.value
+                              const found = listaLideresOpcoes.find(l => l.id.toLowerCase() === newId.trim().toLowerCase())
+                              setFormColaboradorData({
+                                ...formColaboradorData,
+                                idLider: newId,
+                                nomeLider: found ? found.nome : formColaboradorData.nomeLider
+                              })
+                            }}
                             placeholder="Ex: 204403"
                             className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
                           />
+                          <datalist id="user-mgmt-lideres-id-list">
+                            {listaLideresOpcoes.map(l => (
+                              <option key={`usr-id-${l.id}`} value={l.id}>{l.nome}</option>
+                            ))}
+                          </datalist>
                         </div>
 
                         <div className="space-y-1 sm:col-span-2 md:col-span-3">
                           <label className="text-[11px] font-bold text-slate-700">Nome do Líder</label>
                           <input
                             type="text"
+                            list="user-mgmt-lideres-nome-list"
                             value={formColaboradorData.nomeLider || ''}
-                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, nomeLider: e.target.value.toUpperCase() })}
+                            onChange={(e) => {
+                              const newName = e.target.value.toUpperCase()
+                              const found = listaLideresOpcoes.find(l => l.nome.toLowerCase() === newName.trim().toLowerCase())
+                              setFormColaboradorData({
+                                ...formColaboradorData,
+                                nomeLider: newName,
+                                idLider: found ? found.id : formColaboradorData.idLider
+                              })
+                            }}
                             placeholder="Ex: FRANCISCO MICHAEL LIMA BATISTA"
                             className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
                           />
+                          <datalist id="user-mgmt-lideres-nome-list">
+                            {listaLideresOpcoes.map(l => (
+                              <option key={`usr-nome-${l.id}`} value={l.nome}>{`ID: ${l.id}`}</option>
+                            ))}
+                          </datalist>
                         </div>
 
                         <div className="space-y-1 sm:col-span-1 md:col-span-2">
