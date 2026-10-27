@@ -77,10 +77,12 @@ function parseCSV(text: string): string[][] {
 // Tipos de Apontamento disponíveis
 export type ApontamentoStatus =
   | 'T'    // Trabalhou
-  | 'F'    // Folga
+  | 'FLG'  // Folga
+  | 'F'    // Compatibilidade Folga antiga
   | 'ATM'  // Falta ATM
   | 'FER'  // Férias
-  | 'HO'   // Home Office
+  | 'REM'  // Remoto
+  | 'HO'   // Compatibilidade Home Office antigo
   | 'BH'   // Banco de Horas
   | 'DSR'  // DSR Feriado
 
@@ -95,7 +97,7 @@ export interface StatusConfig {
   badgeText: string
 }
 
-export const APONTAMENTO_STATUS_CONFIG: Record<ApontamentoStatus, StatusConfig> = {
+export const APONTAMENTO_STATUS_CONFIG: Record<string, StatusConfig> = {
   T: {
     code: 'T',
     label: 'T',
@@ -106,10 +108,20 @@ export const APONTAMENTO_STATUS_CONFIG: Record<ApontamentoStatus, StatusConfig> 
     badgeBg: 'bg-emerald-600',
     badgeText: 'text-white'
   },
+  FLG: {
+    code: 'FLG',
+    label: 'FLG',
+    shortLabel: 'FLG',
+    bg: 'bg-blue-50 hover:bg-blue-100',
+    text: 'text-blue-700 font-extrabold',
+    border: 'border-blue-300',
+    badgeBg: 'bg-blue-500',
+    badgeText: 'text-white'
+  },
   F: {
-    code: 'F',
-    label: 'F',
-    shortLabel: 'F',
+    code: 'FLG',
+    label: 'FLG',
+    shortLabel: 'FLG',
     bg: 'bg-blue-50 hover:bg-blue-100',
     text: 'text-blue-700 font-extrabold',
     border: 'border-blue-300',
@@ -136,10 +148,20 @@ export const APONTAMENTO_STATUS_CONFIG: Record<ApontamentoStatus, StatusConfig> 
     badgeBg: 'bg-amber-500',
     badgeText: 'text-white'
   },
+  REM: {
+    code: 'REM',
+    label: 'REM',
+    shortLabel: 'REM',
+    bg: 'bg-purple-50 hover:bg-purple-100',
+    text: 'text-purple-700 font-extrabold',
+    border: 'border-purple-300',
+    badgeBg: 'bg-purple-600',
+    badgeText: 'text-white'
+  },
   HO: {
-    code: 'HO',
-    label: 'HO',
-    shortLabel: 'HO',
+    code: 'REM',
+    label: 'REM',
+    shortLabel: 'REM',
     bg: 'bg-purple-50 hover:bg-purple-100',
     text: 'text-purple-700 font-extrabold',
     border: 'border-purple-300',
@@ -1059,10 +1081,10 @@ export function ApontamentoPage() {
                               >
                                 <option value="" className="text-slate-400 bg-white font-normal">-</option>
                                 <option value="T" className="text-emerald-700 font-bold bg-white">T</option>
-                                <option value="F" className="text-blue-700 font-bold bg-white">F</option>
+                                <option value="FLG" className="text-blue-700 font-bold bg-white">FLG</option>
                                 <option value="ATM" className="text-rose-700 font-bold bg-white">ATM</option>
                                 <option value="FER" className="text-amber-700 font-bold bg-white">FER</option>
-                                <option value="HO" className="text-purple-700 font-bold bg-white">HO</option>
+                                <option value="REM" className="text-purple-700 font-bold bg-white">REM</option>
                                 <option value="BH" className="text-sky-700 font-bold bg-white">BH</option>
                                 <option value="DSR" className="text-indigo-700 font-bold bg-white">DSR</option>
                               </select>
@@ -1117,9 +1139,9 @@ export function ApontamentoPage() {
                 >
                   <option value="FER">FER</option>
                   <option value="T">T</option>
-                  <option value="F">F</option>
+                  <option value="FLG">FLG</option>
                   <option value="ATM">ATM</option>
-                  <option value="HO">HO</option>
+                  <option value="REM">REM</option>
                   <option value="BH">BH</option>
                   <option value="DSR">DSR</option>
                 </select>
