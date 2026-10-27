@@ -125,6 +125,16 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
     return name.replace(/^\d+\.\s*/, '').trim()
   }
 
+  // Lista de modais filtrada por busca (permitindo buscar pelo nome original ou sem numeração)
+  const filteredModals = useMemo(() => {
+    if (!matrix) return []
+    if (!searchModal.trim()) return matrix.modals
+    const term = searchModal.toLowerCase()
+    return matrix.modals.filter(m => 
+      m.toLowerCase().includes(term) || cleanModalName(m).toLowerCase().includes(term)
+    )
+  }, [matrix, searchModal])
+
   // Dias ativos filtrados pelo Calendário
   const activeFilteredDays = useMemo(() => {
     if (!matrix || !matrix.days) return []
