@@ -1242,6 +1242,7 @@ export const PmtsPage: React.FC = () => {
     const isMasterOrAdmin =
       currentUser?.id === 'admin-master' ||
       currentUser?.email === 'johansson.gomes@magazineluiza.com.br' ||
+      currentUser?.email === 'joh_gomes@magalog.com.br' ||
       currentUser?.role === 'admin'
 
     const currentUserId = currentUser?.colaborador_id || currentUser?.id

@@ -218,7 +218,7 @@
     "email": "joh_gomes@magalog.com.br",
     "name": "JOHANSSON MARTINS DE MENESES G",
     "cargo": "COORDENADOR LOGISTICA",
-    "role": "COORDENADOR LOGISTICA",
+    "role": "admin",
     "password_hash": "123456",
     "allowed_pages": [
       "dashboard",
@@ -228,7 +228,9 @@
       "agenda",
       "budget",
       "inventory",
-      "links"
+      "settings",
+      "links",
+      "users"
     ],
     "active": true,
     "dados_colaborador": {

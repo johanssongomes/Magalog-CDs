@@ -815,6 +815,7 @@ export function ApontamentoPage() {
     const isMasterOrAdmin =
       user?.id === 'admin-master' ||
       user?.email === 'johansson.gomes@magazineluiza.com.br' ||
+      user?.email === 'joh_gomes@magalog.com.br' ||
       user?.role === 'admin'
 
     const currentUserId = user?.colaborador_id || user?.id

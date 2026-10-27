@@ -423,7 +423,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!currentStored) return
       try {
         const u = JSON.parse(currentStored)
-        if (!u?.email || u.email === 'johansson.gomes@magazineluiza.com.br') return
+        const isMaster = u?.email === 'johansson.gomes@magazineluiza.com.br' || u?.email === 'joh_gomes@magalog.com.br'
+        if (!u?.email || isMaster) return
 
         const { data: latest } = await supabase
           .from('app_users')
@@ -580,13 +581,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const cleanPass = password.trim()
 
       // 1. Verificação de Acesso Mestre / Primeiro Acesso
-      if (cleanEmail === 'johansson.gomes@magazineluiza.com.br' && cleanPass === '12345') {
+      const isMasterEmail = cleanEmail === 'johansson.gomes@magazineluiza.com.br' || cleanEmail === 'joh_gomes@magalog.com.br'
+      if (isMasterEmail && (cleanPass === '12345' || cleanPass === '123456')) {
         // Tenta também cadastrar ou logar no Supabase silenciosamente
         try {
           await supabase.auth.signUp({
             email: cleanEmail,
             password: cleanPass,
-            options: { data: { name: 'Johansson Gomes', role: 'admin' } }
+            options: { data: { name: 'JOHANSSON MARTINS DE MENESES GOMES', role: 'admin' } }
           })
           await supabase.auth.signInWithPassword({
             email: cleanEmail,
@@ -597,9 +599,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         const adminMaster: AppUserProfile = {
-          id: 'admin-master',
+          id: cleanEmail === 'joh_gomes@magalog.com.br' ? '169959' : 'admin-master',
+          colaborador_id: '169959',
           email: cleanEmail,
-          name: 'Johansson Gomes',
+          name: 'JOHANSSON MARTINS DE MENESES GOMES',
+          cargo: 'COORDENADOR LOGISTICA',
           role: 'admin',
           allowed_pages: DEFAULT_ROLE_PAGES.admin,
           active: true
@@ -749,7 +753,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (pageId === 'profile') return true
 
     // Acesso irrestrito apenas para o Admin Master do sistema
-    if (user.id === 'admin-master' || user.email === 'johansson.gomes@magazineluiza.com.br') return true
+    if (
+      user.id === 'admin-master' ||
+      user.email === 'johansson.gomes@magazineluiza.com.br' ||
+      user.email === 'joh_gomes@magalog.com.br'
+    ) return true
 
     // Verifica permissão da página principal
     let pageAllowed = false
