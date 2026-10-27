@@ -610,14 +610,14 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
           ========================================================================= */}
       <div className="relative border border-slate-200 rounded-xl overflow-hidden shadow-2xs bg-white">
         <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-          <table className="w-full text-left border-collapse text-[11px] font-sans">
+          <table className={`${activeFilteredDays.length < 15 ? 'w-auto' : 'w-full'} text-left border-collapse text-[11px] font-sans`}>
             {/* Cabeçalho da Tabela */}
             <thead className="sticky top-0 z-30 bg-[#e0f2fe] border-b border-sky-300">
               <tr>
                 {/* Coluna 1: Data (Fixa à esquerda) */}
                 <th 
                   scope="col"
-                  className="sticky left-0 z-40 bg-[#e0f2fe] px-3 py-2 font-bold text-slate-800 border-r border-sky-200 min-w-[170px] shadow-[2px_0_4px_rgba(0,0,0,0.03)]"
+                  className="sticky left-0 z-40 bg-[#e0f2fe] px-3 py-2 font-bold text-slate-800 border-r border-sky-200 min-w-[170px] w-[170px] shadow-[2px_0_4px_rgba(0,0,0,0.03)]"
                 >
                   <div className="flex items-center justify-between">
                     <span>Data</span>
@@ -632,7 +632,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                     <th
                       key={d.dayStr}
                       scope="col"
-                      className={`px-1.5 py-1 text-center font-normal min-w-[38px] border-r border-sky-200/80 ${
+                      className={`px-2 py-1 text-center font-normal min-w-[46px] w-[52px] border-r border-sky-200/80 ${
                         isWeekend ? 'bg-sky-200/50' : ''
                       }`}
                     >
@@ -647,7 +647,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                 {/* Coluna Final: Total Geral (Fixa à direita) */}
                 <th
                   scope="col"
-                  className="sticky right-0 z-40 bg-[#e0f2fe] px-3 py-2 text-right font-bold text-slate-900 border-l border-sky-200 min-w-[95px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]"
+                  className="sticky right-0 z-40 bg-[#e0f2fe] px-3 py-2 text-right font-bold text-slate-900 border-l border-sky-200 min-w-[95px] w-[105px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]"
                 >
                   Total Geral
                 </th>
