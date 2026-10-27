@@ -235,7 +235,9 @@ export function ApontamentoPage() {
   const [selectedSetores, setSelectedSetores] = useState<string[]>([])
   const [selectedTurnos, setSelectedTurnos] = useState<string[]>([])
   const [selectedCargos, setSelectedCargos] = useState<string[]>([])
-  const [openFilterDropdown, setOpenFilterDropdown] = useState<'setor' | 'turno' | 'cargo' | null>(null)
+  const [selectedSupervisores, setSelectedSupervisores] = useState<string[]>([])
+  const [selectedLideres, setSelectedLideres] = useState<string[]>([])
+  const [openFilterDropdown, setOpenFilterDropdown] = useState<'setor' | 'turno' | 'cargo' | 'supervisor' | 'lider' | null>(null)
 
   // Filtro Interativo de Calendário (Dias e Período)
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false)
@@ -716,6 +718,29 @@ export function ApontamentoPage() {
     }
   }
 
+  // Listas únicas de Supervisores e Líderes para os filtros
+  const supervisoresUnicos = useMemo(() => {
+    const s = new Set<string>()
+    colaboradores.forEach(c => {
+      const lead = getLeadershipNames(c)
+      if (lead.supervisorFirstName && lead.supervisorFirstName !== '-') {
+        s.add(lead.supervisorFirstName)
+      }
+    })
+    return Array.from(s).sort()
+  }, [colaboradores, colabMapById])
+
+  const lideresUnicos = useMemo(() => {
+    const s = new Set<string>()
+    colaboradores.forEach(c => {
+      const lead = getLeadershipNames(c)
+      if (lead.liderFirstName && lead.liderFirstName !== '-') {
+        s.add(lead.liderFirstName)
+      }
+    })
+    return Array.from(s).sort()
+  }, [colaboradores, colabMapById])
+
   // Filtragem dos colaboradores respeitando hierarquia de liderança e ordenando por Setor, Turno e Cargo
   const filteredColaboradores = useMemo(() => {
     const isMasterOrAdmin =
@@ -735,7 +760,7 @@ export function ApontamentoPage() {
         }
       }
 
-      // 2. Filtros de interface (Busca, Setor, Turno, Cargo)
+      // 2. Filtros de interface (Busca, Setor, Turno, Cargo, Liderança)
       const q = search.toLowerCase().trim()
       const matchSearch =
         !search ||
@@ -752,7 +777,11 @@ export function ApontamentoPage() {
       const cCargo = (c.cargo || '').trim()
       const matchCargo = selectedCargos.length === 0 || selectedCargos.includes(cCargo)
 
-      return matchSearch && matchSetor && matchTurno && matchCargo
+      const leadInfo = getLeadershipNames(c)
+      const matchSupervisor = selectedSupervisores.length === 0 || selectedSupervisores.includes(leadInfo.supervisorFirstName)
+      const matchLider = selectedLideres.length === 0 || selectedLideres.includes(leadInfo.liderFirstName)
+
+      return matchSearch && matchSetor && matchTurno && matchCargo && matchSupervisor && matchLider
     })
 
     // Classificação ordenada por Setor -> Turno -> Cargo -> Nome
@@ -773,7 +802,7 @@ export function ApontamentoPage() {
       const nomeB = (b.contratado || '').trim().toLowerCase()
       return nomeA.localeCompare(nomeB, 'pt-BR')
     })
-  }, [colaboradores, search, selectedSetores, selectedTurnos, selectedCargos, user])
+  }, [colaboradores, search, selectedSetores, selectedTurnos, selectedCargos, selectedSupervisores, selectedLideres, user, colabMapById])
 
   // Navegação de Mês
   const handlePrevMonth = () => {
@@ -1307,13 +1336,121 @@ export function ApontamentoPage() {
             )}
           </div>
 
+          {/* Filtro Múltipla Escolha: SUPERVISOR */}
+          <div className="relative">
+            <button
+              onClick={() => setOpenFilterDropdown(openFilterDropdown === 'supervisor' ? null : 'supervisor')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
+                selectedSupervisores.length > 0
+                  ? 'bg-purple-50 border-purple-300 text-purple-700'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Users size={13} className="text-slate-400" />
+              <span>Supervisor {selectedSupervisores.length > 0 ? `(${selectedSupervisores.length})` : ''}</span>
+              <ChevronDown size={12} className="text-slate-400" />
+            </button>
+
+            {openFilterDropdown === 'supervisor' && (
+              <div className="absolute left-0 mt-1.5 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1 max-h-60 overflow-y-auto">
+                <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100">
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase">Filtrar por Supervisor</span>
+                  {selectedSupervisores.length > 0 && (
+                    <button
+                      onClick={() => setSelectedSupervisores([])}
+                      className="text-[10px] text-purple-600 hover:underline font-bold"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+                {supervisoresUnicos.length === 0 ? (
+                  <div className="px-2 py-2 text-xs text-slate-400 text-center">Nenhum supervisor encontrado</div>
+                ) : (
+                  supervisoresUnicos.map(sup => {
+                    const checked = selectedSupervisores.includes(sup)
+                    return (
+                      <label
+                        key={sup}
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 text-xs font-medium text-slate-700 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleMultiSelect(sup, selectedSupervisores, setSelectedSupervisores)}
+                          className="rounded-sm border-slate-300 text-purple-600 focus:ring-0 cursor-pointer"
+                        />
+                        <span className="truncate">{sup}</span>
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Filtro Múltipla Escolha: LÍDER */}
+          <div className="relative">
+            <button
+              onClick={() => setOpenFilterDropdown(openFilterDropdown === 'lider' ? null : 'lider')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
+                selectedLideres.length > 0
+                  ? 'bg-sky-50 border-sky-300 text-sky-700'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Users size={13} className="text-slate-400" />
+              <span>Líder {selectedLideres.length > 0 ? `(${selectedLideres.length})` : ''}</span>
+              <ChevronDown size={12} className="text-slate-400" />
+            </button>
+
+            {openFilterDropdown === 'lider' && (
+              <div className="absolute left-0 mt-1.5 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1 max-h-60 overflow-y-auto">
+                <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100">
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase">Filtrar por Líder</span>
+                  {selectedLideres.length > 0 && (
+                    <button
+                      onClick={() => setSelectedLideres([])}
+                      className="text-[10px] text-sky-600 hover:underline font-bold"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+                {lideresUnicos.length === 0 ? (
+                  <div className="px-2 py-2 text-xs text-slate-400 text-center">Nenhum líder encontrado</div>
+                ) : (
+                  lideresUnicos.map(lid => {
+                    const checked = selectedLideres.includes(lid)
+                    return (
+                      <label
+                        key={lid}
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 text-xs font-medium text-slate-700 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleMultiSelect(lid, selectedLideres, setSelectedLideres)}
+                          className="rounded-sm border-slate-300 text-sky-600 focus:ring-0 cursor-pointer"
+                        />
+                        <span className="truncate">{lid}</span>
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Limpar todos os filtros ativos */}
-          {(selectedSetores.length > 0 || selectedTurnos.length > 0 || selectedCargos.length > 0 || search || selectedDays.length > 0 || startDateFilter || endDateFilter) && (
+          {(selectedSetores.length > 0 || selectedTurnos.length > 0 || selectedCargos.length > 0 || selectedSupervisores.length > 0 || selectedLideres.length > 0 || search || selectedDays.length > 0 || startDateFilter || endDateFilter) && (
             <button
               onClick={() => {
                 setSelectedSetores([])
                 setSelectedTurnos([])
                 setSelectedCargos([])
+                setSelectedSupervisores([])
+                setSelectedLideres([])
                 setSearch('')
                 setSelectedDays([])
                 setStartDateFilter('')
