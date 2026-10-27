@@ -159,6 +159,7 @@ export interface OnlineUser {
   email: string
   role: UserRole
   cargo?: string
+  avatar_url?: string
   logged_at: string
   online_at: string
 }
@@ -531,6 +532,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             email: latest.email || key,
             role: latest.role || 'colaborador',
             cargo: latest.cargo || colabInfo?.cargo || latest.role || 'colaborador',
+            avatar_url: latest.avatar_url || getStoredAvatar(latest.email || key) || undefined,
             logged_at: latest.logged_at || latest.online_at || new Date().toISOString(),
             online_at: latest.online_at || new Date().toISOString()
           })
@@ -563,6 +565,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             email: user.email.toLowerCase(),
             role: user.role,
             cargo: user.cargo || user.role,
+            avatar_url: user.avatar_url || getStoredAvatar(user.email) || undefined,
             logged_at: loginTime,
             online_at: new Date().toISOString()
           })
@@ -572,7 +575,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       supabase.removeChannel(presenceChannel)
     }
-  }, [user?.email, user?.name, user?.role, user?.cargo, user?.id])
+  }, [user?.email, user?.name, user?.role, user?.cargo, user?.id, user?.avatar_url])
 
   const login = async (email: string, password: string): Promise<{ error?: string }> => {
     try {

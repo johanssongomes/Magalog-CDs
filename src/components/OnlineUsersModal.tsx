@@ -155,7 +155,7 @@ export const OnlineUsersModal: React.FC<OnlineUsersModalProps> = ({ isOpen, onCl
                   {/* Foto/Iniciais e Dados */}
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="relative shrink-0">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs border ${
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs border overflow-hidden ${
                         isYou 
                           ? 'bg-blue-600/20 border-blue-400/40 text-blue-300' 
                           : onlineUser.role === 'admin'
@@ -164,7 +164,15 @@ export const OnlineUsersModal: React.FC<OnlineUsersModalProps> = ({ isOpen, onCl
                           ? 'bg-cyan-600/20 border-cyan-400/40 text-cyan-300'
                           : 'bg-slate-800 border-slate-700 text-slate-300'
                       }`}>
-                        {initials}
+                        {onlineUser.avatar_url ? (
+                          <img 
+                            src={onlineUser.avatar_url} 
+                            alt={onlineUser.name} 
+                            className="w-full h-full object-cover" 
+                          />
+                        ) : (
+                          initials
+                        )}
                       </div>
                       {/* Ponto indicador de status online */}
                       <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5">

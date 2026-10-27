@@ -28,6 +28,9 @@ alter table app_users add column if not exists password_hash text;
 -- Adicionar coluna allowed_subpages para permissão granular de subpáginas
 alter table app_users add column if not exists allowed_subpages text[];
 
+-- Adicionar coluna avatar_url para foto de perfil visível a todos
+alter table app_users add column if not exists avatar_url text;
+
 -- 2. Habilitação de RLS
 alter table app_users enable row level security;
 
