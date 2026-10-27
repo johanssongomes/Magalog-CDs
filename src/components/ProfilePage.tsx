@@ -762,18 +762,36 @@ export function ProfilePage() {
             </div>
 
             {/* Informações de Acesso e Permissões */}
-            <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-3">
-              <h4 className="font-extrabold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck size={16} className="text-blue-600" />
-                Páginas Autorizadas
-              </h4>
-              <div className="flex flex-wrap gap-1.5">
-                {(user.allowed_pages || []).map((pageId) => (
-                  <span key={pageId} className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 capitalize">
-                    {pageId}
-                  </span>
-                ))}
+            <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-4">
+              <div className="space-y-2">
+                <h4 className="font-extrabold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck size={16} className="text-blue-600" />
+                  Páginas Autorizadas
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {(user.allowed_pages || []).map((pageId) => (
+                    <span key={pageId} className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 capitalize">
+                      {pageId}
+                    </span>
+                  ))}
+                </div>
               </div>
+
+              {user.allowed_subpages && user.allowed_subpages.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <h4 className="font-extrabold text-[11px] text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                    <ShieldCheck size={14} className="text-indigo-600" />
+                    Subpáginas & Módulos Específicos
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {user.allowed_subpages.map((subId) => (
+                      <span key={subId} className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        {subId}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

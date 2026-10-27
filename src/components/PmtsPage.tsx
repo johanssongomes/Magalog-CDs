@@ -215,7 +215,7 @@ const defaultColaboradorForm: ColaboradorItem = {
 }
 
 export const PmtsPage: React.FC = () => {
-  const { user: currentUser } = useAuth()
+  const { user: currentUser, hasPermission } = useAuth()
   const [activePageId, setActivePageId] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('magalog_pmt_active_page_id')
@@ -1482,7 +1482,14 @@ export const PmtsPage: React.FC = () => {
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
         {/* Abas Superiores dos Módulos PMT */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-          {PMT_PAGES_CONFIG.map((page) => {
+          {PMT_PAGES_CONFIG.filter(page => {
+            const subId = page.id === 1 ? 'sub-pmt-expedicao' :
+                          page.id === 2 ? 'sub-pmt-recebimento' :
+                          page.id === 3 ? 'sub-pmt-quadro' :
+                          page.id === 4 ? 'sub-pmt-promocionais' :
+                          page.id === 5 ? 'sub-pmt-tableau' : 'sub-pmt-carteira-cds'
+            return hasPermission('pmts', subId)
+          }).map((page) => {
             const isActive = activePageId === page.id
             return (
               <button
@@ -1515,13 +1522,13 @@ export const PmtsPage: React.FC = () => {
             </span>
             <div className="flex items-center gap-1.5 flex-wrap">
               {[
-                { id: 'dashboard', label: 'Dashboard' },
-                { id: 'pg1', label: 'Quadro TT' },
-                { id: 'pg2', label: 'BH' },
-                { id: 'pg3', label: 'Controle PADU' },
-                { id: 'pg4', label: 'Qd Médio' },
-                { id: 'pg5', label: 'Apontamento' }
-              ].map((sub) => {
+                { id: 'dashboard', label: 'Dashboard', subId: 'sub-quadro-dashboard' },
+                { id: 'pg1', label: 'Quadro TT', subId: 'sub-quadro-tt' },
+                { id: 'pg2', label: 'BH', subId: 'sub-quadro-bh' },
+                { id: 'pg3', label: 'Controle PADU', subId: 'sub-quadro-padu' },
+                { id: 'pg4', label: 'Qd Médio', subId: 'sub-quadro-medio' },
+                { id: 'pg5', label: 'Apontamento', subId: 'sub-apontamento' }
+              ].filter(sub => hasPermission('pmts', sub.subId)).map((sub) => {
                 const isSubActive = quadroSubPage === sub.id
                 return (
                   <button

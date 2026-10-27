@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useAuth } from '../lib/authContext'
 import {
   DollarSign,
   TrendingUp,
@@ -194,6 +195,7 @@ const INITIAL_CARD_EXPENSES: CorporateCardExpense[] = [
 ]
 
 export const BudgetManagementPage: React.FC = () => {
+  const { hasPermission } = useAuth()
   const [activeSubPage, setActiveSubPage] = useState<BudgetSubPage>('visao_geral')
   const [selectedYear, setSelectedYear] = useState('2026')
   const [selectedMonth, setSelectedMonth] = useState('10')
@@ -341,9 +343,9 @@ export const BudgetManagementPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Barra de Navegação das 6 Subpáginas */}
+      {/* Barra de Navegação das Subpáginas */}
       <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-xs flex flex-wrap items-center gap-1.5 overflow-x-auto">
-        {subPages.map((sub) => {
+        {subPages.filter(sub => hasPermission('budget', `sub-budget-${sub.id}`)).map((sub) => {
           const isActive = activeSubPage === sub.id
           return (
             <button

@@ -50,6 +50,7 @@ export interface AppUserProfile {
   role: UserRole
   cargo?: string
   allowed_pages: string[]
+  allowed_subpages?: string[]
   active: boolean
   password_hash?: string
   avatar_url?: string
@@ -57,6 +58,50 @@ export interface AppUserProfile {
   phone?: string
   dados_colaborador?: ColaboradorData
 }
+
+// Subpáginas do sistema catalogadas por página principal
+export const AVAILABLE_SUBPAGES: { id: string; pageId: string; label: string }[] = [
+  // Gestão 360° (PMTs e Módulos)
+  { id: 'sub-pmt-expedicao', pageId: 'pmts', label: 'PMT Expedição' },
+  { id: 'sub-pmt-recebimento', pageId: 'pmts', label: 'PMT Recebimento' },
+  { id: 'sub-pmt-quadro', pageId: 'pmts', label: 'Quadro de Colaboradores' },
+  { id: 'sub-pmt-promocionais', pageId: 'pmts', label: 'Itens Promocionais • NE/NO/CO' },
+  { id: 'sub-pmt-tableau', pageId: 'pmts', label: 'Tableau Indicadores' },
+  { id: 'sub-pmt-carteira-cds', pageId: 'pmts', label: 'Carteira CDs • Looker' },
+  // Sub-abas do Quadro
+  { id: 'sub-quadro-dashboard', pageId: 'pmts', label: 'Quadro • Dashboard' },
+  { id: 'sub-quadro-tt', pageId: 'pmts', label: 'Quadro TT (Base & Cadastro)' },
+  { id: 'sub-quadro-bh', pageId: 'pmts', label: 'Quadro • Banco de Horas' },
+  { id: 'sub-quadro-padu', pageId: 'pmts', label: 'Quadro • Controle PADU' },
+  { id: 'sub-quadro-medio', pageId: 'pmts', label: 'Quadro Médio (Grade)' },
+  { id: 'sub-apontamento', pageId: 'pmts', label: 'Quadro • Apontamento Diário' },
+  // Gestão Orçamentária
+  { id: 'sub-budget-visao_geral', pageId: 'budget', label: 'Orçamento • Visão Geral' },
+  { id: 'sub-budget-orcamento_disponivel', pageId: 'budget', label: 'Orçamento • Disponível' },
+  { id: 'sub-budget-despesas_realizadas', pageId: 'budget', label: 'Orçamento • Despesas Realizadas' },
+  { id: 'sub-budget-compromissos_futuros', pageId: 'budget', label: 'Orçamento • Compromissos' },
+  { id: 'sub-budget-previsto_x_realizado', pageId: 'budget', label: 'Orçamento • Previsto × Realizado' },
+  { id: 'sub-budget-historico_mensal', pageId: 'budget', label: 'Orçamento • Histórico Mensal' },
+  { id: 'sub-budget-cartao_corporativo', pageId: 'budget', label: 'Orçamento • Cartão Corporativo' },
+  // Equipamentos
+  { id: 'sub-catalog-dashboard', pageId: 'catalog', label: 'Equipamentos • Dashboard' },
+  { id: 'sub-catalog-list', pageId: 'catalog', label: 'Equipamentos • Cadastrados' },
+  { id: 'sub-catalog-maintenance', pageId: 'catalog', label: 'Equipamentos • Manutenções' },
+  { id: 'sub-catalog-reports', pageId: 'catalog', label: 'Equipamentos • Relatórios' },
+  // Central Operacional
+  { id: 'sub-settings-p1', pageId: 'settings', label: 'Central • Visão Geral & Fluxo' },
+  { id: 'sub-settings-p2', pageId: 'settings', label: 'Central • Docas & Expedição' },
+  { id: 'sub-settings-p3', pageId: 'settings', label: 'Central • Métricas de Turno' },
+  { id: 'sub-settings-p4', pageId: 'settings', label: 'Central • Auditoria' },
+  { id: 'sub-settings-p5', pageId: 'settings', label: 'Central • Parâmetros & Configurações' },
+  // Agenda & Reuniões
+  { id: 'sub-agenda-overview', pageId: 'agenda', label: 'Agenda • Visão Geral' },
+  { id: 'sub-agenda-calendar', pageId: 'agenda', label: 'Agenda • Calendário' },
+  { id: 'sub-agenda-meetings', pageId: 'agenda', label: 'Agenda • Reuniões' },
+  { id: 'sub-agenda-minutes', pageId: 'agenda', label: 'Agenda • Atas (ATAs)' },
+  { id: 'sub-agenda-actions', pageId: 'agenda', label: 'Agenda • Planos de Ação' },
+  { id: 'sub-agenda-events', pageId: 'agenda', label: 'Agenda • Eventos' }
+]
 
 // Permissões padrão por cargo / senioridade
 export const getDefaultPagesForCargo = (cargo: string): string[] => {
@@ -81,6 +126,11 @@ export const getDefaultPagesForCargo = (cargo: string): string[] => {
   }
   // Conferentes, Operadores, Assistentes, Médicos, etc.
   return ['dashboard', 'performance', 'agenda', 'inventory', 'links']
+}
+
+// Subpáginas padrão por cargo (todas liberadas por padrão no cargo correspondente)
+export const getDefaultSubpagesForCargo = (_cargo: string): string[] => {
+  return AVAILABLE_SUBPAGES.map(s => s.id)
 }
 
 export const DEFAULT_ROLE_PAGES: Record<string, string[]> = {
@@ -119,7 +169,7 @@ interface AuthContextType {
   onlineUsers: OnlineUser[]
   login: (email: string, password: string) => Promise<{ error?: string }>
   logout: () => Promise<void>
-  hasPermission: (pageId: string) => boolean
+  hasPermission: (pageId: string, subpageId?: string) => boolean
   refreshProfile: () => Promise<void>
   updateProfile: (updates: Partial<AppUserProfile>) => Promise<void>
 }
@@ -486,9 +536,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       })
 
+      // Filtrar e-mails legados/descontinuados ou duplicados (ex: e-mail antigo magazineluiza de Osvaldo)
+      const sanitized = list.filter(u => (u.email || '').toLowerCase() !== 'osvaldo.sobrinho@magazineluiza.com.br')
+
       // Ordenar por horário de login (mais recentes primeiro)
-      list.sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())
-      setOnlineUsers(list)
+      sanitized.sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())
+      setOnlineUsers(sanitized)
     }
 
     presenceChannel
@@ -690,21 +743,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false)
   }
 
-  const hasPermission = (pageId: string): boolean => {
+  const hasPermission = (pageId: string, subpageId?: string): boolean => {
     if (!user) return false
     // Página de Perfil Pessoal sempre permitida para todo usuário logado
     if (pageId === 'profile') return true
 
     // Acesso irrestrito apenas para o Admin Master do sistema
     if (user.id === 'admin-master' || user.email === 'johansson.gomes@magazineluiza.com.br') return true
-    
-    // Se o usuário tem uma lista personalizada de páginas permitidas, respeita a lista
+
+    // Verifica permissão da página principal
+    let pageAllowed = false
     if (Array.isArray(user.allowed_pages)) {
-      return user.allowed_pages.includes(pageId)
+      pageAllowed = user.allowed_pages.includes(pageId)
+    } else if (user.role === 'admin') {
+      pageAllowed = true
     }
 
-    if (user.role === 'admin') return true
-    return false
+    if (!pageAllowed) return false
+
+    // Se uma subpágina específica for consultada, verifica permissão nela
+    if (subpageId) {
+      if (user.role === 'admin') return true
+      if (Array.isArray(user.allowed_subpages)) {
+        return user.allowed_subpages.includes(subpageId)
+      }
+      // Se ainda não tiver restrição explícita de subpáginas definida, herda o acesso da página principal
+      return true
+    }
+
+    return true
   }
 
   const refreshProfile = async () => {

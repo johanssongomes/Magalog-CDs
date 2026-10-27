@@ -18,6 +18,8 @@ import {
   AlertCircle
 } from 'lucide-react'
 
+import { useAuth } from '../lib/authContext'
+
 interface OperationalPageItem {
   id: number
   label: string
@@ -71,8 +73,14 @@ const PAGES_CONFIG: OperationalPageItem[] = [
 ]
 
 export const CentralOperacionalPage: React.FC = () => {
-  const [activePageId, setActivePageId] = useState<number>(1)
-  const activePage = PAGES_CONFIG.find(p => p.id === activePageId) || PAGES_CONFIG[0]
+  const { hasPermission } = useAuth()
+  const visiblePages = PAGES_CONFIG.filter(page => hasPermission('settings', `sub-settings-p${page.id}`))
+  const [activePageId, setActivePageId] = useState<number>(() => visiblePages[0]?.id || 1)
+  
+  const currentActiveId = visiblePages.some(p => p.id === activePageId)
+    ? activePageId
+    : visiblePages[0]?.id || 1
+  const activePage = visiblePages.find(p => p.id === currentActiveId) || PAGES_CONFIG[0]
 
   return (
     <div className="space-y-5 w-full">
@@ -82,8 +90,8 @@ export const CentralOperacionalPage: React.FC = () => {
           ========================================================================= */}
       <div className="bg-white border border-slate-200 rounded-2xl p-2.5 shadow-xs">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-          {PAGES_CONFIG.map((page) => {
-            const isActive = activePageId === page.id
+          {visiblePages.map((page) => {
+            const isActive = currentActiveId === page.id
             return (
               <button
                 key={page.id}

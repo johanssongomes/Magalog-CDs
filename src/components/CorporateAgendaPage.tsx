@@ -65,8 +65,23 @@ interface SystemUserOption {
 }
 
 export const CorporateAgendaPage: React.FC = () => {
-  const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState<AgendaTab>('overview')
+  const { user, hasPermission } = useAuth()
+
+  const allAgendaTabs: { id: AgendaTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'overview', label: 'Visão Geral', icon: <Sparkles size={16} /> },
+    { id: 'calendar', label: 'Calendário', icon: <CalendarIcon size={16} /> },
+    { id: 'meetings', label: 'Reuniões', icon: <Users size={16} /> },
+    { id: 'minutes', label: 'Atas (ATAs)', icon: <FileText size={16} /> },
+    { id: 'actions', label: 'Planos de Ação', icon: <CheckSquare size={16} /> },
+    { id: 'events', label: 'Eventos', icon: <CalendarDays size={16} /> }
+  ]
+
+  const visibleAgendaTabs = allAgendaTabs.filter(tab => hasPermission('agenda', `sub-agenda-${tab.id}`))
+
+  const [activeTab, setActiveTab] = useState<AgendaTab>(() => visibleAgendaTabs[0]?.id || 'overview')
+  const currentTab = visibleAgendaTabs.some(t => t.id === activeTab)
+    ? activeTab
+    : visibleAgendaTabs[0]?.id || 'overview'
 
   // Lista de usuários cadastrados no sistema (Supabase app_users)
   const [registeredUsers, setRegisteredUsers] = useState<SystemUserOption[]>([])
@@ -626,19 +641,18 @@ export const CorporateAgendaPage: React.FC = () => {
       </div>
 
       {/* =========================================================================
-          3. BARRA DE NAVEGAÇÃO INTERNA COM AS 6 ABAS
+          3. BARRA DE NAVEGAÇÃO INTERNA COM AS ABAS PERMITIDAS
           ========================================================================= */}
       <div className="bg-white border border-slate-200 rounded-2xl p-2 shadow-xs">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-          {[
-            { id: 'overview', label: 'Visão Geral', icon: <Sparkles size={16} /> },
-            { id: 'calendar', label: 'Calendário', icon: <CalendarIcon size={16} /> },
-            { id: 'meetings', label: 'Reuniões', icon: <Users size={16} />, badge: meetings.length },
-            { id: 'minutes', label: 'Atas (ATAs)', icon: <FileText size={16} />, badge: minutes.length },
-            { id: 'actions', label: 'Planos de Ação', icon: <CheckSquare size={16} />, badge: actions.length },
-            { id: 'events', label: 'Eventos', icon: <CalendarDays size={16} />, badge: events.length }
-          ].map(tab => {
-            const isActive = activeTab === tab.id
+          {visibleAgendaTabs.map(tab => {
+            const isActive = currentTab === tab.id
+            const badgeCount = tab.id === 'meetings' ? meetings.length
+              : tab.id === 'minutes' ? minutes.length
+              : tab.id === 'actions' ? actions.length
+              : tab.id === 'events' ? events.length
+              : undefined
+
             return (
               <button
                 key={tab.id}
@@ -651,11 +665,11 @@ export const CorporateAgendaPage: React.FC = () => {
               >
                 <span>{tab.icon}</span>
                 <span>{tab.label}</span>
-                {tab.badge !== undefined && tab.badge > 0 && (
+                {badgeCount !== undefined && badgeCount > 0 && (
                   <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
                     isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
                   }`}>
-                    {tab.badge}
+                    {badgeCount}
                   </span>
                 )}
               </button>
@@ -669,7 +683,7 @@ export const CorporateAgendaPage: React.FC = () => {
           ========================================================================= */}
 
       {/* ---------------- ABA 1: VISÃO GERAL ---------------- */}
-      {activeTab === 'overview' && (
+      {currentTab === 'overview' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Próximas Reuniões */}
@@ -838,7 +852,7 @@ export const CorporateAgendaPage: React.FC = () => {
       )}
 
       {/* ---------------- ABA 2: CALENDÁRIO ---------------- */}
-      {activeTab === 'calendar' && (
+      {currentTab === 'calendar' && (
         <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-6">
           {/* Controles de Navegação do Calendário */}
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1009,7 +1023,7 @@ export const CorporateAgendaPage: React.FC = () => {
       )}
 
       {/* ---------------- ABA 3: REUNIÕES ---------------- */}
-      {activeTab === 'meetings' && (
+      {currentTab === 'meetings' && (
         <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="relative min-w-[240px]">
@@ -1175,7 +1189,7 @@ export const CorporateAgendaPage: React.FC = () => {
       )}
 
       {/* ---------------- ABA 4: ATAS (ATAS) ---------------- */}
-      {activeTab === 'minutes' && (
+      {currentTab === 'minutes' && (
         <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
@@ -1293,7 +1307,7 @@ export const CorporateAgendaPage: React.FC = () => {
       )}
 
       {/* ---------------- ABA 5: PLANOS DE AÇÃO ---------------- */}
-      {activeTab === 'actions' && (
+      {currentTab === 'actions' && (
         <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
@@ -1411,7 +1425,7 @@ export const CorporateAgendaPage: React.FC = () => {
       )}
 
       {/* ---------------- ABA 6: EVENTOS ---------------- */}
-      {activeTab === 'events' && (
+      {currentTab === 'events' && (
         <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>

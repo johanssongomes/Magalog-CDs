@@ -4,6 +4,7 @@ import {
   Wrench, Battery, Edit3, Trash2, X, LayoutDashboard, BarChart3, Clock, Truck, ShieldAlert, DollarSign
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/authContext'
 
 export type FinancialType = 'CAPEX' | 'OPEX'
 export type EquipmentStatus = 'Em Uso' | 'Manutenção' | 'Reserva (Não utilizado)'
@@ -138,7 +139,19 @@ const INITIAL_EQUIPMENTS: Equipment[] = [
 type SubPage = 'dashboard' | 'list' | 'maintenance' | 'reports'
 
 export const EquipmentsPage: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<SubPage>('dashboard')
+  const { hasPermission } = useAuth()
+  const allSubTabs: { id: SubPage; label: string; icon: React.ReactNode }[] = [
+    { id: 'dashboard', label: 'Dashboard de Equipamentos', icon: <LayoutDashboard size={15} /> },
+    { id: 'list', label: 'Equipamentos Cadastrados', icon: <Cpu size={15} /> },
+    { id: 'maintenance', label: 'Manutenções & Chamados', icon: <Wrench size={15} /> },
+    { id: 'reports', label: 'Relatórios & Exportações', icon: <BarChart3 size={15} /> }
+  ]
+  const visibleSubTabs = allSubTabs.filter(tab => hasPermission('catalog', `sub-catalog-${tab.id}`))
+
+  const [activeSubTab, setActiveSubTab] = useState<SubPage>(() => visibleSubTabs[0]?.id || 'dashboard')
+  const currentSubTab = visibleSubTabs.some(t => t.id === activeSubTab)
+    ? activeSubTab
+    : visibleSubTabs[0]?.id || 'dashboard'
 
   // Inicializa categorias com persistência
   const [categories, setCategories] = useState<string[]>(() => {
@@ -427,65 +440,43 @@ export const EquipmentsPage: React.FC = () => {
     <div className="space-y-5 w-full">
       {/* Sub-menu Horizontal de Navegação do Módulo Equipamentos */}
       <div className="bg-white border border-slate-200 p-1.5 rounded-2xl flex items-center gap-1.5 overflow-x-auto shadow-xs">
-        <button
-          onClick={() => setActiveSubTab('dashboard')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            activeSubTab === 'dashboard'
-              ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
-              : 'text-slate-600 hover:text-blue-600 hover:bg-slate-50 font-semibold'
-          }`}
-        >
-          <LayoutDashboard size={15} />
-          <span>Dashboard de Equipamentos</span>
-        </button>
+        {visibleSubTabs.map(tab => {
+          const isActive = currentSubTab === tab.id
+          let badgeContent: React.ReactNode = null
+          if (tab.id === 'list') {
+            badgeContent = (
+              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-blue-100 text-blue-800 font-mono">
+                {totalEquipments}
+              </span>
+            )
+          } else if (tab.id === 'maintenance' && manutencaoCount > 0) {
+            badgeContent = (
+              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-rose-100 text-rose-800 font-mono font-bold">
+                {manutencaoCount}
+              </span>
+            )
+          }
 
-        <button
-          onClick={() => setActiveSubTab('list')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            activeSubTab === 'list'
-              ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
-              : 'text-slate-600 hover:text-blue-600 hover:bg-slate-50 font-semibold'
-          }`}
-        >
-          <Cpu size={15} />
-          <span>Equipamentos Cadastrados</span>
-          <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-blue-100 text-blue-800 font-mono">
-            {totalEquipments}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab('maintenance')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            activeSubTab === 'maintenance'
-              ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
-              : 'text-slate-600 hover:text-blue-600 hover:bg-slate-50 font-semibold'
-          }`}
-        >
-          <Wrench size={15} />
-          <span>Manutenções & Chamados</span>
-          {manutencaoCount > 0 && (
-            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-rose-100 text-rose-800 font-mono font-bold">
-              {manutencaoCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab('reports')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            activeSubTab === 'reports'
-              ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
-              : 'text-slate-600 hover:text-blue-600 hover:bg-slate-50 font-semibold'
-          }`}
-        >
-          <BarChart3 size={15} />
-          <span>Relatório de Ativos</span>
-        </button>
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                isActive
+                  ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+                  : 'text-slate-600 hover:text-blue-600 hover:bg-slate-50 font-semibold'
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+              {badgeContent}
+            </button>
+          )
+        })}
       </div>
 
       {/* CONTEÚDO DA SUB-PÁGINA 1: DASHBOARD DE EQUIPAMENTOS */}
-      {activeSubTab === 'dashboard' && (
+      {currentSubTab === 'dashboard' && (
         <div className="space-y-5">
           {/* Top Banner Dashboard Equipamentos */}
           <div className="p-6 rounded-2xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-lg relative overflow-hidden">
@@ -631,7 +622,7 @@ export const EquipmentsPage: React.FC = () => {
       )}
 
       {/* CONTEÚDO DA SUB-PÁGINA 2: EQUIPAMENTOS CADASTRADOS */}
-      {activeSubTab === 'list' && (
+      {currentSubTab === 'list' && (
         <div className="space-y-4">
           {/* Top Header Cadastrados */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
@@ -813,7 +804,7 @@ export const EquipmentsPage: React.FC = () => {
       )}
 
       {/* CONTEÚDO DA SUB-PÁGINA 3: MANUTENÇÕES & CHAMADOS */}
-      {activeSubTab === 'maintenance' && (
+      {currentSubTab === 'maintenance' && (
         <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div>
@@ -858,7 +849,7 @@ export const EquipmentsPage: React.FC = () => {
       )}
 
       {/* CONTEÚDO DA SUB-PÁGINA 4: RELATÓRIO DE ATIVOS */}
-      {activeSubTab === 'reports' && (
+      {currentSubTab === 'reports' && (
         <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div>

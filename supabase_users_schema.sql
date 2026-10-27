@@ -25,6 +25,9 @@ alter table app_users add constraint app_users_role_check
 -- Adicionar coluna password_hash caso a tabela já exista
 alter table app_users add column if not exists password_hash text;
 
+-- Adicionar coluna allowed_subpages para permissão granular de subpáginas
+alter table app_users add column if not exists allowed_subpages text[];
+
 -- 2. Habilitação de RLS
 alter table app_users enable row level security;
 

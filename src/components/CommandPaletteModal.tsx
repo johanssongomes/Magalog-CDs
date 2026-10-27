@@ -275,7 +275,7 @@ interface CommandPaletteModalProps {
   isOpen: boolean
   onClose: () => void
   onNavigate: (tabId: string, pmtPageId?: number, quadroSubPage?: 'dashboard' | 'pg1' | 'pg2' | 'pg3' | 'pg4' | 'pg5') => void
-  hasPermission: (tabId: string) => boolean
+  hasPermission: (tabId: string, subpageId?: string) => boolean
 }
 
 export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
@@ -288,9 +288,15 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Filtra de acordo com o que o usuário tem permissão
+  // Filtra de acordo com o que o usuário tem permissão (página e subpágina)
   const permittedTargets = useMemo(() => {
-    return ALL_NAVIGATION_TARGETS.filter(target => hasPermission(target.tabId))
+    return ALL_NAVIGATION_TARGETS.filter(target => {
+      // Se for subpágina (prefixo sub-), valida a subpágina
+      if (target.id.startsWith('sub-')) {
+        return hasPermission(target.tabId, target.id)
+      }
+      return hasPermission(target.tabId)
+    })
   }, [hasPermission])
 
   // Busca fuzzy / por palavras-chave

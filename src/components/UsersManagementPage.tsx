@@ -6,6 +6,8 @@ import {
   type UserRole, 
   type ColaboradorData,
   getDefaultPagesForCargo,
+  getDefaultSubpagesForCargo,
+  AVAILABLE_SUBPAGES,
   mapCargoToValidRole
 } from '../lib/authContext'
 import { OnlineUsersModal } from './OnlineUsersModal'
@@ -144,6 +146,7 @@ export const UsersManagementPage: React.FC = () => {
   const [formPassword, setFormPassword] = useState('')
   const [formCargo, setFormCargo] = useState('CONFERENTE')
   const [formAllowedPages, setFormAllowedPages] = useState<string[]>([])
+  const [formAllowedSubpages, setFormAllowedSubpages] = useState<string[]>([])
   const [formActive, setFormActive] = useState(true)
   const [formColaboradorData, setFormColaboradorData] = useState<ColaboradorData>(defaultColaboradorForm)
   const [saving, setSaving] = useState(false)
@@ -264,6 +267,7 @@ export const UsersManagementPage: React.FC = () => {
                   cargo: localItem.cargo || u.cargo,
                   role: localItem.role || u.role,
                   allowed_pages: localItem.allowed_pages !== undefined ? localItem.allowed_pages : u.allowed_pages,
+                  allowed_subpages: localItem.allowed_subpages !== undefined ? localItem.allowed_subpages : u.allowed_subpages,
                   active: localItem.active !== undefined ? localItem.active : u.active,
                   dados_colaborador: { ...(u.dados_colaborador || {}), ...(localItem.dados_colaborador || {}) }
                 }
@@ -347,6 +351,7 @@ export const UsersManagementPage: React.FC = () => {
               role: dbItem.role || u.role || u.cargo,
               cargo: u.cargo || dbItem.cargo || dbItem.role,
               allowed_pages: dbItem.allowed_pages || u.allowed_pages,
+              allowed_subpages: dbItem.allowed_subpages || u.allowed_subpages || getDefaultSubpagesForCargo(u.cargo || 'CONFERENTE'),
               active: dbItem.active !== undefined ? dbItem.active : u.active,
               avatar_url: dbItem.avatar_url || u.avatar_url,
               dados_colaborador: finalDadosColaborador
@@ -355,6 +360,7 @@ export const UsersManagementPage: React.FC = () => {
 
           return {
             ...u,
+            allowed_subpages: u.allowed_subpages || getDefaultSubpagesForCargo(u.cargo || 'CONFERENTE'),
             avatar_url: u.avatar_url,
             dados_colaborador: finalDadosColaborador
           }
@@ -387,6 +393,7 @@ export const UsersManagementPage: React.FC = () => {
               role: finalCargo,
               cargo: finalCargo,
               allowed_pages: d.allowed_pages || getDefaultPagesForCargo(finalCargo),
+              allowed_subpages: d.allowed_subpages || getDefaultSubpagesForCargo(finalCargo),
               active: d.active !== false,
               avatar_url: d.avatar_url,
               dados_colaborador: finalColab
@@ -454,6 +461,7 @@ export const UsersManagementPage: React.FC = () => {
     setFormPassword('123456') // Senha padrão solicitada
     setFormCargo(initialCargo)
     setFormAllowedPages(getDefaultPagesForCargo(initialCargo))
+    setFormAllowedSubpages(getDefaultSubpagesForCargo(initialCargo))
     setFormActive(true)
     setFormColaboradorData({
       ...defaultColaboradorForm,
@@ -482,6 +490,7 @@ export const UsersManagementPage: React.FC = () => {
     const userCargo = u.cargo || u.role || colab.cargo || 'CONFERENTE'
     setFormCargo(userCargo)
     setFormAllowedPages(u.allowed_pages || getDefaultPagesForCargo(userCargo))
+    setFormAllowedSubpages(u.allowed_subpages || getDefaultSubpagesForCargo(userCargo))
     setFormActive(u.active !== false)
     setFormColaboradorData({
       ...colab,
@@ -496,6 +505,7 @@ export const UsersManagementPage: React.FC = () => {
   const handleCargoChange = (newCargo: string) => {
     setFormCargo(newCargo)
     setFormAllowedPages(getDefaultPagesForCargo(newCargo))
+    setFormAllowedSubpages(getDefaultSubpagesForCargo(newCargo))
     setFormColaboradorData(prev => ({ ...prev, cargo: newCargo }))
   }
 
@@ -505,6 +515,15 @@ export const UsersManagementPage: React.FC = () => {
       setFormAllowedPages(formAllowedPages.filter(id => id !== pageId))
     } else {
       setFormAllowedPages([...formAllowedPages, pageId])
+    }
+  }
+
+  // Alterna permissão de subpágina específica
+  const toggleSubpagePermission = (subpageId: string) => {
+    if (formAllowedSubpages.includes(subpageId)) {
+      setFormAllowedSubpages(formAllowedSubpages.filter(id => id !== subpageId))
+    } else {
+      setFormAllowedSubpages([...formAllowedSubpages, subpageId])
     }
   }
 
@@ -535,6 +554,7 @@ export const UsersManagementPage: React.FC = () => {
         cargo: formCargo,
         password_hash: formPassword || '123456',
         allowed_pages: formAllowedPages,
+        allowed_subpages: formAllowedSubpages,
         active: formActive,
         dados_colaborador: updatedColaborador
       }
@@ -551,16 +571,23 @@ export const UsersManagementPage: React.FC = () => {
 
       // 2. Persistir no Supabase se disponível
       try {
-        const payloadSupabase = {
+        const payloadSupabase: any = {
           email: finalEmail,
           name: updatedUserProfile.name,
           role: mapCargoToValidRole(formCargo),
           allowed_pages: formAllowedPages,
+          allowed_subpages: formAllowedSubpages,
           active: formActive,
           password_hash: updatedUserProfile.password_hash,
           updated_at: new Date().toISOString()
         }
-        const { error: upsertErr } = await supabase.from('app_users').upsert([payloadSupabase], { onConflict: 'email' })
+        let { error: upsertErr } = await supabase.from('app_users').upsert([payloadSupabase], { onConflict: 'email' })
+        // Se a coluna allowed_subpages ainda não existir no schema do Supabase, retenta sem a coluna para não quebrar
+        if (upsertErr && upsertErr.message?.includes('allowed_subpages')) {
+          delete payloadSupabase.allowed_subpages
+          const retry = await supabase.from('app_users').upsert([payloadSupabase], { onConflict: 'email' })
+          upsertErr = retry.error
+        }
         if (upsertErr) {
           console.error('Erro ao salvar no app_users Supabase:', upsertErr)
         }
@@ -1186,6 +1213,7 @@ export const UsersManagementPage: React.FC = () => {
                 <th className="px-4 py-3">Usuário & E-mail</th>
                 <th className="px-4 py-3">Cargo (Permissão)</th>
                 <th className="px-4 py-3">Páginas Autorizadas</th>
+                <th className="px-4 py-3">Subpáginas Autorizadas</th>
                 <th className="px-4 py-3">Presença</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-6 py-3 text-right min-w-[120px]">Ações</th>
@@ -1194,7 +1222,7 @@ export const UsersManagementPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-10 text-slate-400">
+                  <td colSpan={8} className="text-center py-10 text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
                       <span>Carregando usuários da planilha Modelo 1...</span>
@@ -1203,7 +1231,7 @@ export const UsersManagementPage: React.FC = () => {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-10 text-slate-400">
+                  <td colSpan={8} className="text-center py-10 text-slate-400">
                     Nenhum colaborador ou usuário encontrado para a busca.
                   </td>
                 </tr>
@@ -1283,6 +1311,25 @@ export const UsersManagementPage: React.FC = () => {
                                 </span>
                               )
                             })
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Subpáginas Autorizadas */}
+                      <td className="px-4 py-3.5">
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {(!u.allowed_subpages || u.allowed_subpages.length >= AVAILABLE_SUBPAGES.length) ? (
+                            <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-medium text-[10px] border border-blue-200">
+                              Todas Liberadas ({AVAILABLE_SUBPAGES.length})
+                            </span>
+                          ) : u.allowed_subpages.length === 0 ? (
+                            <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-medium text-[10px] border border-rose-200">
+                              Nenhuma
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold text-[10px] border border-indigo-200" title={u.allowed_subpages.join(', ')}>
+                              {u.allowed_subpages.length} de {AVAILABLE_SUBPAGES.length} Subpáginas
+                            </span>
                           )}
                         </div>
                       </td>
@@ -1980,6 +2027,74 @@ export const UsersManagementPage: React.FC = () => {
                                   <span className="truncate">{page.label}</span>
                                 </span>
                               </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Subpáginas com Acesso Autorizado */}
+                      <div className="pt-2 border-t border-slate-200/80">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <FolderOpen size={14} className="text-slate-500" />
+                            Subpáginas & Módulos Internos Autorizados
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setFormAllowedSubpages(AVAILABLE_SUBPAGES.map(s => s.id))}
+                              className="text-[10px] text-blue-600 hover:text-blue-800 font-semibold hover:underline cursor-pointer"
+                            >
+                              Marcar Todas
+                            </button>
+                            <span className="text-slate-300">|</span>
+                            <button
+                              type="button"
+                              onClick={() => setFormAllowedSubpages([])}
+                              className="text-[10px] text-slate-500 hover:text-slate-700 font-semibold hover:underline cursor-pointer"
+                            >
+                              Desmarcar Todas
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Subpáginas organizadas por módulo */}
+                        <div className="space-y-3 p-3 bg-white border border-slate-200 rounded-xl max-h-72 overflow-y-auto">
+                          {AVAILABLE_PAGES.filter(p => AVAILABLE_SUBPAGES.some(s => s.pageId === p.id)).map(page => {
+                            const subpagesOfPage = AVAILABLE_SUBPAGES.filter(s => s.pageId === page.id)
+                            return (
+                              <div key={page.id} className="space-y-1.5 pb-2 border-b border-slate-100 last:border-b-0 last:pb-0">
+                                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-800">
+                                  {page.icon}
+                                  <span>{page.label}</span>
+                                  <span className="text-[10px] text-slate-400 font-normal">
+                                    ({subpagesOfPage.filter(s => formAllowedSubpages.includes(s.id)).length}/{subpagesOfPage.length} autorizadas)
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pl-4">
+                                  {subpagesOfPage.map(sub => {
+                                    const isSubChecked = formAllowedSubpages.includes(sub.id)
+                                    return (
+                                      <label
+                                        key={sub.id}
+                                        className={`flex items-center gap-2 p-1.5 rounded-lg border text-[11px] cursor-pointer transition-all ${
+                                          isSubChecked
+                                            ? 'bg-indigo-50/70 border-indigo-200 text-indigo-900 font-semibold'
+                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isSubChecked}
+                                          onChange={() => toggleSubpagePermission(sub.id)}
+                                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer scale-90"
+                                        />
+                                        <span className="truncate">{sub.label}</span>
+                                      </label>
+                                    )
+                                  })}
+                                </div>
+                              </div>
                             )
                           })}
                         </div>
