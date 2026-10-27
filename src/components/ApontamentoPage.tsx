@@ -660,7 +660,63 @@ export function ApontamentoPage() {
     return Array.from(s).sort()
   }, [colaboradores])
 
-  // Filtragem dos colaboradores respeitando hierarquia de liderança
+  // Mapeamento de Colaborador -> Primeiro Nome do Líder e Primeiro Nome do Supervisor
+  // 1. Cada colaborador tem idLider e nomeLider. Se o líder dele tiver cargo de Supervisor, o supervisor é o próprio líder.
+  // Se o líder dele for Líder de Logística/Movimentação, buscamos quem é o líder do líder (que é o Supervisor).
+  const colabMapById = useMemo(() => {
+    const map = new Map<string, any>()
+    colaboradores.forEach(c => {
+      const id = String(c.id || '').trim().toLowerCase()
+      if (id) map.set(id, c)
+    })
+    return map
+  }, [colaboradores])
+
+  const getFirstName = (fullName: string | undefined | null) => {
+    if (!fullName) return '-'
+    const clean = fullName.trim()
+    if (!clean) return '-'
+    const parts = clean.split(/\s+/)
+    const first = parts[0]
+    return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase()
+  }
+
+  const getLeadershipNames = (colab: any) => {
+    const directLeaderName = colab.nomeLider || ''
+    const directLeaderId = String(colab.idLider || '').trim().toLowerCase()
+    const directLeaderObj = directLeaderId ? colabMapById.get(directLeaderId) : null
+
+    let liderNome = directLeaderName
+    let supervisorNome = ''
+
+    if (directLeaderObj) {
+      const leaderCargo = (directLeaderObj.cargo || '').toUpperCase()
+      if (leaderCargo.includes('SUPERVISOR')) {
+        // Se o líder direto já é Supervisor
+        supervisorNome = directLeaderObj.contratado || directLeaderName
+        liderNome = colab.contratado === directLeaderObj.contratado ? '-' : directLeaderObj.contratado
+      } else {
+        // O líder direto é um Líder. Buscamos o líder desse líder (Supervisor)
+        liderNome = directLeaderObj.contratado || directLeaderName
+        const supId = String(directLeaderObj.idLider || '').trim().toLowerCase()
+        const supObj = supId ? colabMapById.get(supId) : null
+        if (supObj) {
+          supervisorNome = supObj.contratado || directLeaderObj.nomeLider || ''
+        } else {
+          supervisorNome = directLeaderObj.nomeLider || ''
+        }
+      }
+    } else {
+      liderNome = directLeaderName
+    }
+
+    return {
+      supervisorFirstName: getFirstName(supervisorNome),
+      liderFirstName: getFirstName(liderNome)
+    }
+  }
+
+  // Filtragem dos colaboradores respeitando hierarquia de liderança e ordenando por Setor, Turno e Cargo
   const filteredColaboradores = useMemo(() => {
     const isMasterOrAdmin =
       user?.id === 'admin-master' ||
@@ -670,7 +726,7 @@ export function ApontamentoPage() {
     const currentUserId = user?.colaborador_id || user?.id
     const allowedHierarchyIds = getHierarchyUserIds(currentUserId, colaboradores, isMasterOrAdmin)
 
-    return colaboradores.filter(c => {
+    const result = colaboradores.filter(c => {
       // 1. Filtro hierárquico (Líder / Supervisor / Coordenador)
       if (allowedHierarchyIds) {
         const cId = String(c.id || '').trim().toLowerCase()
@@ -697,6 +753,25 @@ export function ApontamentoPage() {
       const matchCargo = selectedCargos.length === 0 || selectedCargos.includes(cCargo)
 
       return matchSearch && matchSetor && matchTurno && matchCargo
+    })
+
+    // Classificação ordenada por Setor -> Turno -> Cargo -> Nome
+    return result.sort((a, b) => {
+      const setorA = (a.setor || a.gerencia || '').trim().toLowerCase()
+      const setorB = (b.setor || b.gerencia || '').trim().toLowerCase()
+      if (setorA !== setorB) return setorA.localeCompare(setorB, 'pt-BR')
+
+      const turnoA = (a.turno || '').trim().toLowerCase()
+      const turnoB = (b.turno || '').trim().toLowerCase()
+      if (turnoA !== turnoB) return turnoA.localeCompare(turnoB, 'pt-BR')
+
+      const cargoA = (a.cargo || '').trim().toLowerCase()
+      const cargoB = (b.cargo || '').trim().toLowerCase()
+      if (cargoA !== cargoB) return cargoA.localeCompare(cargoB, 'pt-BR')
+
+      const nomeA = (a.contratado || '').trim().toLowerCase()
+      const nomeB = (b.contratado || '').trim().toLowerCase()
+      return nomeA.localeCompare(nomeB, 'pt-BR')
     })
   }, [colaboradores, search, selectedSetores, selectedTurnos, selectedCargos, user])
 
@@ -730,7 +805,7 @@ export function ApontamentoPage() {
 
   // Exportar para CSV / Planilha
   const handleExportCSV = () => {
-    const headers = ['Setor', 'Turno', 'ID', 'Nome', 'Cargo', 'Débito ou Crédito', 'Saldo DSR']
+    const headers = ['Supervisor', 'Líder', 'Setor', 'Turno', 'ID', 'Nome', 'Cargo', 'Débito ou Crédito', 'Saldo DSR']
     monthDaysList.forEach(m => headers.push(`${m.weekdayName} (${m.dateStr})`))
 
     const rows: string[][] = [headers]
@@ -741,8 +816,11 @@ export function ApontamentoPage() {
       const saldoBh = bh?.saldoStr || '00:00h'
       const saldoDsr = calculateDsr(colabId)
       const colabApont = apontamentos[colabId] || {}
+      const leadInfo = getLeadershipNames(c)
 
       const row = [
+        leadInfo.supervisorFirstName,
+        leadInfo.liderFirstName,
         c.setor || c.gerencia || 'Geral CD 6994',
         c.turno || '1º Turno',
         colabId,
@@ -1263,25 +1341,31 @@ export function ApontamentoPage() {
               
               {/* Linha 1: Títulos das Colunas Fixas + Dias da Semana */}
               <tr className="bg-blue-600 text-white font-extrabold uppercase text-[11px] tracking-wider">
-                <th className="sticky left-0 z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[130px]">
+                <th className="sticky left-0 z-40 bg-blue-700 px-2.5 py-2.5 border-r border-blue-500 min-w-[95px] max-w-[95px]">
+                  Supervisor
+                </th>
+                <th className="sticky left-[95px] z-40 bg-blue-700 px-2.5 py-2.5 border-r border-blue-500 min-w-[95px] max-w-[95px]">
+                  Líder
+                </th>
+                <th className="sticky left-[190px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[130px]">
                   Setor
                 </th>
-                <th className="sticky left-[130px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[90px]">
+                <th className="sticky left-[320px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[80px]">
                   Turno
                 </th>
-                <th className="sticky left-[220px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[80px]">
+                <th className="sticky left-[400px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[80px]">
                   ID
                 </th>
-                <th className="sticky left-[300px] z-40 bg-blue-700 px-3.5 py-2.5 border-r border-blue-500 min-w-[220px]">
+                <th className="sticky left-[480px] z-40 bg-blue-700 px-3.5 py-2.5 border-r border-blue-500 min-w-[210px]">
                   Nome
                 </th>
-                <th className="sticky left-[520px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[160px]">
+                <th className="sticky left-[690px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[150px]">
                   Cargo
                 </th>
-                <th className="sticky left-[680px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[110px] text-center" title="Saldo atual consolidado do Banco de Horas">
+                <th className="sticky left-[840px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[105px] text-center" title="Saldo atual consolidado do Banco de Horas">
                   Débito / Crédito
                 </th>
-                <th className="sticky left-[790px] z-40 bg-blue-800 px-3 py-2.5 border-r-2 border-slate-400 min-w-[70px] text-center shadow-lg" title="Saldo de DSRs (Domingos trabalhados somam +1; DSR apontado subtrai -1)">
+                <th className="sticky left-[945px] z-40 bg-blue-800 px-3 py-2.5 border-r-2 border-slate-400 min-w-[65px] text-center shadow-lg" title="Saldo de DSRs (Domingos trabalhados somam +1; DSR apontado subtrai -1)">
                   DSR
                 </th>
 
@@ -1300,7 +1384,7 @@ export function ApontamentoPage() {
 
               {/* Linha 2: Sub-cabeçalho com Datas (DD/MM/AAAA) */}
               <tr className="bg-slate-200 text-slate-700 text-[10px] font-mono font-bold border-b border-slate-300">
-                <th colSpan={7} className="sticky left-0 z-40 bg-slate-200 border-r-2 border-slate-400 px-3 py-1 text-slate-500 text-right">
+                <th colSpan={9} className="sticky left-0 z-40 bg-slate-200 border-r-2 border-slate-400 px-3 py-1 text-slate-500 text-right">
                   Data do Apontamento &rarr;
                 </th>
                 {activeFilteredDays.map(m => (
@@ -1320,7 +1404,7 @@ export function ApontamentoPage() {
             <tbody className="divide-y divide-slate-100">
               {filteredColaboradores.length === 0 ? (
                 <tr>
-                  <td colSpan={7 + activeFilteredDays.length} className="p-12 text-center text-slate-500 font-medium">
+                  <td colSpan={9 + activeFilteredDays.length} className="p-12 text-center text-slate-500 font-medium">
                     Nenhum colaborador encontrado com os filtros selecionados.
                   </td>
                 </tr>
@@ -1333,6 +1417,7 @@ export function ApontamentoPage() {
                   const dsrBalance = calculateDsr(colabId)
                   const colabApont = apontamentos[colabId] || {}
                   const isEven = idx % 2 === 0
+                  const leadInfo = getLeadershipNames(colab)
 
                   return (
                     <tr
@@ -1341,23 +1426,37 @@ export function ApontamentoPage() {
                         isEven ? 'bg-white' : 'bg-slate-50/50'
                       }`}
                     >
-                      {/* 1. Setor */}
-                      <td className="sticky left-0 z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-700 font-medium truncate max-w-[130px]">
+                      {/* 1. Supervisor (Primeiro Nome) */}
+                      <td className="sticky left-0 z-20 bg-inherit px-2.5 py-2 border-r border-slate-200 text-slate-800 font-bold truncate max-w-[95px]" title={colab.nomeLider}>
+                        <span className="px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-800 border border-purple-200 text-[10px]">
+                          {leadInfo.supervisorFirstName}
+                        </span>
+                      </td>
+
+                      {/* 2. Líder (Primeiro Nome) */}
+                      <td className="sticky left-[95px] z-20 bg-inherit px-2.5 py-2 border-r border-slate-200 text-slate-800 font-bold truncate max-w-[95px]" title={colab.nomeLider}>
+                        <span className="px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-800 border border-sky-200 text-[10px]">
+                          {leadInfo.liderFirstName}
+                        </span>
+                      </td>
+
+                      {/* 3. Setor */}
+                      <td className="sticky left-[190px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-700 font-medium truncate max-w-[130px]">
                         {colab.setor || colab.gerencia || 'Geral CD 6994'}
                       </td>
 
-                      {/* 2. Turno */}
-                      <td className="sticky left-[130px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-600 font-medium whitespace-nowrap">
+                      {/* 4. Turno */}
+                      <td className="sticky left-[320px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-600 font-medium whitespace-nowrap">
                         {colab.turno || '1º Turno'}
                       </td>
 
-                      {/* 3. ID */}
-                      <td className="sticky left-[220px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 font-mono font-bold text-slate-800">
+                      {/* 5. ID */}
+                      <td className="sticky left-[400px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 font-mono font-bold text-slate-800">
                         {colabId}
                       </td>
 
-                      {/* 4. Nome + Ação de Marcar Férias */}
-                      <td className="sticky left-[300px] z-20 bg-inherit px-3.5 py-2 border-r border-slate-200 min-w-[220px]">
+                      {/* 6. Nome + Ação de Marcar Férias */}
+                      <td className="sticky left-[480px] z-20 bg-inherit px-3.5 py-2 border-r border-slate-200 min-w-[210px]">
                         <div className="flex items-center justify-between gap-1.5">
                           <span className="font-extrabold text-slate-900 truncate" title={colab.contratado}>
                             {colab.contratado}
@@ -1379,13 +1478,13 @@ export function ApontamentoPage() {
                         </div>
                       </td>
 
-                      {/* 5. Cargo */}
-                      <td className="sticky left-[520px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-600 font-medium truncate max-w-[160px]" title={colab.cargo}>
+                      {/* 7. Cargo */}
+                      <td className="sticky left-[690px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-600 font-medium truncate max-w-[150px]" title={colab.cargo}>
                         {colab.cargo}
                       </td>
 
-                      {/* 6. Débito ou Crédito (Saldo BH) */}
-                      <td className="sticky left-[680px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-center font-mono font-bold whitespace-nowrap">
+                      {/* 8. Débito ou Crédito (Saldo BH) */}
+                      <td className="sticky left-[840px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-center font-mono font-bold whitespace-nowrap">
                         <span className={`px-2 py-0.5 rounded-md text-[11px] ${
                           isDebito
                             ? 'bg-rose-50 text-rose-700 border border-rose-200'
@@ -1395,8 +1494,8 @@ export function ApontamentoPage() {
                         </span>
                       </td>
 
-                      {/* 7. Qnt de DSR (Calculado) */}
-                      <td className="sticky left-[790px] z-20 bg-slate-100 px-3 py-2 border-r-2 border-slate-400 text-center font-mono font-black text-xs shadow-md">
+                      {/* 9. Qnt de DSR (Calculado) */}
+                      <td className="sticky left-[945px] z-20 bg-slate-100 px-3 py-2 border-r-2 border-slate-400 text-center font-mono font-black text-xs shadow-md">
                         <span className={`px-2 py-0.5 rounded-full ${
                           dsrBalance > 0
                             ? 'bg-amber-100 text-amber-800 border border-amber-300'
