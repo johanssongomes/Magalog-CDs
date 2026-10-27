@@ -239,6 +239,22 @@ export function ApontamentoPage() {
   const [selectedLideres, setSelectedLideres] = useState<string[]>([])
   const [openFilterDropdown, setOpenFilterDropdown] = useState<'setor' | 'turno' | 'cargo' | 'supervisor' | 'lider' | null>(null)
 
+  // Ref para fechar dropdowns de filtros ao clicar fora
+  const filtersContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filtersContainerRef.current && !filtersContainerRef.current.contains(event.target as Node)) {
+        setOpenFilterDropdown(null)
+        setIsDateDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
   // Filtro Interativo de Calendário (Dias e Período)
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false)
   const [selectedDays, setSelectedDays] = useState<number[]>([])
@@ -601,6 +617,46 @@ export function ApontamentoPage() {
     persistApontamentos(updated)
   }
 
+  // Navegação rápida de matriz com teclas de seta e atalhos de preenchimento
+  const handleCellKeyDown = (
+    e: React.KeyboardEvent<HTMLSelectElement>,
+    colabIdx: number,
+    dayIdx: number,
+    colabId: string,
+    dayNumber: number
+  ) => {
+    // 1. Navegação pelas setas do teclado
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (colabIdx > 0) {
+        const target = document.getElementById(`apont-cell-${colabIdx - 1}-${dayIdx}`)
+        target?.focus()
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (colabIdx < filteredColaboradores.length - 1) {
+        const target = document.getElementById(`apont-cell-${colabIdx + 1}-${dayIdx}`)
+        target?.focus()
+      }
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      if (dayIdx > 0) {
+        const target = document.getElementById(`apont-cell-${colabIdx}-${dayIdx - 1}`)
+        target?.focus()
+      }
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      if (dayIdx < activeFilteredDays.length - 1) {
+        const target = document.getElementById(`apont-cell-${colabIdx}-${dayIdx + 1}`)
+        target?.focus()
+      }
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      // Limpar célula rapidamente com Delete ou Backspace
+      e.preventDefault()
+      handleCellChange(colabId, dayNumber, '')
+    }
+  }
+
   // Preencher intervalo (Férias, Home Office, etc.)
   const handleApplyInterval = () => {
     if (!intervalModal.colabId) return
@@ -935,7 +991,7 @@ export function ApontamentoPage() {
       </div>
 
       {/* 2. BARRA DE FILTROS E SELEÇÃO DE MÊS/ANO INTEGRADA (LAYOUT COMPACTO) */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-2.5 shadow-xs">
+      <div ref={filtersContainerRef} className="bg-white border border-slate-200 rounded-2xl p-2.5 shadow-xs">
         <div className="flex flex-wrap items-center gap-2">
           
           {/* Navegação Rápida de Mês e Ano */}
@@ -1658,7 +1714,7 @@ export function ApontamentoPage() {
                       </td>
 
                       {/* Células Diárias de Apontamento com Dropdown Rápido */}
-                      {activeFilteredDays.map(m => {
+                      {activeFilteredDays.map((m, dayIdx) => {
                         const currentStatus = colabApont[m.day] || ''
                         const cfg = currentStatus ? APONTAMENTO_STATUS_CONFIG[currentStatus as ApontamentoStatus] : null
 
@@ -1670,11 +1726,13 @@ export function ApontamentoPage() {
                             }`}
                           >
                             <div className="relative w-full h-full flex items-center justify-center">
-                                <select
+                              <select
+                                id={`apont-cell-${idx}-${dayIdx}`}
                                 value={currentStatus}
                                 onChange={(e) => handleCellChange(colabId, m.day, e.target.value as any)}
+                                onKeyDown={(e) => handleCellKeyDown(e, idx, dayIdx, colabId, m.day)}
                                 title={`${m.weekdayName} (${m.dateStr})`}
-                                className={`w-full py-1 text-center font-black rounded-md outline-hidden border transition cursor-pointer text-[11px] appearance-none ${
+                                className={`w-full py-1 text-center font-black rounded-md outline-hidden border transition cursor-pointer text-[11px] appearance-none focus:ring-2 focus:ring-blue-500 focus:z-10 ${
                                   cfg
                                     ? `${cfg.bg} ${cfg.text} ${cfg.border}`
                                     : 'bg-transparent text-slate-300 hover:bg-slate-100 border-transparent hover:border-slate-300'
