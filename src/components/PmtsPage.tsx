@@ -54,6 +54,7 @@ import { LookerCarteiraPage } from './LookerCarteiraPage'
 import { supabase } from '../lib/supabase'
 import { getPmtSummaryFromSupabase } from '../lib/pmtService'
 import { useAuth } from '../lib/authContext'
+import { getHierarchyUserIds } from '../lib/hierarchyService'
 
 export interface PmtPageItem {
   id: number
@@ -1236,16 +1237,35 @@ export const PmtsPage: React.FC = () => {
     setIsClearAllModalOpen(false)
   }
 
-  // Filtragem de colaboradores para Quadro (Suporta Múltipla Seleção)
-  const filteredColaboradores = colaboradoresList.filter(colab => {
-    const matchBusca = !buscaColaborador || 
-      colab.contratado.toLowerCase().includes(buscaColaborador.toLowerCase()) ||
-      colab.id.toLowerCase().includes(buscaColaborador.toLowerCase())
-    const matchCargo = filtrosCargo.length === 0 || filtrosCargo.includes(colab.cargo)
-    const matchCC = filtrosCentroCusto.length === 0 || filtrosCentroCusto.includes(colab.centroDeCusto || '(vazio)')
-    const matchGer = filtrosGerencia.length === 0 || filtrosGerencia.includes(colab.gerencia || '(vazio)')
-    return matchBusca && matchCargo && matchCC && matchGer
-  })
+  // Filtragem de colaboradores para Quadro (Suporta Múltipla Seleção e Hierarquia de Liderança)
+  const filteredColaboradores = useMemo(() => {
+    const isMasterOrAdmin =
+      currentUser?.id === 'admin-master' ||
+      currentUser?.email === 'johansson.gomes@magazineluiza.com.br' ||
+      currentUser?.role === 'admin'
+
+    const currentUserId = currentUser?.colaborador_id || currentUser?.id
+    const allowedHierarchyIds = getHierarchyUserIds(currentUserId, colaboradoresList, isMasterOrAdmin)
+
+    return colaboradoresList.filter(colab => {
+      // 1. Filtro hierárquico (Líder / Supervisor / Coordenador)
+      if (allowedHierarchyIds) {
+        const cId = String(colab.id || '').trim().toLowerCase()
+        if (!allowedHierarchyIds.has(cId)) {
+          return false
+        }
+      }
+
+      // 2. Filtros de interface
+      const matchBusca = !buscaColaborador || 
+        colab.contratado.toLowerCase().includes(buscaColaborador.toLowerCase()) ||
+        colab.id.toLowerCase().includes(buscaColaborador.toLowerCase())
+      const matchCargo = filtrosCargo.length === 0 || filtrosCargo.includes(colab.cargo)
+      const matchCC = filtrosCentroCusto.length === 0 || filtrosCentroCusto.includes(colab.centroDeCusto || '(vazio)')
+      const matchGer = filtrosGerencia.length === 0 || filtrosGerencia.includes(colab.gerencia || '(vazio)')
+      return matchBusca && matchCargo && matchCC && matchGer
+    })
+  }, [colaboradoresList, buscaColaborador, filtrosCargo, filtrosCentroCusto, filtrosGerencia, currentUser])
 
   // Lista de valores únicos para filtros e resumos
   const listaCargos = Array.from(new Set(colaboradoresList.map(c => c.cargo).filter(Boolean))).sort()

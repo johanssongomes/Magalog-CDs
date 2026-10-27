@@ -26,6 +26,8 @@ import {
   Info
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/authContext'
+import { getHierarchyUserIds } from '../lib/hierarchyService'
 import initialColaboradoresData from '../data/initialColaboradores.json'
 
 // Parser simples e seguro de CSV considerando aspas
@@ -213,6 +215,7 @@ const WEEKDAY_NAMES_LOWER = [
 const DEFAULT_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1rOqQq0CvzT2LNIvHB6zWmgtmbK7rDU3idyI7rbf_j5g/gviz/tq?tqx=out:csv&gid=0'
 
 export function ApontamentoPage() {
+  const { user } = useAuth()
   const now = new Date()
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear())
   const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth()) // 0 = Jan, 9 = Out
@@ -657,9 +660,26 @@ export function ApontamentoPage() {
     return Array.from(s).sort()
   }, [colaboradores])
 
-  // Filtragem dos colaboradores
+  // Filtragem dos colaboradores respeitando hierarquia de liderança
   const filteredColaboradores = useMemo(() => {
+    const isMasterOrAdmin =
+      user?.id === 'admin-master' ||
+      user?.email === 'johansson.gomes@magazineluiza.com.br' ||
+      user?.role === 'admin'
+
+    const currentUserId = user?.colaborador_id || user?.id
+    const allowedHierarchyIds = getHierarchyUserIds(currentUserId, colaboradores, isMasterOrAdmin)
+
     return colaboradores.filter(c => {
+      // 1. Filtro hierárquico (Líder / Supervisor / Coordenador)
+      if (allowedHierarchyIds) {
+        const cId = String(c.id || '').trim().toLowerCase()
+        if (!allowedHierarchyIds.has(cId)) {
+          return false
+        }
+      }
+
+      // 2. Filtros de interface (Busca, Setor, Turno, Cargo)
       const q = search.toLowerCase().trim()
       const matchSearch =
         !search ||
@@ -678,7 +698,7 @@ export function ApontamentoPage() {
 
       return matchSearch && matchSetor && matchTurno && matchCargo
     })
-  }, [colaboradores, search, selectedSetores, selectedTurnos, selectedCargos])
+  }, [colaboradores, search, selectedSetores, selectedTurnos, selectedCargos, user])
 
   // Navegação de Mês
   const handlePrevMonth = () => {
