@@ -1495,22 +1495,55 @@ export const PmtsPage: React.FC = () => {
 
     getAderenciaData(selectedYear, selectedMonth, '994').then(data => {
       if (isMounted && data) {
-        setAderenciaState(data)
+        // Se for Outubro/2026 e o dado do banco/cache não tiver valor, mescla com initialAderenciaOct
+        if (selectedYear === 2026 && selectedMonth === 10) {
+          const oct = initialAderenciaOct as unknown as AderenciaDataState
+          const merged: AderenciaDataState = {
+            ...data,
+            liberado: {
+              ...data.liberado,
+              totals: {
+                ...data.liberado?.totals,
+                valor: (data.liberado?.totals?.valor && Object.keys(data.liberado.totals.valor).length > 0)
+                  ? data.liberado.totals.valor
+                  : oct.liberado.totals.valor
+              }
+            },
+            faturado: {
+              ...data.faturado,
+              totals: {
+                ...data.faturado?.totals,
+                valor: (data.faturado?.totals?.valor && Object.keys(data.faturado.totals.valor).length > 0)
+                  ? data.faturado.totals.valor
+                  : oct.faturado.totals.valor
+              }
+            }
+          }
+          setAderenciaState(merged)
+        } else {
+          setAderenciaState(data)
+        }
       }
     })
     return () => { isMounted = false }
   }, [selectedYear, selectedMonth])
 
-  // Cálculos de Liberado x Planejado e Projeção de Atingimento
+  // Cálculos de Liberado, Faturado x Planejado e Projeção de Atingimento
   const kpiStats = useMemo(() => {
     const libTotals = aderenciaState?.liberado?.totals
     const fatTotals = aderenciaState?.faturado?.totals
 
-    // Soma valores liberados
+    // 1. Liberado (Acumulados)
     const sumLiberadoValor = Object.values(libTotals?.valor || {}).reduce((a, b) => a + b, 0)
     const sumLiberadoPecas = Object.values(libTotals?.pecas || {}).reduce((a, b) => a + b, 0)
     const sumLiberadoPedidos = Object.values(libTotals?.pedidos || {}).reduce((a, b) => a + b, 0)
     const sumLiberadoCub = Object.values(libTotals?.cubagem || {}).reduce((a, b) => a + b, 0)
+
+    // 2. Faturado (Acumulados)
+    const sumFaturadoValor = Object.values(fatTotals?.valor || {}).reduce((a, b) => a + b, 0)
+    const sumFaturadoPecas = Object.values(fatTotals?.pecas || {}).reduce((a, b) => a + b, 0)
+    const sumFaturadoPedidos = Object.values(fatTotals?.pedidos || {}).reduce((a, b) => a + b, 0)
+    const sumFaturadoCub = Object.values(fatTotals?.cubagem || {}).reduce((a, b) => a + b, 0)
 
     // Dias transcorridos com liberação
     const daysWithData = Object.keys(libTotals?.pedidos || {}).map(Number).filter(d => !isNaN(d) && d > 0)
@@ -1521,38 +1554,55 @@ export const PmtsPage: React.FC = () => {
     const dailyAvgValor = maxDayRecorded > 0 ? sumLiberadoValor / maxDayRecorded : 0
     const projectedValor = dailyAvgValor * totalDaysInMonth
     const percRealizedValor = totalValor > 0 ? (sumLiberadoValor / totalValor) * 100 : 0
+    const percFaturadoValor = totalValor > 0 ? (sumFaturadoValor / totalValor) * 100 : 0
     const percProjectedValor = totalValor > 0 ? (projectedValor / totalValor) * 100 : 0
 
     const percRealizedPecas = totalPecas > 0 ? (sumLiberadoPecas / totalPecas) * 100 : 0
+    const percFaturadoPecas = totalPecas > 0 ? (sumFaturadoPecas / totalPecas) * 100 : 0
     const projectedPecas = maxDayRecorded > 0 ? (sumLiberadoPecas / maxDayRecorded) * totalDaysInMonth : 0
     const percProjectedPecas = totalPecas > 0 ? (projectedPecas / totalPecas) * 100 : 0
 
     const percRealizedPedidos = totalPedidos > 0 ? (sumLiberadoPedidos / totalPedidos) * 100 : 0
+    const percFaturadoPedidos = totalPedidos > 0 ? (sumFaturadoPedidos / totalPedidos) * 100 : 0
     const projectedPedidos = maxDayRecorded > 0 ? (sumLiberadoPedidos / maxDayRecorded) * totalDaysInMonth : 0
     const percProjectedPedidos = totalPedidos > 0 ? (projectedPedidos / totalPedidos) * 100 : 0
 
     const percRealizedCub = totalCub > 0 ? (sumLiberadoCub / totalCub) * 100 : 0
+    const percFaturadoCub = totalCub > 0 ? (sumFaturadoCub / totalCub) * 100 : 0
     const projectedCub = maxDayRecorded > 0 ? (sumLiberadoCub / maxDayRecorded) * totalDaysInMonth : 0
     const percProjectedCub = totalCub > 0 ? (projectedCub / totalCub) * 100 : 0
 
     return {
       hasLiberado: sumLiberadoPedidos > 0 || sumLiberadoValor > 0,
+      hasFaturado: sumFaturadoPedidos > 0 || sumFaturadoValor > 0,
       maxDayRecorded,
       totalDaysInMonth,
+      // Valor
       sumLiberadoValor,
+      sumFaturadoValor,
       percRealizedValor,
+      percFaturadoValor,
       projectedValor,
       percProjectedValor,
+      // Peças
       sumLiberadoPecas,
+      sumFaturadoPecas,
       percRealizedPecas,
+      percFaturadoPecas,
       projectedPecas,
       percProjectedPecas,
+      // Pedidos
       sumLiberadoPedidos,
+      sumFaturadoPedidos,
       percRealizedPedidos,
+      percFaturadoPedidos,
       projectedPedidos,
       percProjectedPedidos,
+      // Cubagem
       sumLiberadoCub,
+      sumFaturadoCub,
       percRealizedCub,
+      percFaturadoCub,
       projectedCub,
       percProjectedCub
     }
@@ -2587,26 +2637,53 @@ export const PmtsPage: React.FC = () => {
                     </p>
                   </div>
 
-                  {kpiStats.hasLiberado ? (
+                  {kpiStats.hasLiberado || kpiStats.hasFaturado ? (
                     <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
+                      {/* Liberado x Planejado */}
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500 font-medium">Liberado Acum.:</span>
-                        <span className="font-bold text-emerald-700 font-mono">
-                          R$ {(kpiStats.sumLiberadoValor / 1_000_000).toFixed(1)}M
+                        <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Liberado:
                         </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-emerald-800 font-mono">
+                            R$ {(kpiStats.sumLiberadoValor / 1_000_000).toFixed(1)}M
+                          </span>
+                          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                            {kpiStats.percRealizedValor.toFixed(1)}%
+                          </span>
+                        </div>
                       </div>
-                      {/* Barra de progresso */}
+
+                      {/* Faturado x Planejado */}
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-amber-700 font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          Faturado:
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-amber-800 font-mono">
+                            R$ {(kpiStats.sumFaturadoValor / 1_000_000).toFixed(1)}M
+                          </span>
+                          <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                            {kpiStats.percFaturadoValor.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Barra de progresso da Liberação */}
                       <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
                         <div 
                           className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
                           style={{ width: `${Math.min(kpiStats.percRealizedValor, 100)}%` }} 
                         />
                       </div>
+
                       {/* Projeção */}
                       <div className="flex items-center justify-between text-[11px] pt-0.5">
                         <span className="text-slate-400 flex items-center gap-1">
                           <TrendingUp size={12} className={kpiStats.percProjectedValor >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
-                          Projeção:
+                          Projeção Lib.:
                         </span>
                         <span className={`font-bold font-mono ${
                           kpiStats.percProjectedValor >= 100 ? 'text-emerald-700' : 'text-amber-700'
@@ -2617,7 +2694,7 @@ export const PmtsPage: React.FC = () => {
                     </div>
                   ) : (
                     <p className="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-200/60">
-                      Aguardando importação de Liberação
+                      Aguardando importação
                     </p>
                   )}
                 </div>
@@ -2646,14 +2723,40 @@ export const PmtsPage: React.FC = () => {
                     </p>
                   </div>
 
-                  {kpiStats.hasLiberado ? (
+                  {kpiStats.hasLiberado || kpiStats.hasFaturado ? (
                     <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
+                      {/* Liberado x Planejado */}
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500 font-medium">Liberado Acum.:</span>
-                        <span className="font-bold text-emerald-700 font-mono">
-                          {Math.round(kpiStats.sumLiberadoPecas).toLocaleString('pt-BR')}
+                        <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Liberado:
                         </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-emerald-800 font-mono">
+                            {Math.round(kpiStats.sumLiberadoPecas).toLocaleString('pt-BR')}
+                          </span>
+                          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                            {kpiStats.percRealizedPecas.toFixed(1)}%
+                          </span>
+                        </div>
                       </div>
+
+                      {/* Faturado x Planejado */}
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-amber-700 font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          Faturado:
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-amber-800 font-mono">
+                            {Math.round(kpiStats.sumFaturadoPecas).toLocaleString('pt-BR')}
+                          </span>
+                          <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                            {kpiStats.percFaturadoPecas.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+
                       <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
                         <div 
                           className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
@@ -2663,7 +2766,7 @@ export const PmtsPage: React.FC = () => {
                       <div className="flex items-center justify-between text-[11px] pt-0.5">
                         <span className="text-slate-400 flex items-center gap-1">
                           <TrendingUp size={12} className={kpiStats.percProjectedPecas >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
-                          Projeção:
+                          Projeção Lib.:
                         </span>
                         <span className={`font-bold font-mono ${
                           kpiStats.percProjectedPecas >= 100 ? 'text-emerald-700' : 'text-amber-700'
@@ -2674,7 +2777,7 @@ export const PmtsPage: React.FC = () => {
                     </div>
                   ) : (
                     <p className="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-200/60">
-                      Aguardando importação de Liberação
+                      Aguardando importação
                     </p>
                   )}
                 </div>
@@ -2703,14 +2806,40 @@ export const PmtsPage: React.FC = () => {
                     </p>
                   </div>
 
-                  {kpiStats.hasLiberado ? (
+                  {kpiStats.hasLiberado || kpiStats.hasFaturado ? (
                     <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
+                      {/* Liberado x Planejado */}
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500 font-medium">Liberado Acum.:</span>
-                        <span className="font-bold text-emerald-700 font-mono">
-                          {Math.round(kpiStats.sumLiberadoPedidos).toLocaleString('pt-BR')}
+                        <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Liberado:
                         </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-emerald-800 font-mono">
+                            {Math.round(kpiStats.sumLiberadoPedidos).toLocaleString('pt-BR')}
+                          </span>
+                          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                            {kpiStats.percRealizedPedidos.toFixed(1)}%
+                          </span>
+                        </div>
                       </div>
+
+                      {/* Faturado x Planejado */}
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-amber-700 font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          Faturado:
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-amber-800 font-mono">
+                            {Math.round(kpiStats.sumFaturadoPedidos).toLocaleString('pt-BR')}
+                          </span>
+                          <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                            {kpiStats.percFaturadoPedidos.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+
                       <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
                         <div 
                           className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
@@ -2720,7 +2849,7 @@ export const PmtsPage: React.FC = () => {
                       <div className="flex items-center justify-between text-[11px] pt-0.5">
                         <span className="text-slate-400 flex items-center gap-1">
                           <TrendingUp size={12} className={kpiStats.percProjectedPedidos >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
-                          Projeção:
+                          Projeção Lib.:
                         </span>
                         <span className={`font-bold font-mono ${
                           kpiStats.percProjectedPedidos >= 100 ? 'text-emerald-700' : 'text-amber-700'
@@ -2731,7 +2860,7 @@ export const PmtsPage: React.FC = () => {
                     </div>
                   ) : (
                     <p className="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-200/60">
-                      Aguardando importação de Liberação
+                      Aguardando importação
                     </p>
                   )}
                 </div>
@@ -2760,14 +2889,40 @@ export const PmtsPage: React.FC = () => {
                     </p>
                   </div>
 
-                  {kpiStats.hasLiberado ? (
+                  {kpiStats.hasLiberado || kpiStats.hasFaturado ? (
                     <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
+                      {/* Liberado x Planejado */}
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500 font-medium">Liberado Acum.:</span>
-                        <span className="font-bold text-emerald-700 font-mono">
-                          {Math.round(kpiStats.sumLiberadoCub).toLocaleString('pt-BR')} m³
+                        <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Liberado:
                         </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-emerald-800 font-mono">
+                            {Math.round(kpiStats.sumLiberadoCub).toLocaleString('pt-BR')} m³
+                          </span>
+                          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                            {kpiStats.percRealizedCub.toFixed(1)}%
+                          </span>
+                        </div>
                       </div>
+
+                      {/* Faturado x Planejado */}
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-amber-700 font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          Faturado:
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-amber-800 font-mono">
+                            {Math.round(kpiStats.sumFaturadoCub).toLocaleString('pt-BR')} m³
+                          </span>
+                          <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                            {kpiStats.percFaturadoCub.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+
                       <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
                         <div 
                           className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
@@ -2777,7 +2932,7 @@ export const PmtsPage: React.FC = () => {
                       <div className="flex items-center justify-between text-[11px] pt-0.5">
                         <span className="text-slate-400 flex items-center gap-1">
                           <TrendingUp size={12} className={kpiStats.percProjectedCub >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
-                          Projeção:
+                          Projeção Lib.:
                         </span>
                         <span className={`font-bold font-mono ${
                           kpiStats.percProjectedCub >= 100 ? 'text-emerald-700' : 'text-amber-700'
@@ -2788,7 +2943,7 @@ export const PmtsPage: React.FC = () => {
                     </div>
                   ) : (
                     <p className="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-200/60">
-                      Aguardando importação de Liberação
+                      Aguardando importação
                     </p>
                   )}
                 </div>
