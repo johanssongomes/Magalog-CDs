@@ -335,10 +335,11 @@ export const PmtsPage: React.FC = () => {
   const [filtrosCargo, setFiltrosCargo] = useState<string[]>([])
   const [filtrosCentroCusto, setFiltrosCentroCusto] = useState<string[]>([])
   const [filtrosGerencia, setFiltrosGerencia] = useState<string[]>([])
+  const [filtrosArea, setFiltrosArea] = useState<string[]>([])
   const [buscaColaborador, setBuscaColaborador] = useState<string>('')
 
   // Controle de abertura dos dropdowns de múltipla seleção
-  const [openDropdown, setOpenDropdown] = useState<'cargo' | 'cc' | 'gerencia' | null>(null)
+  const [openDropdown, setOpenDropdown] = useState<'cargo' | 'cc' | 'gerencia' | 'area' | null>(null)
 
   // Estado do Modal de Cadastro Individual (Quadro - Pg 1)
   const [isCadastroModalOpen, setIsCadastroModalOpen] = useState(false)
@@ -1307,14 +1308,19 @@ export const PmtsPage: React.FC = () => {
       const matchCargo = filtrosCargo.length === 0 || filtrosCargo.includes(colab.cargo)
       const matchCC = filtrosCentroCusto.length === 0 || filtrosCentroCusto.includes(colab.centroDeCusto || '(vazio)')
       const matchGer = filtrosGerencia.length === 0 || filtrosGerencia.includes(colab.gerencia || '(vazio)')
-      return matchBusca && matchCargo && matchCC && matchGer
+      const matchArea = filtrosArea.length === 0 || filtrosArea.includes(colab.area || '(sem área)')
+      return matchBusca && matchCargo && matchCC && matchGer && matchArea
     })
-  }, [colaboradoresList, buscaColaborador, filtrosCargo, filtrosCentroCusto, filtrosGerencia, currentUser])
+  }, [colaboradoresList, buscaColaborador, filtrosCargo, filtrosCentroCusto, filtrosGerencia, filtrosArea, currentUser])
 
   // Lista de valores únicos para filtros e resumos
   const listaCargos = Array.from(new Set(colaboradoresList.map(c => c.cargo).filter(Boolean))).sort()
   const listaCentrosCusto = Array.from(new Set(colaboradoresList.map(c => c.centroDeCusto || '(vazio)'))).sort()
   const listaGerencias = Array.from(new Set(colaboradoresList.map(c => c.gerencia || '(vazio)'))).sort()
+  const listaAreas = Array.from(new Set([
+    ...LISTA_AREAS_OPCOES,
+    ...colaboradoresList.map(c => c.area).filter(Boolean) as string[]
+  ])).sort()
 
   // Lista de líderes disponíveis com ID e Nome para autocompletar e seleção bidirecional
   const listaLideresOpcoes = useMemo(() => {
@@ -2054,6 +2060,89 @@ export const PmtsPage: React.FC = () => {
               )}
             </div>
 
+            {/* Filtro por Área (Múltipla Seleção) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === 'area' ? null : 'area')}
+                className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${
+                  filtrosArea.length > 0 
+                    ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs' 
+                    : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
+                }`}
+              >
+                <Building2 size={14} className={filtrosArea.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
+                <div className="flex flex-col">
+                  <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                    Área
+                  </label>
+                  <span className="text-xs font-bold truncate max-w-[140px]">
+                    {filtrosArea.length === 0 
+                      ? 'Todas as Áreas' 
+                      : filtrosArea.length === 1 
+                        ? filtrosArea[0] 
+                        : `${filtrosArea.length} selecionadas`}
+                  </span>
+                </div>
+                <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'area' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {openDropdown === 'area' && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                  <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
+                      <span className="font-bold text-slate-700">Filtrar Áreas</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setFiltrosArea([...listaAreas])}
+                          className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
+                        >
+                          Marcar Todas
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setFiltrosArea([])}
+                          className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
+                      {listaAreas.map((area) => {
+                        const isChecked = filtrosArea.includes(area)
+                        return (
+                          <label
+                            key={area}
+                            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setFiltrosArea(filtrosArea.filter(a => a !== area))
+                                } else {
+                                  setFiltrosArea([...filtrosArea, area])
+                                }
+                              }}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
+                              {area}
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Tag de Resumo do Quadro */}
             <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50/70 border border-blue-100 text-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
@@ -2521,6 +2610,7 @@ export const PmtsPage: React.FC = () => {
                         <th className="p-3">Contratado</th>
                         <th className="p-3">Cargo</th>
                         <th className="p-3">Centro de Custo</th>
+                        <th className="p-3">Área</th>
                         <th className="p-3">Situação Sistema</th>
                       </tr>
                     </thead>
@@ -2564,6 +2654,15 @@ export const PmtsPage: React.FC = () => {
                             </td>
                             <td className="p-3 text-slate-600 uppercase text-[11px] font-semibold">{colab.cargo}</td>
                             <td className="p-3 text-slate-600 uppercase text-[11px] font-semibold">{colab.centroDeCusto}</td>
+                            <td className="p-3">
+                              {colab.area ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                  {colab.area}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 font-mono text-[11px]">—</span>
+                              )}
+                            </td>
                             <td className="p-3">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
                                 (colab.situacaoSistema || '').toLowerCase().includes('atividade normal')

@@ -26,7 +26,7 @@ import {
   Info
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../lib/authContext'
+import { useAuth, LISTA_AREAS_OPCOES } from '../lib/authContext'
 import { getHierarchyUserIds } from '../lib/hierarchyService'
 import initialColaboradoresData from '../data/initialColaboradores.json'
 
@@ -232,12 +232,12 @@ export function ApontamentoPage() {
 
   // Filtros de Múltipla Escolha
   const [search, setSearch] = useState('')
-  const [selectedSetores, setSelectedSetores] = useState<string[]>([])
+  const [selectedAreas, setSelectedAreas] = useState<string[]>([])
   const [selectedTurnos, setSelectedTurnos] = useState<string[]>([])
   const [selectedCargos, setSelectedCargos] = useState<string[]>([])
   const [selectedSupervisores, setSelectedSupervisores] = useState<string[]>([])
   const [selectedLideres, setSelectedLideres] = useState<string[]>([])
-  const [openFilterDropdown, setOpenFilterDropdown] = useState<'setor' | 'turno' | 'cargo' | 'supervisor' | 'lider' | null>(null)
+  const [openFilterDropdown, setOpenFilterDropdown] = useState<'area' | 'turno' | 'cargo' | 'supervisor' | 'lider' | null>(null)
 
   // Ref para fechar dropdowns de filtros ao clicar fora
   const filtersContainerRef = useRef<HTMLDivElement>(null)
@@ -385,6 +385,7 @@ export function ApontamentoPage() {
                 contratado: u.colaborador?.contratado || u.name || '',
                 cargo: u.cargo || u.colaborador?.cargo || '',
                 setor: u.setor || u.colaborador?.setor || '',
+                area: u.dados_colaborador?.area || u.colaborador?.area || u.area || '',
                 turno: u.turno || u.colaborador?.turno || '',
                 cd: u.cd || '6994',
                 idLider: u.dados_colaborador?.idLider || u.colaborador?.idLider || u.idLider || '',
@@ -416,6 +417,7 @@ export function ApontamentoPage() {
                 contratado: sc.contratado || item.contratado,
                 cargo: sc.cargo || item.cargo,
                 setor: sc.setor || item.setor,
+                area: sc.area || item.area || '',
                 turno: sc.turno || item.turno,
                 idLider: sc.id_lider !== undefined ? sc.id_lider : item.idLider,
                 nomeLider: sc.nome_lider !== undefined ? sc.nome_lider : item.nomeLider
@@ -716,11 +718,10 @@ export function ApontamentoPage() {
   }
 
   // Opções para os filtros de múltipla escolha
-  const setoresUnicos = useMemo(() => {
-    const s = new Set<string>()
+  const areasUnicos = useMemo(() => {
+    const s = new Set<string>(LISTA_AREAS_OPCOES)
     colaboradores.forEach(c => {
-      const val = c.setor || c.gerencia || 'Não informado'
-      if (val) s.add(val.trim())
+      if (c.area) s.add(c.area.trim())
     })
     return Array.from(s).sort()
   }, [colaboradores])
@@ -830,7 +831,7 @@ export function ApontamentoPage() {
     return Array.from(s).sort()
   }, [colaboradores, colabMapById])
 
-  // Filtragem dos colaboradores respeitando hierarquia de liderança e ordenando por Setor, Turno e Cargo
+  // Filtragem dos colaboradores respeitando hierarquia de liderança e ordenando por Área, Turno e Cargo
   const filteredColaboradores = useMemo(() => {
     const isMasterOrAdmin =
       user?.id === 'admin-master' ||
@@ -850,7 +851,7 @@ export function ApontamentoPage() {
         }
       }
 
-      // 2. Filtros de interface (Busca, Setor, Turno, Cargo, Liderança)
+      // 2. Filtros de interface (Busca, Área, Turno, Cargo, Liderança)
       const q = search.toLowerCase().trim()
       const matchSearch =
         !search ||
@@ -858,8 +859,8 @@ export function ApontamentoPage() {
         (c.id && String(c.id).toLowerCase().includes(q)) ||
         (c.cargo && c.cargo.toLowerCase().includes(q))
 
-      const cSetor = (c.setor || c.gerencia || 'Não informado').trim()
-      const matchSetor = selectedSetores.length === 0 || selectedSetores.includes(cSetor)
+      const cArea = (c.area || 'Não informada').trim()
+      const matchArea = selectedAreas.length === 0 || selectedAreas.includes(cArea)
 
       const cTurno = (c.turno || '1º Turno').trim()
       const matchTurno = selectedTurnos.length === 0 || selectedTurnos.includes(cTurno)
@@ -871,14 +872,14 @@ export function ApontamentoPage() {
       const matchSupervisor = selectedSupervisores.length === 0 || selectedSupervisores.includes(leadInfo.supervisorFirstName)
       const matchLider = selectedLideres.length === 0 || selectedLideres.includes(leadInfo.liderFirstName)
 
-      return matchSearch && matchSetor && matchTurno && matchCargo && matchSupervisor && matchLider
+      return matchSearch && matchArea && matchTurno && matchCargo && matchSupervisor && matchLider
     })
 
-    // Classificação ordenada por Setor -> Turno -> Cargo -> Nome
+    // Classificação ordenada por Área -> Turno -> Cargo -> Nome
     return result.sort((a, b) => {
-      const setorA = (a.setor || a.gerencia || '').trim().toLowerCase()
-      const setorB = (b.setor || b.gerencia || '').trim().toLowerCase()
-      if (setorA !== setorB) return setorA.localeCompare(setorB, 'pt-BR')
+      const areaA = (a.area || '').trim().toLowerCase()
+      const areaB = (b.area || '').trim().toLowerCase()
+      if (areaA !== areaB) return areaA.localeCompare(areaB, 'pt-BR')
 
       const turnoA = (a.turno || '').trim().toLowerCase()
       const turnoB = (b.turno || '').trim().toLowerCase()
@@ -892,7 +893,7 @@ export function ApontamentoPage() {
       const nomeB = (b.contratado || '').trim().toLowerCase()
       return nomeA.localeCompare(nomeB, 'pt-BR')
     })
-  }, [colaboradores, search, selectedSetores, selectedTurnos, selectedCargos, selectedSupervisores, selectedLideres, user, colabMapById])
+  }, [colaboradores, search, selectedAreas, selectedTurnos, selectedCargos, selectedSupervisores, selectedLideres, user, colabMapById])
 
   // Navegação de Mês
   const handlePrevMonth = () => {
@@ -924,7 +925,7 @@ export function ApontamentoPage() {
 
   // Exportar para CSV / Planilha
   const handleExportCSV = () => {
-    const headers = ['Supervisor', 'Líder', 'Setor', 'Turno', 'ID', 'Nome', 'Cargo', 'Débito ou Crédito', 'Saldo DSR']
+    const headers = ['Supervisor', 'Líder', 'Área', 'Turno', 'ID', 'Nome', 'Cargo', 'Débito ou Crédito', 'Saldo DSR']
     monthDaysList.forEach(m => headers.push(`${m.weekdayName} (${m.dateStr})`))
 
     const rows: string[][] = [headers]
@@ -940,7 +941,7 @@ export function ApontamentoPage() {
       const row = [
         leadInfo.supervisorFirstName,
         leadInfo.liderFirstName,
-        c.setor || c.gerencia || 'Geral CD 6994',
+        c.area || 'Não informada',
         c.turno || '1º Turno',
         colabId,
         c.contratado || '',
@@ -1279,48 +1280,48 @@ export function ApontamentoPage() {
             )}
           </div>
 
-          {/* Filtro Múltipla Escolha: SETOR */}
+          {/* Filtro Múltipla Escolha: ÁREA */}
           <div className="relative">
             <button
-              onClick={() => setOpenFilterDropdown(openFilterDropdown === 'setor' ? null : 'setor')}
+              onClick={() => setOpenFilterDropdown(openFilterDropdown === 'area' ? null : 'area')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
-                selectedSetores.length > 0
+                selectedAreas.length > 0
                   ? 'bg-blue-50 border-blue-300 text-blue-700'
                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
               <Building2 size={13} className="text-slate-400" />
-              <span>Setor {selectedSetores.length > 0 ? `(${selectedSetores.length})` : ''}</span>
+              <span>Área {selectedAreas.length > 0 ? `(${selectedAreas.length})` : ''}</span>
               <ChevronDown size={12} className="text-slate-400" />
             </button>
 
-            {openFilterDropdown === 'setor' && (
+            {openFilterDropdown === 'area' && (
               <div className="absolute left-0 mt-1.5 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1 max-h-60 overflow-y-auto">
                 <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100">
-                  <span className="text-[11px] font-extrabold text-slate-500 uppercase">Filtrar por Setor</span>
-                  {selectedSetores.length > 0 && (
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase">Filtrar por Área</span>
+                  {selectedAreas.length > 0 && (
                     <button
-                      onClick={() => setSelectedSetores([])}
+                      onClick={() => setSelectedAreas([])}
                       className="text-[10px] text-blue-600 hover:underline font-bold"
                     >
                       Limpar
                     </button>
                   )}
                 </div>
-                {setoresUnicos.map(st => {
-                  const checked = selectedSetores.includes(st)
+                {areasUnicos.map(ar => {
+                  const checked = selectedAreas.includes(ar)
                   return (
                     <label
-                      key={st}
+                      key={ar}
                       className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 text-xs font-medium text-slate-700 cursor-pointer"
                     >
                       <input
                         type="checkbox"
                         checked={checked}
-                        onChange={() => toggleMultiSelect(st, selectedSetores, setSelectedSetores)}
+                        onChange={() => toggleMultiSelect(ar, selectedAreas, setSelectedAreas)}
                         className="rounded-sm border-slate-300 text-blue-600 focus:ring-0 cursor-pointer"
                       />
-                      <span className="truncate">{st}</span>
+                      <span className="truncate">{ar}</span>
                     </label>
                   )
                 })}
@@ -1533,10 +1534,10 @@ export function ApontamentoPage() {
           </div>
 
           {/* Limpar todos os filtros ativos */}
-          {(selectedSetores.length > 0 || selectedTurnos.length > 0 || selectedCargos.length > 0 || selectedSupervisores.length > 0 || selectedLideres.length > 0 || search || selectedDays.length > 0 || startDateFilter || endDateFilter) && (
+          {(selectedAreas.length > 0 || selectedTurnos.length > 0 || selectedCargos.length > 0 || selectedSupervisores.length > 0 || selectedLideres.length > 0 || search || selectedDays.length > 0 || startDateFilter || endDateFilter) && (
             <button
               onClick={() => {
-                setSelectedSetores([])
+                setSelectedAreas([])
                 setSelectedTurnos([])
                 setSelectedCargos([])
                 setSelectedSupervisores([])
@@ -1574,25 +1575,25 @@ export function ApontamentoPage() {
                 <th className="sticky left-[95px] z-40 bg-blue-700 px-2.5 py-2.5 border-r border-blue-500 min-w-[95px] max-w-[95px]">
                   Líder
                 </th>
-                <th className="sticky left-[190px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[130px]">
-                  Setor
+                <th className="sticky left-[190px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[140px]">
+                  Área
                 </th>
-                <th className="sticky left-[320px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[80px]">
+                <th className="sticky left-[330px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[80px]">
                   Turno
                 </th>
-                <th className="sticky left-[400px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[80px]">
+                <th className="sticky left-[410px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[80px]">
                   ID
                 </th>
-                <th className="sticky left-[480px] z-40 bg-blue-700 px-3.5 py-2.5 border-r border-blue-500 min-w-[210px]">
+                <th className="sticky left-[490px] z-40 bg-blue-700 px-3.5 py-2.5 border-r border-blue-500 min-w-[210px]">
                   Nome
                 </th>
-                <th className="sticky left-[690px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[150px]">
+                <th className="sticky left-[700px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[150px]">
                   Cargo
                 </th>
-                <th className="sticky left-[840px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[105px] text-center" title="Saldo atual consolidado do Banco de Horas">
+                <th className="sticky left-[850px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[105px] text-center" title="Saldo atual consolidado do Banco de Horas">
                   Débito / Crédito
                 </th>
-                <th className="sticky left-[945px] z-40 bg-blue-800 px-3 py-2.5 border-r-2 border-slate-400 min-w-[65px] text-center shadow-lg" title="Saldo de DSRs (Domingos trabalhados somam +1; DSR apontado subtrai -1)">
+                <th className="sticky left-[955px] z-40 bg-blue-800 px-3 py-2.5 border-r-2 border-slate-400 min-w-[65px] text-center shadow-lg" title="Saldo de DSRs (Domingos trabalhados somam +1; DSR apontado subtrai -1)">
                   DSR
                 </th>
 
@@ -1667,23 +1668,29 @@ export function ApontamentoPage() {
                         </span>
                       </td>
 
-                      {/* 3. Setor */}
-                      <td className="sticky left-[190px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-700 font-medium truncate max-w-[130px]">
-                        {colab.setor || colab.gerencia || 'Geral CD 6994'}
+                      {/* 3. Área */}
+                      <td className="sticky left-[190px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-700 font-medium truncate max-w-[140px]" title={colab.area}>
+                        {colab.area ? (
+                          <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold">
+                            {colab.area}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-mono text-[11px]">—</span>
+                        )}
                       </td>
 
                       {/* 4. Turno */}
-                      <td className="sticky left-[320px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-600 font-medium whitespace-nowrap">
+                      <td className="sticky left-[330px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-600 font-medium whitespace-nowrap">
                         {colab.turno || '1º Turno'}
                       </td>
 
                       {/* 5. ID */}
-                      <td className="sticky left-[400px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 font-mono font-bold text-slate-800">
+                      <td className="sticky left-[410px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 font-mono font-bold text-slate-800">
                         {colabId}
                       </td>
 
                       {/* 6. Nome + Ação de Marcar Férias */}
-                      <td className="sticky left-[480px] z-20 bg-inherit px-3.5 py-2 border-r border-slate-200 min-w-[210px]">
+                      <td className="sticky left-[490px] z-20 bg-inherit px-3.5 py-2 border-r border-slate-200 min-w-[210px]">
                         <div className="flex items-center justify-between gap-1.5">
                           <span className="font-extrabold text-slate-900 truncate" title={colab.contratado}>
                             {colab.contratado}
@@ -1708,12 +1715,12 @@ export function ApontamentoPage() {
                       </td>
 
                       {/* 7. Cargo */}
-                      <td className="sticky left-[690px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-600 font-medium truncate max-w-[150px]" title={colab.cargo}>
+                      <td className="sticky left-[700px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-600 font-medium truncate max-w-[150px]" title={colab.cargo}>
                         {colab.cargo}
                       </td>
 
                       {/* 8. Débito ou Crédito (Saldo BH) */}
-                      <td className="sticky left-[840px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-center font-mono font-bold whitespace-nowrap">
+                      <td className="sticky left-[850px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-center font-mono font-bold whitespace-nowrap">
                         <span className={`px-2 py-0.5 rounded-md text-[11px] ${
                           isDebito
                             ? 'bg-rose-50 text-rose-700 border border-rose-200'
@@ -1724,7 +1731,7 @@ export function ApontamentoPage() {
                       </td>
 
                       {/* 9. Qnt de DSR (Calculado) */}
-                      <td className="sticky left-[945px] z-20 bg-slate-100 px-3 py-2 border-r-2 border-slate-400 text-center font-mono font-black text-xs shadow-md">
+                      <td className="sticky left-[955px] z-20 bg-slate-100 px-3 py-2 border-r-2 border-slate-400 text-center font-mono font-black text-xs shadow-md">
                         <span className={`px-2 py-0.5 rounded-full ${
                           dsrBalance > 0
                             ? 'bg-amber-100 text-amber-800 border border-amber-300'
