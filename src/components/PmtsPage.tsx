@@ -2555,247 +2555,245 @@ export const PmtsPage: React.FC = () => {
       ) : (
         /* CONTEÚDO PADRÃO PARA DEMAIS SUB-PÁGINAS PMT (Expedição, Recebimento, etc.) */
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
-          {/* 4 Cards de Métricas Reais do CD 994 com Comparativo Liberado x Planejado e Projeção */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* CARD 1: VALOR */}
-            <div className="p-4 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs flex flex-col justify-between hover:shadow-md transition-all">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Valor Planejado (CD 994)</span>
-                  <span className="p-1 rounded-md bg-blue-100 text-blue-700 font-mono text-[10px] font-bold">R$</span>
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <div className="text-2xl font-bold text-slate-900 tracking-tight">
-                    {totalValor ? `R$ ${(totalValor / 1_000_000).toFixed(1)}M` : 'R$ 0,00'}
-                  </div>
-                  {kpiStats.hasLiberado && (
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                      kpiStats.percRealizedValor >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {kpiStats.percRealizedValor.toFixed(1)}% lib.
-                    </span>
-                  )}
-                </div>
-                <p className="text-[10.5px] text-slate-400 mt-0.5 font-mono">
-                  Meta: R$ {totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-
-              {kpiStats.hasLiberado ? (
-                <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500 font-medium">Liberado Acum.:</span>
-                    <span className="font-bold text-emerald-700 font-mono">
-                      R$ {(kpiStats.sumLiberadoValor / 1_000_000).toFixed(1)}M
-                    </span>
-                  </div>
-                  {/* Barra de progresso */}
-                  <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${Math.min(kpiStats.percRealizedValor, 100)}%` }} 
-                    />
-                  </div>
-                  {/* Projeção */}
-                  <div className="flex items-center justify-between text-[11px] pt-0.5">
-                    <span className="text-slate-400 flex items-center gap-1">
-                      <TrendingUp size={12} className={kpiStats.percProjectedValor >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
-                      Projeção:
-                    </span>
-                    <span className={`font-bold font-mono ${
-                      kpiStats.percProjectedValor >= 100 ? 'text-emerald-700' : 'text-amber-700'
-                    }`}>
-                      R$ {(kpiStats.projectedValor / 1_000_000).toFixed(1)}M ({kpiStats.percProjectedValor.toFixed(1)}%)
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-200/60">
-                  Aguardando importação de Liberação
-                </p>
-              )}
-            </div>
-
-            {/* CARD 2: VOLUME DE PEÇAS */}
-            <div className="p-4 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs flex flex-col justify-between hover:shadow-md transition-all">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Volume de Peças</span>
-                  <Package size={15} className="text-blue-600" />
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <div className="text-2xl font-bold text-blue-600 tracking-tight">
-                    {Math.round(totalPecas).toLocaleString('pt-BR')}
-                  </div>
-                  {kpiStats.hasLiberado && (
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                      kpiStats.percRealizedPecas >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {kpiStats.percRealizedPecas.toFixed(1)}% lib.
-                    </span>
-                  )}
-                </div>
-                <p className="text-[10.5px] text-slate-400 mt-0.5">
-                  Peças planejadas para {selectedMonth}/{selectedYear}
-                </p>
-              </div>
-
-              {kpiStats.hasLiberado ? (
-                <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500 font-medium">Liberado Acum.:</span>
-                    <span className="font-bold text-emerald-700 font-mono">
-                      {Math.round(kpiStats.sumLiberadoPecas).toLocaleString('pt-BR')}
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${Math.min(kpiStats.percRealizedPecas, 100)}%` }} 
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] pt-0.5">
-                    <span className="text-slate-400 flex items-center gap-1">
-                      <TrendingUp size={12} className={kpiStats.percProjectedPecas >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
-                      Projeção:
-                    </span>
-                    <span className={`font-bold font-mono ${
-                      kpiStats.percProjectedPecas >= 100 ? 'text-emerald-700' : 'text-amber-700'
-                    }`}>
-                      {Math.round(kpiStats.projectedPecas).toLocaleString('pt-BR')} ({kpiStats.percProjectedPecas.toFixed(1)}%)
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-200/60">
-                  Aguardando importação de Liberação
-                </p>
-              )}
-            </div>
-
-            {/* CARD 3: TOTAL DE PEDIDOS */}
-            <div className="p-4 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs flex flex-col justify-between hover:shadow-md transition-all">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total de Pedidos</span>
-                  <Boxes size={15} className="text-emerald-600" />
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <div className="text-2xl font-bold text-slate-800 tracking-tight">
-                    {Math.round(totalPedidos).toLocaleString('pt-BR')}
-                  </div>
-                  {kpiStats.hasLiberado && (
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                      kpiStats.percRealizedPedidos >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {kpiStats.percRealizedPedidos.toFixed(1)}% lib.
-                    </span>
-                  )}
-                </div>
-                <p className="text-[10.5px] text-slate-400 mt-0.5">
-                  Pedidos programados CD 994
-                </p>
-              </div>
-
-              {kpiStats.hasLiberado ? (
-                <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500 font-medium">Liberado Acum.:</span>
-                    <span className="font-bold text-emerald-700 font-mono">
-                      {Math.round(kpiStats.sumLiberadoPedidos).toLocaleString('pt-BR')}
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${Math.min(kpiStats.percRealizedPedidos, 100)}%` }} 
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] pt-0.5">
-                    <span className="text-slate-400 flex items-center gap-1">
-                      <TrendingUp size={12} className={kpiStats.percProjectedPedidos >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
-                      Projeção:
-                    </span>
-                    <span className={`font-bold font-mono ${
-                      kpiStats.percProjectedPedidos >= 100 ? 'text-emerald-700' : 'text-amber-700'
-                    }`}>
-                      {Math.round(kpiStats.projectedPedidos).toLocaleString('pt-BR')} ({kpiStats.percProjectedPedidos.toFixed(1)}%)
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-200/60">
-                  Aguardando importação de Liberação
-                </p>
-              )}
-            </div>
-
-            {/* CARD 4: CUBAGEM TOTAL */}
-            <div className="p-4 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs flex flex-col justify-between hover:shadow-md transition-all">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Cubagem Total (m³)</span>
-                  <CheckCircle2 size={15} className="text-emerald-500" />
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <div className="text-2xl font-bold text-slate-800 tracking-tight">
-                    {Math.round(totalCub).toLocaleString('pt-BR')} m³
-                  </div>
-                  {kpiStats.hasLiberado && (
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                      kpiStats.percRealizedCub >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {kpiStats.percRealizedCub.toFixed(1)}% lib.
-                    </span>
-                  )}
-                </div>
-                <p className="text-[10.5px] text-slate-400 mt-0.5">
-                  Base geral: {pmtData.totalGeralLinhas?.toLocaleString('pt-BR')} linhas
-                </p>
-              </div>
-
-              {kpiStats.hasLiberado ? (
-                <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500 font-medium">Liberado Acum.:</span>
-                    <span className="font-bold text-emerald-700 font-mono">
-                      {Math.round(kpiStats.sumLiberadoCub).toLocaleString('pt-BR')} m³
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${Math.min(kpiStats.percRealizedCub, 100)}%` }} 
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] pt-0.5">
-                    <span className="text-slate-400 flex items-center gap-1">
-                      <TrendingUp size={12} className={kpiStats.percProjectedCub >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
-                      Projeção:
-                    </span>
-                    <span className={`font-bold font-mono ${
-                      kpiStats.percProjectedCub >= 100 ? 'text-emerald-700' : 'text-amber-700'
-                    }`}>
-                      {Math.round(kpiStats.projectedCub).toLocaleString('pt-BR')} m³ ({kpiStats.percProjectedCub.toFixed(1)}%)
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-200/60">
-                  Aguardando importação de Liberação
-                </p>
-              )}
-            </div>
-          </div>
-
-
-
-          {/* INDICADOR DIÁRIO POR MODAL */}
+          {/* INDICADOR DIÁRIO POR MODAL COM CONTROLES ACIMA DOS CARDS */}
           <PmtDailyMatrixTable 
             ano={selectedYear} 
             mes={selectedMonth} 
             cd="994" 
             pageTitle={activePage.label} 
+            cardsContent={
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* CARD 1: VALOR */}
+                <div className="p-4 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs flex flex-col justify-between hover:shadow-md transition-all">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Valor Planejado (CD 994)</span>
+                      <span className="p-1 rounded-md bg-blue-100 text-blue-700 font-mono text-[10px] font-bold">R$</span>
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                      <div className="text-2xl font-bold text-slate-900 tracking-tight">
+                        {totalValor ? `R$ ${(totalValor / 1_000_000).toFixed(1)}M` : 'R$ 0,00'}
+                      </div>
+                      {kpiStats.hasLiberado && (
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                          kpiStats.percRealizedValor >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {kpiStats.percRealizedValor.toFixed(1)}% lib.
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10.5px] text-slate-400 mt-0.5 font-mono">
+                      Meta: R$ {totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+
+                  {kpiStats.hasLiberado ? (
+                    <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500 font-medium">Liberado Acum.:</span>
+                        <span className="font-bold text-emerald-700 font-mono">
+                          R$ {(kpiStats.sumLiberadoValor / 1_000_000).toFixed(1)}M
+                        </span>
+                      </div>
+                      {/* Barra de progresso */}
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                          style={{ width: `${Math.min(kpiStats.percRealizedValor, 100)}%` }} 
+                        />
+                      </div>
+                      {/* Projeção */}
+                      <div className="flex items-center justify-between text-[11px] pt-0.5">
+                        <span className="text-slate-400 flex items-center gap-1">
+                          <TrendingUp size={12} className={kpiStats.percProjectedValor >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
+                          Projeção:
+                        </span>
+                        <span className={`font-bold font-mono ${
+                          kpiStats.percProjectedValor >= 100 ? 'text-emerald-700' : 'text-amber-700'
+                        }`}>
+                          R$ {(kpiStats.projectedValor / 1_000_000).toFixed(1)}M ({kpiStats.percProjectedValor.toFixed(1)}%)
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-200/60">
+                      Aguardando importação de Liberação
+                    </p>
+                  )}
+                </div>
+
+                {/* CARD 2: VOLUME DE PEÇAS */}
+                <div className="p-4 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs flex flex-col justify-between hover:shadow-md transition-all">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Volume de Peças</span>
+                      <Package size={15} className="text-blue-600" />
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                      <div className="text-2xl font-bold text-blue-600 tracking-tight">
+                        {Math.round(totalPecas).toLocaleString('pt-BR')}
+                      </div>
+                      {kpiStats.hasLiberado && (
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                          kpiStats.percRealizedPecas >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {kpiStats.percRealizedPecas.toFixed(1)}% lib.
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10.5px] text-slate-400 mt-0.5">
+                      Peças planejadas para {selectedMonth}/{selectedYear}
+                    </p>
+                  </div>
+
+                  {kpiStats.hasLiberado ? (
+                    <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500 font-medium">Liberado Acum.:</span>
+                        <span className="font-bold text-emerald-700 font-mono">
+                          {Math.round(kpiStats.sumLiberadoPecas).toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                          style={{ width: `${Math.min(kpiStats.percRealizedPecas, 100)}%` }} 
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] pt-0.5">
+                        <span className="text-slate-400 flex items-center gap-1">
+                          <TrendingUp size={12} className={kpiStats.percProjectedPecas >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
+                          Projeção:
+                        </span>
+                        <span className={`font-bold font-mono ${
+                          kpiStats.percProjectedPecas >= 100 ? 'text-emerald-700' : 'text-amber-700'
+                        }`}>
+                          {Math.round(kpiStats.projectedPecas).toLocaleString('pt-BR')} ({kpiStats.percProjectedPecas.toFixed(1)}%)
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-200/60">
+                      Aguardando importação de Liberação
+                    </p>
+                  )}
+                </div>
+
+                {/* CARD 3: TOTAL DE PEDIDOS */}
+                <div className="p-4 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs flex flex-col justify-between hover:shadow-md transition-all">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total de Pedidos</span>
+                      <Boxes size={15} className="text-emerald-600" />
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                      <div className="text-2xl font-bold text-slate-800 tracking-tight">
+                        {Math.round(totalPedidos).toLocaleString('pt-BR')}
+                      </div>
+                      {kpiStats.hasLiberado && (
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                          kpiStats.percRealizedPedidos >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {kpiStats.percRealizedPedidos.toFixed(1)}% lib.
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10.5px] text-slate-400 mt-0.5">
+                      Pedidos programados CD 994
+                    </p>
+                  </div>
+
+                  {kpiStats.hasLiberado ? (
+                    <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500 font-medium">Liberado Acum.:</span>
+                        <span className="font-bold text-emerald-700 font-mono">
+                          {Math.round(kpiStats.sumLiberadoPedidos).toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                          style={{ width: `${Math.min(kpiStats.percRealizedPedidos, 100)}%` }} 
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] pt-0.5">
+                        <span className="text-slate-400 flex items-center gap-1">
+                          <TrendingUp size={12} className={kpiStats.percProjectedPedidos >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
+                          Projeção:
+                        </span>
+                        <span className={`font-bold font-mono ${
+                          kpiStats.percProjectedPedidos >= 100 ? 'text-emerald-700' : 'text-amber-700'
+                        }`}>
+                          {Math.round(kpiStats.projectedPedidos).toLocaleString('pt-BR')} ({kpiStats.percProjectedPedidos.toFixed(1)}%)
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-200/60">
+                      Aguardando importação de Liberação
+                    </p>
+                  )}
+                </div>
+
+                {/* CARD 4: CUBAGEM TOTAL */}
+                <div className="p-4 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs flex flex-col justify-between hover:shadow-md transition-all">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Cubagem Total (m³)</span>
+                      <CheckCircle2 size={15} className="text-emerald-500" />
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                      <div className="text-2xl font-bold text-slate-800 tracking-tight">
+                        {Math.round(totalCub).toLocaleString('pt-BR')} m³
+                      </div>
+                      {kpiStats.hasLiberado && (
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                          kpiStats.percRealizedCub >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {kpiStats.percRealizedCub.toFixed(1)}% lib.
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10.5px] text-slate-400 mt-0.5">
+                      Base geral: {pmtData.totalGeralLinhas?.toLocaleString('pt-BR')} linhas
+                    </p>
+                  </div>
+
+                  {kpiStats.hasLiberado ? (
+                    <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500 font-medium">Liberado Acum.:</span>
+                        <span className="font-bold text-emerald-700 font-mono">
+                          {Math.round(kpiStats.sumLiberadoCub).toLocaleString('pt-BR')} m³
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                          style={{ width: `${Math.min(kpiStats.percRealizedCub, 100)}%` }} 
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] pt-0.5">
+                        <span className="text-slate-400 flex items-center gap-1">
+                          <TrendingUp size={12} className={kpiStats.percProjectedCub >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
+                          Projeção:
+                        </span>
+                        <span className={`font-bold font-mono ${
+                          kpiStats.percProjectedCub >= 100 ? 'text-emerald-700' : 'text-amber-700'
+                        }`}>
+                          {Math.round(kpiStats.projectedCub).toLocaleString('pt-BR')} m³ ({kpiStats.percProjectedCub.toFixed(1)}%)
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-200/60">
+                      Aguardando importação de Liberação
+                    </p>
+                  )}
+                </div>
+              </div>
+            }
           />
         </div>
       )}

@@ -69,12 +69,13 @@ interface Props {
   mes: number
   cd?: string
   pageTitle?: string
+  cardsContent?: React.ReactNode
 }
 
 type SectionView = 'all' | 'pedidos' | 'pecas' | 'cubagem'
 type GroupByView = 'modal' | 'categoria_produtividade'
 
-export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pageTitle = 'PMT Expedição' }) => {
+export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pageTitle = 'PMT Expedição', cardsContent }) => {
   const [matrix, setMatrix] = useState<MatrixData | null>(null)
   const [selectedSection, setSelectedSection] = useState<SectionView>('all')
   const [groupBy, setGroupBy] = useState<GroupByView>('modal')
@@ -248,6 +249,17 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
     return activeFilteredDays.reduce((acc, d) => acc + (rowData[d.dayStr] || 0), 0)
   }
 
+  // Média diária dinâmica
+  const getRowAverage = (rowData: Record<string, number> | undefined) => {
+    if (!rowData) return 0
+    const total = getRowTotal(rowData)
+    if (total === 0) return 0
+    // Considera apenas os dias que possuem valor > 0 ou o total de dias filtrados
+    const daysWithValues = activeFilteredDays.filter(d => (rowData[d.dayStr] || 0) > 0).length
+    const count = daysWithValues > 0 ? daysWithValues : activeFilteredDays.length
+    return count > 0 ? total / count : 0
+  }
+
   // Formatação de números padrão brasileiro
   const formatNum = (val: number | undefined | null) => {
     if (val === undefined || val === null || val === 0) return '0'
@@ -394,18 +406,22 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
     // 1. Dados Planejados (PMT Totais)
     const pmtTotals = matrix.totals[metricKey] || {}
     const pmtTotalSum = getRowTotal(pmtTotals)
+    const pmtTotalAvg = getRowAverage(pmtTotals)
 
     // 2. Dados Liberados (Total Geral)
     const libTotals = aderencia.liberado?.totals?.[metricKey] || {}
     const libTotalSum = getRowTotal(libTotals)
+    const libTotalAvg = getRowAverage(libTotals)
 
     // 3. Dados Faturados (Total Geral)
     const fatTotals = aderencia.faturado?.totals?.[metricKey] || {}
     const fatTotalSum = getRowTotal(fatTotals)
+    const fatTotalAvg = getRowAverage(fatTotals)
 
     // 4. Capacidade Definida
     const capTotals = aderencia.capacidade?.[metricKey] || {}
     const capTotalSum = getRowTotal(capTotals)
+    const capTotalAvg = getRowAverage(capTotals)
 
     return (
       <>
@@ -428,6 +444,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
               </td>
             )
           })}
+          <td className="px-2 py-2 text-right font-mono font-bold text-emerald-800 border-r border-emerald-300 text-[11px] bg-emerald-50/90">
+            {formatNum(libTotalAvg)}
+          </td>
           <td className="sticky right-0 z-20 bg-emerald-50 px-3 py-2 text-right font-mono font-bold text-emerald-900 border-l border-emerald-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
             {formatNum(libTotalSum)}
           </td>
@@ -454,6 +473,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
               </td>
             )
           })}
+          <td className="px-2 py-1.5 text-right font-mono font-bold text-emerald-800 border-r border-emerald-300 text-[10.5px] bg-emerald-100/60">
+            {pmtTotalAvg > 0 ? formatPercent((libTotalAvg / pmtTotalAvg) * 100) : '-'}
+          </td>
           <td className="sticky right-0 z-20 bg-emerald-100/80 px-3 py-1.5 text-right font-mono font-extrabold text-emerald-900 border-l border-emerald-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
             {pmtTotalSum > 0 ? formatPercent((libTotalSum / pmtTotalSum) * 100) : '0.0%'}
           </td>
@@ -478,6 +500,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
               </td>
             )
           })}
+          <td className="px-2 py-2 text-right font-mono font-bold text-amber-800 border-r border-amber-300 text-[11px] bg-amber-50/90">
+            {formatNum(fatTotalAvg)}
+          </td>
           <td className="sticky right-0 z-20 bg-amber-50 px-3 py-2 text-right font-mono font-bold text-amber-900 border-l border-amber-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
             {formatNum(fatTotalSum)}
           </td>
@@ -530,6 +555,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
               </td>
             )
           })}
+          <td className="px-2 py-2 text-right font-mono font-bold text-indigo-800 border-r border-indigo-300 text-[11px] bg-indigo-50/90">
+            {formatNum(capTotalAvg)}
+          </td>
           <td className="sticky right-0 z-20 bg-indigo-50 px-3 py-2 text-right font-mono font-bold text-indigo-900 border-l border-indigo-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
             {formatNum(capTotalSum)}
           </td>
@@ -556,6 +584,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
               </td>
             )
           })}
+          <td className="px-2 py-1.5 text-right font-mono font-bold text-indigo-800 border-r border-indigo-300 text-[10.5px] bg-indigo-100/60">
+            {capTotalAvg > 0 ? formatPercent((fatTotalAvg / capTotalAvg) * 100) : '-'}
+          </td>
           <td className="sticky right-0 z-20 bg-indigo-100/80 px-3 py-1.5 text-right font-mono font-extrabold text-indigo-900 border-l border-indigo-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
             {capTotalSum > 0 ? formatPercent((fatTotalSum / capTotalSum) * 100) : '0.0%'}
           </td>
@@ -738,6 +769,13 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
         </div>
       </div>
 
+      {/* Cards de Indicadores Superiores (se fornecidos) */}
+      {cardsContent && (
+        <div className="w-full">
+          {cardsContent}
+        </div>
+      )}
+
       {/* =========================================================================
           TABELA MATRIZ COM LINHAS DE ADERÊNCIA INTEGRADA
           ========================================================================= */}
@@ -777,6 +815,13 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
 
                 <th 
                   scope="col"
+                  className="bg-[#e0f2fe] px-2 py-2 text-right font-bold text-slate-900 min-w-[70px] border-r border-sky-300 shadow-[-2px_0_4px_rgba(0,0,0,0.01)]"
+                >
+                  Média
+                </th>
+
+                <th 
+                  scope="col"
                   className="sticky right-0 z-40 bg-[#e0f2fe] px-3 py-2 text-right font-bold text-slate-900 min-w-[90px] border-l border-sky-300 shadow-[-2px_0_4px_rgba(0,0,0,0.03)]"
                 >
                   Total Geral
@@ -793,6 +838,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                   {!isContentMinimized && filteredModals.map((modalName) => {
                     const rowData = matrix.data.pedidos[modalName] || { total: 0 }
                     const dynamicTotal = getRowTotal(rowData)
+                    const dynamicAvg = getRowAverage(rowData)
                     return (
                       <tr key={`ped-${modalName}`} className="hover:bg-blue-50/40 transition-colors">
                         <td className="sticky left-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 font-medium text-slate-700 border-r border-slate-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
@@ -812,6 +858,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                             </td>
                           )
                         })}
+                        <td className="px-2 py-1.5 text-right font-mono text-[11px] font-semibold text-slate-700 border-r border-slate-200 bg-slate-50/50">
+                          {formatNum(dynamicAvg)}
+                        </td>
                         <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
                           {formatNum(dynamicTotal)}
                         </td>
@@ -832,6 +881,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                         {formatNum(matrix.totals.pedidos[d.dayStr])}
                       </td>
                     ))}
+                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-900 border-r border-sky-300 text-[11px] bg-[#e0f2fe]">
+                      {formatNum(getRowAverage(matrix.totals.pedidos))}
+                    </td>
                     <td className="sticky right-0 z-20 bg-[#e0f2fe] px-3 py-2 text-right font-mono font-bold text-blue-900 border-l border-sky-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
                       {formatNum(getRowTotal(matrix.totals.pedidos))}
                     </td>
@@ -843,7 +895,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                   {/* Espaçador visual se 'all' estiver ativo */}
                   {selectedSection === 'all' && (
                     <tr className="bg-slate-100/50 h-3">
-                      <td colSpan={activeFilteredDays.length + 2} className="p-0 border-y border-slate-200"></td>
+                      <td colSpan={activeFilteredDays.length + 3} className="p-0 border-y border-slate-200"></td>
                     </tr>
                   )}
                 </>
@@ -857,6 +909,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                   {!isContentMinimized && filteredModals.map((modalName) => {
                     const rowData = matrix.data.pecas[modalName] || { total: 0 }
                     const dynamicTotal = getRowTotal(rowData)
+                    const dynamicAvg = getRowAverage(rowData)
                     return (
                       <tr key={`pec-${modalName}`} className="hover:bg-blue-50/40 transition-colors">
                         <td className="sticky left-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 font-medium text-slate-700 border-r border-slate-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
@@ -876,6 +929,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                             </td>
                           )
                         })}
+                        <td className="px-2 py-1.5 text-right font-mono text-[11px] font-semibold text-slate-700 border-r border-slate-200 bg-slate-50/50">
+                          {formatNum(dynamicAvg)}
+                        </td>
                         <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
                           {formatNum(dynamicTotal)}
                         </td>
@@ -896,6 +952,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                         {formatNum(matrix.totals.pecas[d.dayStr])}
                       </td>
                     ))}
+                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-900 border-r border-sky-300 text-[11px] bg-[#e0f2fe]">
+                      {formatNum(getRowAverage(matrix.totals.pecas))}
+                    </td>
                     <td className="sticky right-0 z-20 bg-[#e0f2fe] px-3 py-2 text-right font-mono font-bold text-blue-900 border-l border-sky-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
                       {formatNum(getRowTotal(matrix.totals.pecas))}
                     </td>
@@ -907,7 +966,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                   {/* Espaçador visual se 'all' estiver ativo */}
                   {selectedSection === 'all' && (
                     <tr className="bg-slate-100/50 h-3">
-                      <td colSpan={activeFilteredDays.length + 2} className="p-0 border-y border-slate-200"></td>
+                      <td colSpan={activeFilteredDays.length + 3} className="p-0 border-y border-slate-200"></td>
                     </tr>
                   )}
                 </>
@@ -921,6 +980,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                   {!isContentMinimized && filteredModals.map((modalName) => {
                     const rowData = matrix.data.cubagem[modalName] || { total: 0 }
                     const dynamicTotal = getRowTotal(rowData)
+                    const dynamicAvg = getRowAverage(rowData)
                     return (
                       <tr key={`cub-${modalName}`} className="hover:bg-blue-50/40 transition-colors">
                         <td className="sticky left-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 font-medium text-slate-700 border-r border-slate-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
@@ -940,6 +1000,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                             </td>
                           )
                         })}
+                        <td className="px-2 py-1.5 text-right font-mono text-[11px] font-semibold text-slate-700 border-r border-slate-200 bg-slate-50/50">
+                          {formatNum(dynamicAvg)}
+                        </td>
                         <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
                           {formatNum(dynamicTotal)}
                         </td>
@@ -960,6 +1023,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                         {formatNum(matrix.totals.cubagem[d.dayStr])}
                       </td>
                     ))}
+                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-900 border-r border-sky-300 text-[11px] bg-[#e0f2fe]">
+                      {formatNum(getRowAverage(matrix.totals.cubagem))}
+                    </td>
                     <td className="sticky right-0 z-20 bg-[#e0f2fe] px-3 py-2 text-right font-mono font-bold text-blue-900 border-l border-sky-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
                       {formatNum(getRowTotal(matrix.totals.cubagem))}
                     </td>
