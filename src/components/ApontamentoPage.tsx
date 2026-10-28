@@ -261,7 +261,7 @@ export function ApontamentoPage() {
   const [startDateFilter, setStartDateFilter] = useState<string>('')
   const [endDateFilter, setEndDateFilter] = useState<string>('')
 
-  // Modal para Marcar Intervalo (ex: Férias de dia X até dia Y)
+  // Modal para Marcar Intervalo (ex: Férias de dia X até dia Y) com DSR Manual
   const [intervalModal, setIntervalModal] = useState<{
     isOpen: boolean
     colabId?: string
@@ -269,11 +269,15 @@ export function ApontamentoPage() {
     startDay: number
     endDay: number
     status: ApontamentoStatus
+    dsrMode: 'none' | 'sundays' | 'weekends' | 'custom'
+    customDsrDays: number[]
   }>({
     isOpen: false,
     startDay: 1,
     endDay: 15,
-    status: 'FER'
+    status: 'FER',
+    dsrMode: 'none',
+    customDsrDays: []
   })
 
   // Dias no mês selecionado
@@ -657,7 +661,7 @@ export function ApontamentoPage() {
     }
   }
 
-  // Preencher intervalo (Férias, Home Office, etc.)
+  // Preencher intervalo (Férias, Falta, etc.) com opção de DSR manual
   const handleApplyInterval = () => {
     if (!intervalModal.colabId) return
     const updated = { ...apontamentos }
@@ -669,7 +673,23 @@ export function ApontamentoPage() {
     const end = Math.max(intervalModal.startDay, intervalModal.endDay)
 
     for (let d = start; d <= end && d <= daysInMonth; d++) {
-      updated[intervalModal.colabId][d] = intervalModal.status
+      const dt = new Date(selectedYear, selectedMonth, d)
+      const wDay = dt.getDay()
+      const isSunday = wDay === 0
+      const isSaturday = wDay === 6
+
+      let isDsr = false
+      if (intervalModal.status === 'DSR') {
+        isDsr = true
+      } else if (intervalModal.dsrMode === 'sundays' && isSunday) {
+        isDsr = true
+      } else if (intervalModal.dsrMode === 'weekends' && (isSunday || isSaturday)) {
+        isDsr = true
+      } else if (intervalModal.dsrMode === 'custom' && intervalModal.customDsrDays.includes(d)) {
+        isDsr = true
+      }
+
+      updated[intervalModal.colabId][d] = isDsr ? 'DSR' : intervalModal.status
     }
 
     persistApontamentos(updated)
@@ -1675,7 +1695,9 @@ export function ApontamentoPage() {
                               colabNome: colab.contratado,
                               startDay: 1,
                               endDay: 15,
-                              status: 'FER'
+                              status: 'FER',
+                              dsrMode: 'none',
+                              customDsrDays: []
                             })}
                             title="Lançar período de Férias ou Intervalo"
                             className="p-1 rounded-md text-amber-600 hover:bg-amber-100 transition opacity-0 group-hover:opacity-100 cursor-pointer"
@@ -1762,107 +1784,319 @@ export function ApontamentoPage() {
         </div>
       </div>
 
-      {/* 5. MODAL DE LANÇAMENTO EM INTERVALO (Ex: FÉRIAS DE DIA X ATÉ DIA Y) */}
-      {intervalModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-amber-100 text-amber-700 rounded-xl">
-                  <Palmtree size={18} />
-                </div>
-                <div>
-                  <h3 className="font-black text-sm text-slate-900">
-                    Lançar Intervalo de Dias
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium truncate max-w-[260px]">
-                    {intervalModal.colabNome}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIntervalModal({ ...intervalModal, isOpen: false })}
-                className="text-slate-400 hover:text-slate-600 p-1"
-              >
-                <X size={18} />
-              </button>
-            </div>
+      {/* 5. MODAL DE LANÇAMENTO EM INTERVALO COM DSR MANUAL E NOVO LAYOUT PREMIUM */}
+      {intervalModal.isOpen && (() => {
+        const start = Math.min(intervalModal.startDay, intervalModal.endDay)
+        const end = Math.max(intervalModal.startDay, intervalModal.endDay)
+        const totalDays = end - start + 1
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Status a Aplicar
-                </label>
-                <select
-                  value={intervalModal.status}
-                  onChange={(e) => setIntervalModal({ ...intervalModal, status: e.target.value as ApontamentoStatus })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 outline-hidden focus:ring-2 focus:ring-blue-500/20"
+        // Dias dentro do intervalo para renderizar pills de DSR
+        const intervalDaysList = []
+        for (let d = start; d <= end && d <= daysInMonth; d++) {
+          const dt = new Date(selectedYear, selectedMonth, d)
+          const wDay = dt.getDay()
+          const isSun = wDay === 0
+          const isSat = wDay === 6
+          const isDsr = 
+            intervalModal.status === 'DSR' ||
+            (intervalModal.dsrMode === 'sundays' && isSun) ||
+            (intervalModal.dsrMode === 'weekends' && (isSun || isSat)) ||
+            (intervalModal.dsrMode === 'custom' && intervalModal.customDsrDays.includes(d))
+
+          intervalDaysList.push({
+            day: d,
+            weekday: WEEKDAY_NAMES_LOWER[wDay]?.slice(0, 3)?.toUpperCase() || '',
+            isSun,
+            isSat,
+            isDsr
+          })
+        }
+
+        const countDsr = intervalDaysList.filter(d => d.isDsr).length
+        const countStatus = totalDays - (intervalModal.status === 'DSR' ? 0 : countDsr)
+
+        const toggleCustomDay = (d: number) => {
+          const current = intervalModal.customDsrDays
+          const next = current.includes(d) ? current.filter(x => x !== d) : [...current, d]
+          setIntervalModal({
+            ...intervalModal,
+            dsrMode: 'custom',
+            customDsrDays: next
+          })
+        }
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200/80 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150">
+              
+              {/* Header com avatar e info do colaborador */}
+              <div className="px-6 py-4.5 bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 text-white flex items-center justify-between relative overflow-hidden shadow-sm">
+                <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 to-amber-200 text-amber-950 flex items-center justify-center font-black shadow-md shadow-amber-500/20">
+                    <Palmtree size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-extrabold text-sm tracking-tight text-white">
+                        Lançamento em Período
+                      </h3>
+                      <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold text-blue-200 backdrop-blur-xs">
+                        {MONTH_NAMES[selectedMonth]} {selectedYear}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 font-medium truncate max-w-[300px]">
+                      {intervalModal.colabNome}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIntervalModal({ ...intervalModal, isOpen: false })}
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer"
+                  title="Fechar"
                 >
-                  <option value="FER">FER</option>
-                  <option value="T">T</option>
-                  <option value="FLG">FLG</option>
-                  <option value="FLT">FLT</option>
-                  <option value="ATM">ATM</option>
-                  <option value="REM">REM</option>
-                  <option value="BH">BH</option>
-                  <option value="DSR">DSR</option>
-                </select>
+                  <X size={16} />
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Corpo com scroll suave */}
+              <div className="p-6 overflow-y-auto space-y-5 text-slate-800">
+
+                {/* 1. Escolha do Status */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Dia Inicial
+                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
+                    1. Selecione o Status Principal
                   </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={daysInMonth}
-                    value={intervalModal.startDay}
-                    onChange={(e) => setIntervalModal({ ...intervalModal, startDay: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 outline-hidden focus:ring-2 focus:ring-blue-500/20"
-                  />
+                  <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
+                    {(['FER', 'T', 'FLG', 'ATM', 'FLT', 'REM', 'BH', 'DSR'] as ApontamentoStatus[]).map(st => {
+                      const cfg = APONTAMENTO_STATUS_CONFIG[st] || { label: st, bg: 'bg-slate-100', text: 'text-slate-700' }
+                      const isSelected = intervalModal.status === st
+                      return (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => setIntervalModal({ ...intervalModal, status: st })}
+                          className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                            isSelected
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25 scale-[1.02]'
+                              : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <span>{cfg.label}</span>
+                          {isSelected && <Check size={12} className="stroke-[3]" />}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
 
+                {/* 2. Seleção de Dias e Presets */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Dia Final
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={daysInMonth}
-                    value={intervalModal.endDay}
-                    onChange={(e) => setIntervalModal({ ...intervalModal, endDay: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 outline-hidden focus:ring-2 focus:ring-blue-500/20"
-                  />
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
+                      2. Período (Dias)
+                    </label>
+                    <div className="flex items-center gap-1 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => setIntervalModal({ ...intervalModal, startDay: 1, endDay: 15 })}
+                        className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer transition text-[10px]"
+                      >
+                        1ª Quinzena
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIntervalModal({ ...intervalModal, startDay: 16, endDay: daysInMonth })}
+                        className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer transition text-[10px]"
+                      >
+                        2ª Quinzena
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIntervalModal({ ...intervalModal, startDay: 1, endDay: daysInMonth })}
+                        className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer transition text-[10px]"
+                      >
+                        Mês Todo
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                    <div>
+                      <span className="block text-[11px] font-bold text-slate-500 mb-1">Dia Inicial</span>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={1}
+                          max={daysInMonth}
+                          value={intervalModal.startDay}
+                          onChange={(e) => {
+                            const val = Math.max(1, Math.min(daysInMonth, Number(e.target.value) || 1))
+                            setIntervalModal({ ...intervalModal, startDay: val })
+                          }}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-extrabold text-slate-800 bg-white shadow-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-hidden"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="block text-[11px] font-bold text-slate-500 mb-1">Dia Final</span>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={1}
+                          max={daysInMonth}
+                          value={intervalModal.endDay}
+                          onChange={(e) => {
+                            const val = Math.max(1, Math.min(daysInMonth, Number(e.target.value) || 1))
+                            setIntervalModal({ ...intervalModal, endDay: val })
+                          }}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-extrabold text-slate-800 bg-white shadow-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-hidden"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* 3. Opções de DSR Manual */}
+                {intervalModal.status !== 'DSR' && (
+                  <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse" />
+                        <label className="text-xs font-black text-indigo-950 uppercase tracking-wider">
+                          3. Configurar DSR Manual no Intervalo
+                        </label>
+                      </div>
+                      <span className="text-[11px] font-bold text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded-full">
+                        {countDsr} DSR{countDsr === 1 ? '' : 's'} marcado{countDsr === 1 ? '' : 's'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                      {[
+                        { id: 'none', label: 'Sem DSR', desc: 'Apenas status' },
+                        { id: 'sundays', label: 'Domingos', desc: 'DSR aos domingos' },
+                        { id: 'weekends', label: 'Sáb & Dom', desc: 'Finais de semana' },
+                        { id: 'custom', label: 'Manual Livre', desc: 'Clique nos dias' }
+                      ].map(opt => {
+                        const isAct = intervalModal.dsrMode === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setIntervalModal({
+                              ...intervalModal,
+                              dsrMode: opt.id as any
+                            })}
+                            className={`p-2 rounded-xl text-left border transition-all cursor-pointer flex flex-col ${
+                              isAct
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                : 'bg-white hover:bg-indigo-50/80 text-slate-700 border-indigo-200/80'
+                            }`}
+                          >
+                            <span className="text-[11px] font-black">{opt.label}</span>
+                            <span className={`text-[9px] ${isAct ? 'text-indigo-100' : 'text-slate-400'}`}>
+                              {opt.desc}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {/* Matriz interativa de dias do intervalo para clique manual */}
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase">
+                          Clique nos dias abaixo para marcar/desmarcar DSR:
+                        </span>
+                        {intervalModal.customDsrDays.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setIntervalModal({ ...intervalModal, customDsrDays: [] })}
+                            className="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold underline cursor-pointer"
+                          >
+                            Limpar seleção
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 bg-white rounded-xl border border-indigo-100">
+                        {intervalDaysList.map(item => {
+                          return (
+                            <button
+                              key={item.day}
+                              type="button"
+                              onClick={() => toggleCustomDay(item.day)}
+                              title={`Dia ${item.day} (${item.weekday}) - Clique para alternar DSR`}
+                              className={`flex flex-col items-center justify-center w-9 h-11 rounded-lg text-[10px] transition cursor-pointer border ${
+                                item.isDsr
+                                  ? 'bg-indigo-600 text-white border-indigo-700 font-black shadow-xs ring-2 ring-indigo-400/30'
+                                  : item.isSun || item.isSat
+                                  ? 'bg-amber-50/80 hover:bg-indigo-100 text-amber-900 border-amber-200 font-bold'
+                                  : 'bg-slate-50 hover:bg-indigo-50 text-slate-700 border-slate-200 font-medium'
+                              }`}
+                            >
+                              <span className="text-[8px] leading-tight opacity-75">{item.weekday}</span>
+                              <span className="text-[11px] font-extrabold leading-tight">{item.day}</span>
+                              <span className="text-[7px] leading-none uppercase font-black">
+                                {item.isDsr ? 'DSR' : intervalModal.status}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Resumo visual do lançamento */}
+                <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/90 flex items-center justify-between text-xs">
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-slate-700">
+                      Resumo da Operação:
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Dia <strong>{start}</strong> até <strong>{end}</strong> de <strong>{MONTH_NAMES[selectedMonth]}</strong> ({totalDays} dias)
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {intervalModal.status !== 'DSR' && countDsr > 0 && (
+                      <span className="px-2 py-1 rounded-lg bg-indigo-100 text-indigo-800 font-extrabold text-[11px]">
+                        {countDsr} DSR
+                      </span>
+                    )}
+                    <span className="px-2.5 py-1 rounded-lg bg-blue-100 text-blue-900 font-extrabold text-[11px]">
+                      {countStatus} {intervalModal.status}
+                    </span>
+                  </div>
+                </div>
+
               </div>
 
-              <p className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                Isso aplicará <strong>{APONTAMENTO_STATUS_CONFIG[intervalModal.status].label}</strong> em todos os dias do dia <strong>{intervalModal.startDay}</strong> até o dia <strong>{intervalModal.endDay}</strong> de <strong>{MONTH_NAMES[selectedMonth]}</strong>.
-              </p>
-            </div>
+              {/* Rodapé com botões de ação */}
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIntervalModal({ ...intervalModal, isOpen: false })}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-white hover:border-slate-300 transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyInterval}
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-lg shadow-blue-500/25 hover:shadow-blue-500/35 transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <Check size={14} className="stroke-[3]" />
+                  <span>Aplicar Intervalo</span>
+                </button>
+              </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setIntervalModal({ ...intervalModal, isOpen: false })}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleApplyInterval}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-md shadow-blue-500/20 transition cursor-pointer"
-              >
-                Aplicar Intervalo
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
     </div>
   )
