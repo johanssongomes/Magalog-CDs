@@ -2525,46 +2525,7 @@ export const PmtsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Distribuição por Modal Agrupado (CD 994) */}
-          <div className="p-5 rounded-xl border border-slate-200 bg-slate-50/40 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-slate-800">
-                  Distribuição por Modal Agrupado (CD 994)
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Segmentação do PMT {activePage.label} para o período de {selectedMonthName.split(' - ')[1]}/{selectedYear}
-                </p>
-              </div>
-              <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700">
-                Arquivo: {pmtData.summary?.arquivo_origem || 'PMT_out_2026.xlsx'}
-              </span>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {pmtData.modals && pmtData.modals.map((m) => {
-                const perc = totalValor > 0 ? ((m.valor / totalValor) * 100).toFixed(1) : '0'
-                return (
-                  <div key={m.modal_agrupado} className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800">{m.modal_agrupado}</span>
-                      <span className="text-xs font-mono font-bold text-blue-600">{perc}%</span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-500" 
-                        style={{ width: `${Math.min(100, Math.max(2, Number(perc)))}%` }}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-                      <span>{m.linhas.toLocaleString('pt-BR')} linhas</span>
-                      <span className="font-semibold text-slate-700">R$ {(m.valor / 1_000_000).toFixed(2)}M</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
 
           {/* INDICADOR DIÁRIO POR MODAL */}
           <PmtDailyMatrixTable 
