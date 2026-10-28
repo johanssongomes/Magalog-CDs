@@ -23,7 +23,11 @@ import {
   Percent,
   Activity,
   Zap,
-  Save
+  Save,
+  ChevronUp,
+  ChevronDown,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import { getPmtDailyMatrixFromSupabase } from '../lib/pmtService'
 import { 
@@ -76,6 +80,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
   const [groupBy, setGroupBy] = useState<GroupByView>('modal')
   const [searchModal, setSearchModal] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isContentMinimized, setIsContentMinimized] = useState(false)
 
   const getEmptyAderenciaState = (a: number, m: number, c: string): AderenciaDataState => ({
     ano: a,
@@ -707,6 +712,20 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
             />
           </div>
 
+          {/* Botão Minimizar / Expandir Conteúdo */}
+          <button
+            onClick={() => setIsContentMinimized(!isContentMinimized)}
+            title={isContentMinimized ? 'Expandir linhas detalhadas de modais' : 'Minimizar linhas detalhadas e mostrar apenas Totais e Aderência'}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shadow-2xs transition-all cursor-pointer ${
+              isContentMinimized
+                ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+            }`}
+          >
+            {isContentMinimized ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+            <span>{isContentMinimized ? 'Expandir Linhas' : 'Minimizar Conteúdo'}</span>
+          </button>
+
           {/* Botão Exportar CSV */}
           <button
             onClick={handleExportCSV}
@@ -771,7 +790,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                   =============================================================== */}
               {(selectedSection === 'all' || selectedSection === 'pedidos') && (
                 <>
-                  {filteredModals.map((modalName) => {
+                  {!isContentMinimized && filteredModals.map((modalName) => {
                     const rowData = matrix.data.pedidos[modalName] || { total: 0 }
                     const dynamicTotal = getRowTotal(rowData)
                     return (
@@ -835,7 +854,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                   =============================================================== */}
               {(selectedSection === 'all' || selectedSection === 'pecas') && (
                 <>
-                  {filteredModals.map((modalName) => {
+                  {!isContentMinimized && filteredModals.map((modalName) => {
                     const rowData = matrix.data.pecas[modalName] || { total: 0 }
                     const dynamicTotal = getRowTotal(rowData)
                     return (
@@ -899,7 +918,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                   =============================================================== */}
               {(selectedSection === 'all' || selectedSection === 'cubagem') && (
                 <>
-                  {filteredModals.map((modalName) => {
+                  {!isContentMinimized && filteredModals.map((modalName) => {
                     const rowData = matrix.data.cubagem[modalName] || { total: 0 }
                     const dynamicTotal = getRowTotal(rowData)
                     return (
