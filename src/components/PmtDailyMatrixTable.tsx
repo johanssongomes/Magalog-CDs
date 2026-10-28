@@ -77,19 +77,21 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
   const [searchModal, setSearchModal] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
+  const getEmptyAderenciaState = (a: number, m: number, c: string): AderenciaDataState => ({
+    ano: a,
+    mes: m,
+    cd: c,
+    liberado: { totals: { pedidos: {}, pecas: {}, cubagem: {} }, byModal: { pedidos: {}, pecas: {}, cubagem: {} }, byCategoria: { pedidos: {}, pecas: {}, cubagem: {} } },
+    faturado: { totals: { pedidos: {}, pecas: {}, cubagem: {} }, byModal: { pedidos: {}, pecas: {}, cubagem: {} }, byCategoria: { pedidos: {}, pecas: {}, cubagem: {} } },
+    capacidade: { pedidos: {}, pecas: {}, cubagem: {} }
+  })
+
   // Estado dos Dados de Aderência (Liberado, Faturado e Capacidade)
   const [aderencia, setAderencia] = useState<AderenciaDataState>(() => {
     if (ano === 2026 && mes === 10) {
       return initialAderenciaOct as unknown as AderenciaDataState
     }
-    return {
-      ano,
-      mes,
-      cd,
-      liberado: { totals: { pedidos: {}, pecas: {}, cubagem: {} }, byModal: { pedidos: {}, pecas: {}, cubagem: {} }, byCategoria: { pedidos: {}, pecas: {}, cubagem: {} } },
-      faturado: { totals: { pedidos: {}, pecas: {}, cubagem: {} }, byModal: { pedidos: {}, pecas: {}, cubagem: {} }, byCategoria: { pedidos: {}, pecas: {}, cubagem: {} } },
-      capacidade: { pedidos: {}, pecas: {}, cubagem: {} }
-    }
+    return getEmptyAderenciaState(ano, mes, cd)
   })
 
   // Modal para importação de planilhas de Aderência
@@ -158,15 +160,27 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
     return () => { isMounted = false }
   }, [ano, mes, cd, groupBy])
 
-  // Carregar dados de Aderência do Supabase
+  // Carregar dados de Aderência do Supabase ou Cache para o mês específico
   useEffect(() => {
     let isMounted = true
+    
+    // Limpa imediatamente o estado para o novo mês para evitar exibir dados do mês anterior
+    if (ano === 2026 && mes === 10) {
+      setAderencia(initialAderenciaOct as unknown as AderenciaDataState)
+    } else {
+      setAderencia(getEmptyAderenciaState(ano, mes, cd))
+    }
+
     const loadAderencia = async () => {
       const dbData = await getAderenciaData(ano, mes, cd)
-      if (dbData && isMounted) {
-        setAderencia(dbData)
-      } else if (ano === 2026 && mes === 10 && isMounted) {
-        setAderencia(initialAderenciaOct as unknown as AderenciaDataState)
+      if (isMounted) {
+        if (dbData) {
+          setAderencia(dbData)
+        } else if (ano === 2026 && mes === 10) {
+          setAderencia(initialAderenciaOct as unknown as AderenciaDataState)
+        } else {
+          setAderencia(getEmptyAderenciaState(ano, mes, cd))
+        }
       }
     }
     loadAderencia()
@@ -269,22 +283,55 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
     try {
       const buffer = await file.arrayBuffer()
       const dateCol = type === 'liberado' ? 'Data Liberação' : 'Data Faturamento'
-      const parsed = parseAderenciaExcel(buffer, dateCol)
+      // Identifica automaticamente mês e ano por linha da planilha
+      const monthsMap = parseAderenciaExcel(buffer, dateCol, ano, mes, cd)
+      const foundMonths = Object.keys(monthsMap)
 
-      const updated: AderenciaDataState = {
-        ...aderencia,
-        ano,
-        mes,
-        cd,
-        [type]: parsed,
-        updatedAt: new Date().toISOString()
+      if (foundMonths.length === 0) {
+        throw new Error('Nenhuma data ou linha válida encontrada na planilha importada.')
       }
 
-      setAderencia(updated)
-      await saveAderenciaData(updated)
+      let activeMonthUpdated = false
+
+      // Salva cada mês isoladamente na sua respectiva competência
+      for (const mKey of foundMonths) {
+        const parsedItem = monthsMap[mKey]
+        const mYear = parsedItem.ano
+        const mMonth = parsedItem.mes
+
+        // Recupera dados já existentes do mês de destino (se houver) para manter capacidade e a outra métrica
+        const existingData = await getAderenciaData(mYear, mMonth, cd)
+        const baseForMonth: AderenciaDataState = existingData || getEmptyAderenciaState(mYear, mMonth, cd)
+
+        const updatedMonthState: AderenciaDataState = {
+          ...baseForMonth,
+          ano: mYear,
+          mes: mMonth,
+          cd,
+          [type]: {
+            totals: parsedItem.totals,
+            byModal: parsedItem.byModal,
+            byCategoria: parsedItem.byCategoria
+          },
+          updatedAt: new Date().toISOString()
+        }
+
+        await saveAderenciaData(updatedMonthState)
+
+        // Se o mês importado for o mês atualmente selecionado na tela, atualiza o state imediatamente
+        if (mYear === ano && mMonth === mes) {
+          setAderencia(updatedMonthState)
+          activeMonthUpdated = true
+        }
+      }
+
+      const monthsLabel = foundMonths.map(k => {
+        const [y, m] = k.split('-')
+        return `${m}/${y}`
+      }).join(', ')
 
       setUploadFeedback({
-        text: `Planilha de ${type === 'liberado' ? 'Liberação' : 'Faturamento'} importada e calculada com sucesso!`,
+        text: `Planilha de ${type === 'liberado' ? 'Liberação' : 'Faturamento'} importada com sucesso para o(s) mês(es): ${monthsLabel}!`,
         type: 'success'
       })
     } catch (err: any) {

@@ -81,63 +81,149 @@ export function extractDayStr(val: any): string | null {
   return null
 }
 
-// Processador de arquivo Excel de Liberação ou Faturamento
+// Extrair dia, mês e ano de um registro ou data
+export function extractDateParts(
+  row: any, 
+  dateColumnName?: string, 
+  defaultAno?: number, 
+  defaultMes?: number
+): { dayStr: string; mes: number; ano: number } | null {
+  if (!row) return null
+
+  // 1. Tentar pegar das colunas explícitas se existirem
+  const rawAno = row['Ano Liberação'] || row['Ano Faturamento'] || row['Ano'] || row['ano']
+  const rawMes = row['Mês Liberação'] || row['Mês Faturamento'] || row['Mês'] || row['Mes'] || row['mes']
+  const dateVal = row[dateColumnName || ''] || row['Data'] || row['Data Liberação'] || row['Data Faturamento']
+
+  let ano = parseSafeNumber(rawAno) || defaultAno || 0
+  let mes = parseSafeNumber(rawMes) || defaultMes || 0
+  let dayStr: string | null = null
+
+  if (dateVal) {
+    const s = String(dateVal).trim()
+    // DD/MM/AAAA ou DD/MM/AA
+    if (s.includes('/')) {
+      const parts = s.split('/')
+      if (parts.length >= 3) {
+        dayStr = parts[0].padStart(2, '0')
+        if (!mes) mes = parseInt(parts[1], 10)
+        if (!ano) {
+          const parsedYear = parseInt(parts[2], 10)
+          ano = parsedYear < 100 ? 2000 + parsedYear : parsedYear
+        }
+      } else if (parts.length === 2) {
+        dayStr = parts[0].padStart(2, '0')
+        if (!mes) mes = parseInt(parts[1], 10)
+      }
+    } else if (s.includes('-')) {
+      // AAAA-MM-DD
+      const parts = s.split('-')
+      if (parts.length >= 3) {
+        if (!ano) ano = parseInt(parts[0], 10)
+        if (!mes) mes = parseInt(parts[1], 10)
+        dayStr = parts[2].substring(0, 2).padStart(2, '0')
+      }
+    } else {
+      const num = parseInt(s, 10)
+      if (!isNaN(num) && num >= 1 && num <= 31) {
+        dayStr = num.toString().padStart(2, '0')
+      }
+    }
+  }
+
+  if (!dayStr && row['Dia']) {
+    const d = parseInt(String(row['Dia']), 10)
+    if (!isNaN(d) && d >= 1 && d <= 31) dayStr = d.toString().padStart(2, '0')
+  }
+
+  if (!dayStr) return null
+  return { dayStr, mes: mes || (defaultMes || 1), ano: ano || (defaultAno || 2026) }
+}
+
+export interface ParsedMonthAderencia {
+  ano: number
+  mes: number
+  cd: string
+  totals: AderenciaMetricData
+  byModal: {
+    pedidos: Record<string, Record<string, number>>
+    pecas: Record<string, Record<string, number>>
+    cubagem: Record<string, Record<string, number>>
+  }
+  byCategoria: {
+    pedidos: Record<string, Record<string, number>>
+    pecas: Record<string, Record<string, number>>
+    cubagem: Record<string, Record<string, number>>
+  }
+}
+
+// Processador de arquivo Excel de Liberação ou Faturamento particionado por Mês e Ano
 export function parseAderenciaExcel(
   fileBuffer: ArrayBuffer,
-  dateColumnName: 'Data Liberação' | 'Data Faturamento' | string
-) {
+  dateColumnName: 'Data Liberação' | 'Data Faturamento' | string,
+  contextAno?: number,
+  contextMes?: number,
+  contextCd: string = '994'
+): Record<string, ParsedMonthAderencia> {
   const wb = XLSX.read(fileBuffer, { type: 'array' })
   const sheetName = wb.SheetNames[0]
   const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName])
 
-  const totals: AderenciaMetricData = { pedidos: {}, pecas: {}, cubagem: {} }
-  const byModal = {
-    pedidos: {} as Record<string, Record<string, number>>,
-    pecas: {} as Record<string, Record<string, number>>,
-    cubagem: {} as Record<string, Record<string, number>>
-  }
-  const byCategoria = {
-    pedidos: {} as Record<string, Record<string, number>>,
-    pecas: {} as Record<string, Record<string, number>>,
-    cubagem: {} as Record<string, Record<string, number>>
-  }
+  // Dicionário por chave 'YYYY-MM'
+  const monthsMap: Record<string, ParsedMonthAderencia> = {}
 
   rows.forEach(r => {
-    // Tenta encontrar a coluna de data mesmo se houver variação no título
-    const dateVal = r[dateColumnName] || r['Data'] || r['Data Liberação'] || r['Data Faturamento']
-    const dayStr = extractDayStr(dateVal)
-    if (!dayStr) return
+    const dateParts = extractDateParts(r, dateColumnName, contextAno, contextMes)
+    if (!dateParts) return
 
+    const rowAno = dateParts.ano
+    const rowMes = dateParts.mes
+    const dayStr = dateParts.dayStr
+    const rowCd = String(r['CD'] || r['cd'] || contextCd).trim()
+    const monthKey = `${rowAno}-${rowMes.toString().padStart(2, '0')}`
+
+    if (!monthsMap[monthKey]) {
+      monthsMap[monthKey] = {
+        ano: rowAno,
+        mes: rowMes,
+        cd: rowCd,
+        totals: { pedidos: {}, pecas: {}, cubagem: {} },
+        byModal: { pedidos: {}, pecas: {}, cubagem: {} },
+        byCategoria: { pedidos: {}, pecas: {}, cubagem: {} }
+      }
+    }
+
+    const currentMonth = monthsMap[monthKey]
     const modal = String(r['Modal'] || 'Outros').trim()
-    const cat = String(r['Categoria Produtividade'] || r['Categoria'] || 'Outros').trim()
+    const cat = String(r['Categoria Produtividade 3'] || r['Categoria Produtividade'] || r['Categoria'] || 'Outros').trim()
 
     const ped = parseSafeNumber(r['Pedidos'])
     const pec = parseSafeNumber(r['Peças'])
     const cub = parseSafeNumber(r['Cubagem'])
 
-    // Totais Gerais por Dia
-    totals.pedidos[dayStr] = (totals.pedidos[dayStr] || 0) + ped
-    totals.pecas[dayStr] = (totals.pecas[dayStr] || 0) + pec
-    totals.cubagem[dayStr] = (totals.cubagem[dayStr] || 0) + cub
+    // Totais Gerais por Dia no Mês Correto
+    currentMonth.totals.pedidos[dayStr] = (currentMonth.totals.pedidos[dayStr] || 0) + ped
+    currentMonth.totals.pecas[dayStr] = (currentMonth.totals.pecas[dayStr] || 0) + pec
+    currentMonth.totals.cubagem[dayStr] = (currentMonth.totals.cubagem[dayStr] || 0) + cub
 
     // Por Modal
-    if (!byModal.pedidos[modal]) byModal.pedidos[modal] = {}
-    if (!byModal.pecas[modal]) byModal.pecas[modal] = {}
-    if (!byModal.cubagem[modal]) byModal.cubagem[modal] = {}
-    byModal.pedidos[modal][dayStr] = (byModal.pedidos[modal][dayStr] || 0) + ped
-    byModal.pecas[modal][dayStr] = (byModal.pecas[modal][dayStr] || 0) + pec
-    byModal.cubagem[modal][dayStr] = (byModal.cubagem[modal][dayStr] || 0) + cub
+    if (!currentMonth.byModal.pedidos[modal]) currentMonth.byModal.pedidos[modal] = {}
+    if (!currentMonth.byModal.pecas[modal]) currentMonth.byModal.pecas[modal] = {}
+    if (!currentMonth.byModal.cubagem[modal]) currentMonth.byModal.cubagem[modal] = {}
+    currentMonth.byModal.pedidos[modal][dayStr] = (currentMonth.byModal.pedidos[modal][dayStr] || 0) + ped
+    currentMonth.byModal.pecas[modal][dayStr] = (currentMonth.byModal.pecas[modal][dayStr] || 0) + pec
+    currentMonth.byModal.cubagem[modal][dayStr] = (currentMonth.byModal.cubagem[modal][dayStr] || 0) + cub
 
     // Por Categoria de Produtividade
-    if (!byCategoria.pedidos[cat]) byCategoria.pedidos[cat] = {}
-    if (!byCategoria.pecas[cat]) byCategoria.pecas[cat] = {}
-    if (!byCategoria.cubagem[cat]) byCategoria.cubagem[cat] = {}
-    byCategoria.pedidos[cat][dayStr] = (byCategoria.pedidos[cat][dayStr] || 0) + ped
-    byCategoria.pecas[cat][dayStr] = (byCategoria.pecas[cat][dayStr] || 0) + pec
-    byCategoria.cubagem[cat][dayStr] = (byCategoria.cubagem[cat][dayStr] || 0) + cub
+    if (!currentMonth.byCategoria.pedidos[cat]) currentMonth.byCategoria.pedidos[cat] = {}
+    if (!currentMonth.byCategoria.pecas[cat]) currentMonth.byCategoria.pecas[cat] = {}
+    if (!currentMonth.byCategoria.cubagem[cat]) currentMonth.byCategoria.cubagem[cat] = {}
+    currentMonth.byCategoria.pedidos[cat][dayStr] = (currentMonth.byCategoria.pedidos[cat][dayStr] || 0) + ped
+    currentMonth.byCategoria.pecas[cat][dayStr] = (currentMonth.byCategoria.pecas[cat][dayStr] || 0) + pec
+    currentMonth.byCategoria.cubagem[cat][dayStr] = (currentMonth.byCategoria.cubagem[cat][dayStr] || 0) + cub
   })
 
-  return { totals, byModal, byCategoria }
+  return monthsMap
 }
 
 // Buscar dados de Aderência (Liberado, Faturado e Capacidade) do Supabase ou Cache
