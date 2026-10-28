@@ -663,6 +663,243 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
             <span>Atualizar Liberação / Faturamento</span>
           </button>
 
+          {/* BOTÃO E POPOVER DO FILTRO DE CALENDÁRIO */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs font-bold shadow-2xs cursor-pointer ${
+                selectedDays.length > 0 || startDateFilter || endDateFilter
+                  ? 'bg-amber-500 border-amber-600 text-white shadow-amber-500/20'
+                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <CalendarDays size={14} className={selectedDays.length > 0 || startDateFilter || endDateFilter ? 'text-white' : 'text-amber-600'} />
+                <span className={`text-[10px] uppercase tracking-wider font-mono ${selectedDays.length > 0 || startDateFilter || endDateFilter ? 'text-white/80' : 'text-slate-400'}`}>PERÍODO:</span>
+                <span className="font-extrabold">
+                  {selectedDays.length === 0 && !startDateFilter && !endDateFilter
+                    ? `Mês Todo (${matrix?.days?.length || 0}d)`
+                    : selectedDays.length > 0
+                      ? `${selectedDays.length} dia(s)`
+                      : 'Faixa de Datas'}
+                </span>
+              </div>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold shadow-2xs ${
+                selectedDays.length > 0 || startDateFilter || endDateFilter
+                  ? 'bg-white/20 text-white'
+                  : 'bg-amber-100 text-amber-800'
+              }`}>
+                {activeFilteredDays.length}
+              </span>
+            </button>
+
+            {isDateDropdownOpen && matrix && (
+              <div className="absolute top-full right-0 lg:left-0 lg:right-auto mt-2 w-[340px] sm:w-[360px] bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 p-4 space-y-3.5 animate-in fade-in zoom-in-95">
+                {/* Cabeçalho do Calendário */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
+                      <CalendarDays size={16} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Filtro de Calendário</h4>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        {mes.toString().padStart(2, '0')}/{ano}
+                      </p>
+                    </div>
+                  </div>
+                  {(selectedDays.length > 0 || startDateFilter || endDateFilter) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedDays([])
+                        setStartDateFilter('')
+                        setEndDateFilter('')
+                      }}
+                      className="flex items-center gap-1 text-[11px] text-amber-600 hover:text-amber-800 font-bold bg-amber-50 hover:bg-amber-100/80 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <RotateCcw size={12} />
+                      Limpar
+                    </button>
+                  )}
+                </div>
+
+                {/* Atalhos Rápidos (Presets) */}
+                <div className="grid grid-cols-4 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDays([])
+                      setStartDateFilter('')
+                      setEndDateFilter('')
+                    }}
+                    className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all cursor-pointer ${
+                      selectedDays.length === 0 && !startDateFilter && !endDateFilter
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60'
+                    }`}
+                  >
+                    Mês Todo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const workDays = matrix.days.filter(d => {
+                        const dt = new Date(ano, mes - 1, d.day)
+                        const w = dt.getDay()
+                        return w !== 0 && w !== 6
+                      }).map(d => d.day)
+                      setSelectedDays(workDays)
+                      setStartDateFilter('')
+                      setEndDateFilter('')
+                    }}
+                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
+                  >
+                    Dias Úteis
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const firstHalf = matrix.days.filter(d => d.day <= 15).map(d => d.day)
+                      setSelectedDays(firstHalf)
+                      setStartDateFilter('')
+                      setEndDateFilter('')
+                    }}
+                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
+                  >
+                    1ª Quinzena
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const secondHalf = matrix.days.filter(d => d.day > 15).map(d => d.day)
+                      setSelectedDays(secondHalf)
+                      setStartDateFilter('')
+                      setEndDateFilter('')
+                    }}
+                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
+                  >
+                    2ª Quinzena
+                  </button>
+                </div>
+
+                {/* Grade Visual do Calendário Mensal */}
+                <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-200/80">
+                  <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
+                    {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((dia, idx) => (
+                      <span 
+                        key={dia} 
+                        className={`text-[9px] font-bold uppercase tracking-wider ${
+                          idx === 0 || idx === 6 ? 'text-amber-600' : 'text-slate-400'
+                        }`}
+                      >
+                        {dia}
+                      </span>
+                    ))}
+                  </div>
+
+                  {(() => {
+                    const firstDayWeekIdx = new Date(ano, mes - 1, 1).getDay()
+                    const emptyPrefixSlots = Array.from({ length: firstDayWeekIdx })
+
+                    return (
+                      <div className="grid grid-cols-7 gap-1">
+                        {emptyPrefixSlots.map((_, i) => (
+                          <div key={`empty-${i}`} className="h-7 rounded-lg" />
+                        ))}
+                        {matrix.days.map(d => {
+                          const isSingleSelected = selectedDays.includes(d.day)
+                          const dayIso = `${ano}-${String(mes).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`
+                          const isInRange = Boolean(
+                            (startDateFilter && endDateFilter && dayIso >= startDateFilter && dayIso <= endDateFilter) ||
+                            (startDateFilter && !endDateFilter && dayIso === startDateFilter) ||
+                            (!startDateFilter && endDateFilter && dayIso === endDateFilter)
+                          )
+                          const isSelected = isSingleSelected || isInRange
+                          const dt = new Date(ano, mes - 1, d.day)
+                          const isWeekend = dt.getDay() === 0 || dt.getDay() === 6
+
+                          return (
+                            <button
+                              key={`cal-btn-${d.day}`}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setStartDateFilter('')
+                                setEndDateFilter('')
+                                toggleDayFilter(d.day)
+                              }}
+                              title={`Dia ${d.day}`}
+                              className={`h-7 rounded-lg text-[11px] font-bold flex flex-col items-center justify-center transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30 scale-105 z-10'
+                                  : isWeekend
+                                    ? 'bg-amber-100/50 hover:bg-amber-200/60 text-amber-900 border border-amber-200/40'
+                                    : 'bg-white hover:bg-slate-200/60 text-slate-700 border border-slate-200/50 hover:border-slate-300'
+                              }`}
+                            >
+                              <span>{d.day}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* Seletor de Faixa de Datas (Início / Fim) */}
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-tight">FAIXA DE DATAS:</span>
+                    {(startDateFilter || endDateFilter) && (
+                      <span className="text-[9px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded">Range Ativo</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="block text-[9px] font-semibold text-slate-400 mb-0.5 uppercase">INÍCIO</span>
+                      <input
+                        type="date"
+                        value={startDateFilter}
+                        onChange={e => {
+                          setStartDateFilter(e.target.value)
+                          setSelectedDays([])
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] text-slate-700 font-medium focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <span className="block text-[9px] font-semibold text-slate-400 mb-0.5 uppercase">FIM</span>
+                      <input
+                        type="date"
+                        value={endDateFilter}
+                        onChange={e => {
+                          setEndDateFilter(e.target.value)
+                          setSelectedDays([])
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] text-slate-700 font-medium focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rodapé do Dropdown */}
+                <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
+                  <span>{activeFilteredDays.length} de {matrix.days.length} dias exibidos</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsDateDropdownOpen(false)}
+                    className="text-amber-600 hover:text-amber-800 font-bold cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Alternância: Por Modal vs Por Categoria de Produtividade */}
           <div className="inline-flex p-1 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-900">
             <button
