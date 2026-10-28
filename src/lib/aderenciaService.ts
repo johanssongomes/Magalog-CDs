@@ -5,6 +5,7 @@ export interface AderenciaMetricData {
   pedidos: Record<string, number> // dayStr -> valor
   pecas: Record<string, number>
   cubagem: Record<string, number>
+  valor?: Record<string, number>
 }
 
 export interface AderenciaDataState {
@@ -187,7 +188,7 @@ export function parseAderenciaExcel(
         ano: rowAno,
         mes: rowMes,
         cd: rowCd,
-        totals: { pedidos: {}, pecas: {}, cubagem: {} },
+        totals: { pedidos: {}, pecas: {}, cubagem: {}, valor: {} },
         byModal: { pedidos: {}, pecas: {}, cubagem: {} },
         byCategoria: { pedidos: {}, pecas: {}, cubagem: {} }
       }
@@ -200,11 +201,14 @@ export function parseAderenciaExcel(
     const ped = parseSafeNumber(r['Pedidos'])
     const pec = parseSafeNumber(r['Peças'])
     const cub = parseSafeNumber(r['Cubagem'])
+    const val = parseSafeNumber(r['Valor_1'] || r['Valor'])
 
     // Totais Gerais por Dia no Mês Correto
     currentMonth.totals.pedidos[dayStr] = (currentMonth.totals.pedidos[dayStr] || 0) + ped
     currentMonth.totals.pecas[dayStr] = (currentMonth.totals.pecas[dayStr] || 0) + pec
     currentMonth.totals.cubagem[dayStr] = (currentMonth.totals.cubagem[dayStr] || 0) + cub
+    if (!currentMonth.totals.valor) currentMonth.totals.valor = {}
+    currentMonth.totals.valor[dayStr] = (currentMonth.totals.valor[dayStr] || 0) + val
 
     // Por Modal
     if (!currentMonth.byModal.pedidos[modal]) currentMonth.byModal.pedidos[modal] = {}

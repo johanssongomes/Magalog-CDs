@@ -724,13 +724,13 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
           ========================================================================= */}
       <div className="relative border border-slate-200 rounded-xl overflow-hidden shadow-2xs bg-white">
         <div className="overflow-x-auto max-h-[650px] overflow-y-auto">
-          <table className={`${activeFilteredDays.length < 15 ? 'w-auto' : 'w-full'} text-left border-collapse text-[11px] font-sans`}>
+          <table className="w-full text-left border-collapse text-[11px] font-sans">
             {/* Cabeçalho da Tabela */}
             <thead className="sticky top-0 z-30 bg-[#e0f2fe] border-b border-sky-300">
               <tr>
                 <th 
                   scope="col"
-                  className="sticky left-0 z-40 bg-[#e0f2fe] px-3 py-2 font-bold text-slate-800 border-r border-sky-200 min-w-[210px] w-[210px] shadow-[2px_0_4px_rgba(0,0,0,0.03)]"
+                  className="sticky left-0 z-40 bg-[#e0f2fe] px-3 py-1.5 font-bold text-slate-800 border-r border-sky-200 min-w-[190px] w-[190px] shadow-[2px_0_4px_rgba(0,0,0,0.03)]"
                 >
                   <div className="flex items-center justify-between">
                     <span>Data / Indicador</span>
@@ -744,7 +744,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                     <th
                       key={d.dayStr}
                       scope="col"
-                      className={`px-2 py-1 text-center font-normal min-w-[48px] w-[54px] border-r border-sky-200/80 ${
+                      className={`px-1.5 py-1 text-center font-normal min-w-[38px] border-r border-sky-200/80 ${
                         isWeekend ? 'bg-sky-200/50' : ''
                       }`}
                     >
