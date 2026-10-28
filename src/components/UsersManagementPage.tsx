@@ -223,6 +223,7 @@ export const UsersManagementPage: React.FC = () => {
     possuiFeedback: row.possui_feedback || '',
     idLider: row.id_lider || '',
     nomeLider: row.nome_lider || '',
+    area: row.area || '',
     setor: row.setor || '',
     turno: row.turno || '',
     ferias: row.ferias || '',
@@ -618,6 +619,7 @@ export const UsersManagementPage: React.FC = () => {
           possui_feedback: updatedColaborador.possuiFeedback,
           id_lider: updatedColaborador.idLider,
           nome_lider: updatedColaborador.nomeLider,
+          area: updatedColaborador.area,
           setor: updatedColaborador.setor,
           turno: updatedColaborador.turno,
           ferias: updatedColaborador.ferias,
@@ -716,6 +718,96 @@ export const UsersManagementPage: React.FC = () => {
       setMessage({ text: err.message || 'Erro ao processar dados do usuário.', type: 'error' })
     } finally {
       setSaving(false)
+    }
+  }
+
+  // Mudança rápida de Área diretamente na tabela para agilizar a edição
+  const handleQuickChangeArea = async (u: AppUserProfile, newArea: string) => {
+    try {
+      const targetId = String(u.id || u.colaborador_id || '').trim()
+      const targetEmail = (u.email || '').trim().toLowerCase()
+
+      // 1. Atualizar estado local de usuários
+      const updatedList = users.map(user => {
+        const xId = String(user.id || user.colaborador_id || '').trim()
+        const xEmail = (user.email || '').trim().toLowerCase()
+        if ((targetId && xId === targetId) || (targetEmail && xEmail === targetEmail)) {
+          const currentDados = user.dados_colaborador || {}
+          return {
+            ...user,
+            area: newArea,
+            dados_colaborador: {
+              ...currentDados,
+              area: newArea
+            }
+          }
+        }
+        return user
+      })
+      setUsers(updatedList)
+      localStorage.setItem('magalog_users_list', JSON.stringify(updatedList))
+
+      // 2. Atualizar cache do Quadro TT se existir
+      try {
+        const storedQuadro = localStorage.getItem('magalog_quadro_colaboradores')
+        if (storedQuadro) {
+          const quadroList = JSON.parse(storedQuadro)
+          const updatedQuadro = quadroList.map((c: any) => {
+            const cId = String(c.id || '').trim().toLowerCase()
+            if (cId === targetId.toLowerCase()) {
+              return { ...c, area: newArea }
+            }
+            return c
+          })
+          localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedQuadro))
+        }
+      } catch {}
+
+      // 3. Atualizar Supabase (colaboradores e app_users)
+      const currentColab = u.dados_colaborador || {}
+      const updatedColab = { ...currentColab, area: newArea }
+
+      if (targetId) {
+        supabase.from('colaboradores').upsert([{
+          id: targetId,
+          area: newArea
+        }], { onConflict: 'id' }).then(({ error }) => {
+          if (error) console.error('Erro ao atualizar área em colaboradores:', error)
+        })
+      }
+
+      if (targetEmail || targetId) {
+        supabase.from('app_users').update({
+          dados_colaborador: updatedColab
+        }).eq(targetEmail ? 'email' : 'id', targetEmail || targetId).then(({ error }) => {
+          if (error) console.error('Erro ao atualizar área em app_users:', error)
+        })
+      }
+
+      // 4. Notificar outros componentes do sistema
+      try {
+        window.dispatchEvent(new CustomEvent('magalog_users_updated', {
+          detail: { action: 'update', id: targetId, area: newArea }
+        }))
+      } catch {}
+
+      // Se for o próprio usuário logado, atualiza sessão
+      if (currentUser && (currentUser.email?.toLowerCase() === targetEmail || currentUser.id === targetId)) {
+        try {
+          const sessionUpdate = {
+            ...currentUser,
+            area: newArea,
+            dados_colaborador: updatedColab
+          }
+          localStorage.setItem('magalog_admin_session', JSON.stringify(sessionUpdate))
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'magalog_admin_session',
+            newValue: JSON.stringify(sessionUpdate)
+          }))
+        } catch {}
+      }
+    } catch (err) {
+      console.error('Erro ao atualizar área rapidamente:', err)
     }
   }
 
@@ -1214,6 +1306,7 @@ export const UsersManagementPage: React.FC = () => {
                 <th className="px-4 py-3">ID / Matrícula</th>
                 <th className="px-4 py-3">Usuário & E-mail</th>
                 <th className="px-4 py-3">Cargo (Permissão)</th>
+                <th className="px-4 py-3">Área</th>
                 <th className="px-4 py-3">Páginas Autorizadas</th>
                 <th className="px-4 py-3">Subpáginas Autorizadas</th>
                 <th className="px-4 py-3">Presença</th>
@@ -1224,7 +1317,7 @@ export const UsersManagementPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-10 text-slate-400">
+                  <td colSpan={9} className="text-center py-10 text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
                       <span>Carregando usuários da planilha Modelo 1...</span>
@@ -1233,7 +1326,7 @@ export const UsersManagementPage: React.FC = () => {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-10 text-slate-400">
+                  <td colSpan={9} className="text-center py-10 text-slate-400">
                     Nenhum colaborador ou usuário encontrado para a busca.
                   </td>
                 </tr>
@@ -1291,6 +1384,22 @@ export const UsersManagementPage: React.FC = () => {
                           <Briefcase size={11} className="mr-1 text-slate-500" />
                           {userCargo}
                         </span>
+                      </td>
+
+                      {/* Área (Seleção Direta para Edição Rápida) */}
+                      <td className="px-4 py-3.5 min-w-[170px]">
+                        <select
+                          value={u.dados_colaborador?.area || (u as any).area || ''}
+                          onChange={(e) => handleQuickChangeArea(u, e.target.value)}
+                          className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 hover:border-blue-400 focus:border-blue-500 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-slate-700 outline-none cursor-pointer transition-all shadow-2xs"
+                        >
+                          <option value="">(Selecione Área)</option>
+                          {LISTA_AREAS_OPCOES.map((areaOpcao) => (
+                            <option key={areaOpcao} value={areaOpcao}>
+                              {areaOpcao}
+                            </option>
+                          ))}
+                        </select>
                       </td>
 
                       {/* Páginas Autorizadas */}
