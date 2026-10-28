@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { 
   Table, 
   Download, 
@@ -14,9 +14,26 @@ import {
   RotateCcw,
   X,
   Sparkles,
-  InboxIcon
+  InboxIcon,
+  Upload,
+  UploadCloud,
+  Edit2,
+  Check,
+  TrendingUp,
+  Percent,
+  Activity,
+  Zap,
+  Save
 } from 'lucide-react'
 import { getPmtDailyMatrixFromSupabase } from '../lib/pmtService'
+import { 
+  getAderenciaData, 
+  saveAderenciaData, 
+  parseAderenciaExcel, 
+  type AderenciaDataState, 
+  type AderenciaMetricData 
+} from '../lib/aderenciaService'
+import initialAderenciaOct from '../data/initialAderencia202610.json'
 
 interface DayItem {
   day: number
@@ -60,9 +77,33 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
   const [searchModal, setSearchModal] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
+  // Estado dos Dados de Aderência (Liberado, Faturado e Capacidade)
+  const [aderencia, setAderencia] = useState<AderenciaDataState>(() => {
+    if (ano === 2026 && mes === 10) {
+      return initialAderenciaOct as unknown as AderenciaDataState
+    }
+    return {
+      ano,
+      mes,
+      cd,
+      liberado: { totals: { pedidos: {}, pecas: {}, cubagem: {} }, byModal: { pedidos: {}, pecas: {}, cubagem: {} }, byCategoria: { pedidos: {}, pecas: {}, cubagem: {} } },
+      faturado: { totals: { pedidos: {}, pecas: {}, cubagem: {} }, byModal: { pedidos: {}, pecas: {}, cubagem: {} }, byCategoria: { pedidos: {}, pecas: {}, cubagem: {} } },
+      capacidade: { pedidos: {}, pecas: {}, cubagem: {} }
+    }
+  })
+
+  // Modal para importação de planilhas de Aderência
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [uploadFeedback, setUploadFeedback] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  const [isProcessingFile, setIsProcessingFile] = useState(false)
+
+  // Edição rápida de Capacidade em célula
+  const [editingCapacityCell, setEditingCapacityCell] = useState<{ metric: 'pedidos' | 'pecas' | 'cubagem'; dayStr: string } | null>(null)
+  const [capacityInputVal, setCapacityInputVal] = useState('')
+
   // Filtros de Calendário (Mês Todo, Dias Úteis, Quinzenas, Dias Específicos e Faixa de Datas)
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false)
-  const [selectedDays, setSelectedDays] = useState<number[]>([]) // Array de números de dias selecionados
+  const [selectedDays, setSelectedDays] = useState<number[]>([])
   const [startDateFilter, setStartDateFilter] = useState<string>('')
   const [endDateFilter, setEndDateFilter] = useState<string>('')
 
@@ -82,21 +123,19 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
     }
   }
 
-  // Carrega dados dinâmicos do Supabase (ou local se offline) sempre que ano/mês/cd/groupBy mudam
+  // Carrega dados dinâmicos do Supabase (PMT Matriz)
   useEffect(() => {
     let isMounted = true
-    setMatrix(null) // Limpa dados do mês anterior imediatamente ao mudar filtros
+    setMatrix(null)
     const fetchMatrix = async () => {
       setIsLoading(true)
       try {
-        // Tenta primeiro direto do Supabase (funciona na Vercel e fora da rede)
         const cloudData = await getPmtDailyMatrixFromSupabase(ano, mes, cd, groupBy)
         if (cloudData && cloudData.days && cloudData.days.length > 0 && isMounted) {
           setMatrix(cloudData)
           return
         }
 
-        // Fallback para servidor local se disponível
         const res = await fetch(`http://localhost:3001/api/pmt/daily-matrix?ano=${ano}&mes=${mes}&cd=${cd}&groupBy=${groupBy}`)
         if (res.ok) {
           const json = await res.json()
@@ -109,7 +148,6 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
           }
         }
       } catch {
-        // Mantém null se não conseguir carregar
         if (isMounted) setMatrix(null)
       } finally {
         if (isMounted) setIsLoading(false)
@@ -120,12 +158,27 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
     return () => { isMounted = false }
   }, [ano, mes, cd, groupBy])
 
-  // Função para remover a numeração inicial dos nomes dos modais (ex: "1. Courier" -> "Courier")
+  // Carregar dados de Aderência do Supabase
+  useEffect(() => {
+    let isMounted = true
+    const loadAderencia = async () => {
+      const dbData = await getAderenciaData(ano, mes, cd)
+      if (dbData && isMounted) {
+        setAderencia(dbData)
+      } else if (ano === 2026 && mes === 10 && isMounted) {
+        setAderencia(initialAderenciaOct as unknown as AderenciaDataState)
+      }
+    }
+    loadAderencia()
+    return () => { isMounted = false }
+  }, [ano, mes, cd])
+
+  // Função para remover a numeração inicial dos nomes dos modais
   const cleanModalName = (name: string) => {
     return name.replace(/^\d+\.\s*/, '').trim()
   }
 
-  // Lista de modais filtrada por busca (permitindo buscar pelo nome original ou sem numeração)
+  // Lista de modais filtrada por busca
   const filteredModals = useMemo(() => {
     if (!matrix) return []
     if (!searchModal.trim()) return matrix.modals
@@ -138,39 +191,39 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
   // Dias ativos filtrados pelo Calendário
   const activeFilteredDays = useMemo(() => {
     if (!matrix || !matrix.days) return []
-    
-    // Se não há filtro ativo, retorna todos os dias do mês
     if (selectedDays.length === 0 && !startDateFilter && !endDateFilter) {
       return matrix.days
     }
 
+    let startDay = 1
+    let endDay = matrix.days.length
+
+    if (startDateFilter) {
+      const p = startDateFilter.split('-')
+      if (p.length === 3 && parseInt(p[0]) === ano && parseInt(p[1]) === mes) {
+        startDay = parseInt(p[2])
+      }
+    }
+
+    if (endDateFilter) {
+      const p = endDateFilter.split('-')
+      if (p.length === 3 && parseInt(p[0]) === ano && parseInt(p[1]) === mes) {
+        endDay = parseInt(p[2])
+      }
+    }
+
     return matrix.days.filter(d => {
-      // 1. Filtro por clique em dias individuais ou presets
-      const matchDayClick = selectedDays.length > 0 && selectedDays.includes(d.day)
-
-      // 2. Filtro por Range de Datas (Início / Fim)
-      let matchRange = false
-      if (startDateFilter || endDateFilter) {
-        const dayIso = `${ano}-${String(mes).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`
-        if (startDateFilter && endDateFilter) {
-          matchRange = dayIso >= startDateFilter && dayIso <= endDateFilter
-        } else if (startDateFilter) {
-          matchRange = dayIso >= startDateFilter
-        } else if (endDateFilter) {
-          matchRange = dayIso <= endDateFilter
-        }
+      if (selectedDays.length > 0 && !selectedDays.includes(d.day)) {
+        return false
       }
-
-      if (selectedDays.length > 0 && (startDateFilter || endDateFilter)) {
-        return matchDayClick || matchRange
+      if (d.day < startDay || d.day > endDay) {
+        return false
       }
-      if (selectedDays.length > 0) return matchDayClick
-      if (startDateFilter || endDateFilter) return matchRange
       return true
     })
   }, [matrix, selectedDays, startDateFilter, endDateFilter, ano, mes])
 
-  // Recalcula totais dinâmicos de cada linha e de cada modal considerando apenas os dias filtrados
+  // Total acumulado dinâmico
   const getRowTotal = (rowData: Record<string, number> | undefined) => {
     if (!rowData) return 0
     return activeFilteredDays.reduce((acc, d) => acc + (rowData[d.dayStr] || 0), 0)
@@ -180,6 +233,70 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
   const formatNum = (val: number | undefined | null) => {
     if (val === undefined || val === null || val === 0) return '0'
     return Math.round(val).toLocaleString('pt-BR')
+  }
+
+  // Formatação de percentual
+  const formatPercent = (val: number | null | undefined) => {
+    if (val === null || val === undefined || isNaN(val) || !isFinite(val) || val === 0) return '0.0%'
+    return `${val.toFixed(1)}%`
+  }
+
+  // Salvar alteração de capacidade
+  const handleSaveCapacity = async (metric: 'pedidos' | 'pecas' | 'cubagem', dayStr: string, value: number) => {
+    const updated: AderenciaDataState = {
+      ...aderencia,
+      capacidade: {
+        ...aderencia.capacidade,
+        [metric]: {
+          ...aderencia.capacidade[metric],
+          [dayStr]: value
+        }
+      }
+    }
+    setAderencia(updated)
+    await saveAderenciaData(updated)
+    setEditingCapacityCell(null)
+  }
+
+  // Upload e processamento de planilhas de Aderência
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'liberado' | 'faturado') => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsProcessingFile(true)
+    setUploadFeedback(null)
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const dateCol = type === 'liberado' ? 'Data Liberação' : 'Data Faturamento'
+      const parsed = parseAderenciaExcel(buffer, dateCol)
+
+      const updated: AderenciaDataState = {
+        ...aderencia,
+        ano,
+        mes,
+        cd,
+        [type]: parsed,
+        updatedAt: new Date().toISOString()
+      }
+
+      setAderencia(updated)
+      await saveAderenciaData(updated)
+
+      setUploadFeedback({
+        text: `Planilha de ${type === 'liberado' ? 'Liberação' : 'Faturamento'} importada e calculada com sucesso!`,
+        type: 'success'
+      })
+    } catch (err: any) {
+      console.error(err)
+      setUploadFeedback({
+        text: `Erro ao processar arquivo: ${err.message || 'Formato inválido'}`,
+        type: 'error'
+      })
+    } finally {
+      setIsProcessingFile(false)
+      e.target.value = ''
+    }
   }
 
   // Exportar para CSV
@@ -198,7 +315,6 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
         ]
         csvRows.push(row.join(';'))
       })
-      // Linha de total
       const totalRow = [
         sectionName,
         `"TOTAL ${sectionName.toUpperCase()} TT"`,
@@ -219,6 +335,181 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
     a.download = `PMT_${cd}_${mes}_${ano}_${groupBy}_indicadores.csv`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  // Renderizar o Bloco de Linhas de Aderência para uma Métrica (Pedidos, Peças ou Cubagem)
+  const renderAderenciaRows = (metricKey: 'pedidos' | 'pecas' | 'cubagem', titleLabel: string) => {
+    // 1. Dados Planejados (PMT Totais)
+    const pmtTotals = matrix.totals[metricKey] || {}
+    const pmtTotalSum = getRowTotal(pmtTotals)
+
+    // 2. Dados Liberados (Total Geral)
+    const libTotals = aderencia.liberado?.totals?.[metricKey] || {}
+    const libTotalSum = getRowTotal(libTotals)
+
+    // 3. Dados Faturados (Total Geral)
+    const fatTotals = aderencia.faturado?.totals?.[metricKey] || {}
+    const fatTotalSum = getRowTotal(fatTotals)
+
+    // 4. Capacidade Definida
+    const capTotals = aderencia.capacidade?.[metricKey] || {}
+    const capTotalSum = getRowTotal(capTotals)
+
+    return (
+      <>
+        {/* LINHA 1: LIBERADO */}
+        <tr className="bg-emerald-50/70 border-b border-emerald-200/80 hover:bg-emerald-50 transition-colors">
+          <td className="sticky left-0 z-20 bg-emerald-50 px-3 py-2 font-bold text-emerald-900 border-r border-emerald-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              Liberado ({titleLabel})
+            </span>
+          </td>
+          {activeFilteredDays.map((d) => {
+            const val = libTotals[d.dayStr] || 0
+            return (
+              <td 
+                key={`lib-${metricKey}-${d.dayStr}`}
+                className="px-1.5 py-2 text-center font-mono font-bold text-emerald-900 border-r border-emerald-200/80 text-[11px]"
+              >
+                {formatNum(val)}
+              </td>
+            )
+          })}
+          <td className="sticky right-0 z-20 bg-emerald-50 px-3 py-2 text-right font-mono font-bold text-emerald-900 border-l border-emerald-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+            {formatNum(libTotalSum)}
+          </td>
+        </tr>
+
+        {/* LINHA 2: ADERÊNCIA LIBERAÇÃO (% Liberado / Planejado PMT) */}
+        <tr className="bg-emerald-100/40 border-b-2 border-emerald-300 hover:bg-emerald-100/60 transition-colors">
+          <td className="sticky left-0 z-20 bg-emerald-100/80 px-3 py-1.5 font-bold text-emerald-800 border-r border-emerald-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] pl-6 text-[10.5px]">
+            % Aderência Liberação
+          </td>
+          {activeFilteredDays.map((d) => {
+            const pmtVal = pmtTotals[d.dayStr] || 0
+            const libVal = libTotals[d.dayStr] || 0
+            const perc = pmtVal > 0 ? (libVal / pmtVal) * 100 : 0
+            const isGood = perc >= 90
+            return (
+              <td 
+                key={`ader-lib-${metricKey}-${d.dayStr}`}
+                className={`px-1.5 py-1.5 text-center font-mono font-bold text-[10.5px] border-r border-emerald-200 ${
+                  pmtVal === 0 ? 'text-slate-400' : isGood ? 'text-emerald-700 font-extrabold' : 'text-amber-700'
+                }`}
+              >
+                {pmtVal > 0 ? formatPercent(perc) : '-'}
+              </td>
+            )
+          })}
+          <td className="sticky right-0 z-20 bg-emerald-100/80 px-3 py-1.5 text-right font-mono font-extrabold text-emerald-900 border-l border-emerald-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+            {pmtTotalSum > 0 ? formatPercent((libTotalSum / pmtTotalSum) * 100) : '0.0%'}
+          </td>
+        </tr>
+
+        {/* LINHA 3: FATURADO */}
+        <tr className="bg-amber-50/70 border-b border-amber-200/80 hover:bg-amber-50 transition-colors">
+          <td className="sticky left-0 z-20 bg-amber-50 px-3 py-2 font-bold text-amber-900 border-r border-amber-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              Faturado ({titleLabel})
+            </span>
+          </td>
+          {activeFilteredDays.map((d) => {
+            const val = fatTotals[d.dayStr] || 0
+            return (
+              <td 
+                key={`fat-${metricKey}-${d.dayStr}`}
+                className="px-1.5 py-2 text-center font-mono font-bold text-amber-900 border-r border-amber-200/80 text-[11px]"
+              >
+                {formatNum(val)}
+              </td>
+            )
+          })}
+          <td className="sticky right-0 z-20 bg-amber-50 px-3 py-2 text-right font-mono font-bold text-amber-900 border-l border-amber-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+            {formatNum(fatTotalSum)}
+          </td>
+        </tr>
+
+        {/* LINHA 4: CAPACIDADE (Editável dia a dia) */}
+        <tr className="bg-indigo-50/70 border-b border-indigo-200/80 hover:bg-indigo-50 transition-colors">
+          <td className="sticky left-0 z-20 bg-indigo-50 px-3 py-2 font-bold text-indigo-900 border-r border-indigo-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-indigo-500" />
+              Capacidade ({titleLabel})
+            </span>
+            <span className="text-[9px] text-indigo-500 font-normal ml-1">(clique p/ editar)</span>
+          </td>
+          {activeFilteredDays.map((d) => {
+            const isEditing = editingCapacityCell?.metric === metricKey && editingCapacityCell?.dayStr === d.dayStr
+            const val = capTotals[d.dayStr] || 0
+            return (
+              <td 
+                key={`cap-${metricKey}-${d.dayStr}`}
+                onClick={() => {
+                  setEditingCapacityCell({ metric: metricKey, dayStr: d.dayStr })
+                  setCapacityInputVal(val ? String(val) : '')
+                }}
+                className="px-1 py-1.5 text-center font-mono font-bold text-indigo-900 border-r border-indigo-200/80 text-[11px] cursor-pointer hover:bg-indigo-100/60 transition-colors"
+                title="Clique para editar a capacidade deste dia"
+              >
+                {isEditing ? (
+                  <input
+                    type="number"
+                    autoFocus
+                    value={capacityInputVal}
+                    onChange={(e) => setCapacityInputVal(e.target.value)}
+                    onBlur={() => {
+                      const num = parseFloat(capacityInputVal) || 0
+                      handleSaveCapacity(metricKey, d.dayStr, num)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const num = parseFloat(capacityInputVal) || 0
+                        handleSaveCapacity(metricKey, d.dayStr, num)
+                      }
+                      if (e.key === 'Escape') setEditingCapacityCell(null)
+                    }}
+                    className="w-full text-center bg-white border border-indigo-400 rounded px-1 py-0.5 text-[11px] font-mono focus:outline-none"
+                  />
+                ) : (
+                  <span>{formatNum(val)}</span>
+                )}
+              </td>
+            )
+          })}
+          <td className="sticky right-0 z-20 bg-indigo-50 px-3 py-2 text-right font-mono font-bold text-indigo-900 border-l border-indigo-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+            {formatNum(capTotalSum)}
+          </td>
+        </tr>
+
+        {/* LINHA 5: ADERÊNCIA FATURADO X CAPACIDADE (% Faturado / Capacidade) */}
+        <tr className="bg-indigo-100/40 border-b-2 border-indigo-300 hover:bg-indigo-100/60 transition-colors">
+          <td className="sticky left-0 z-20 bg-indigo-100/80 px-3 py-1.5 font-bold text-indigo-900 border-r border-indigo-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] pl-6 text-[10.5px]">
+            % Aderência Fat. x Capacidade
+          </td>
+          {activeFilteredDays.map((d) => {
+            const capVal = capTotals[d.dayStr] || 0
+            const fatVal = fatTotals[d.dayStr] || 0
+            const perc = capVal > 0 ? (fatVal / capVal) * 100 : 0
+            const isGood = perc >= 90
+            return (
+              <td 
+                key={`ader-fat-${metricKey}-${d.dayStr}`}
+                className={`px-1.5 py-1.5 text-center font-mono font-bold text-[10.5px] border-r border-indigo-200 ${
+                  capVal === 0 ? 'text-slate-400' : isGood ? 'text-indigo-800 font-extrabold' : 'text-rose-700'
+                }`}
+              >
+                {capVal > 0 ? formatPercent(perc) : '-'}
+              </td>
+            )
+          })}
+          <td className="sticky right-0 z-20 bg-indigo-100/80 px-3 py-1.5 text-right font-mono font-extrabold text-indigo-900 border-l border-indigo-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+            {capTotalSum > 0 ? formatPercent((fatTotalSum / capTotalSum) * 100) : '0.0%'}
+          </td>
+        </tr>
+      </>
+    )
   }
 
   // Estado de carregamento
@@ -248,273 +539,49 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden space-y-4 p-5">
-      {/* Top Header do Indicador */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-slate-100">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="p-1 rounded-md bg-sky-100 text-sky-800 font-mono text-[11px] font-bold tracking-wider uppercase">
-              Indicador PMT Diário
-            </span>
-            <span className="text-xs text-slate-400">•</span>
-            <span className="text-xs font-semibold text-slate-700">
-              CD {cd} • {mes.toString().padStart(2, '0')}/{ano}
-            </span>
-            <span className="text-xs text-slate-400">•</span>
-            <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-              <CheckCircle2 size={12} />
-              Base Consolidada
-            </span>
+    <div className="space-y-4">
+      {/* =========================================================================
+          BARRA DE CONTROLES E FILTROS SUPERIORES
+          ========================================================================= */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-white p-3.5 border border-slate-200 rounded-2xl shadow-xs">
+        {/* Título e Subtítulo */}
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-100">
+            <Table size={18} />
           </div>
-          <h3 className="text-base font-bold text-slate-900 tracking-tight">
-            Acompanhamento Diário por {groupBy === 'categoria_produtividade' ? 'Categoria de Produtividade' : 'Modal'} (Pedidos, Peças e Cubagem)
-          </h3>
-          <p className="text-xs text-slate-500">
-            Visão diária do dia 01 ao dia {matrix.days.length} agrupada por {groupBy === 'categoria_produtividade' ? 'Categoria de Produtividade' : 'Modal de Transporte'} com totais consolidados
-          </p>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black tracking-wider uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                Indicador PMT Diário
+              </span>
+              <span className="text-xs text-slate-400">•</span>
+              <span className="text-xs font-semibold text-slate-600">CD {cd} • {mes.toString().padStart(2, '0')}/{ano}</span>
+              <span className="text-xs text-slate-400">•</span>
+              <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Base Consolidada & Aderência
+              </span>
+            </div>
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight mt-0.5">
+              Acompanhamento Diário por {groupBy === 'categoria_produtividade' ? 'Categoria de Produtividade' : 'Modal'} (Pedidos, Peças e Cubagem)
+            </h2>
+          </div>
         </div>
 
-        {/* Controles: Filtro de Calendário, Agrupamento (Modal vs Categoria), Abas de Seções, Filtro de Busca e Exportação */}
+        {/* Ações e Filtros */}
         <div className="flex flex-wrap items-center gap-2">
-          
-          {/* BOTÃO E POPOVER DO FILTRO DE CALENDÁRIO */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs font-bold shadow-2xs cursor-pointer ${
-                selectedDays.length > 0 || startDateFilter || endDateFilter
-                  ? 'bg-amber-50 border-amber-300 text-amber-900 ring-2 ring-amber-400/20'
-                  : 'bg-amber-50/60 hover:bg-amber-100/70 border-amber-200/80 text-amber-900'
-              }`}
-            >
-              <div className="flex items-center gap-1.5">
-                <CalendarDays size={14} className="text-amber-600" />
-                <span className="text-[10px] uppercase tracking-wider text-amber-700/80 font-mono">PERÍODO:</span>
-                <span className="font-extrabold">
-                  {selectedDays.length === 0 && !startDateFilter && !endDateFilter
-                    ? `Mês Completo (${matrix.days.length}d)`
-                    : `${activeFilteredDays.length} dia(s)`}
-                </span>
-              </div>
-              <span className="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full font-extrabold shadow-2xs">
-                {activeFilteredDays.length}
-              </span>
-            </button>
+          {/* Botão de Importar Planilhas de Aderência (Liberado / Faturado) */}
+          <button
+            onClick={() => setIsUploadModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-700 text-xs font-bold shadow-2xs transition-all cursor-pointer"
+            title="Importar planilhas de Liberação e Faturamento"
+          >
+            <UploadCloud size={14} />
+            <span>Atualizar Liberação / Faturamento</span>
+          </button>
 
-            {isDateDropdownOpen && (
-              <div className="absolute top-full right-0 lg:left-0 lg:right-auto mt-2 w-[340px] sm:w-[360px] bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 p-4 space-y-3.5 animate-in fade-in zoom-in-95">
-                {/* Cabeçalho do Calendário */}
-                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
-                      <CalendarDays size={16} />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Filtro de Calendário</h4>
-                      <p className="text-[10px] text-slate-400 font-medium">
-                        {mes.toString().padStart(2, '0')}/{ano}
-                      </p>
-                    </div>
-                  </div>
-                  {(selectedDays.length > 0 || startDateFilter || endDateFilter) && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedDays([])
-                        setStartDateFilter('')
-                        setEndDateFilter('')
-                      }}
-                      className="flex items-center gap-1 text-[11px] text-amber-600 hover:text-amber-800 font-bold bg-amber-50 hover:bg-amber-100/80 px-2 py-1 rounded-lg transition-colors cursor-pointer"
-                    >
-                      <RotateCcw size={12} />
-                      Limpar
-                    </button>
-                  )}
-                </div>
-
-                {/* Atalhos Rápidos (Presets) */}
-                <div className="grid grid-cols-4 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedDays([])
-                      setStartDateFilter('')
-                      setEndDateFilter('')
-                    }}
-                    className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all cursor-pointer ${
-                      selectedDays.length === 0 && !startDateFilter && !endDateFilter
-                        ? 'bg-amber-500 text-white shadow-xs'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60'
-                    }`}
-                  >
-                    Mês Todo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // Segunda a Sexta do mês
-                      const workDays = matrix.days.filter(d => {
-                        const dt = new Date(ano, mes - 1, d.day)
-                        const w = dt.getDay()
-                        return w !== 0 && w !== 6
-                      }).map(d => d.day)
-                      setSelectedDays(workDays)
-                      setStartDateFilter('')
-                      setEndDateFilter('')
-                    }}
-                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
-                  >
-                    Dias Úteis
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // 1ª Quinzena (dias 1 a 15)
-                      const firstHalf = matrix.days.filter(d => d.day <= 15).map(d => d.day)
-                      setSelectedDays(firstHalf)
-                      setStartDateFilter('')
-                      setEndDateFilter('')
-                    }}
-                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
-                  >
-                    1ª Quinzena
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // 2ª Quinzena (dias 16 até o final)
-                      const secondHalf = matrix.days.filter(d => d.day > 15).map(d => d.day)
-                      setSelectedDays(secondHalf)
-                      setStartDateFilter('')
-                      setEndDateFilter('')
-                    }}
-                    className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 transition-all cursor-pointer"
-                  >
-                    2ª Quinzena
-                  </button>
-                </div>
-
-                {/* Grade Visual do Calendário Mensal */}
-                <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-200/80">
-                  {/* Cabeçalho dos Dias da Semana */}
-                  <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
-                    {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((dia, idx) => (
-                      <span 
-                        key={dia} 
-                        className={`text-[9px] font-bold uppercase tracking-wider ${
-                          idx === 0 || idx === 6 ? 'text-amber-600' : 'text-slate-400'
-                        }`}
-                      >
-                        {dia}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Células de Dias */}
-                  {(() => {
-                    const firstDayWeekIdx = new Date(ano, mes - 1, 1).getDay()
-                    const emptyPrefixSlots = Array.from({ length: firstDayWeekIdx })
-
-                    return (
-                      <div className="grid grid-cols-7 gap-1">
-                        {emptyPrefixSlots.map((_, i) => (
-                          <div key={`empty-${i}`} className="h-7 rounded-lg" />
-                        ))}
-                        {matrix.days.map(d => {
-                          const isSingleSelected = selectedDays.includes(d.day)
-                          const dayIso = `${ano}-${String(mes).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`
-                          const isInRange = Boolean(
-                            (startDateFilter && endDateFilter && dayIso >= startDateFilter && dayIso <= endDateFilter) ||
-                            (startDateFilter && !endDateFilter && dayIso === startDateFilter) ||
-                            (!startDateFilter && endDateFilter && dayIso === endDateFilter)
-                          )
-                          const isSelected = isSingleSelected || isInRange
-                          const dt = new Date(ano, mes - 1, d.day)
-                          const isWeekend = dt.getDay() === 0 || dt.getDay() === 6
-
-                          return (
-                            <button
-                              key={`cal-btn-${d.day}`}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setStartDateFilter('')
-                                setEndDateFilter('')
-                                toggleDayFilter(d.day)
-                              }}
-                              title={`Dia ${d.day}`}
-                              className={`h-7 rounded-lg text-[11px] font-bold flex flex-col items-center justify-center transition-all cursor-pointer ${
-                                isSelected
-                                  ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30 scale-105 z-10'
-                                  : isWeekend
-                                    ? 'bg-amber-100/50 hover:bg-amber-200/60 text-amber-900 border border-amber-200/40'
-                                    : 'bg-white hover:bg-slate-200/60 text-slate-700 border border-slate-200/50 hover:border-slate-300'
-                              }`}
-                            >
-                              <span>{d.day}</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )
-                  })()}
-                </div>
-
-                {/* Seletor de Faixa de Datas (Início / Fim) */}
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-tight">FAIXA DE DATAS:</span>
-                    {(startDateFilter || endDateFilter) && (
-                      <span className="text-[9px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded">Range Ativo</span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="block text-[9px] font-semibold text-slate-400 mb-0.5 uppercase">INÍCIO</span>
-                      <input
-                        type="date"
-                        value={startDateFilter}
-                        onChange={e => {
-                          setStartDateFilter(e.target.value)
-                          setSelectedDays([])
-                        }}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] text-slate-700 font-medium focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-                    <div>
-                      <span className="block text-[9px] font-semibold text-slate-400 mb-0.5 uppercase">FIM</span>
-                      <input
-                        type="date"
-                        value={endDateFilter}
-                        onChange={e => {
-                          setEndDateFilter(e.target.value)
-                          setSelectedDays([])
-                        }}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] text-slate-700 font-medium focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Rodapé do Dropdown */}
-                <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
-                  <span>{activeFilteredDays.length} de {matrix.days.length} dias exibidos</span>
-                  <button
-                    type="button"
-                    onClick={() => setIsDateDropdownOpen(false)}
-                    className="text-amber-600 hover:text-amber-800 font-bold cursor-pointer"
-                  >
-                    Fechar
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Alternador de Agrupamento: Modal vs Categoria de Produtividade */}
-          <div className="inline-flex p-1 bg-amber-50/80 border border-amber-200/80 rounded-xl text-xs font-semibold text-amber-900">
+          {/* Alternância: Por Modal vs Por Categoria de Produtividade */}
+          <div className="inline-flex p-1 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-900">
             <button
               onClick={() => setGroupBy('modal')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
@@ -606,25 +673,23 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
       </div>
 
       {/* =========================================================================
-          TABELA MATRIZ NO FORMATO EXATO DA PLANILHA (Data, Q S S D S T Q..., Total Geral)
+          TABELA MATRIZ COM LINHAS DE ADERÊNCIA INTEGRADA
           ========================================================================= */}
       <div className="relative border border-slate-200 rounded-xl overflow-hidden shadow-2xs bg-white">
-        <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+        <div className="overflow-x-auto max-h-[650px] overflow-y-auto">
           <table className={`${activeFilteredDays.length < 15 ? 'w-auto' : 'w-full'} text-left border-collapse text-[11px] font-sans`}>
             {/* Cabeçalho da Tabela */}
             <thead className="sticky top-0 z-30 bg-[#e0f2fe] border-b border-sky-300">
               <tr>
-                {/* Coluna 1: Data (Fixa à esquerda) */}
                 <th 
                   scope="col"
-                  className="sticky left-0 z-40 bg-[#e0f2fe] px-3 py-2 font-bold text-slate-800 border-r border-sky-200 min-w-[170px] w-[170px] shadow-[2px_0_4px_rgba(0,0,0,0.03)]"
+                  className="sticky left-0 z-40 bg-[#e0f2fe] px-3 py-2 font-bold text-slate-800 border-r border-sky-200 min-w-[210px] w-[210px] shadow-[2px_0_4px_rgba(0,0,0,0.03)]"
                 >
                   <div className="flex items-center justify-between">
-                    <span>Data</span>
+                    <span>Data / Indicador</span>
                   </div>
                 </th>
 
-                {/* Colunas dos Dias (com Letra do dia da semana e Número filtrados) */}
                 {activeFilteredDays.map((d) => {
                   const dt = new Date(ano, mes - 1, d.day)
                   const isWeekend = dt.getDay() === 0 || dt.getDay() === 6
@@ -632,7 +697,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                     <th
                       key={d.dayStr}
                       scope="col"
-                      className={`px-2 py-1 text-center font-normal min-w-[46px] w-[52px] border-r border-sky-200/80 ${
+                      className={`px-2 py-1 text-center font-normal min-w-[48px] w-[54px] border-r border-sky-200/80 ${
                         isWeekend ? 'bg-sky-200/50' : ''
                       }`}
                     >
@@ -644,10 +709,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                   )
                 })}
 
-                {/* Coluna Final: Total Geral (Fixa à direita) */}
-                <th
+                <th 
                   scope="col"
-                  className="sticky right-0 z-40 bg-[#e0f2fe] px-3 py-2 text-right font-bold text-slate-900 border-l border-sky-200 min-w-[95px] w-[105px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]"
+                  className="sticky right-0 z-40 bg-[#e0f2fe] px-3 py-2 text-right font-bold text-slate-900 min-w-[90px] border-l border-sky-300 shadow-[-2px_0_4px_rgba(0,0,0,0.03)]"
                 >
                   Total Geral
                 </th>
@@ -656,7 +720,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
 
             <tbody className="divide-y divide-slate-100">
               {/* ===============================================================
-                  BLOCO 1: PEDIDOS TT (Exatamente como na primeira seção da imagem)
+                  BLOCO 1: PEDIDOS TT
                   =============================================================== */}
               {(selectedSection === 'all' || selectedSection === 'pedidos') && (
                 <>
@@ -665,12 +729,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                     const dynamicTotal = getRowTotal(rowData)
                     return (
                       <tr key={`ped-${modalName}`} className="hover:bg-blue-50/40 transition-colors">
-                        {/* Nome do Modal (sem numeração) */}
                         <td className="sticky left-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 font-medium text-slate-700 border-r border-slate-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
                           {cleanModalName(modalName)}
                         </td>
-
-                        {/* Valores diários */}
                         {activeFilteredDays.map((d) => {
                           const val = rowData[d.dayStr] || 0
                           const isZero = val === 0
@@ -685,8 +746,6 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                             </td>
                           )
                         })}
-
-                        {/* Total do Modal */}
                         <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
                           {formatNum(dynamicTotal)}
                         </td>
@@ -694,10 +753,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                     )
                   })}
 
-                  {/* Linha de Totalização: Pedidos TT */}
+                  {/* Linha de Totalização: Pedidos TT (Planejado PMT) */}
                   <tr className="bg-[#e0f2fe]/90 border-y-2 border-sky-300 font-bold">
                     <td className="sticky left-0 z-20 bg-[#e0f2fe] px-3 py-2 font-bold text-blue-900 border-r border-sky-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)]">
-                      Pedidos TT
+                      Pedidos TT (PMT Planejado)
                     </td>
                     {activeFilteredDays.map((d) => (
                       <td 
@@ -712,6 +771,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                     </td>
                   </tr>
 
+                  {/* LINHAS DE ADERÊNCIA: LIBERADO, % ADERÊNCIA, FATURADO, CAPACIDADE, % FAT X CAP */}
+                  {renderAderenciaRows('pedidos', 'Pedidos')}
+
                   {/* Espaçador visual se 'all' estiver ativo */}
                   {selectedSection === 'all' && (
                     <tr className="bg-slate-100/50 h-3">
@@ -722,7 +784,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
               )}
 
               {/* ===============================================================
-                  BLOCO 2: PEÇAS TT (Segunda seção da imagem)
+                  BLOCO 2: PEÇAS TT
                   =============================================================== */}
               {(selectedSection === 'all' || selectedSection === 'pecas') && (
                 <>
@@ -731,12 +793,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                     const dynamicTotal = getRowTotal(rowData)
                     return (
                       <tr key={`pec-${modalName}`} className="hover:bg-blue-50/40 transition-colors">
-                        {/* Nome do Modal (sem numeração) */}
                         <td className="sticky left-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 font-medium text-slate-700 border-r border-slate-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
                           {cleanModalName(modalName)}
                         </td>
-
-                        {/* Valores diários */}
                         {activeFilteredDays.map((d) => {
                           const val = rowData[d.dayStr] || 0
                           const isZero = val === 0
@@ -751,8 +810,6 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                             </td>
                           )
                         })}
-
-                        {/* Total do Modal */}
                         <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
                           {formatNum(dynamicTotal)}
                         </td>
@@ -760,10 +817,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                     )
                   })}
 
-                  {/* Linha de Totalização: Peças TT */}
+                  {/* Linha de Totalização: Peças TT (Planejado PMT) */}
                   <tr className="bg-[#e0f2fe]/90 border-y-2 border-sky-300 font-bold">
                     <td className="sticky left-0 z-20 bg-[#e0f2fe] px-3 py-2 font-bold text-blue-900 border-r border-sky-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)]">
-                      Peças TT
+                      Peças TT (PMT Planejado)
                     </td>
                     {activeFilteredDays.map((d) => (
                       <td 
@@ -778,6 +835,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                     </td>
                   </tr>
 
+                  {/* LINHAS DE ADERÊNCIA: LIBERADO, % ADERÊNCIA, FATURADO, CAPACIDADE, % FAT X CAP */}
+                  {renderAderenciaRows('pecas', 'Peças')}
+
                   {/* Espaçador visual se 'all' estiver ativo */}
                   {selectedSection === 'all' && (
                     <tr className="bg-slate-100/50 h-3">
@@ -788,7 +848,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
               )}
 
               {/* ===============================================================
-                  BLOCO 3: CUBAGEM TT (Terceira seção da imagem)
+                  BLOCO 3: CUBAGEM TT
                   =============================================================== */}
               {(selectedSection === 'all' || selectedSection === 'cubagem') && (
                 <>
@@ -797,12 +857,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                     const dynamicTotal = getRowTotal(rowData)
                     return (
                       <tr key={`cub-${modalName}`} className="hover:bg-blue-50/40 transition-colors">
-                        {/* Nome do Modal (sem numeração) */}
                         <td className="sticky left-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 font-medium text-slate-700 border-r border-slate-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
                           {cleanModalName(modalName)}
                         </td>
-
-                        {/* Valores diários */}
                         {activeFilteredDays.map((d) => {
                           const val = rowData[d.dayStr] || 0
                           const isZero = val === 0
@@ -817,8 +874,6 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                             </td>
                           )
                         })}
-
-                        {/* Total do Modal */}
                         <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
                           {formatNum(dynamicTotal)}
                         </td>
@@ -826,10 +881,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                     )
                   })}
 
-                  {/* Linha de Totalização: Cubagem TT */}
+                  {/* Linha de Totalização: Cubagem TT (Planejado PMT) */}
                   <tr className="bg-[#e0f2fe]/90 border-y-2 border-sky-300 font-bold">
                     <td className="sticky left-0 z-20 bg-[#e0f2fe] px-3 py-2 font-bold text-blue-900 border-r border-sky-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)]">
-                      Cubagem TT
+                      Cubagem TT (PMT Planejado)
                     </td>
                     {activeFilteredDays.map((d) => (
                       <td 
@@ -843,6 +898,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
                       {formatNum(getRowTotal(matrix.totals.cubagem))}
                     </td>
                   </tr>
+
+                  {/* LINHAS DE ADERÊNCIA: LIBERADO, % ADERÊNCIA, FATURADO, CAPACIDADE, % FAT X CAP */}
+                  {renderAderenciaRows('cubagem', 'Cubagem')}
                 </>
               )}
             </tbody>
@@ -852,16 +910,126 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
 
       {/* Footer com Resumo e Legenda */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 gap-2 pt-1 px-1">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm bg-[#e0f2fe] border border-sky-300"></span>
-            <span>Totais Gerais (Pedidos TT: <strong>{formatNum(matrix.totals.pedidos.total)}</strong>, Peças TT: <strong>{formatNum(matrix.totals.pecas.total)}</strong>, Cubagem TT: <strong>{formatNum(matrix.totals.cubagem.total)}</strong>)</span>
+            <span>Planejado PMT</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-emerald-100 border border-emerald-300"></span>
+            <span>Liberado & % Aderência</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-amber-100 border border-amber-300"></span>
+            <span>Faturado</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-indigo-100 border border-indigo-300"></span>
+            <span>Capacidade & % Fat x Cap</span>
           </span>
         </div>
         <div className="text-right text-[11px] font-mono text-slate-400">
-          Base: CD {cd} • Outubro/2026 • 31 dias mapeados
+          Base: CD {cd} • {mes.toString().padStart(2, '0')}/{ano} • Sincronizado no Banco
         </div>
       </div>
+
+      {/* =========================================================================
+          MODAL DE IMPORTAÇÃO DE PLANILHAS (LIBERAÇÃO / FATURAMENTO)
+          ========================================================================= */}
+      {isUploadModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <UploadCloud size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">
+                    Importar Planilhas de Aderência
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Atualize os dados de Liberação e Faturamento para o mês {mes.toString().padStart(2, '0')}/{ano}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => { setIsUploadModalOpen(false); setUploadFeedback(null); }}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {uploadFeedback && (
+              <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                uploadFeedback.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
+              }`}>
+                <CheckCircle2 size={16} />
+                <span>{uploadFeedback.text}</span>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {/* Card Upload Liberação */}
+              <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 flex items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    <h4 className="text-xs font-bold text-slate-800">Planilha de Liberação</h4>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Arquivo: <strong>Carteira CDs_Extração Dados_Tabela_Liberado.xlsx</strong>
+                  </p>
+                </div>
+                <label className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs transition-colors shrink-0">
+                  <span>Selecionar</span>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={(e) => handleFileUpload(e, 'liberado')}
+                    className="hidden"
+                    disabled={isProcessingFile}
+                  />
+                </label>
+              </div>
+
+              {/* Card Upload Faturamento */}
+              <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 flex items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                    <h4 className="text-xs font-bold text-slate-800">Planilha de Faturamento</h4>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Arquivo: <strong>Carteira CDs_Extração Dados_Tabela_Faturado.xlsx</strong>
+                  </p>
+                </div>
+                <label className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white cursor-pointer shadow-xs transition-colors shrink-0">
+                  <span>Selecionar</span>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={(e) => handleFileUpload(e, 'faturado')}
+                    className="hidden"
+                    disabled={isProcessingFile}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+              <span>* O sistema calcula os totais diários automaticamente para todas as visões.</span>
+              <button
+                onClick={() => { setIsUploadModalOpen(false); setUploadFeedback(null); }}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Concluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
