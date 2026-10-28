@@ -1525,7 +1525,19 @@ export const PmtsPage: React.FC = () => {
         }
       }
     })
-    return () => { isMounted = false }
+
+    const handleAderenciaUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<AderenciaDataState>
+      if (customEvent.detail && customEvent.detail.ano === selectedYear && customEvent.detail.mes === selectedMonth) {
+        setAderenciaState(customEvent.detail)
+      }
+    }
+    window.addEventListener('aderenciaDataUpdated', handleAderenciaUpdated)
+
+    return () => { 
+      isMounted = false 
+      window.removeEventListener('aderenciaDataUpdated', handleAderenciaUpdated)
+    }
   }, [selectedYear, selectedMonth])
 
   // Cálculos de Liberado, Faturado x Planejado e Projeção de Atingimento
@@ -2611,6 +2623,7 @@ export const PmtsPage: React.FC = () => {
             mes={selectedMonth} 
             cd="994" 
             pageTitle={activePage.label} 
+            onAderenciaChange={setAderenciaState}
             cardsContent={
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* CARD 1: VALOR */}

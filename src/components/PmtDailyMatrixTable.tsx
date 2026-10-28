@@ -70,12 +70,20 @@ interface Props {
   cd?: string
   pageTitle?: string
   cardsContent?: React.ReactNode
+  onAderenciaChange?: (newData: AderenciaDataState) => void
 }
 
 type SectionView = 'all' | 'pedidos' | 'pecas' | 'cubagem'
 type GroupByView = 'modal' | 'categoria_produtividade'
 
-export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pageTitle = 'PMT Expedição', cardsContent }) => {
+export const PmtDailyMatrixTable: React.FC<Props> = ({ 
+  ano, 
+  mes, 
+  cd = '994', 
+  pageTitle = 'PMT Expedição', 
+  cardsContent,
+  onAderenciaChange 
+}) => {
   const [matrix, setMatrix] = useState<MatrixData | null>(null)
   const [selectedSection, setSelectedSection] = useState<SectionView>('all')
   const [groupBy, setGroupBy] = useState<GroupByView>('modal')
@@ -285,6 +293,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
       }
     }
     setAderencia(updated)
+    if (onAderenciaChange) onAderenciaChange(updated)
+    window.dispatchEvent(new CustomEvent('aderenciaDataUpdated', { detail: updated }))
     await saveAderenciaData(updated)
     setEditingCapacityCell(null)
   }
@@ -338,6 +348,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({ ano, mes, cd = '994', pag
         // Se o mês importado for o mês atualmente selecionado na tela, atualiza o state imediatamente
         if (mYear === ano && mMonth === mes) {
           setAderencia(updatedMonthState)
+          if (onAderenciaChange) onAderenciaChange(updatedMonthState)
+          window.dispatchEvent(new CustomEvent('aderenciaDataUpdated', { detail: updatedMonthState }))
           activeMonthUpdated = true
         }
       }
