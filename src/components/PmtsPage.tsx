@@ -165,6 +165,7 @@ export interface ColaboradorItem {
   idLider?: string
   nomeLider?: string
   setor?: string
+  area?: string
   turno?: string
   ferias?: string
   codCentroCusto?: string
@@ -181,6 +182,18 @@ export interface ColaboradorItem {
   anoAdm?: string
   createdAt?: string
 }
+
+export const LISTA_AREAS_OPCOES = [
+  'PLANEJAMENTO',
+  'EXPEDIÇÃO',
+  'RECEBIMENTO',
+  'TRANSPORTE',
+  'CONTROLE DE ESTOQUE',
+  'REVERSA (DQS)',
+  'APOIO (OUTRAS AREAS)',
+  'GENRENCIA',
+  'C&D'
+] as const
 
 const defaultColaboradorForm: ColaboradorItem = {
   id: '',
@@ -202,6 +215,7 @@ const defaultColaboradorForm: ColaboradorItem = {
   idLider: '',
   nomeLider: '',
   setor: '',
+  area: '',
   turno: '',
   ferias: '',
   codCentroCusto: '',
@@ -281,6 +295,28 @@ export const PmtsPage: React.FC = () => {
       // Ignora
     }
   }, [quadroSubPage])
+
+  // Sub-página ativa do menu PMT Expedição (pg1, pg2, pg3, pg4)
+  const [expedicaoSubPage, setExpedicaoSubPage] = useState<'pg1' | 'pg2' | 'pg3' | 'pg4'>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_expedicao_subpage') as any
+      if (['pg1', 'pg2', 'pg3', 'pg4'].includes(saved)) {
+        return saved
+      }
+      return 'pg1'
+    } catch {
+      return 'pg1'
+    }
+  })
+
+  // Salva expedicaoSubPage no localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('magalog_expedicao_subpage', expedicaoSubPage)
+    } catch {
+      // Ignora
+    }
+  }, [expedicaoSubPage])
 
   // Escuta troca de sub-aba do Quadro disparada pelo Command Palette (Ctrl + L)
   useEffect(() => {
@@ -525,6 +561,7 @@ export const PmtsPage: React.FC = () => {
     idLider: row.id_lider || '',
     nomeLider: row.nome_lider || '',
     setor: row.setor || '',
+    area: row.area || '',
     turno: row.turno || '',
     ferias: row.ferias || '',
     codCentroCusto: row.cod_centro_custo || '',
@@ -562,6 +599,7 @@ export const PmtsPage: React.FC = () => {
     id_lider: item.idLider || '',
     nome_lider: item.nomeLider || '',
     setor: item.setor || '',
+    area: item.area || '',
     turno: item.turno || '',
     ferias: item.ferias || '',
     cod_centro_custo: item.codCentroCusto || '',
@@ -1070,6 +1108,7 @@ export const PmtsPage: React.FC = () => {
               idLider: String(findVal(['id lider', 'id líder'])).trim(),
               nomeLider: String(findVal(['nome lider', 'nome líder'])).trim(),
               setor: String(findVal(['setor'])).trim(),
+              area: String(findVal(['area', 'área'])).trim(),
               turno: String(findVal(['turno'])).trim(),
               ferias: String(findVal(['férias', 'ferias'])).trim(),
               codCentroCusto: rawCodCentroCusto,
@@ -1621,6 +1660,7 @@ export const PmtsPage: React.FC = () => {
   }, [aderenciaState, totalValor, totalPecas, totalPedidos, totalCub, selectedYear, selectedMonth])
 
   const isQuadro = activePageId === 3
+  const isExpedicao = activePageId === 1
 
   return (
     <div className={activePageId === 6 ? 'space-y-3' : 'space-y-6'}>
@@ -1661,6 +1701,38 @@ export const PmtsPage: React.FC = () => {
             )
           })}
         </div>
+
+        {/* Sub-páginas do menu PMT Expedição (pg1, pg2, pg3, pg4) */}
+        {isExpedicao && (
+          <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-2 px-1">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono mr-1">
+              Sub-páginas:
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[
+                { id: 'pg1', label: 'pg1', subId: 'sub-pmt-expedicao-pg1' },
+                { id: 'pg2', label: 'pg2', subId: 'sub-pmt-expedicao-pg2' },
+                { id: 'pg3', label: 'pg3', subId: 'sub-pmt-expedicao-pg3' },
+                { id: 'pg4', label: 'pg4', subId: 'sub-pmt-expedicao-pg4' }
+              ].filter(sub => hasPermission('pmts', sub.subId)).map((sub) => {
+                const isSubActive = expedicaoSubPage === sub.id
+                return (
+                  <button
+                    key={sub.id}
+                    onClick={() => setExpedicaoSubPage(sub.id as any)}
+                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer border ${
+                      isSubActive
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                        : 'bg-slate-50 text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
+                    }`}
+                  >
+                    {sub.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Sub-páginas exclusivas do menu Quadro (Quadro TT, Pg 2, Pg 3, Pg 4) */}
         {isQuadro && (
@@ -1703,7 +1775,7 @@ export const PmtsPage: React.FC = () => {
           - Botões no Quadro: "Cadastrar" e "Importar Planilha (Cadastro em Massa)", SEM o botão "Atualizar"
           - Se Outros PMTs: Filtro Ano + Mês, Atualizar e Importar PMT
           ========================================================================= */}
-      {activePageId !== 4 && activePageId !== 5 && activePageId !== 6 && (!isQuadro || quadroSubPage === 'pg1' || quadroSubPage === 'dashboard') && (
+      {activePageId !== 1 && activePageId !== 4 && activePageId !== 5 && activePageId !== 6 && (!isQuadro || quadroSubPage === 'pg1' || quadroSubPage === 'dashboard') && (
         <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
           {isQuadro ? (
           /* FILTROS ESPECÍFICOS DO QUADRO */
@@ -2614,8 +2686,42 @@ export const PmtsPage: React.FC = () => {
       ) : activePageId === 6 ? (
         /* PÁGINA 6: CARTEIRA CDS (LOOKER STUDIO EMBED / PAINEL OPERACIONAL) */
         <LookerCarteiraPage />
+      ) : isExpedicao ? (
+        /* PÁGINAS VAZIAS DA SUB-PÁGINA DO PMT EXPEDIÇÃO (pg1, pg2, pg3, pg4) */
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-xs space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center mx-auto shadow-2xs">
+            <Truck size={30} />
+          </div>
+          <div className="max-w-md mx-auto space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-100/70 text-blue-700 text-[11px] font-bold font-mono">
+              PMT Expedição &bull; {expedicaoSubPage.toUpperCase()}
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">
+              Página {expedicaoSubPage.toUpperCase()} em Construção
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Esta subpágina está vazia por enquanto e pronta para receber novos relatórios, tabelas ou indicadores operacionais da Expedição.
+            </p>
+          </div>
+          <div className="pt-2 flex items-center justify-center gap-2">
+            {(['pg1', 'pg2', 'pg3', 'pg4'] as const).map(pg => (
+              <button
+                key={pg}
+                type="button"
+                onClick={() => setExpedicaoSubPage(pg)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                  expedicaoSubPage === pg
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                    : 'bg-slate-50 text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
+                }`}
+              >
+                {pg}
+              </button>
+            ))}
+          </div>
+        </div>
       ) : (
-        /* CONTEÚDO PADRÃO PARA DEMAIS SUB-PÁGINAS PMT (Expedição, Recebimento, etc.) */
+        /* CONTEÚDO PADRÃO PARA DEMAIS SUB-PÁGINAS PMT (Recebimento, etc.) */
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
           {/* INDICADOR DIÁRIO POR MODAL COM CONTROLES ACIMA DOS CARDS */}
           <PmtDailyMatrixTable 
@@ -3678,6 +3784,25 @@ export const PmtsPage: React.FC = () => {
                         placeholder="Ex: SUPRIMENTO, EXPEDIÇÃO"
                         className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
                       />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                        <span>Área</span>
+                        <span className="text-[9px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">Pré-seleção</span>
+                      </label>
+                      <select
+                        value={editingColaborador.area || ''}
+                        onChange={(e) => setEditingColaborador({ ...editingColaborador, area: e.target.value })}
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none cursor-pointer"
+                      >
+                        <option value="">Selecione uma Área...</option>
+                        {LISTA_AREAS_OPCOES.map((areaOpcao) => (
+                          <option key={areaOpcao} value={areaOpcao}>
+                            {areaOpcao}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="space-y-1 sm:col-span-1 md:col-span-2">

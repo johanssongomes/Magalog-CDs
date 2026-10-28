@@ -24,6 +24,7 @@ export interface ColaboradorData {
   idLider?: string
   nomeLider?: string
   setor?: string
+  area?: string
   turno?: string
   ferias?: string
   codCentroCusto?: string
@@ -40,6 +41,18 @@ export interface ColaboradorData {
   diaAdm?: string
   anoAdm?: string
 }
+
+export const LISTA_AREAS_OPCOES = [
+  'PLANEJAMENTO',
+  'EXPEDIÇÃO',
+  'RECEBIMENTO',
+  'TRANSPORTE',
+  'CONTROLE DE ESTOQUE',
+  'REVERSA (DQS)',
+  'APOIO (OUTRAS AREAS)',
+  'GENRENCIA',
+  'C&D'
+] as const
 
 export interface AppUserProfile {
   id: string
@@ -63,6 +76,10 @@ export interface AppUserProfile {
 export const AVAILABLE_SUBPAGES: { id: string; pageId: string; label: string }[] = [
   // Gestão 360° (PMTs e Módulos)
   { id: 'sub-pmt-expedicao', pageId: 'pmts', label: 'PMT Expedição' },
+  { id: 'sub-pmt-expedicao-pg1', pageId: 'pmts', label: 'PMT Expedição • Pg 1' },
+  { id: 'sub-pmt-expedicao-pg2', pageId: 'pmts', label: 'PMT Expedição • Pg 2' },
+  { id: 'sub-pmt-expedicao-pg3', pageId: 'pmts', label: 'PMT Expedição • Pg 3' },
+  { id: 'sub-pmt-expedicao-pg4', pageId: 'pmts', label: 'PMT Expedição • Pg 4' },
   { id: 'sub-pmt-recebimento', pageId: 'pmts', label: 'PMT Recebimento' },
   { id: 'sub-pmt-quadro', pageId: 'pmts', label: 'Quadro de Colaboradores' },
   { id: 'sub-pmt-promocionais', pageId: 'pmts', label: 'Itens Promocionais • NE/NO/CO' },

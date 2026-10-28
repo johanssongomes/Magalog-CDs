@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS public.colaboradores (
   id_lider VARCHAR(50),
   nome_lider VARCHAR(255),
   setor VARCHAR(150),
+  area VARCHAR(150),
   turno VARCHAR(50),
   ferias VARCHAR(100),
   cod_centro_custo VARCHAR(100),
@@ -66,15 +67,5 @@ BEGIN
   END IF;
 END $$;
 
--- Habilitar Realtime para a tabela colaboradores
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_publication_tables 
-    WHERE pubname = 'supabase_realtime' AND tablename = 'colaboradores'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.colaboradores;
-  END IF;
-EXCEPTION WHEN OTHERS THEN
-  NULL;
-END $$;
+-- Garantir coluna area caso a tabela já exista
+ALTER TABLE public.colaboradores ADD COLUMN IF NOT EXISTS area VARCHAR(150);

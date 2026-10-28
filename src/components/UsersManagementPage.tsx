@@ -5,6 +5,7 @@ import {
   type AppUserProfile, 
   type UserRole, 
   type ColaboradorData,
+  LISTA_AREAS_OPCOES,
   getDefaultPagesForCargo,
   getDefaultSubpagesForCargo,
   AVAILABLE_SUBPAGES,
@@ -109,6 +110,7 @@ const defaultColaboradorForm: ColaboradorData = {
   idLider: '',
   nomeLider: '',
   setor: '',
+  area: '',
   turno: '1º',
   ferias: '',
   codCentroCusto: '70704',
@@ -1648,6 +1650,25 @@ export const UsersManagementPage: React.FC = () => {
                             placeholder="Ex: SUPRIMENTO, EXPEDIÇÃO"
                             className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
                           />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-1 md:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                            <span>Área</span>
+                            <span className="text-[9px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">Pré-seleção</span>
+                          </label>
+                          <select
+                            value={formColaboradorData.area || ''}
+                            onChange={(e) => setFormColaboradorData({ ...formColaboradorData, area: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none cursor-pointer"
+                          >
+                            <option value="">Selecione uma Área...</option>
+                            {LISTA_AREAS_OPCOES.map((areaOpcao) => (
+                              <option key={areaOpcao} value={areaOpcao}>
+                                {areaOpcao}
+                              </option>
+                            ))}
+                          </select>
                         </div>
 
                         <div className="space-y-1 sm:col-span-1 md:col-span-2">
