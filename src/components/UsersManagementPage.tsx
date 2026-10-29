@@ -499,9 +499,44 @@ export const UsersManagementPage: React.FC = () => {
       })
       .subscribe()
 
+    // Sincronização periódica a cada 5s para garantir que todas as máquinas fiquem 100% alinhadas
+    const syncInterval = setInterval(() => {
+      supabase.from('colaboradores').select('id, area').then(({ data }) => {
+        if (data && data.length > 0) {
+          const areaMap = new Map<string, string>()
+          data.forEach(r => {
+            if (r.id && r.area) areaMap.set(String(r.id).trim().toLowerCase(), r.area)
+          })
+
+          setUsers(prev => {
+            let changed = false
+            const next = prev.map(u => {
+              const uId = String(u.id || u.colaborador_id || '').trim().toLowerCase()
+              const cloudArea = areaMap.get(uId)
+              const currentArea = (u as any).area || u.dados_colaborador?.area || ''
+              if (cloudArea && cloudArea !== currentArea) {
+                changed = true
+                return {
+                  ...u,
+                  area: cloudArea,
+                  dados_colaborador: {
+                    ...(u.dados_colaborador || {}),
+                    area: cloudArea
+                  }
+                }
+              }
+              return u
+            })
+            return changed ? next : prev
+          })
+        }
+      })
+    }, 5000)
+
     return () => {
       window.removeEventListener('magalog_users_updated', handleRemoteUsersUpdate)
       supabase.removeChannel(colabRealtimeChannel)
+      clearInterval(syncInterval)
     }
   }, [])
 
