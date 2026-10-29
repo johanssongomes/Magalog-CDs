@@ -623,22 +623,27 @@ export const UsersManagementPage: React.FC = () => {
           name: updatedUserProfile.name,
           role: mapCargoToValidRole(formCargo),
           allowed_pages: formAllowedPages,
-          allowed_subpages: formAllowedSubpages,
           active: formActive,
           password_hash: updatedUserProfile.password_hash,
-          dados_colaborador: updatedColaborador,
           updated_at: new Date().toISOString()
         }
+        // Se houver subpáginas, inclui para tentar
+        if (formAllowedSubpages && formAllowedSubpages.length > 0) {
+          payloadSupabase.allowed_subpages = formAllowedSubpages
+        }
+
         let { error: upsertErr } = await supabase.from('app_users').upsert([payloadSupabase], { onConflict: 'email' })
-        // Se a coluna allowed_subpages ou dados_colaborador der erro de schema, tenta com fallback
-        if (upsertErr && (upsertErr.message?.includes('allowed_subpages') || upsertErr.message?.includes('dados_colaborador'))) {
-          if (upsertErr.message?.includes('allowed_subpages')) delete payloadSupabase.allowed_subpages
-          if (upsertErr.message?.includes('dados_colaborador')) delete payloadSupabase.dados_colaborador
+        
+        // Se a coluna allowed_subpages ou qualquer outra coluna não existir no schema do Supabase, retira e tenta salvar o essencial
+        if (upsertErr) {
+          console.warn('Tentando salvar app_users com campos essenciais:', upsertErr.message)
+          delete payloadSupabase.allowed_subpages
+          delete payloadSupabase.dados_colaborador
           const retry = await supabase.from('app_users').upsert([payloadSupabase], { onConflict: 'email' })
           upsertErr = retry.error
         }
         if (upsertErr) {
-          console.error('Erro ao salvar no app_users Supabase:', upsertErr)
+          console.error('Erro persistente ao salvar no app_users Supabase:', upsertErr)
         }
       } catch (dbErr) {
         console.warn('Aviso ao sincronizar com app_users no Supabase:', dbErr)
@@ -819,14 +824,6 @@ export const UsersManagementPage: React.FC = () => {
           area: newArea
         }], { onConflict: 'id' }).then(({ error }) => {
           if (error) console.error('Erro ao atualizar área em colaboradores:', error)
-        })
-      }
-
-      if (targetEmail || targetId) {
-        supabase.from('app_users').update({
-          dados_colaborador: updatedColab
-        }).eq(targetEmail ? 'email' : 'id', targetEmail || targetId).then(({ error }) => {
-          if (error) console.error('Erro ao atualizar área em app_users:', error)
         })
       }
 
