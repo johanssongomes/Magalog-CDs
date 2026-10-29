@@ -145,9 +145,10 @@ export const getDefaultPagesForCargo = (cargo: string): string[] => {
   return ['dashboard', 'performance', 'agenda', 'inventory', 'links']
 }
 
-// Subpáginas padrão por cargo (todas liberadas por padrão no cargo correspondente)
-export const getDefaultSubpagesForCargo = (_cargo: string): string[] => {
-  return AVAILABLE_SUBPAGES.map(s => s.id)
+// Subpáginas padrão por cargo (apenas das páginas às quais o cargo tem acesso)
+export const getDefaultSubpagesForCargo = (cargo: string): string[] => {
+  const allowedPages = getDefaultPagesForCargo(cargo)
+  return AVAILABLE_SUBPAGES.filter(s => allowedPages.includes(s.pageId)).map(s => s.id)
 }
 
 export const DEFAULT_ROLE_PAGES: Record<string, string[]> = {

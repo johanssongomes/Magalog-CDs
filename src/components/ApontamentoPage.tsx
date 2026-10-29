@@ -927,7 +927,10 @@ export function ApontamentoPage() {
       user?.id === 'admin-master' ||
       user?.email === 'johansson.gomes@magazineluiza.com.br' ||
       user?.email === 'joh_gomes@magalog.com.br' ||
-      user?.role === 'admin'
+      user?.role === 'admin' ||
+      user?.role === 'gerente' ||
+      user?.role === 'coordenador' ||
+      (user?.cargo && (user.cargo.toUpperCase().includes('COORDENADOR') || user.cargo.toUpperCase().includes('GERENTE')))
 
     const currentUserId = user?.colaborador_id || user?.id
     const allowedHierarchyIds = getHierarchyUserIds(currentUserId, colaboradores, isMasterOrAdmin)

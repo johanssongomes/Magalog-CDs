@@ -1313,7 +1313,10 @@ export const PmtsPage: React.FC = () => {
       currentUser?.id === 'admin-master' ||
       currentUser?.email === 'johansson.gomes@magazineluiza.com.br' ||
       currentUser?.email === 'joh_gomes@magalog.com.br' ||
-      currentUser?.role === 'admin'
+      currentUser?.role === 'admin' ||
+      currentUser?.role === 'gerente' ||
+      currentUser?.role === 'coordenador' ||
+      (currentUser?.cargo && (currentUser.cargo.toUpperCase().includes('COORDENADOR') || currentUser.cargo.toUpperCase().includes('GERENTE')))
 
     const currentUserId = currentUser?.colaborador_id || currentUser?.id
     const allowedHierarchyIds = getHierarchyUserIds(currentUserId, colaboradoresList, isMasterOrAdmin)

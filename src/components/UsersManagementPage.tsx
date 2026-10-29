@@ -609,8 +609,15 @@ export const UsersManagementPage: React.FC = () => {
     setFormPassword(u.password_hash || '123456')
     const userCargo = u.cargo || u.role || colab.cargo || 'CONFERENTE'
     setFormCargo(userCargo)
-    setFormAllowedPages(u.allowed_pages || getDefaultPagesForCargo(userCargo))
-    setFormAllowedSubpages(u.allowed_subpages || getDefaultSubpagesForCargo(userCargo))
+    const userAllowedPages = u.allowed_pages || getDefaultPagesForCargo(userCargo)
+    const rawAllowedSubpages = u.allowed_subpages || getDefaultSubpagesForCargo(userCargo)
+    // Filtra para garantir que apenas subpáginas de páginas principais ativas venham marcadas
+    const validSubpages = rawAllowedSubpages.filter(subId => {
+      const def = AVAILABLE_SUBPAGES.find(s => s.id === subId)
+      return def ? userAllowedPages.includes(def.pageId) : true
+    })
+    setFormAllowedPages(userAllowedPages)
+    setFormAllowedSubpages(validSubpages)
     setFormActive(u.active !== false)
     setFormColaboradorData({
       ...colab,
@@ -633,14 +640,24 @@ export const UsersManagementPage: React.FC = () => {
   // Alterna permissão de página específica
   const togglePagePermission = (pageId: string) => {
     if (formAllowedPages.includes(pageId)) {
+      // Desmarca a página principal e remove automaticamente todas as subpáginas associadas
+      const subpagesToRemove = AVAILABLE_SUBPAGES.filter(s => s.pageId === pageId).map(s => s.id)
       setFormAllowedPages(formAllowedPages.filter(id => id !== pageId))
+      setFormAllowedSubpages(formAllowedSubpages.filter(id => !subpagesToRemove.includes(id)))
     } else {
+      // Ao marcar a página principal, marca também as subpáginas dela por padrão
+      const subpagesToAdd = AVAILABLE_SUBPAGES.filter(s => s.pageId === pageId).map(s => s.id)
       setFormAllowedPages([...formAllowedPages, pageId])
+      setFormAllowedSubpages(Array.from(new Set([...formAllowedSubpages, ...subpagesToAdd])))
     }
   }
 
-  // Alterna permissão de subpágina específica
+  // Alterna permissão de subpágina específica (só permite se a página principal estiver autorizada)
   const toggleSubpagePermission = (subpageId: string) => {
+    const subDef = AVAILABLE_SUBPAGES.find(s => s.id === subpageId)
+    if (subDef && !formAllowedPages.includes(subDef.pageId)) {
+      return // Se a página principal não estiver autorizada, não permite marcar
+    }
     if (formAllowedSubpages.includes(subpageId)) {
       setFormAllowedSubpages(formAllowedSubpages.filter(id => id !== subpageId))
     } else {
@@ -666,6 +683,12 @@ export const UsersManagementPage: React.FC = () => {
         login: formColaboradorData.login || finalEmail.split('@')[0].toUpperCase()
       }
 
+      // Garante que só sejam salvas subpáginas cujas páginas principais estejam ativas
+      const sanitizedAllowedSubpages = formAllowedSubpages.filter(subId => {
+        const def = AVAILABLE_SUBPAGES.find(s => s.id === subId)
+        return def ? formAllowedPages.includes(def.pageId) : true
+      })
+
       const updatedUserProfile: AppUserProfile = {
         id: editingUser ? editingUser.id : finalId,
         colaborador_id: finalId,
@@ -676,7 +699,7 @@ export const UsersManagementPage: React.FC = () => {
         area: formColaboradorData.area || '',
         password_hash: formPassword || '123456',
         allowed_pages: formAllowedPages,
-        allowed_subpages: formAllowedSubpages,
+        allowed_subpages: sanitizedAllowedSubpages,
         active: formActive,
         dados_colaborador: updatedColaborador
       } as any
@@ -2383,7 +2406,11 @@ export const UsersManagementPage: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => setFormAllowedSubpages(AVAILABLE_SUBPAGES.map(s => s.id))}
+                              onClick={() => {
+                                // Marca apenas as subpáginas cujas páginas principais estão autorizadas
+                                const allowedSubIds = AVAILABLE_SUBPAGES.filter(s => formAllowedPages.includes(s.pageId)).map(s => s.id)
+                                setFormAllowedSubpages(allowedSubIds)
+                              }}
                               className="text-[10px] text-blue-600 hover:text-blue-800 font-semibold hover:underline cursor-pointer"
                             >
                               Marcar Todas
@@ -2403,32 +2430,47 @@ export const UsersManagementPage: React.FC = () => {
                         <div className="space-y-3 p-3 bg-white border border-slate-200 rounded-xl max-h-72 overflow-y-auto">
                           {AVAILABLE_PAGES.filter(p => AVAILABLE_SUBPAGES.some(s => s.pageId === p.id)).map(page => {
                             const subpagesOfPage = AVAILABLE_SUBPAGES.filter(s => s.pageId === page.id)
+                            const isParentPageActive = formAllowedPages.includes(page.id)
                             return (
-                              <div key={page.id} className="space-y-1.5 pb-2 border-b border-slate-100 last:border-b-0 last:pb-0">
+                              <div key={page.id} className={`space-y-1.5 pb-2 border-b border-slate-100 last:border-b-0 last:pb-0 transition-opacity ${!isParentPageActive ? 'opacity-50' : 'opacity-100'}`}>
                                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-800">
                                   {page.icon}
                                   <span>{page.label}</span>
-                                  <span className="text-[10px] text-slate-400 font-normal">
-                                    ({subpagesOfPage.filter(s => formAllowedSubpages.includes(s.id)).length}/{subpagesOfPage.length} autorizadas)
-                                  </span>
+                                  {isParentPageActive ? (
+                                    <span className="text-[10px] text-slate-400 font-normal">
+                                      ({subpagesOfPage.filter(s => formAllowedSubpages.includes(s.id)).length}/{subpagesOfPage.length} autorizadas)
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-rose-500 font-medium ml-1">
+                                      (Página principal desmarcada)
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pl-4">
                                   {subpagesOfPage.map(sub => {
-                                    const isSubChecked = formAllowedSubpages.includes(sub.id)
+                                    const isSubChecked = isParentPageActive && formAllowedSubpages.includes(sub.id)
                                     return (
                                       <label
                                         key={sub.id}
-                                        className={`flex items-center gap-2 p-1.5 rounded-lg border text-[11px] cursor-pointer transition-all ${
-                                          isSubChecked
-                                            ? 'bg-indigo-50/70 border-indigo-200 text-indigo-900 font-semibold'
-                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                        title={!isParentPageActive ? `Marque primeiro a página principal "${page.label}"` : undefined}
+                                        className={`flex items-center gap-2 p-1.5 rounded-lg border text-[11px] transition-all ${
+                                          !isParentPageActive
+                                            ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                                            : isSubChecked
+                                            ? 'bg-indigo-50/70 border-indigo-200 text-indigo-900 font-semibold cursor-pointer shadow-2xs'
+                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer'
                                         }`}
                                       >
                                         <input
                                           type="checkbox"
+                                          disabled={!isParentPageActive}
                                           checked={isSubChecked}
                                           onChange={() => toggleSubpagePermission(sub.id)}
-                                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer scale-90"
+                                          className={`rounded border-slate-300 scale-90 ${
+                                            !isParentPageActive 
+                                              ? 'cursor-not-allowed opacity-40' 
+                                              : 'text-indigo-600 focus:ring-indigo-500 cursor-pointer'
+                                          }`}
                                         />
                                         <span className="truncate">{sub.label}</span>
                                       </label>
