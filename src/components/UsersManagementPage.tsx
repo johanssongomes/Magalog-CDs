@@ -351,7 +351,10 @@ export const UsersManagementPage: React.FC = () => {
           const loginPrefix = (u.email || '').split('@')[0].toLowerCase().trim()
           const dbColab = colabMapById.get(targetColabId) || colabMapByLogin.get(loginPrefix)
 
-          const finalArea = dbColab?.area || (dbItem?.dados_colaborador as any)?.area || (dbItem as any)?.area || (u as any).area || u.dados_colaborador?.area || ''
+          // Precedência: Banco de Dados Supabase (colaboradores) > Banco (app_users) > Cache Local > Objeto Inicial
+          const finalArea = (dbColab && dbColab.area) 
+            ? dbColab.area 
+            : ((dbItem?.dados_colaborador as any)?.area || (dbItem as any)?.area || (u as any).area || u.dados_colaborador?.area || '')
 
           const finalDadosColaborador = dbColab 
             ? { ...(u.dados_colaborador || {}), ...dbColab, area: finalArea }
@@ -848,14 +851,15 @@ export const UsersManagementPage: React.FC = () => {
         const contratadoNome = u.name || u.dados_colaborador?.contratado || ''
         const cargoNome = u.cargo || u.role || u.dados_colaborador?.cargo || 'CONFERENTE'
         
-        // Primeiro tenta via update direto do campo area
-        const { error: updError } = await supabase
+        // Tenta update no registro existente
+        const { data: updatedRows, error: updError } = await supabase
           .from('colaboradores')
           .update({ area: newArea })
           .eq('id', targetId)
+          .select('id')
 
-        // Se a linha ainda não existia em colaboradores, faz upsert com os campos obrigatórios (id, contratado, cargo)
-        if (updError) {
+        // Se a linha ainda não existia em colaboradores (updatedRows vazio), faz upsert com contratado e cargo obrigatórios
+        if (updError || !updatedRows || updatedRows.length === 0) {
           const { error: upsertErr } = await supabase.from('colaboradores').upsert([{
             id: targetId,
             contratado: contratadoNome,
