@@ -364,12 +364,13 @@ export function ApontamentoPage() {
     )
   }
 
-  // 1. Carregar Colaboradores (sincronizado com Quadro e Cadastro)
+  // 1. Carregar Colaboradores (sincronizado com Supabase, Quadro e Cadastro)
   useEffect(() => {
     const loadColaboradores = async () => {
-      let baseList: any[] = []
+      // Começa com a base inicial como fallback
+      let baseList: any[] = [...initialColaboradoresData]
 
-      // 1. Tenta carregar da lista mais atualizada do Quadro de Colaboradores ou Usuários
+      // 1. Tenta carregar do cache local se já existir
       try {
         const quadroCached = localStorage.getItem('magalog_quadro_colaboradores')
         if (quadroCached) {
@@ -380,50 +381,26 @@ export function ApontamentoPage() {
         }
       } catch {}
 
-      if (baseList.length === 0) {
-        try {
-          const usersCached = localStorage.getItem('magalog_users_list')
-          if (usersCached) {
-            const parsed = JSON.parse(usersCached)
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              baseList = parsed.map(u => ({
-                id: u.colaborador_id || u.id || '',
-                contratado: u.colaborador?.contratado || u.name || '',
-                cargo: u.cargo || u.colaborador?.cargo || '',
-                setor: u.setor || u.colaborador?.setor || '',
-                area: u.dados_colaborador?.area || u.colaborador?.area || u.area || '',
-                turno: u.turno || u.colaborador?.turno || '',
-                cd: u.cd || '6994',
-                idLider: u.dados_colaborador?.idLider || u.colaborador?.idLider || u.idLider || '',
-                nomeLider: u.dados_colaborador?.nomeLider || u.colaborador?.nomeLider || u.nomeLider || ''
-              }))
-            }
-          }
-        } catch {}
-      }
-
-      if (baseList.length === 0) {
-        baseList = initialColaboradoresData
-      }
-
-      // 2. Mescla com nomes e dados atualizados do Supabase (tabela colaboradores)
+      // 2. Busca SEMPRE a lista mais recente do Supabase (tabela colaboradores)
       try {
-        const { data: supaColabs } = await supabase.from('colaboradores').select('*')
-        if (supaColabs && supaColabs.length > 0) {
+        const { data: supaColabs, error } = await supabase.from('colaboradores').select('*')
+        if (!error && supaColabs && supaColabs.length > 0) {
           const supaMap = new Map<string, any>()
           supaColabs.forEach(sc => {
-            if (sc.id) supaMap.set(String(sc.id).trim(), sc)
+            if (sc.id) supaMap.set(String(sc.id).trim().toLowerCase(), sc)
+            if (sc.contratado) supaMap.set(String(sc.contratado).trim().toUpperCase(), sc)
           })
 
           baseList = baseList.map(item => {
-            const sc = supaMap.get(String(item.id || '').trim())
+            const sc = supaMap.get(String(item.id || '').trim().toLowerCase()) ||
+                       supaMap.get(String(item.contratado || '').trim().toUpperCase())
             if (sc) {
               return {
                 ...item,
                 contratado: sc.contratado || item.contratado,
                 cargo: sc.cargo || item.cargo,
                 setor: sc.setor || item.setor,
-                area: sc.area || item.area || '',
+                area: sc.area !== undefined && sc.area !== null ? sc.area : (item.area || ''),
                 turno: sc.turno || item.turno,
                 idLider: sc.id_lider !== undefined ? sc.id_lider : item.idLider,
                 nomeLider: sc.nome_lider !== undefined ? sc.nome_lider : item.nomeLider
@@ -431,6 +408,30 @@ export function ApontamentoPage() {
             }
             return item
           })
+
+          // Se houver novos colaboradores no Supabase que não estavam na lista inicial
+          const existingIds = new Set(baseList.map(b => String(b.id || '').trim().toLowerCase()))
+          supaColabs.forEach(sc => {
+            const scId = String(sc.id || '').trim().toLowerCase()
+            if (scId && !existingIds.has(scId)) {
+              baseList.push({
+                id: String(sc.id),
+                contratado: sc.contratado || '',
+                cargo: sc.cargo || '',
+                setor: sc.setor || '',
+                area: sc.area || '',
+                turno: sc.turno || '',
+                cd: sc.cd || '6994',
+                idLider: sc.id_lider || '',
+                nomeLider: sc.nome_lider || ''
+              })
+            }
+          })
+
+          // Atualiza o cache local para os próximos acessos rápidos
+          try {
+            localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(baseList))
+          } catch {}
         }
       } catch (e) {
         console.warn('Aviso ao sincronizar colaboradores com Supabase:', e)
