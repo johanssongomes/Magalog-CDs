@@ -264,15 +264,21 @@ export const UsersManagementPage: React.FC = () => {
               const uEmail = (u.email || '').trim().toLowerCase()
               const localItem = localMap.get(uId) || localMap.get(uEmail)
               if (localItem) {
+                const mergedArea = (localItem as any).area || localItem.dados_colaborador?.area || (u as any).area || u.dados_colaborador?.area || ''
                 return {
                   ...u,
                   ...localItem,
                   cargo: localItem.cargo || u.cargo,
                   role: localItem.role || u.role,
+                  area: mergedArea,
                   allowed_pages: localItem.allowed_pages !== undefined ? localItem.allowed_pages : u.allowed_pages,
                   allowed_subpages: localItem.allowed_subpages !== undefined ? localItem.allowed_subpages : u.allowed_subpages,
                   active: localItem.active !== undefined ? localItem.active : u.active,
-                  dados_colaborador: { ...(u.dados_colaborador || {}), ...(localItem.dados_colaborador || {}) }
+                  dados_colaborador: { 
+                    ...(u.dados_colaborador || {}), 
+                    ...(localItem.dados_colaborador || {}),
+                    area: mergedArea
+                  }
                 }
               }
               return u
@@ -344,15 +350,18 @@ export const UsersManagementPage: React.FC = () => {
           const loginPrefix = (u.email || '').split('@')[0].toLowerCase().trim()
           const dbColab = colabMapById.get(targetColabId) || colabMapByLogin.get(loginPrefix)
 
+          const finalArea = dbColab?.area || (dbItem?.dados_colaborador as any)?.area || (dbItem as any)?.area || (u as any).area || u.dados_colaborador?.area || ''
+
           const finalDadosColaborador = dbColab 
-            ? { ...(u.dados_colaborador || {}), ...dbColab }
-            : u.dados_colaborador
+            ? { ...(u.dados_colaborador || {}), ...dbColab, area: finalArea }
+            : { ...(u.dados_colaborador || {}), area: finalArea }
 
           if (dbItem) {
             return {
               ...u,
               role: dbItem.role || u.role || u.cargo,
               cargo: u.cargo || dbItem.cargo || dbItem.role,
+              area: finalArea,
               allowed_pages: dbItem.allowed_pages || u.allowed_pages,
               allowed_subpages: dbItem.allowed_subpages || u.allowed_subpages || getDefaultSubpagesForCargo(u.cargo || 'CONFERENTE'),
               active: dbItem.active !== undefined ? dbItem.active : u.active,
@@ -363,6 +372,7 @@ export const UsersManagementPage: React.FC = () => {
 
           return {
             ...u,
+            area: finalArea,
             allowed_subpages: u.allowed_subpages || getDefaultSubpagesForCargo(u.cargo || 'CONFERENTE'),
             avatar_url: u.avatar_url,
             dados_colaborador: finalDadosColaborador
@@ -431,6 +441,36 @@ export const UsersManagementPage: React.FC = () => {
 
   useEffect(() => {
     fetchUsers()
+
+    // Ouve atualizações de colaboradores vindas de outras telas (ex: Quadro TT)
+    const handleRemoteUsersUpdate = (e: any) => {
+      const detail = e.detail
+      if (!detail) return
+      if (detail.id) {
+        const targetId = String(detail.id).trim().toLowerCase()
+        setUsers(prev => prev.map(u => {
+          const uId = String(u.id || u.colaborador_id || '').trim().toLowerCase()
+          if (uId === targetId) {
+            const newArea = detail.area !== undefined ? detail.area : (detail.colaborador?.area || (u as any).area)
+            return {
+              ...u,
+              area: newArea,
+              dados_colaborador: {
+                ...(u.dados_colaborador || {}),
+                ...(detail.colaborador || {}),
+                area: newArea
+              }
+            }
+          }
+          return u
+        }))
+      }
+    }
+
+    window.addEventListener('magalog_users_updated', handleRemoteUsersUpdate)
+    return () => {
+      window.removeEventListener('magalog_users_updated', handleRemoteUsersUpdate)
+    }
   }, [])
 
   // Lista de líderes disponíveis com ID e Nome para autocompletar e seleção bidirecional
@@ -479,12 +519,14 @@ export const UsersManagementPage: React.FC = () => {
   const handleOpenEditModal = (u: AppUserProfile) => {
     setEditingUser(u)
     setActiveTabModal('dados')
-    const colab = u.dados_colaborador || {
-      ...defaultColaboradorForm,
+    const userArea = (u as any).area || u.dados_colaborador?.area || ''
+    const colab: ColaboradorData = {
+      ...(u.dados_colaborador || defaultColaboradorForm),
       id: u.colaborador_id || u.id,
       contratado: u.name,
-      cargo: u.cargo || u.role || 'CONFERENTE',
-      login: u.email.split('@')[0].toUpperCase()
+      cargo: u.cargo || u.role || (u.dados_colaborador?.cargo) || 'CONFERENTE',
+      login: (u.dados_colaborador?.login) || (u.email ? u.email.split('@')[0].toUpperCase() : ''),
+      area: userArea
     }
     setFormColabId(u.colaborador_id || u.id)
     setFormName(u.name)
@@ -499,7 +541,8 @@ export const UsersManagementPage: React.FC = () => {
       ...colab,
       id: u.colaborador_id || u.id,
       contratado: u.name,
-      cargo: userCargo
+      cargo: userCargo,
+      area: userArea
     })
     setIsModalOpen(true)
   }
@@ -555,12 +598,13 @@ export const UsersManagementPage: React.FC = () => {
         email: finalEmail,
         role: formCargo,
         cargo: formCargo,
+        area: formColaboradorData.area || '',
         password_hash: formPassword || '123456',
         allowed_pages: formAllowedPages,
         allowed_subpages: formAllowedSubpages,
         active: formActive,
         dados_colaborador: updatedColaborador
-      }
+      } as any
 
       // 1. Atualizar ou Inserir no estado local & localStorage
       let updatedUsersList: AppUserProfile[]
@@ -582,12 +626,14 @@ export const UsersManagementPage: React.FC = () => {
           allowed_subpages: formAllowedSubpages,
           active: formActive,
           password_hash: updatedUserProfile.password_hash,
+          dados_colaborador: updatedColaborador,
           updated_at: new Date().toISOString()
         }
         let { error: upsertErr } = await supabase.from('app_users').upsert([payloadSupabase], { onConflict: 'email' })
-        // Se a coluna allowed_subpages ainda não existir no schema do Supabase, retenta sem a coluna para não quebrar
-        if (upsertErr && upsertErr.message?.includes('allowed_subpages')) {
-          delete payloadSupabase.allowed_subpages
+        // Se a coluna allowed_subpages ou dados_colaborador der erro de schema, tenta com fallback
+        if (upsertErr && (upsertErr.message?.includes('allowed_subpages') || upsertErr.message?.includes('dados_colaborador'))) {
+          if (upsertErr.message?.includes('allowed_subpages')) delete payloadSupabase.allowed_subpages
+          if (upsertErr.message?.includes('dados_colaborador')) delete payloadSupabase.dados_colaborador
           const retry = await supabase.from('app_users').upsert([payloadSupabase], { onConflict: 'email' })
           upsertErr = retry.error
         }
@@ -782,6 +828,15 @@ export const UsersManagementPage: React.FC = () => {
         }).eq(targetEmail ? 'email' : 'id', targetEmail || targetId).then(({ error }) => {
           if (error) console.error('Erro ao atualizar área em app_users:', error)
         })
+      }
+
+      // Se o modal de edição estiver aberto para este usuário, sincroniza o formulário do modal também
+      if (editingUser) {
+        const editId = String(editingUser.id || editingUser.colaborador_id || '').trim().toLowerCase()
+        const editEmail = (editingUser.email || '').trim().toLowerCase()
+        if ((targetId && editId === targetId.toLowerCase()) || (targetEmail && editEmail === targetEmail)) {
+          setFormColaboradorData(prev => ({ ...prev, area: newArea }))
+        }
       }
 
       // 4. Notificar outros componentes do sistema

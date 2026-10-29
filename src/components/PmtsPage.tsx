@@ -990,6 +990,30 @@ export const PmtsPage: React.FC = () => {
       // Local server indisponível (ex: ambiente Vercel)
     }
 
+    // Sincroniza com magalog_users_list e dispara evento para Controle de Usuários
+    try {
+      const storedUsers = localStorage.getItem('magalog_users_list')
+      if (storedUsers) {
+        const usersList = JSON.parse(storedUsers)
+        const colabId = String(editingColaborador.id).trim().toLowerCase()
+        const updatedUsersList = usersList.map((u: any) => {
+          const uId = String(u.id || u.colaborador_id || '').trim().toLowerCase()
+          if (uId === colabId) {
+            return {
+              ...u,
+              area: editingColaborador.area,
+              dados_colaborador: { ...(u.dados_colaborador || {}), ...editingColaborador }
+            }
+          }
+          return u
+        })
+        localStorage.setItem('magalog_users_list', JSON.stringify(updatedUsersList))
+      }
+      window.dispatchEvent(new CustomEvent('magalog_users_updated', {
+        detail: { action: 'update', id: editingColaborador.id, colaborador: editingColaborador, area: editingColaborador.area }
+      }))
+    } catch {}
+
     setEditSuccessMsg('Dados do colaborador atualizados e salvos no Banco de Dados!')
     setTimeout(() => {
       setEditSuccessMsg('')
