@@ -134,6 +134,7 @@ export const UsersManagementPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterCargo, setFilterCargo] = useState('todos')
+  const [filterArea, setFilterArea] = useState('todas')
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
   // Modal para Criar / Editar Perfil do Usuário
@@ -1223,18 +1224,43 @@ export const UsersManagementPage: React.FC = () => {
 
   // Filtragem da lista
   const filteredUsers = users.filter(u => {
+    const userArea = (u.dados_colaborador?.area || (u as any).area || '').trim()
+
     const matchesSearch = 
       (u.name || '').toLowerCase().includes(search.toLowerCase()) ||
       (u.email || '').toLowerCase().includes(search.toLowerCase()) ||
       (u.cargo || u.role || '').toLowerCase().includes(search.toLowerCase()) ||
-      (u.colaborador_id || u.id || '').toLowerCase().includes(search.toLowerCase())
+      (u.colaborador_id || u.id || '').toLowerCase().includes(search.toLowerCase()) ||
+      userArea.toLowerCase().includes(search.toLowerCase())
 
     const matchesCargo = filterCargo === 'todos' || (u.cargo || u.role) === filterCargo
-    return matchesSearch && matchesCargo
+
+    let matchesArea = true
+    if (filterArea === 'sem_area') {
+      matchesArea = !userArea
+    } else if (filterArea === 'com_area') {
+      matchesArea = Boolean(userArea)
+    } else if (filterArea !== 'todas') {
+      matchesArea = userArea.toLowerCase() === filterArea.toLowerCase()
+    }
+
+    return matchesSearch && matchesCargo && matchesArea
   })
 
   // Lista única de cargos para filtro
   const uniqueCargos = Array.from(new Set(users.map(u => u.cargo || u.role).filter(Boolean))).sort()
+
+  // Lista dinâmica de áreas com contagem para o filtro
+  const areaOptionsWithCount = useMemo(() => {
+    const counts: Record<string, number> = {}
+    users.forEach(u => {
+      const a = (u.dados_colaborador?.area || (u as any).area || '').trim()
+      if (a) {
+        counts[a] = (counts[a] || 0) + 1
+      }
+    })
+    return counts
+  }, [users])
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -1333,12 +1359,35 @@ export const UsersManagementPage: React.FC = () => {
               <select
                 value={filterCargo}
                 onChange={(e) => setFilterCargo(e.target.value)}
-                className="text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-blue-500 text-slate-700 font-medium shadow-2xs max-w-[220px] truncate"
+                className="text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-blue-500 text-slate-700 font-medium shadow-2xs max-w-[200px] truncate"
               >
                 <option value="todos">Todos os Cargos ({users.length})</option>
                 {uniqueCargos.map(cargo => (
                   <option key={cargo} value={cargo}>{cargo}</option>
                 ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">Filtrar Área:</span>
+              <select
+                value={filterArea}
+                onChange={(e) => setFilterArea(e.target.value)}
+                className="text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-blue-500 text-slate-700 font-medium shadow-2xs max-w-[220px] truncate"
+              >
+                <option value="todas">Todas as Áreas ({users.length})</option>
+                <option value="sem_area" className="text-rose-600 font-semibold">🔴 Sem Área (Pendente)</option>
+                <option value="com_area" className="text-emerald-700 font-semibold">🟢 Com Área Preenchida</option>
+                <optgroup label="Áreas Disponíveis">
+                  {LISTA_AREAS_OPCOES.map(areaOpcao => {
+                    const count = areaOptionsWithCount[areaOpcao] || 0
+                    return (
+                      <option key={areaOpcao} value={areaOpcao}>
+                        {areaOpcao} {count > 0 ? `(${count})` : ''}
+                      </option>
+                    )
+                  })}
+                </optgroup>
               </select>
             </div>
           </div>
