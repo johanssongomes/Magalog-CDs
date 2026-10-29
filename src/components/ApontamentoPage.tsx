@@ -23,7 +23,9 @@ import {
   Building2,
   CalendarDays,
   Palmtree,
-  Info
+  Info,
+  Plus,
+  Minus
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth, LISTA_AREAS_OPCOES } from '../lib/authContext'
@@ -227,6 +229,10 @@ export function ApontamentoPage() {
 
   // Apontamentos Diários: Record<colabId, Record<dia, ApontamentoStatus>>
   const [apontamentos, setApontamentos] = useState<Record<string, Record<number, ApontamentoStatus>>>({})
+  // Ajustes Manuais de Saldo de DSR por Colaborador: Record<colabId, number>
+  const [manualDsrAdjustments, setManualDsrAdjustments] = useState<Record<string, number>>({})
+  const [editingDsrColabId, setEditingDsrColabId] = useState<string | null>(null)
+  const [tempDsrInput, setTempDsrInput] = useState<string>('')
   const [isSaving, setIsSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<string>('')
 
@@ -542,9 +548,10 @@ export function ApontamentoPage() {
     loadBh()
   }, [])
 
-  // 3. Carregar Apontamentos do Mês/Ano atual (Supabase + localStorage fallback)
+  // 3. Carregar Apontamentos e Ajustes de DSR do Mês/Ano atual (Supabase + localStorage fallback)
   useEffect(() => {
     const storageKey = `magalog_apontamentos_${selectedYear}_${selectedMonth + 1}`
+    const dsrStorageKey = `magalog_dsr_manual_${selectedYear}_${selectedMonth + 1}`
     
     // Tenta carregar do localStorage primeiro para exibição imediata
     try {
@@ -554,23 +561,42 @@ export function ApontamentoPage() {
       } else {
         setApontamentos({})
       }
+      const localDsr = localStorage.getItem(dsrStorageKey)
+      if (localDsr) {
+        setManualDsrAdjustments(JSON.parse(localDsr))
+      } else {
+        setManualDsrAdjustments({})
+      }
     } catch {
       setApontamentos({})
+      setManualDsrAdjustments({})
     }
 
     // Busca do Supabase
     const fetchFromSupabase = async () => {
       try {
-        const { data } = await supabase
-          .from('performance_metrics')
-          .select('value')
-          .eq('cell_key', `_apontamentos_${selectedYear}_${selectedMonth + 1}`)
-          .maybeSingle()
+        const [apontRes, dsrRes] = await Promise.all([
+          supabase
+            .from('performance_metrics')
+            .select('value')
+            .eq('cell_key', `_apontamentos_${selectedYear}_${selectedMonth + 1}`)
+            .maybeSingle(),
+          supabase
+            .from('performance_metrics')
+            .select('value')
+            .eq('cell_key', `_dsr_manual_${selectedYear}_${selectedMonth + 1}`)
+            .maybeSingle()
+        ])
 
-        if (data?.value) {
-          const parsed = JSON.parse(data.value)
+        if (apontRes.data?.value) {
+          const parsed = JSON.parse(apontRes.data.value)
           setApontamentos(parsed)
-          localStorage.setItem(storageKey, data.value)
+          localStorage.setItem(storageKey, apontRes.data.value)
+        }
+        if (dsrRes.data?.value) {
+          const parsedDsr = JSON.parse(dsrRes.data.value)
+          setManualDsrAdjustments(parsedDsr)
+          localStorage.setItem(dsrStorageKey, dsrRes.data.value)
         }
       } catch (e) {
         console.warn('Aviso ao carregar apontamentos do banco:', e)
@@ -607,6 +633,63 @@ export function ApontamentoPage() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  // Salvar ajustes manuais de DSR no Supabase e LocalStorage
+  const persistManualDsr = async (newAdjustments: Record<string, number>) => {
+    setManualDsrAdjustments(newAdjustments)
+    const dsrStorageKey = `magalog_dsr_manual_${selectedYear}_${selectedMonth + 1}`
+    const jsonStr = JSON.stringify(newAdjustments)
+    
+    try {
+      localStorage.setItem(dsrStorageKey, jsonStr)
+    } catch (e) {
+      console.warn('Erro ao salvar local de DSR:', e)
+    }
+
+    setIsSaving(true)
+    try {
+      await supabase
+        .from('performance_metrics')
+        .upsert({
+          cell_key: `_dsr_manual_${selectedYear}_${selectedMonth + 1}`,
+          value: jsonStr,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'cell_key' })
+      setLastSaved(new Date().toLocaleTimeString())
+    } catch (err) {
+      console.warn('Erro ao salvar ajuste de DSR no Supabase:', err)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Ajuste rápido de DSR (+1 ou -1)
+  const handleStepDsr = (colabId: string, delta: number) => {
+    const currentAdj = manualDsrAdjustments[colabId] || 0
+    const nextVal = currentAdj + delta
+    const updated = { ...manualDsrAdjustments }
+    if (nextVal === 0) {
+      delete updated[colabId]
+    } else {
+      updated[colabId] = nextVal
+    }
+    persistManualDsr(updated)
+  }
+
+  // Definir DSR manual digitado
+  const handleSaveManualDsrInput = (colabId: string) => {
+    const parsed = parseInt(tempDsrInput, 10)
+    // Calcula a diferença em relação ao DSR puramente automático para atingir o valor digitado
+    const autoDsr = calculateAutoDsr(colabId)
+    const updated = { ...manualDsrAdjustments }
+    if (isNaN(parsed) || parsed === autoDsr) {
+      delete updated[colabId]
+    } else {
+      updated[colabId] = parsed - autoDsr
+    }
+    persistManualDsr(updated)
+    setEditingDsrColabId(null)
   }
 
   // Atualizar célula individual
@@ -698,9 +781,9 @@ export function ApontamentoPage() {
     setIntervalModal({ ...intervalModal, isOpen: false })
   }
 
-  // Cálculo de DSR para um colaborador:
+  // Cálculo do DSR automático baseado no calendário:
   // Domingos trabalhados (+1) - DSR concedido (-1)
-  const calculateDsr = (colabId: string): number => {
+  const calculateAutoDsr = (colabId: string): number => {
     const colabRecords = apontamentos[colabId] || {}
     let dsrBalance = 0
 
@@ -715,6 +798,13 @@ export function ApontamentoPage() {
     })
 
     return dsrBalance
+  }
+
+  // Cálculo do Saldo Total de DSR (Automático + Ajuste Manual)
+  const calculateDsr = (colabId: string): number => {
+    const autoDsr = calculateAutoDsr(colabId)
+    const manualAdj = manualDsrAdjustments[colabId] || 0
+    return autoDsr + manualAdj
   }
 
   // Opções para os filtros de múltipla escolha
@@ -1730,17 +1820,78 @@ export function ApontamentoPage() {
                         </span>
                       </td>
 
-                      {/* 9. Qnt de DSR (Calculado) */}
-                      <td className="sticky left-[955px] z-20 bg-slate-100 px-3 py-2 border-r-2 border-slate-400 text-center font-mono font-black text-xs shadow-md">
-                        <span className={`px-2 py-0.5 rounded-full ${
-                          dsrBalance > 0
-                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                            : dsrBalance < 0
-                            ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                            : 'text-slate-600'
-                        }`}>
-                          {dsrBalance}
-                        </span>
+                      {/* 9. Qnt de DSR (Cálculo Automático + Ajuste Manual com Botões + / - e Edição Direta) */}
+                      <td className="sticky left-[955px] z-20 bg-slate-100 px-1 py-1.5 border-r-2 border-slate-400 text-center font-mono font-black text-xs shadow-md">
+                        {editingDsrColabId === colabId ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <input
+                              type="number"
+                              autoFocus
+                              value={tempDsrInput}
+                              onChange={(e) => setTempDsrInput(e.target.value)}
+                              onBlur={() => handleSaveManualDsrInput(colabId)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveManualDsrInput(colabId)
+                                if (e.key === 'Escape') setEditingDsrColabId(null)
+                              }}
+                              className="w-12 h-6 text-center text-xs font-black bg-white border-2 border-blue-500 rounded outline-none shadow-inner"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSaveManualDsrInput(colabId)}
+                              className="w-5 h-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded flex items-center justify-center text-[10px]"
+                              title="Confirmar"
+                            >
+                              ✓
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center justify-center gap-0.5 group/dsr">
+                            {/* Botão Diminuir DSR (-1) */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleStepDsr(colabId, -1)
+                              }}
+                              title="Reduzir 1 DSR manual"
+                              className="w-4 h-4 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center text-[9px] transition-colors cursor-pointer opacity-40 group-hover/dsr:opacity-100"
+                            >
+                              <Minus size={10} strokeWidth={3} />
+                            </button>
+
+                            {/* Valor de DSR com clique para digitação direta */}
+                            <span
+                              onClick={() => {
+                                setEditingDsrColabId(colabId)
+                                setTempDsrInput(String(dsrBalance))
+                              }}
+                              title={`Saldo de DSR: ${dsrBalance} (Automático: ${calculateAutoDsr(colabId)}${(manualDsrAdjustments[colabId] || 0) !== 0 ? ` | Ajuste Manual: ${manualDsrAdjustments[colabId] > 0 ? '+' : ''}${manualDsrAdjustments[colabId]}` : ''}) - Clique para digitar`}
+                              className={`px-2 py-0.5 rounded-full cursor-pointer transition-all hover:ring-2 hover:ring-blue-400 select-none ${
+                                dsrBalance > 0
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300 font-black'
+                                  : dsrBalance < 0
+                                  ? 'bg-rose-100 text-rose-800 border border-rose-300 font-black'
+                                  : 'text-slate-600 hover:bg-slate-200'
+                              } ${(manualDsrAdjustments[colabId] || 0) !== 0 ? 'ring-1 ring-blue-500/70' : ''}`}
+                            >
+                              {dsrBalance}
+                            </span>
+
+                            {/* Botão Aumentar DSR (+1) */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleStepDsr(colabId, 1)
+                              }}
+                              title="Adicionar 1 DSR manual (+1)"
+                              className="w-4 h-4 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 flex items-center justify-center text-[9px] transition-colors cursor-pointer opacity-40 group-hover/dsr:opacity-100"
+                            >
+                              <Plus size={10} strokeWidth={3} />
+                            </button>
+                          </div>
+                        )}
                       </td>
 
                       {/* Células Diárias de Apontamento com Dropdown Rápido */}
