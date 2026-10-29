@@ -220,6 +220,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {}
   }
 
+  // Helper robusto para encontrar o colaborador correspondente na base por e-mail, login, nome ou id
+  const findColaboradorMatch = (email?: string, name?: string, id?: string) => {
+    const cleanMail = (email || '').toLowerCase().trim()
+    const loginPrefix = cleanMail.split('@')[0]
+    const cleanName = (name || '').toLowerCase().trim()
+
+    // Caso especial mestre
+    if (cleanMail === 'johansson.gomes@magazineluiza.com.br' || cleanMail === 'joh_gomes@magalog.com.br') {
+      const matchMaster = (initialColaboradores as any[]).find(c => String(c.id) === '169959')
+      if (matchMaster) return matchMaster
+    }
+
+    if (id) {
+      const byId = (initialColaboradores as any[]).find(c => String(c.id) === String(id))
+      if (byId) return byId
+    }
+
+    return (initialColaboradores as any[]).find(c => {
+      const cLogin = (c.login || '').toLowerCase().trim()
+      const cContratado = (c.contratado || '').toLowerCase().trim()
+      if (cLogin && (cleanMail.includes(cLogin) || loginPrefix === cLogin)) return true
+      if (cleanName && cContratado && (cleanName.includes(cContratado) || cContratado.includes(cleanName))) return true
+      return false
+    })
+  }
+
   // Carregar sessão e perfil do Supabase
   const loadProfile = async (authUserId: string, authEmail: string) => {
     const cleanEmail = authEmail.trim().toLowerCase()
@@ -232,10 +258,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle()
 
       if (data && !error) {
-        const colabInfo = (initialColaboradores as any[]).find(c => 
-          (c.login && data.email.toLowerCase().includes(c.login.toLowerCase())) ||
-          (c.contratado && data.name && c.contratado.toLowerCase() === data.name.toLowerCase())
-        )
+        const colabInfo = findColaboradorMatch(data.email, data.name, data.colaborador_id)
 
         // Tenta buscar campos extras de perfil (foto, bio, phone)
         let extraProfile: any = null
@@ -254,15 +277,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const finalAvatar = data.avatar_url || extraProfile?.avatar_url || cachedAvatar || undefined
         if (finalAvatar) setStoredAvatar(cleanEmail, finalAvatar)
 
+        const resolvedColabId = colabInfo?.id || (cleanEmail.includes('johansson') || cleanEmail.includes('joh_gomes') ? '169959' : data.colaborador_id || data.id)
+        const resolvedCargo = colabInfo?.cargo || (cleanEmail.includes('johansson') || cleanEmail.includes('joh_gomes') ? 'COORDENADOR LOGISTICA' : data.cargo || data.role)
+        const resolvedRole = data.role || (cleanEmail.includes('johansson') || cleanEmail.includes('joh_gomes') ? 'admin' : (colabInfo?.cargo ? mapCargoToValidRole(colabInfo.cargo) : 'colaborador'))
+
         const enriched: AppUserProfile = {
           ...data,
           avatar_url: finalAvatar,
           bio: data.bio || extraProfile?.bio,
           phone: data.phone || extraProfile?.phone,
-          colaborador_id: colabInfo?.id || data.colaborador_id || data.id,
-          cargo: colabInfo?.cargo || data.cargo || data.role,
-          role: data.role || (colabInfo?.cargo ? mapCargoToValidRole(colabInfo.cargo) : 'colaborador')
+          colaborador_id: resolvedColabId,
+          cargo: resolvedCargo,
+          role: resolvedRole
         }
+        localStorage.setItem('magalog_admin_session', JSON.stringify(enriched))
         setUser(enriched)
         return
       }
@@ -281,14 +309,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         knownUser = (initialUsers as any[]).find(u => (u.email || '').trim().toLowerCase() === cleanEmail)
       }
 
-      const colabInfo = (initialColaboradores as any[]).find(c => 
-        (c.login && cleanEmail.includes(c.login.toLowerCase())) ||
-        (c.contratado && knownUser?.name && c.contratado.toLowerCase() === knownUser.name.toLowerCase())
-      )
+      const colabInfo = findColaboradorMatch(cleanEmail, knownUser?.name, knownUser?.colaborador_id)
 
       const isInitialAdmin = cleanEmail.includes('admin') || cleanEmail.includes('joh_gomes') || cleanEmail === 'johansson.gomes@magazineluiza.com.br'
-      const determinedCargo = knownUser?.cargo || colabInfo?.cargo || (isInitialAdmin ? 'Administrador' : 'Colaborador')
-      const determinedRole = knownUser?.role ? mapCargoToValidRole(knownUser.role) : (isInitialAdmin ? 'admin' : mapCargoToValidRole(determinedCargo))
+      const determinedCargo = colabInfo?.cargo || knownUser?.cargo || (isInitialAdmin ? 'COORDENADOR LOGISTICA' : 'Colaborador')
+      const determinedRole = isInitialAdmin ? 'admin' : (knownUser?.role ? mapCargoToValidRole(knownUser.role) : mapCargoToValidRole(determinedCargo))
       const determinedPages = knownUser?.allowed_pages || getDefaultPagesForCargo(determinedCargo)
 
       const fallbackAvatar = knownUser?.avatar_url || cachedAvatar || undefined
@@ -410,14 +435,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 return
               }
 
-              const colabInfo = (initialColaboradores as any[]).find(c => 
-                (c.login && row.email?.toLowerCase().includes(c.login.toLowerCase())) ||
-                (c.contratado && row.name && c.contratado.toLowerCase() === row.name.toLowerCase())
-              )
+              const colabInfo = findColaboradorMatch(row.email, row.name, row.colaborador_id)
               const newProf: AppUserProfile = {
                 id: row.id,
                 user_id: row.user_id || currentObj.user_id,
-                colaborador_id: colabInfo?.id || currentObj.colaborador_id,
+                colaborador_id: colabInfo?.id || row.colaborador_id || currentObj.colaborador_id,
                 email: row.email,
                 name: row.name,
                 role: row.role as UserRole,
@@ -463,14 +485,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (currentPages !== latestPages || u.role !== latest.role || u.active !== latest.active) {
             // Encontrar cargo real da planilha
-            const colabInfo = (initialColaboradores as any[]).find(c => 
-              (c.login && latest.email.toLowerCase().includes(c.login.toLowerCase())) ||
-              (c.contratado && latest.name && c.contratado.toLowerCase() === latest.name.toLowerCase())
-            )
+            const colabInfo = findColaboradorMatch(latest.email, latest.name, latest.colaborador_id)
             const newProf: AppUserProfile = {
               id: latest.id,
               user_id: latest.user_id || u.user_id,
-              colaborador_id: colabInfo?.id || u.colaborador_id,
+              colaborador_id: colabInfo?.id || latest.colaborador_id || u.colaborador_id,
               email: latest.email,
               name: latest.name,
               role: latest.role as UserRole,

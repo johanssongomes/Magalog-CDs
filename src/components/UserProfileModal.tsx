@@ -67,15 +67,29 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
     const loadData = async () => {
       setLoading(true)
       try {
-        const targetId = user.colaborador_id || user.id
-        const loginPrefix = (user.email || '').split('@')[0].toLowerCase()
+        const isMaster = (user.email || '').toLowerCase().includes('johansson') || (user.email || '').toLowerCase().includes('joh_gomes')
+        const targetId = isMaster ? '169959' : (user.colaborador_id || user.id)
+        const loginPrefix = isMaster ? 'JOH_GOMES' : (user.email || '').split('@')[0].toLowerCase()
 
         // Busca dados mais recentes da tabela colaboradores
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('colaboradores')
           .select('*')
           .or(`id.eq.${targetId},login.ilike.${loginPrefix}`)
           .maybeSingle()
+
+        // Se ainda não encontrou e for mestre ou tiver nome, busca por contratado
+        if (!data) {
+          const searchName = isMaster ? 'JOHANSSON' : (user.name || '').split(' ')[0]
+          if (searchName) {
+            const { data: byName } = await supabase
+              .from('colaboradores')
+              .select('*')
+              .ilike('contratado', `%${searchName}%`)
+              .maybeSingle()
+            if (byName) data = byName
+          }
+        }
 
         if (data && !error) {
           setColabData({
