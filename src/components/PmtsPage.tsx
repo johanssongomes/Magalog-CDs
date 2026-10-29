@@ -336,10 +336,11 @@ export const PmtsPage: React.FC = () => {
   const [filtrosCentroCusto, setFiltrosCentroCusto] = useState<string[]>([])
   const [filtrosGerencia, setFiltrosGerencia] = useState<string[]>([])
   const [filtrosArea, setFiltrosArea] = useState<string[]>([])
+  const [filtrosSituacao, setFiltrosSituacao] = useState<string[]>([])
   const [buscaColaborador, setBuscaColaborador] = useState<string>('')
 
   // Controle de abertura dos dropdowns de múltipla seleção
-  const [openDropdown, setOpenDropdown] = useState<'cargo' | 'cc' | 'gerencia' | 'area' | null>(null)
+  const [openDropdown, setOpenDropdown] = useState<'cargo' | 'cc' | 'gerencia' | 'area' | 'situacao' | null>(null)
 
   // Estado do Modal de Cadastro Individual (Quadro - Pg 1)
   const [isCadastroModalOpen, setIsCadastroModalOpen] = useState(false)
@@ -1334,9 +1335,10 @@ export const PmtsPage: React.FC = () => {
       const matchCC = filtrosCentroCusto.length === 0 || filtrosCentroCusto.includes(colab.centroDeCusto || '(vazio)')
       const matchGer = filtrosGerencia.length === 0 || filtrosGerencia.includes(colab.gerencia || '(vazio)')
       const matchArea = filtrosArea.length === 0 || filtrosArea.includes(colab.area || '(sem área)')
-      return matchBusca && matchCargo && matchCC && matchGer && matchArea
+      const matchSituacao = filtrosSituacao.length === 0 || filtrosSituacao.includes(colab.situacaoSistema || 'Em Atividade Normal')
+      return matchBusca && matchCargo && matchCC && matchGer && matchArea && matchSituacao
     })
-  }, [colaboradoresList, buscaColaborador, filtrosCargo, filtrosCentroCusto, filtrosGerencia, filtrosArea, currentUser])
+  }, [colaboradoresList, buscaColaborador, filtrosCargo, filtrosCentroCusto, filtrosGerencia, filtrosArea, filtrosSituacao, currentUser])
 
   // Lista de valores únicos para filtros e resumos
   const listaCargos = Array.from(new Set(colaboradoresList.map(c => c.cargo).filter(Boolean))).sort()
@@ -1346,6 +1348,7 @@ export const PmtsPage: React.FC = () => {
     ...LISTA_AREAS_OPCOES,
     ...colaboradoresList.map(c => c.area).filter(Boolean) as string[]
   ])).sort()
+  const listaSituacoes = Array.from(new Set(colaboradoresList.map(c => c.situacaoSistema || 'Em Atividade Normal').filter(Boolean))).sort()
 
   // Lista de líderes disponíveis com ID e Nome para autocompletar e seleção bidirecional
   const listaLideresOpcoes = useMemo(() => {
@@ -2206,6 +2209,89 @@ export const PmtsPage: React.FC = () => {
               )}
             </div>
 
+            {/* Filtro por Situação Sistema (Múltipla Seleção) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === 'situacao' ? null : 'situacao')}
+                className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${
+                  filtrosSituacao.length > 0 
+                    ? 'bg-emerald-50/80 border-emerald-400 text-emerald-900 shadow-2xs' 
+                    : 'bg-slate-50 border-slate-200 hover:border-emerald-400 text-slate-800'
+                }`}
+              >
+                <ShieldCheck size={14} className={filtrosSituacao.length > 0 ? 'text-emerald-600' : 'text-slate-500'} />
+                <div className="flex flex-col">
+                  <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                    Situação Sistema
+                  </label>
+                  <span className="text-xs font-bold truncate max-w-[140px]">
+                    {filtrosSituacao.length === 0 
+                      ? 'Todas as Situações' 
+                      : filtrosSituacao.length === 1 
+                        ? filtrosSituacao[0] 
+                        : `${filtrosSituacao.length} selecionadas`}
+                  </span>
+                </div>
+                <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'situacao' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {openDropdown === 'situacao' && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                  <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
+                      <span className="font-bold text-slate-700">Filtrar Situação Sistema</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setFiltrosSituacao([...listaSituacoes])}
+                          className="text-[10px] text-emerald-600 hover:underline font-bold cursor-pointer"
+                        >
+                          Marcar Todas
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setFiltrosSituacao([])}
+                          className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
+                      {listaSituacoes.map((situacao) => {
+                        const isChecked = filtrosSituacao.includes(situacao)
+                        return (
+                          <label
+                            key={situacao}
+                            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setFiltrosSituacao(filtrosSituacao.filter(s => s !== situacao))
+                                } else {
+                                  setFiltrosSituacao([...filtrosSituacao, situacao])
+                                }
+                              }}
+                              className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                            />
+                            <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-emerald-900' : 'text-slate-700'}`}>
+                              {situacao}
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Tag de Resumo do Quadro */}
             <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50/70 border border-blue-100 text-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
@@ -2407,17 +2493,18 @@ export const PmtsPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {(filtrosCargo.length > 0 || filtrosCentroCusto.length > 0 || filtrosGerencia.length > 0 || filtrosArea.length > 0) && (
+                  {(filtrosCargo.length > 0 || filtrosCentroCusto.length > 0 || filtrosGerencia.length > 0 || filtrosArea.length > 0 || filtrosSituacao.length > 0) && (
                     <button
                       onClick={() => {
                         setFiltrosCargo([])
                         setFiltrosCentroCusto([])
                         setFiltrosGerencia([])
                         setFiltrosArea([])
+                        setFiltrosSituacao([])
                       }}
                       className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer px-2 py-1 rounded bg-blue-50 border border-blue-200"
                     >
-                      Limpar Filtros Ativos ({filtrosCargo.length + filtrosCentroCusto.length + filtrosGerencia.length + filtrosArea.length})
+                      Limpar Filtros Ativos ({filtrosCargo.length + filtrosCentroCusto.length + filtrosGerencia.length + filtrosArea.length + filtrosSituacao.length})
                     </button>
                   )}
                   <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700">
