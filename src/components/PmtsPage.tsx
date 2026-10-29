@@ -709,6 +709,7 @@ export const PmtsPage: React.FC = () => {
               idLider: dados.idLider || baseMatch?.idLider || '',
               nomeLider: dados.nomeLider || baseMatch?.nomeLider || '',
               setor: dados.setor || baseMatch?.setor || '',
+              area: dados.area || (u as any).area || baseMatch?.area || '',
               turno: dados.turno || baseMatch?.turno || '1º'
             }
             return item

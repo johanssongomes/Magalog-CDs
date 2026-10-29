@@ -429,7 +429,10 @@ export const UsersManagementPage: React.FC = () => {
           const targetColabId = String(u.id || u.colaborador_id || '').trim()
           const loginPrefix = (u.email || '').split('@')[0].toLowerCase().trim()
           const dbColab = colabMapById.get(targetColabId) || colabMapByLogin.get(loginPrefix)
-          return dbColab ? { ...u, dados_colaborador: { ...(u.dados_colaborador || {}), ...dbColab } } : u
+          const finalArea = dbColab?.area || (u as any).area || u.dados_colaborador?.area || ''
+          return dbColab 
+            ? { ...u, area: finalArea, dados_colaborador: { ...(u.dados_colaborador || {}), ...dbColab, area: finalArea } } 
+            : { ...u, area: finalArea }
         })
         setUsers(mergedList)
         localStorage.setItem('magalog_users_list', JSON.stringify(mergedList))
@@ -885,21 +888,30 @@ export const UsersManagementPage: React.FC = () => {
       if (targetId) {
         const contratadoNome = u.name || u.dados_colaborador?.contratado || ''
         const cargoNome = u.cargo || u.role || u.dados_colaborador?.cargo || 'CONFERENTE'
+        const centroDeCusto = u.dados_colaborador?.centroDeCusto || 'OPERACIONAL'
+        const loginStr = u.dados_colaborador?.login || (targetEmail ? targetEmail.split('@')[0].toUpperCase() : '')
         
         // Tenta update no registro existente
         const { data: updatedRows, error: updError } = await supabase
           .from('colaboradores')
-          .update({ area: newArea })
+          .update({ 
+            area: newArea,
+            updated_at: new Date().toISOString()
+          })
           .eq('id', targetId)
           .select('id')
 
-        // Se a linha ainda não existia em colaboradores (updatedRows vazio), faz upsert com contratado e cargo obrigatórios
+        // Se a linha ainda não existia em colaboradores (updatedRows vazio), faz upsert com todos os campos obrigatórios (id, contratado, cargo, centro_de_custo)
         if (updError || !updatedRows || updatedRows.length === 0) {
           const { error: upsertErr } = await supabase.from('colaboradores').upsert([{
             id: targetId,
             contratado: contratadoNome,
             cargo: cargoNome,
-            area: newArea
+            centro_de_custo: centroDeCusto,
+            cd: u.dados_colaborador?.cd || '994',
+            login: loginStr,
+            area: newArea,
+            updated_at: new Date().toISOString()
           }], { onConflict: 'id' })
           if (upsertErr) {
             console.error('Erro ao gravar área no Supabase colaboradores:', upsertErr)
