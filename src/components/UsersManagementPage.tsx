@@ -351,9 +351,9 @@ export const UsersManagementPage: React.FC = () => {
           const loginPrefix = (u.email || '').split('@')[0].toLowerCase().trim()
           const dbColab = colabMapById.get(targetColabId) || colabMapByLogin.get(loginPrefix)
 
-          // Precedência: Banco de Dados Supabase (colaboradores) > Banco (app_users) > Cache Local > Objeto Inicial
-          const finalArea = (dbColab && dbColab.area) 
-            ? dbColab.area 
+          // Precedência: Se o colaborador existe no Supabase colaboradores, o valor dele (mesmo que vazio/desmarcado) tem prioridade absoluta!
+          const finalArea = dbColab 
+            ? (dbColab.area || '')
             : ((dbItem?.dados_colaborador as any)?.area || (dbItem as any)?.area || (u as any).area || u.dados_colaborador?.area || '')
 
           const finalDadosColaborador = dbColab 
@@ -502,39 +502,44 @@ export const UsersManagementPage: React.FC = () => {
       })
       .subscribe()
 
-    // Sincronização periódica a cada 5s para garantir que todas as máquinas fiquem 100% alinhadas
+    // Sincronização periódica a cada 4s para garantir que todas as máquinas fiquem 100% alinhadas
     const syncInterval = setInterval(() => {
       supabase.from('colaboradores').select('id, area').then(({ data }) => {
         if (data && data.length > 0) {
           const areaMap = new Map<string, string>()
           data.forEach(r => {
-            if (r.id && r.area) areaMap.set(String(r.id).trim().toLowerCase(), r.area)
+            if (r.id) areaMap.set(String(r.id).trim().toLowerCase(), r.area || '')
           })
 
           setUsers(prev => {
             let changed = false
             const next = prev.map(u => {
               const uId = String(u.id || u.colaborador_id || '').trim().toLowerCase()
-              const cloudArea = areaMap.get(uId)
-              const currentArea = (u as any).area || u.dados_colaborador?.area || ''
-              if (cloudArea && cloudArea !== currentArea) {
-                changed = true
-                return {
-                  ...u,
-                  area: cloudArea,
-                  dados_colaborador: {
-                    ...(u.dados_colaborador || {}),
-                    area: cloudArea
+              if (areaMap.has(uId)) {
+                const cloudArea = areaMap.get(uId) || ''
+                const currentArea = (u as any).area || u.dados_colaborador?.area || ''
+                if (cloudArea !== currentArea) {
+                  changed = true
+                  return {
+                    ...u,
+                    area: cloudArea,
+                    dados_colaborador: {
+                      ...(u.dados_colaborador || {}),
+                      area: cloudArea
+                    }
                   }
                 }
               }
               return u
             })
+            if (changed) {
+              try { localStorage.setItem('magalog_users_list', JSON.stringify(next)) } catch {}
+            }
             return changed ? next : prev
           })
         }
       })
-    }, 5000)
+    }, 4000)
 
     return () => {
       window.removeEventListener('magalog_users_updated', handleRemoteUsersUpdate)
