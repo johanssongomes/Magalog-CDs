@@ -2810,8 +2810,8 @@ export const PmtsPage: React.FC = () => {
       ) : activePageId === 6 ? (
         /* PÁGINA 6: CARTEIRA CDS (LOOKER STUDIO EMBED / PAINEL OPERACIONAL) */
         <LookerCarteiraPage />
-      ) : isExpedicao ? (
-        /* PÁGINAS VAZIAS DA SUB-PÁGINA DO PMT EXPEDIÇÃO (pg1, pg2, pg3, pg4) */
+      ) : (isExpedicao && expedicaoSubPage !== 'pg1') ? (
+        /* PÁGINAS EM CONSTRUÇÃO APENAS PARA DEMAIS SUB-PÁGINAS DO PMT EXPEDIÇÃO (pg2, pg3, pg4) */
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-xs space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center mx-auto shadow-2xs">
             <Truck size={30} />
@@ -2824,7 +2824,7 @@ export const PmtsPage: React.FC = () => {
               Página {expedicaoSubPage.toUpperCase()} em Construção
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Esta subpágina está vazia por enquanto e pronta para receber novos relatórios, tabelas ou indicadores operacionais da Expedição.
+              Esta subpágina está reservada para relatórios e indicadores operacionais complementares da Expedição.
             </p>
           </div>
           <div className="pt-2 flex items-center justify-center gap-2">
