@@ -469,8 +469,36 @@ export const UsersManagementPage: React.FC = () => {
     }
 
     window.addEventListener('magalog_users_updated', handleRemoteUsersUpdate)
+
+    // Ouvinte em tempo real do Supabase para alterações feitas por outros computadores/usuários
+    const colabRealtimeChannel = supabase
+      .channel('colaboradores_global_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'colaboradores' }, (payload: any) => {
+        const row = payload.new || payload.old
+        if (!row || !row.id) return
+        const targetId = String(row.id).trim().toLowerCase()
+        const newArea = row.area !== undefined ? row.area : ''
+
+        setUsers(prev => prev.map(u => {
+          const uId = String(u.id || u.colaborador_id || '').trim().toLowerCase()
+          if (uId === targetId) {
+            return {
+              ...u,
+              area: newArea,
+              dados_colaborador: {
+                ...(u.dados_colaborador || {}),
+                area: newArea
+              }
+            }
+          }
+          return u
+        }))
+      })
+      .subscribe()
+
     return () => {
       window.removeEventListener('magalog_users_updated', handleRemoteUsersUpdate)
+      supabase.removeChannel(colabRealtimeChannel)
     }
   }, [])
 
@@ -815,17 +843,29 @@ export const UsersManagementPage: React.FC = () => {
         }
       } catch {}
 
-      // 3. Atualizar Supabase (colaboradores e app_users)
-      const currentColab = u.dados_colaborador || {}
-      const updatedColab = { ...currentColab, area: newArea }
-
+      // 3. Atualizar no Banco Supabase (colaboradores) para refletir para todos os computadores
       if (targetId) {
-        supabase.from('colaboradores').upsert([{
-          id: targetId,
-          area: newArea
-        }], { onConflict: 'id' }).then(({ error }) => {
-          if (error) console.error('Erro ao atualizar área em colaboradores:', error)
-        })
+        const contratadoNome = u.name || u.dados_colaborador?.contratado || ''
+        const cargoNome = u.cargo || u.role || u.dados_colaborador?.cargo || 'CONFERENTE'
+        
+        // Primeiro tenta via update direto do campo area
+        const { error: updError } = await supabase
+          .from('colaboradores')
+          .update({ area: newArea })
+          .eq('id', targetId)
+
+        // Se a linha ainda não existia em colaboradores, faz upsert com os campos obrigatórios (id, contratado, cargo)
+        if (updError) {
+          const { error: upsertErr } = await supabase.from('colaboradores').upsert([{
+            id: targetId,
+            contratado: contratadoNome,
+            cargo: cargoNome,
+            area: newArea
+          }], { onConflict: 'id' })
+          if (upsertErr) {
+            console.error('Erro ao gravar área no Supabase colaboradores:', upsertErr)
+          }
+        }
       }
 
       // Se o modal de edição estiver aberto para este usuário, sincroniza o formulário do modal também
