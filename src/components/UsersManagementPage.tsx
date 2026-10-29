@@ -1441,20 +1441,30 @@ export const UsersManagementPage: React.FC = () => {
                         </span>
                       </td>
 
-                      {/* Área (Seleção Direta para Edição Rápida) */}
+                      {/* Área (Seleção Direta para Edição Rápida com indicador visual de preenchimento) */}
                       <td className="px-4 py-3.5 min-w-[170px]">
-                        <select
-                          value={u.dados_colaborador?.area || (u as any).area || ''}
-                          onChange={(e) => handleQuickChangeArea(u, e.target.value)}
-                          className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 hover:border-blue-400 focus:border-blue-500 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-slate-700 outline-none cursor-pointer transition-all shadow-2xs"
-                        >
-                          <option value="">(Selecione Área)</option>
-                          {LISTA_AREAS_OPCOES.map((areaOpcao) => (
-                            <option key={areaOpcao} value={areaOpcao}>
-                              {areaOpcao}
-                            </option>
-                          ))}
-                        </select>
+                        {(() => {
+                          const currentArea = u.dados_colaborador?.area || (u as any).area || ''
+                          const isFilled = Boolean(currentArea && currentArea.trim())
+                          return (
+                            <select
+                              value={currentArea}
+                              onChange={(e) => handleQuickChangeArea(u, e.target.value)}
+                              className={`w-full rounded-lg px-2.5 py-1 text-[11px] font-bold outline-none cursor-pointer transition-all shadow-2xs border ${
+                                isFilled
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100/70 focus:border-emerald-500 focus:bg-emerald-100/50'
+                                  : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100/70 focus:border-rose-500 focus:bg-rose-100/50'
+                              }`}
+                            >
+                              <option value="" className="bg-white text-slate-500 font-normal">(Selecione Área)</option>
+                              {LISTA_AREAS_OPCOES.map((areaOpcao) => (
+                                <option key={areaOpcao} value={areaOpcao} className="bg-white text-slate-800 font-semibold">
+                                  {areaOpcao}
+                                </option>
+                              ))}
+                            </select>
+                          )
+                        })()}
                       </td>
 
                       {/* Páginas Autorizadas */}
@@ -1824,11 +1834,15 @@ export const UsersManagementPage: React.FC = () => {
                           <select
                             value={formColaboradorData.area || ''}
                             onChange={(e) => setFormColaboradorData({ ...formColaboradorData, area: e.target.value })}
-                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none cursor-pointer"
+                            className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold outline-none cursor-pointer transition-all ${
+                              formColaboradorData.area && formColaboradorData.area.trim()
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 focus:border-emerald-500'
+                                : 'bg-rose-50 text-rose-700 border-rose-300 focus:border-rose-500'
+                            }`}
                           >
-                            <option value="">Selecione uma Área...</option>
+                            <option value="" className="bg-white text-slate-500 font-normal">Selecione uma Área...</option>
                             {LISTA_AREAS_OPCOES.map((areaOpcao) => (
-                              <option key={areaOpcao} value={areaOpcao}>
+                              <option key={areaOpcao} value={areaOpcao} className="bg-white text-slate-800 font-semibold">
                                 {areaOpcao}
                               </option>
                             ))}

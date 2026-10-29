@@ -3917,11 +3917,15 @@ export const PmtsPage: React.FC = () => {
                       <select
                         value={editingColaborador.area || ''}
                         onChange={(e) => setEditingColaborador({ ...editingColaborador, area: e.target.value })}
-                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none cursor-pointer"
+                        className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold outline-none cursor-pointer transition-all ${
+                          editingColaborador.area && editingColaborador.area.trim()
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300 focus:border-emerald-500'
+                            : 'bg-rose-50 text-rose-700 border-rose-300 focus:border-rose-500'
+                        }`}
                       >
-                        <option value="">Selecione uma Área...</option>
+                        <option value="" className="bg-white text-slate-500 font-normal">Selecione uma Área...</option>
                         {LISTA_AREAS_OPCOES.map((areaOpcao) => (
-                          <option key={areaOpcao} value={areaOpcao}>
+                          <option key={areaOpcao} value={areaOpcao} className="bg-white text-slate-800 font-semibold">
                             {areaOpcao}
                           </option>
                         ))}
