@@ -410,8 +410,8 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                   : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
               }`}
             >
-              <span className={`w-3 h-3 rounded-xs ${visibleSeries.capacidade ? 'bg-purple-500' : 'bg-slate-300'}`} />
-              <span>Capacidade Operacional</span>
+              <span className={`w-4 border-t-2 border-dashed ${visibleSeries.capacidade ? 'border-purple-500' : 'border-slate-300'}`} />
+              <span>Meta · Capacidade Operacional</span>
             </button>
           </div>
 
@@ -559,14 +559,22 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                         />
                       )}
 
-                      {/* 4. Coluna Capacidade (Roxo) */}
-                      {visibleSeries.capacidade && d.capVal > 0 && (
-                        <div
-                          className="w-1.5 sm:w-2 bg-purple-500/80 hover:bg-purple-500 rounded-t-sm transition-all duration-300"
-                          style={{ height: `${Math.max(heightCap, hasData ? 1 : 0)}%` }}
-                        />
-                      )}
                     </div>
+
+                    {/* 4. Linha de Meta - Capacidade Operacional (Roxo, tracejada) */}
+                    {visibleSeries.capacidade && d.capVal > 0 && (
+                      <div
+                        className="absolute -left-0.5 -right-0.5 z-20 pointer-events-none transition-all duration-300"
+                        style={{ bottom: `${heightCap}%` }}
+                      >
+                        <div className={`w-full border-t-2 border-dashed ${isHovered ? 'border-purple-600' : 'border-purple-500/80'}`} />
+                        {isHovered && (
+                          <span className="absolute left-1/2 -translate-x-1/2 -top-5 text-[9px] font-bold font-mono text-purple-700 bg-purple-50 border border-purple-200 rounded px-1 whitespace-nowrap">
+                            {formatShort(d.capVal)}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               })}
