@@ -57,7 +57,7 @@ import { TableauIndicadoresPage } from './TableauIndicadoresPage'
 import { LookerCarteiraPage } from './LookerCarteiraPage'
 import { supabase } from '../lib/supabase'
 import { getPmtSummaryFromSupabase } from '../lib/pmtService'
-import { useAuth } from '../lib/authContext'
+import { useAuth, LISTA_SITUACAO_SISTEMA_OPCOES } from '../lib/authContext'
 import { getHierarchyUserIds } from '../lib/hierarchyService'
 
 export interface PmtPageItem {
@@ -4106,12 +4106,22 @@ export const PmtsPage: React.FC = () => {
 
                     <div className="space-y-1 sm:col-span-2">
                       <label className="text-[11px] font-bold text-slate-700">Situação Sistema</label>
-                      <input
-                        type="text"
+                      <select
                         value={editingColaborador.situacaoSistema || 'Em Atividade Normal'}
                         onChange={(e) => setEditingColaborador({ ...editingColaborador, situacaoSistema: e.target.value })}
-                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
-                      />
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none cursor-pointer"
+                      >
+                        {LISTA_SITUACAO_SISTEMA_OPCOES.map((sit) => (
+                          <option key={sit} value={sit}>
+                            {sit}
+                          </option>
+                        ))}
+                        {editingColaborador.situacaoSistema && !LISTA_SITUACAO_SISTEMA_OPCOES.includes(editingColaborador.situacaoSistema as any) && (
+                          <option value={editingColaborador.situacaoSistema}>
+                            {editingColaborador.situacaoSistema}
+                          </option>
+                        )}
+                      </select>
                     </div>
                   </div>
                 </div>

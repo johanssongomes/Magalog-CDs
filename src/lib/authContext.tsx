@@ -54,6 +54,19 @@ export const LISTA_AREAS_OPCOES = [
   'C&D'
 ] as const
 
+export const LISTA_SITUACAO_SISTEMA_OPCOES = [
+  'Em Atividade Normal',
+  'Gozando Férias',
+  'Auxílio-Doença',
+  'Acidente do Trabalho',
+  'Prorrogação Licença-Maternidade - Lei 11.770/08',
+  'Licença Maternidade',
+  'Licença Paternidade',
+  'Afastamento Previdenciário',
+  'Suspensão Contratual',
+  'Demitido / Desligado'
+] as const
+
 export interface AppUserProfile {
   id: string
   user_id?: string

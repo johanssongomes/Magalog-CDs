@@ -6,6 +6,7 @@ import {
   type UserRole, 
   type ColaboradorData,
   LISTA_AREAS_OPCOES,
+  LISTA_SITUACAO_SISTEMA_OPCOES,
   getDefaultPagesForCargo,
   getDefaultSubpagesForCargo,
   AVAILABLE_SUBPAGES,
@@ -1931,12 +1932,23 @@ export const UsersManagementPage: React.FC = () => {
 
                         <div className="space-y-1 sm:col-span-2">
                           <label className="text-[11px] font-bold text-slate-700">Situação Sistema</label>
-                          <input
-                            type="text"
+                          <select
                             value={formColaboradorData.situacaoSistema || 'Em Atividade Normal'}
                             onChange={(e) => setFormColaboradorData({ ...formColaboradorData, situacaoSistema: e.target.value })}
-                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none"
-                          />
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none cursor-pointer"
+                          >
+                            {LISTA_SITUACAO_SISTEMA_OPCOES.map((sit) => (
+                              <option key={sit} value={sit}>
+                                {sit}
+                              </option>
+                            ))}
+                            {/* Caso o colaborador tenha um status customizado não previsto na lista padrão */}
+                            {formColaboradorData.situacaoSistema && !LISTA_SITUACAO_SISTEMA_OPCOES.includes(formColaboradorData.situacaoSistema as any) && (
+                              <option value={formColaboradorData.situacaoSistema}>
+                                {formColaboradorData.situacaoSistema}
+                              </option>
+                            )}
+                          </select>
                         </div>
                       </div>
                     </div>
