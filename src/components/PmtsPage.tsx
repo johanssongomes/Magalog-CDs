@@ -57,7 +57,7 @@ import { PmtProjectionsChartPage } from './PmtProjectionsChartPage'
 import { TableauIndicadoresPage } from './TableauIndicadoresPage'
 import { LookerCarteiraPage } from './LookerCarteiraPage'
 import { supabase } from '../lib/supabase'
-import { getPmtSummaryFromSupabase } from '../lib/pmtService'
+import { getPmtSummaryFromSupabase, parseAndUploadPmtExcel } from '../lib/pmtService'
 import { useAuth, LISTA_SITUACAO_SISTEMA_OPCOES } from '../lib/authContext'
 import { getHierarchyUserIds } from '../lib/hierarchyService'
 
@@ -1487,7 +1487,11 @@ export const PmtsPage: React.FC = () => {
   const [importVersion, setImportVersion] = useState('v14')
   const [replaceExisting, setReplaceExisting] = useState(true)
   const [isImporting, setIsImporting] = useState(false)
+  const [importProgressText, setImportProgressText] = useState('')
   const [importFeedback, setImportFeedback] = useState<{ success?: boolean; message?: string } | null>(null)
+
+  // Arquivo selecionado manualmente pelo navegador
+  const [manualFile, setManualFile] = useState<File | null>(null)
 
   // Lista de arquivos disponíveis na pasta PMTs/
   const [pmtFiles, setPmtFiles] = useState<{ name: string; sizeMb: string; lastModified: string }[]>([])
@@ -1570,7 +1574,40 @@ export const PmtsPage: React.FC = () => {
   const handleExecuteImport = async () => {
     setIsImporting(true)
     setImportFeedback(null)
+    setImportProgressText('')
+
     try {
+      // Se selecionou arquivo direto no navegador (Upload manual)
+      if (manualFile) {
+        setImportProgressText('Lendo e descompactando arquivo da planilha...')
+        const buffer = await manualFile.arrayBuffer()
+        const result = await parseAndUploadPmtExcel(
+          buffer,
+          manualFile.name,
+          selectedYear,
+          selectedMonth,
+          importVersion,
+          replaceExisting,
+          (msg) => setImportProgressText(msg)
+        )
+
+        if (result.success) {
+          setImportFeedback({
+            success: true,
+            message: `Sucesso! Foram importados ${result.totalRows?.toLocaleString('pt-BR')} registros (${result.cd994Rows?.toLocaleString('pt-BR')} para o CD 994) direto no Supabase. Base do mês atualizada com versão ${importVersion}.`
+          })
+          fetchPmtData(selectedYear, selectedMonth)
+        } else {
+          setImportFeedback({
+            success: false,
+            message: `Falha na importação direta: ${result.error || 'Erro desconhecido'}`
+          })
+        }
+        return
+      }
+
+      // Se selecionou arquivo listado pelo backend
+      setImportProgressText('Solicitando importação ao backend local...')
       const res = await fetch('http://localhost:3001/api/pmt/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1598,10 +1635,11 @@ export const PmtsPage: React.FC = () => {
     } catch (err: any) {
       setImportFeedback({
         success: false,
-        message: `Erro ao conectar com servidor de importação: ${err.message}`
+        message: `Erro ao importar planilha: ${err.message}`
       })
     } finally {
       setIsImporting(false)
+      setImportProgressText('')
     }
   }
 
@@ -3794,19 +3832,78 @@ export const PmtsPage: React.FC = () => {
                 </label>
               </div>
 
+              {/* Opção 1: Selecionar Arquivo do Computador (Navegador / Direto no Supabase) */}
+              <div className="p-4 rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/40 hover:bg-blue-50/70 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                    <FileSpreadsheet size={22} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800">
+                      Selecionar Arquivo do Computador
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {manualFile ? (
+                        <span className="font-semibold text-blue-700">
+                          {manualFile.name} ({(manualFile.size / 1024 / 1024).toFixed(1)} MB)
+                        </span>
+                      ) : (
+                        'Escolha o arquivo .xlsx ou .xlsb da pasta PMTs ou do seu PC'
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {manualFile && (
+                    <button
+                      type="button"
+                      onClick={() => setManualFile(null)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition-colors cursor-pointer"
+                      title="Remover arquivo selecionado"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                  <label className="px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-xs transition-colors shrink-0">
+                    <span>{manualFile ? 'Trocar Arquivo' : 'Procurar Arquivo'}</span>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xlsb,.xls"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          setManualFile(file)
+                          setImportFeedback(null)
+                        }
+                      }}
+                      className="hidden"
+                      disabled={isImporting}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Divisor ou */}
+              <div className="relative flex items-center justify-center">
+                <div className="border-t border-slate-200 w-full"></div>
+                <span className="bg-white px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest absolute">
+                  OU SELECIONAR DA PASTA LOCAL PMTS/
+                </span>
+              </div>
+
               {/* Seletor Dinâmico de Arquivo da Pasta PMTs/ */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                     <FolderOpen size={13} className="text-blue-600" />
-                    Planilha PMT (pasta PMTs/)
+                    Planilhas detectadas pelo servidor (pasta PMTs/)
                   </label>
                   <button
                     onClick={loadPmtFiles}
-                    className="text-[11px] text-blue-600 hover:underline flex items-center gap-1 font-semibold"
+                    className="text-[11px] text-blue-600 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
                   >
                     {loadingFiles ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
-                    Atualizar
+                    Atualizar pasta
                   </button>
                 </div>
 
@@ -3816,18 +3913,21 @@ export const PmtsPage: React.FC = () => {
                     Buscando arquivos na pasta PMTs/...
                   </div>
                 ) : pmtFiles.length === 0 ? (
-                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-center text-xs text-slate-400">
-                    Nenhuma planilha encontrada na pasta <span className="font-mono font-bold">PMTs/</span>
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-center text-xs text-slate-500">
+                    Nenhum arquivo retornado pelo backend local. <span className="font-semibold text-blue-700">Use a opção acima "Procurar Arquivo" para selecionar diretamente!</span>
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
                     {pmtFiles.map(file => {
-                      const isSelected = selectedFile === file.name
+                      const isSelected = !manualFile && selectedFile === file.name
                       const modDate = new Date(file.lastModified).toLocaleDateString('pt-BR')
                       return (
                         <button
                           key={file.name}
-                          onClick={() => setSelectedFile(file.name)}
+                          onClick={() => {
+                            setSelectedFile(file.name)
+                            setManualFile(null)
+                          }}
                           className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
                             isSelected
                               ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-500/10'
@@ -3899,13 +3999,13 @@ export const PmtsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleExecuteImport}
-                disabled={isImporting || !selectedFile}
+                disabled={isImporting || (!selectedFile && !manualFile)}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white text-xs font-bold shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
               >
                 {isImporting ? (
                   <>
                     <Loader2 size={15} className="animate-spin" />
-                    <span>Importando Dados...</span>
+                    <span>{importProgressText || 'Importando Dados...'}</span>
                   </>
                 ) : (
                   <>
