@@ -25,7 +25,12 @@ import {
   Palmtree,
   Info,
   Plus,
-  Minus
+  Minus,
+  SlidersHorizontal,
+  Eye,
+  EyeOff,
+  Maximize2,
+  Minimize2
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth, LISTA_AREAS_OPCOES } from '../lib/authContext'
@@ -243,10 +248,52 @@ export function ApontamentoPage() {
   const [selectedCargos, setSelectedCargos] = useState<string[]>([])
   const [selectedSupervisores, setSelectedSupervisores] = useState<string[]>([])
   const [selectedLideres, setSelectedLideres] = useState<string[]>([])
-  const [openFilterDropdown, setOpenFilterDropdown] = useState<'area' | 'turno' | 'cargo' | 'supervisor' | 'lider' | null>(null)
+  // Visibilidade de Colunas Fixas (Permite recolher colunas para ganhar mais espaço no acompanhamento dos dias)
+  const [visibleColumns, setVisibleColumns] = useState<{
+    supervisor: boolean
+    lider: boolean
+    area: boolean
+    turno: boolean
+    id: boolean
+    cargo: boolean
+    bh: boolean
+    dsr: boolean
+  }>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_apontamento_visible_columns')
+      if (saved) return JSON.parse(saved)
+    } catch {}
+    return {
+      supervisor: true,
+      lider: true,
+      area: true,
+      turno: true,
+      id: true,
+      cargo: true,
+      bh: true,
+      dsr: true
+    }
+  })
+  const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false)
+  const [isWideView, setIsWideView] = useState(false)
+
+  // Salvar preferência de colunas visíveis
+  const toggleColumnVisibility = (colKey: keyof typeof visibleColumns) => {
+    setVisibleColumns(prev => {
+      const updated = { ...prev, [colKey]: !prev[colKey] }
+      try {
+        localStorage.setItem('magalog_apontamento_visible_columns', JSON.stringify(updated))
+      } catch {}
+      return updated
+    })
+  }
+
+  // Edição rápida de Área direto na célula
+  const [editingAreaColabId, setEditingAreaColabId] = useState<string | null>(null)
 
   // Ref para fechar dropdowns de filtros ao clicar fora
   const filtersContainerRef = useRef<HTMLDivElement>(null)
+  const columnsDropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -254,12 +301,76 @@ export function ApontamentoPage() {
         setOpenFilterDropdown(null)
         setIsDateDropdownOpen(false)
       }
+      if (columnsDropdownRef.current && !columnsDropdownRef.current.contains(event.target as Node)) {
+        setIsColumnDropdownOpen(false)
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [])
+
+  // Cálculo dinâmico dos offsets 'left' para colunas fixas (sticky) conforme colunas visíveis
+  const stickyOffsets = useMemo(() => {
+    let currentLeft = 0
+    const offsets: Record<string, number> = {}
+
+    if (visibleColumns.supervisor) {
+      offsets.supervisor = currentLeft
+      currentLeft += 95
+    }
+    if (visibleColumns.lider) {
+      offsets.lider = currentLeft
+      currentLeft += 95
+    }
+    if (visibleColumns.area) {
+      offsets.area = currentLeft
+      currentLeft += 135
+    }
+    if (visibleColumns.turno) {
+      offsets.turno = currentLeft
+      currentLeft += 80
+    }
+    if (visibleColumns.id) {
+      offsets.id = currentLeft
+      currentLeft += 80
+    }
+
+    // Nome é sempre fixo
+    offsets.nome = currentLeft
+    currentLeft += 210
+
+    if (visibleColumns.cargo) {
+      offsets.cargo = currentLeft
+      currentLeft += 140
+    }
+    if (visibleColumns.bh) {
+      offsets.bh = currentLeft
+      currentLeft += 100
+    }
+    if (visibleColumns.dsr) {
+      offsets.dsr = currentLeft
+      currentLeft += 65
+    }
+
+    offsets.totalFixed = currentLeft
+    return offsets
+  }, [visibleColumns])
+
+  // Conta quantas colunas fixas estão visíveis (mínimo 1 que é o Nome)
+  const visibleFixedColumnsCount = useMemo(() => {
+    let count = 1 // Nome sempre visível
+    if (visibleColumns.supervisor) count++
+    if (visibleColumns.lider) count++
+    if (visibleColumns.area) count++
+    if (visibleColumns.turno) count++
+    if (visibleColumns.id) count++
+    if (visibleColumns.cargo) count++
+    if (visibleColumns.bh) count++
+    if (visibleColumns.dsr) count++
+    return count
+  }, [visibleColumns])
 
   // Filtro Interativo de Calendário (Dias e Período)
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false)
@@ -702,6 +813,55 @@ export function ApontamentoPage() {
     }
   }
 
+  // Atualizar Área do colaborador diretamente na grade de Apontamento com gravação na Nuvem (Supabase)
+  const handleUpdateAreaDirectly = async (colabId: string, newArea: string) => {
+    // 1. Atualizar estado local
+    setColaboradores(prev => {
+      const updated = prev.map(c => {
+        if (String(c.id || '').trim().toLowerCase() === colabId.trim().toLowerCase()) {
+          return { ...c, area: newArea }
+        }
+        return c
+      })
+      try {
+        localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated))
+      } catch {}
+      return updated
+    })
+    setEditingAreaColabId(null)
+
+    // 2. Gravar no Supabase (colaboradores)
+    try {
+      const { data: updatedRows, error: updErr } = await supabase
+        .from('colaboradores')
+        .update({
+          area: newArea,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', colabId)
+        .select('id')
+
+      if (updErr || !updatedRows || updatedRows.length === 0) {
+        // Se ainda não existia, busca os dados do colaborador para upsert
+        const targetColab = colaboradores.find(c => String(c.id).trim().toLowerCase() === colabId.trim().toLowerCase())
+        if (targetColab) {
+          await supabase.from('colaboradores').upsert([{
+            id: colabId,
+            contratado: targetColab.contratado || '',
+            cargo: targetColab.cargo || 'CONFERENTE',
+            centro_de_custo: targetColab.centroDeCusto || 'GERAL CD 994',
+            cd: targetColab.cd || '994',
+            login: targetColab.login || '',
+            area: newArea,
+            updated_at: new Date().toISOString()
+          }], { onConflict: 'id' })
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao atualizar área no Supabase:', err)
+    }
+  }
+
   // Ajuste rápido de DSR (+1 ou -1)
   const handleStepDsr = (colabId: string, delta: number) => {
     const currentAdj = manualDsrAdjustments[colabId] || 0
@@ -1100,7 +1260,7 @@ export function ApontamentoPage() {
   }
 
   return (
-    <div className="space-y-3 animate-in fade-in duration-200">
+    <div className={`space-y-3 animate-in fade-in duration-200 ${isWideView ? '-mx-3 sm:-mx-6 lg:-mx-8 px-2' : ''}`}>
       
       {/* 1. BARRA SUPERIOR COMPACTA COM TÍTULO E AÇÃO DE EXPORTAR */}
       <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1133,14 +1293,145 @@ export function ApontamentoPage() {
           </div>
         </div>
 
-        {/* Botão Exportar Planilha */}
-        <button
-          onClick={handleExportCSV}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition shadow-2xs cursor-pointer hover:border-slate-400 self-start sm:self-auto"
-        >
-          <Download size={13} className="text-slate-500" />
-          <span>Exportar Planilha</span>
-        </button>
+        {/* Ações da Barra Superior: Recolher/Expandir Colunas, Visão Ampla e Exportar */}
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          {/* Botão Dropdown: Ocultar / Exibir Colunas */}
+          <div className="relative" ref={columnsDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
+                visibleFixedColumnsCount < 9
+                  ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+              }`}
+              title="Personalizar quais colunas fixas são exibidas para ganhar espaço nos dias"
+            >
+              <SlidersHorizontal size={13} className={visibleFixedColumnsCount < 9 ? 'text-amber-600' : 'text-slate-500'} />
+              <span>Colunas ({visibleFixedColumnsCount}/9)</span>
+              <ChevronDown size={12} className="text-slate-400" />
+            </button>
+
+            {isColumnDropdownOpen && (
+              <div className="absolute right-0 mt-1.5 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2.5 space-y-2">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                  <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider">
+                    Recolher Colunas
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allTrue = {
+                          supervisor: true,
+                          lider: true,
+                          area: true,
+                          turno: true,
+                          id: true,
+                          cargo: true,
+                          bh: true,
+                          dsr: true
+                        }
+                        setVisibleColumns(allTrue)
+                        try { localStorage.setItem('magalog_apontamento_visible_columns', JSON.stringify(allTrue)) } catch {}
+                      }}
+                      className="text-[10px] text-blue-600 hover:underline font-bold"
+                    >
+                      Todas
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Visão Ultra Compacta: mantém apenas Nome, Área e Turno
+                        const compact = {
+                          supervisor: false,
+                          lider: false,
+                          area: true,
+                          turno: true,
+                          id: false,
+                          cargo: false,
+                          bh: false,
+                          dsr: false
+                        }
+                        setVisibleColumns(compact)
+                        try { localStorage.setItem('magalog_apontamento_visible_columns', JSON.stringify(compact)) } catch {}
+                      }}
+                      className="text-[10px] text-amber-600 hover:underline font-bold"
+                      title="Oculta tudo exceto Nome, Área e Turno"
+                    >
+                      Compacto
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1 text-xs">
+                  {[
+                    { key: 'supervisor', label: 'Supervisor' },
+                    { key: 'lider', label: 'Líder' },
+                    { key: 'area', label: 'Área' },
+                    { key: 'turno', label: 'Turno' },
+                    { key: 'id', label: 'ID Matrícula' },
+                    { key: 'cargo', label: 'Cargo' },
+                    { key: 'bh', label: 'Débito / Crédito (BH)' },
+                    { key: 'dsr', label: 'Saldo DSR' }
+                  ].map((col) => {
+                    const isVisible = visibleColumns[col.key as keyof typeof visibleColumns]
+                    return (
+                      <label
+                        key={col.key}
+                        className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer"
+                      >
+                        <span className="text-slate-700 font-medium">{col.label}</span>
+                        <input
+                          type="checkbox"
+                          checked={isVisible}
+                          onChange={() => toggleColumnVisibility(col.key as keyof typeof visibleColumns)}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-0 cursor-pointer"
+                        />
+                      </label>
+                    )
+                  })}
+                </div>
+
+                <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+                  <span>* Coluna Nome é sempre fixa</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsColumnDropdownOpen(false)}
+                    className="text-blue-600 font-bold hover:underline"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Botão Modo Visão Ampla (Expande o espaço horizontal) */}
+          <button
+            type="button"
+            onClick={() => setIsWideView(!isWideView)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
+              isWideView
+                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+            }`}
+            title={isWideView ? 'Restaurar layout padrão' : 'Ativar modo tela ampla para ver o mês inteiro'}
+          >
+            {isWideView ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+            <span>{isWideView ? 'Modo Padrão' : 'Visão Ampla'}</span>
+          </button>
+
+          {/* Botão Exportar Planilha */}
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition shadow-2xs cursor-pointer hover:border-slate-400"
+          >
+            <Download size={13} className="text-slate-500" />
+            <span>Exportar</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. BARRA DE FILTROS E SELEÇÃO DE MÊS/ANO INTEGRADA (LAYOUT COMPACTO) */}
@@ -1700,33 +1991,79 @@ export function ApontamentoPage() {
               
               {/* Linha 1: Títulos das Colunas Fixas + Dias da Semana */}
               <tr className="bg-blue-600 text-white font-extrabold uppercase text-[11px] tracking-wider">
-                <th className="sticky left-0 z-40 bg-blue-700 px-2.5 py-2.5 border-r border-blue-500 min-w-[95px] max-w-[95px]">
-                  Supervisor
-                </th>
-                <th className="sticky left-[95px] z-40 bg-blue-700 px-2.5 py-2.5 border-r border-blue-500 min-w-[95px] max-w-[95px]">
-                  Líder
-                </th>
-                <th className="sticky left-[190px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[140px]">
-                  Área
-                </th>
-                <th className="sticky left-[330px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[80px]">
-                  Turno
-                </th>
-                <th className="sticky left-[410px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[80px]">
-                  ID
-                </th>
-                <th className="sticky left-[490px] z-40 bg-blue-700 px-3.5 py-2.5 border-r border-blue-500 min-w-[210px]">
+                {visibleColumns.supervisor && (
+                  <th
+                    style={{ left: `${stickyOffsets.supervisor}px` }}
+                    className="sticky z-40 bg-blue-700 px-2.5 py-2.5 border-r border-blue-500 min-w-[95px] max-w-[95px]"
+                  >
+                    Supervisor
+                  </th>
+                )}
+                {visibleColumns.lider && (
+                  <th
+                    style={{ left: `${stickyOffsets.lider}px` }}
+                    className="sticky z-40 bg-blue-700 px-2.5 py-2.5 border-r border-blue-500 min-w-[95px] max-w-[95px]"
+                  >
+                    Líder
+                  </th>
+                )}
+                {visibleColumns.area && (
+                  <th
+                    style={{ left: `${stickyOffsets.area}px` }}
+                    className="sticky z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[135px]"
+                  >
+                    Área
+                  </th>
+                )}
+                {visibleColumns.turno && (
+                  <th
+                    style={{ left: `${stickyOffsets.turno}px` }}
+                    className="sticky z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[80px]"
+                  >
+                    Turno
+                  </th>
+                )}
+                {visibleColumns.id && (
+                  <th
+                    style={{ left: `${stickyOffsets.id}px` }}
+                    className="sticky z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[80px]"
+                  >
+                    ID
+                  </th>
+                )}
+                {/* Nome é sempre visível */}
+                <th
+                  style={{ left: `${stickyOffsets.nome}px` }}
+                  className="sticky z-40 bg-blue-700 px-3.5 py-2.5 border-r border-blue-500 min-w-[210px]"
+                >
                   Nome
                 </th>
-                <th className="sticky left-[700px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[150px]">
-                  Cargo
-                </th>
-                <th className="sticky left-[850px] z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[105px] text-center" title="Saldo atual consolidado do Banco de Horas">
-                  Débito / Crédito
-                </th>
-                <th className="sticky left-[955px] z-40 bg-blue-800 px-3 py-2.5 border-r-2 border-slate-400 min-w-[65px] text-center shadow-lg" title="Saldo de DSRs (Domingos trabalhados somam +1; DSR apontado subtrai -1)">
-                  DSR
-                </th>
+                {visibleColumns.cargo && (
+                  <th
+                    style={{ left: `${stickyOffsets.cargo}px` }}
+                    className="sticky z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[140px]"
+                  >
+                    Cargo
+                  </th>
+                )}
+                {visibleColumns.bh && (
+                  <th
+                    style={{ left: `${stickyOffsets.bh}px` }}
+                    className="sticky z-40 bg-blue-700 px-3 py-2.5 border-r border-blue-500 min-w-[100px] text-center"
+                    title="Saldo atual consolidado do Banco de Horas"
+                  >
+                    Débito / Crédito
+                  </th>
+                )}
+                {visibleColumns.dsr && (
+                  <th
+                    style={{ left: `${stickyOffsets.dsr}px` }}
+                    className="sticky z-40 bg-blue-800 px-2 py-2.5 border-r-2 border-slate-400 min-w-[65px] text-center shadow-lg"
+                    title="Saldo de DSRs (Domingos trabalhados somam +1; DSR apontado subtrai -1)"
+                  >
+                    DSR
+                  </th>
+                )}
 
                 {/* Colunas Diárias: Dia da Semana */}
                 {activeFilteredDays.map(m => (
@@ -1743,7 +2080,10 @@ export function ApontamentoPage() {
 
               {/* Linha 2: Sub-cabeçalho com Datas (DD/MM/AAAA) */}
               <tr className="bg-slate-200 text-slate-700 text-[10px] font-mono font-bold border-b border-slate-300">
-                <th colSpan={9} className="sticky left-0 z-40 bg-slate-200 border-r-2 border-slate-400 px-3 py-1 text-slate-500 text-right">
+                <th
+                  colSpan={visibleFixedColumnsCount}
+                  className="sticky left-0 z-40 bg-slate-200 border-r-2 border-slate-400 px-3 py-1 text-slate-500 text-right"
+                >
                   Data do Apontamento &rarr;
                 </th>
                 {activeFilteredDays.map(m => (
@@ -1786,42 +2126,96 @@ export function ApontamentoPage() {
                       }`}
                     >
                       {/* 1. Supervisor (Primeiro Nome) */}
-                      <td className="sticky left-0 z-20 bg-inherit px-2.5 py-2 border-r border-slate-200 text-slate-800 font-bold truncate max-w-[95px]" title={colab.nomeLider}>
-                        <span className="px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-800 border border-purple-200 text-[10px]">
-                          {leadInfo.supervisorFirstName}
-                        </span>
-                      </td>
+                      {visibleColumns.supervisor && (
+                        <td
+                          style={{ left: `${stickyOffsets.supervisor}px` }}
+                          className="sticky z-20 bg-inherit px-2.5 py-2 border-r border-slate-200 text-slate-800 font-bold truncate max-w-[95px]"
+                          title={colab.nomeLider}
+                        >
+                          <span className="px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-800 border border-purple-200 text-[10px]">
+                            {leadInfo.supervisorFirstName}
+                          </span>
+                        </td>
+                      )}
 
                       {/* 2. Líder (Primeiro Nome) */}
-                      <td className="sticky left-[95px] z-20 bg-inherit px-2.5 py-2 border-r border-slate-200 text-slate-800 font-bold truncate max-w-[95px]" title={colab.nomeLider}>
-                        <span className="px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-800 border border-sky-200 text-[10px]">
-                          {leadInfo.liderFirstName}
-                        </span>
-                      </td>
-
-                      {/* 3. Área */}
-                      <td className="sticky left-[190px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-700 font-medium truncate max-w-[140px]" title={colab.area}>
-                        {colab.area ? (
-                          <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold">
-                            {colab.area}
+                      {visibleColumns.lider && (
+                        <td
+                          style={{ left: `${stickyOffsets.lider}px` }}
+                          className="sticky z-20 bg-inherit px-2.5 py-2 border-r border-slate-200 text-slate-800 font-bold truncate max-w-[95px]"
+                          title={colab.nomeLider}
+                        >
+                          <span className="px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-800 border border-sky-200 text-[10px]">
+                            {leadInfo.liderFirstName}
                           </span>
-                        ) : (
-                          <span className="text-slate-400 font-mono text-[11px]">—</span>
-                        )}
-                      </td>
+                        </td>
+                      )}
+
+                      {/* 3. Área (com edição rápida de área direto na célula) */}
+                      {visibleColumns.area && (
+                        <td
+                          style={{ left: `${stickyOffsets.area}px` }}
+                          className="sticky z-20 bg-inherit px-2 py-1.5 border-r border-slate-200 text-slate-700 font-medium truncate max-w-[135px]"
+                          title="Clique para alterar a área do colaborador"
+                        >
+                          {editingAreaColabId === colabId ? (
+                            <select
+                              autoFocus
+                              value={colab.area || ''}
+                              onChange={(e) => handleUpdateAreaDirectly(colabId, e.target.value)}
+                              onBlur={() => setEditingAreaColabId(null)}
+                              className="w-full text-[11px] font-bold bg-white border border-blue-500 rounded px-1 py-0.5 text-blue-700 outline-none shadow-xs cursor-pointer"
+                            >
+                              <option value="">Sem Área</option>
+                              {LISTA_AREAS_OPCOES.map(ar => (
+                                <option key={ar} value={ar}>{ar}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div
+                              onClick={() => setEditingAreaColabId(colabId)}
+                              className="cursor-pointer group/area flex items-center justify-between"
+                            >
+                              {colab.area ? (
+                                <span className="px-1.5 py-0.5 rounded-md bg-blue-50 group-hover/area:bg-blue-100 text-blue-700 border border-blue-200 text-[10px] font-bold transition-colors">
+                                  {colab.area}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 group-hover/area:text-blue-600 font-mono text-[11px]">—</span>
+                              )}
+                              <span className="text-[9px] text-slate-300 opacity-0 group-hover/area:opacity-100 transition-opacity ml-1">
+                                ✎
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                      )}
 
                       {/* 4. Turno */}
-                      <td className="sticky left-[330px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-600 font-medium whitespace-nowrap">
-                        {colab.turno || '1º Turno'}
-                      </td>
+                      {visibleColumns.turno && (
+                        <td
+                          style={{ left: `${stickyOffsets.turno}px` }}
+                          className="sticky z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-600 font-medium whitespace-nowrap"
+                        >
+                          {colab.turno || '1º Turno'}
+                        </td>
+                      )}
 
                       {/* 5. ID */}
-                      <td className="sticky left-[410px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 font-mono font-bold text-slate-800">
-                        {colabId}
-                      </td>
+                      {visibleColumns.id && (
+                        <td
+                          style={{ left: `${stickyOffsets.id}px` }}
+                          className="sticky z-20 bg-inherit px-3 py-2 border-r border-slate-200 font-mono font-bold text-slate-800"
+                        >
+                          {colabId}
+                        </td>
+                      )}
 
-                      {/* 6. Nome + Ação de Marcar Férias */}
-                      <td className="sticky left-[490px] z-20 bg-inherit px-3.5 py-2 border-r border-slate-200 min-w-[210px]">
+                      {/* 6. Nome + Ação de Marcar Férias (SEMPRE FIXO E VISÍVEL) */}
+                      <td
+                        style={{ left: `${stickyOffsets.nome}px` }}
+                        className="sticky z-20 bg-inherit px-3.5 py-2 border-r border-slate-200 min-w-[210px]"
+                      >
                         <div className="flex items-center justify-between gap-1.5">
                           <span className="font-extrabold text-slate-900 truncate" title={colab.contratado}>
                             {colab.contratado}
@@ -1846,23 +2240,38 @@ export function ApontamentoPage() {
                       </td>
 
                       {/* 7. Cargo */}
-                      <td className="sticky left-[700px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-600 font-medium truncate max-w-[150px]" title={colab.cargo}>
-                        {colab.cargo}
-                      </td>
+                      {visibleColumns.cargo && (
+                        <td
+                          style={{ left: `${stickyOffsets.cargo}px` }}
+                          className="sticky z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-slate-600 font-medium truncate max-w-[140px]"
+                          title={colab.cargo}
+                        >
+                          {colab.cargo}
+                        </td>
+                      )}
 
                       {/* 8. Débito ou Crédito (Saldo BH) */}
-                      <td className="sticky left-[850px] z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-center font-mono font-bold whitespace-nowrap">
-                        <span className={`px-2 py-0.5 rounded-md text-[11px] ${
-                          isDebito
-                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        }`}>
-                          {saldoStr}
-                        </span>
-                      </td>
+                      {visibleColumns.bh && (
+                        <td
+                          style={{ left: `${stickyOffsets.bh}px` }}
+                          className="sticky z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-center font-mono font-bold whitespace-nowrap"
+                        >
+                          <span className={`px-2 py-0.5 rounded-md text-[11px] ${
+                            isDebito
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          }`}>
+                            {saldoStr}
+                          </span>
+                        </td>
+                      )}
 
-                      {/* 9. Qnt de DSR (Cálculo Automático + Ajuste Manual com Botões + / - e Edição Direta) */}
-                      <td className="sticky left-[955px] z-20 bg-slate-100 px-1 py-1.5 border-r-2 border-slate-400 text-center font-mono font-black text-xs shadow-md">
+                      {/* 9. Qnt de DSR */}
+                      {visibleColumns.dsr && (
+                        <td
+                          style={{ left: `${stickyOffsets.dsr}px` }}
+                          className="sticky z-20 bg-slate-100 px-1 py-1.5 border-r-2 border-slate-400 text-center font-mono font-black text-xs shadow-md"
+                        >
                         {editingDsrColabId === colabId ? (
                           <div className="flex items-center justify-center gap-1">
                             <input
@@ -1933,7 +2342,8 @@ export function ApontamentoPage() {
                             </button>
                           </div>
                         )}
-                      </td>
+                        </td>
+                      )}
 
                       {/* Células Diárias de Apontamento com Dropdown Rápido */}
                       {activeFilteredDays.map((m, dayIdx) => {
