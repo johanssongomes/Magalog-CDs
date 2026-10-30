@@ -583,7 +583,7 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
               {(() => {
                 const n = daysData.length
                 const pts = daysData
-                  .map((d, i) => ({ d, x: ((i + 0.5) / n) * 100, v: d.aderenciaFat }))
+                  .map((d, i) => ({ d, x: ((i + 0.5) / n) * 100, v: d.pmtVal > 0 && d.libVal > 0 ? (d.libVal / d.pmtVal) * 100 : 0 }))
                   .filter(p => p.v > 0)
                 if (pts.length < 2) return null
                 const maxAder = Math.max(120, ...pts.map(p => p.v)) * 1.05
