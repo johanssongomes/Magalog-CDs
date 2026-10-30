@@ -72,7 +72,26 @@ interface Props {
   cardsContent?: React.ReactNode
   onAderenciaChange?: (newData: AderenciaDataState) => void
   onOpenImportModal?: () => void
+  onMonthChange?: (newMonth: number) => void
+  onYearChange?: (newYear: number) => void
 }
+
+const MONTHS_OPTIONS = [
+  { id: 1, name: '01 - Janeiro', short: 'Jan' },
+  { id: 2, name: '02 - Fevereiro', short: 'Fev' },
+  { id: 3, name: '03 - Março', short: 'Mar' },
+  { id: 4, name: '04 - Abril', short: 'Abr' },
+  { id: 5, name: '05 - Maio', short: 'Mai' },
+  { id: 6, name: '06 - Junho', short: 'Jun' },
+  { id: 7, name: '07 - Julho', short: 'Jul' },
+  { id: 8, name: '08 - Agosto', short: 'Ago' },
+  { id: 9, name: '09 - Setembro', short: 'Set' },
+  { id: 10, name: '10 - Outubro', short: 'Out' },
+  { id: 11, name: '11 - Novembro', short: 'Nov' },
+  { id: 12, name: '12 - Dezembro', short: 'Dez' },
+]
+
+const YEARS_OPTIONS = [2024, 2025, 2026, 2027]
 
 type SectionView = 'all' | 'pedidos' | 'pecas' | 'cubagem'
 type GroupByView = 'modal' | 'categoria_produtividade'
@@ -84,7 +103,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
   pageTitle = 'PMT Expedição', 
   cardsContent,
   onAderenciaChange,
-  onOpenImportModal
+  onOpenImportModal,
+  onMonthChange,
+  onYearChange
 }) => {
   const [matrix, setMatrix] = useState<MatrixData | null>(null)
   const [selectedSection, setSelectedSection] = useState<SectionView>('all')
@@ -647,12 +668,51 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             <Table size={18} />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-[10px] font-black tracking-wider uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
                 Indicador PMT Diário
               </span>
               <span className="text-xs text-slate-400">•</span>
-              <span className="text-xs font-semibold text-slate-600">CD {cd} • {mes.toString().padStart(2, '0')}/{ano}</span>
+              
+              {/* Seletor ou Badge de Mês e Ano */}
+              {onMonthChange ? (
+                <div className="inline-flex items-center gap-1.5 bg-slate-100/90 border border-slate-200/90 px-2 py-0.5 rounded-lg shadow-2xs">
+                  <span className="text-[11px] font-bold text-slate-600">CD {cd}</span>
+                  <span className="text-slate-300">|</span>
+                  <div className="flex items-center gap-1">
+                    <select
+                      value={mes}
+                      onChange={(e) => onMonthChange(Number(e.target.value))}
+                      className="bg-transparent text-xs font-bold text-blue-700 outline-none cursor-pointer hover:text-blue-900"
+                      title="Alterar mês de visualização"
+                    >
+                      {MONTHS_OPTIONS.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}
+                        </option>
+                      ))}
+                    </select>
+                    {onYearChange && (
+                      <>
+                        <span className="text-slate-400">/</span>
+                        <select
+                          value={ano}
+                          onChange={(e) => onYearChange(Number(e.target.value))}
+                          className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer hover:text-slate-900"
+                          title="Alterar ano de visualização"
+                        >
+                          {YEARS_OPTIONS.map(y => (
+                            <option key={y} value={y}>{y}</option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <span className="text-xs font-semibold text-slate-600">CD {cd} • {mes.toString().padStart(2, '0')}/{ano}</span>
+              )}
+
               <span className="text-xs text-slate-400">•</span>
               <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>

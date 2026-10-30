@@ -3220,6 +3220,8 @@ export const PmtsPage: React.FC = () => {
             cd="994" 
             pageTitle={activePage.label} 
             onAderenciaChange={setAderenciaState}
+            onMonthChange={setSelectedMonth}
+            onYearChange={setSelectedYear}
             onOpenImportModal={() => {
               setIsImportModalOpen(true)
               setImportFeedback(null)
