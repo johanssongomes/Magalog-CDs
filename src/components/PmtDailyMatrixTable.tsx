@@ -462,7 +462,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
       <>
         {/* LINHA 1: LIBERADO */}
         <tr className="bg-emerald-50/70 border-b border-emerald-200/80 hover:bg-emerald-50 transition-colors">
-          <td className="sticky left-0 z-20 bg-emerald-50 px-3 py-2 font-bold text-emerald-900 border-r border-emerald-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] flex items-center justify-between">
+          <td className="sticky left-0 z-20 bg-emerald-50 px-3 py-2 font-bold text-emerald-900 border-r border-emerald-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] flex items-center justify-between text-xs">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
               Liberado ({titleLabel})
@@ -473,23 +473,23 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             return (
               <td 
                 key={`lib-${metricKey}-${d.dayStr}`}
-                className="px-1.5 py-2 text-center font-mono font-bold text-emerald-900 border-r border-emerald-200/80 text-[11px]"
+                className="px-1.5 py-2 text-center font-mono font-bold text-emerald-900 border-r border-emerald-200/80 text-[13px]"
               >
                 {formatNum(val)}
               </td>
             )
           })}
-          <td className="px-2 py-2 text-right font-mono font-bold text-emerald-800 border-r border-emerald-300 text-[11px] bg-emerald-50/90">
+          <td className="px-2 py-2 text-right font-mono font-bold text-emerald-800 border-r border-emerald-300 text-[13px] bg-emerald-50/90">
             {formatNum(libTotalAvg)}
           </td>
-          <td className="sticky right-0 z-20 bg-emerald-50 px-3 py-2 text-right font-mono font-bold text-emerald-900 border-l border-emerald-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+          <td className="sticky right-0 z-20 bg-emerald-50 px-3 py-2 text-right font-mono font-extrabold text-emerald-900 border-l border-emerald-300 text-[13px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
             {formatNum(libTotalSum)}
           </td>
         </tr>
 
         {/* LINHA 2: ADERÊNCIA LIBERAÇÃO (% Liberado / Planejado PMT) */}
         <tr className="bg-emerald-100/40 border-b-2 border-emerald-300 hover:bg-emerald-100/60 transition-colors">
-          <td className="sticky left-0 z-20 bg-emerald-100/80 px-3 py-1.5 font-bold text-emerald-800 border-r border-emerald-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] pl-6 text-[10.5px]">
+          <td className="sticky left-0 z-20 bg-emerald-100/80 px-3 py-1.5 font-bold text-emerald-800 border-r border-emerald-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] pl-6 text-xs">
             % Aderência Liberação
           </td>
           {activeFilteredDays.map((d) => {
@@ -500,7 +500,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             return (
               <td 
                 key={`ader-lib-${metricKey}-${d.dayStr}`}
-                className={`px-1.5 py-1.5 text-center font-mono font-bold text-[10.5px] border-r border-emerald-200 ${
+                className={`px-1.5 py-1.5 text-center font-mono font-bold text-[12.5px] border-r border-emerald-200 ${
                   pmtVal === 0 ? 'text-slate-400' : isGood ? 'text-emerald-700 font-extrabold' : 'text-amber-700'
                 }`}
               >
@@ -508,17 +508,17 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
               </td>
             )
           })}
-          <td className="px-2 py-1.5 text-right font-mono font-bold text-emerald-800 border-r border-emerald-300 text-[10.5px] bg-emerald-100/60">
+          <td className="px-2 py-1.5 text-right font-mono font-bold text-emerald-800 border-r border-emerald-300 text-[12.5px] bg-emerald-100/60">
             {pmtTotalAvg > 0 ? formatPercent((libTotalAvg / pmtTotalAvg) * 100) : '-'}
           </td>
-          <td className="sticky right-0 z-20 bg-emerald-100/80 px-3 py-1.5 text-right font-mono font-extrabold text-emerald-900 border-l border-emerald-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+          <td className="sticky right-0 z-20 bg-emerald-100/80 px-3 py-1.5 text-right font-mono font-extrabold text-emerald-900 border-l border-emerald-300 text-[13px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
             {pmtTotalSum > 0 ? formatPercent((libTotalSum / pmtTotalSum) * 100) : '0.0%'}
           </td>
         </tr>
 
         {/* LINHA 3: FATURADO */}
         <tr className="bg-amber-50/70 border-b border-amber-200/80 hover:bg-amber-50 transition-colors">
-          <td className="sticky left-0 z-20 bg-amber-50 px-3 py-2 font-bold text-amber-900 border-r border-amber-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] flex items-center justify-between">
+          <td className="sticky left-0 z-20 bg-amber-50 px-3 py-2 font-bold text-amber-900 border-r border-amber-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] flex items-center justify-between text-xs">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-amber-500" />
               Faturado ({titleLabel})
@@ -529,23 +529,23 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             return (
               <td 
                 key={`fat-${metricKey}-${d.dayStr}`}
-                className="px-1.5 py-2 text-center font-mono font-bold text-amber-900 border-r border-amber-200/80 text-[11px]"
+                className="px-1.5 py-2 text-center font-mono font-bold text-amber-900 border-r border-amber-200/80 text-[13px]"
               >
                 {formatNum(val)}
               </td>
             )
           })}
-          <td className="px-2 py-2 text-right font-mono font-bold text-amber-800 border-r border-amber-300 text-[11px] bg-amber-50/90">
+          <td className="px-2 py-2 text-right font-mono font-bold text-amber-800 border-r border-amber-300 text-[13px] bg-amber-50/90">
             {formatNum(fatTotalAvg)}
           </td>
-          <td className="sticky right-0 z-20 bg-amber-50 px-3 py-2 text-right font-mono font-bold text-amber-900 border-l border-amber-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+          <td className="sticky right-0 z-20 bg-amber-50 px-3 py-2 text-right font-mono font-bold text-amber-900 border-l border-amber-300 text-[13px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
             {formatNum(fatTotalSum)}
           </td>
         </tr>
 
         {/* LINHA 4: CAPACIDADE (Editável dia a dia) */}
         <tr className="bg-indigo-50/70 border-b border-indigo-200/80 hover:bg-indigo-50 transition-colors">
-          <td className="sticky left-0 z-20 bg-indigo-50 px-3 py-2 font-bold text-indigo-900 border-r border-indigo-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] flex items-center justify-between">
+          <td className="sticky left-0 z-20 bg-indigo-50 px-3 py-2 font-bold text-indigo-900 border-r border-indigo-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] flex items-center justify-between text-xs">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-indigo-500" />
               Capacidade ({titleLabel})
@@ -562,7 +562,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                   setEditingCapacityCell({ metric: metricKey, dayStr: d.dayStr })
                   setCapacityInputVal(val ? String(val) : '')
                 }}
-                className="px-1 py-1.5 text-center font-mono font-bold text-indigo-900 border-r border-indigo-200/80 text-[11px] cursor-pointer hover:bg-indigo-100/60 transition-colors"
+                className="px-1 py-1.5 text-center font-mono font-bold text-indigo-900 border-r border-indigo-200/80 text-[13px] cursor-pointer hover:bg-indigo-100/60 transition-colors"
                 title="Clique para editar a capacidade deste dia"
               >
                 {isEditing ? (
@@ -582,7 +582,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                       }
                       if (e.key === 'Escape') setEditingCapacityCell(null)
                     }}
-                    className="w-full text-center bg-white border border-indigo-400 rounded px-1 py-0.5 text-[11px] font-mono focus:outline-none"
+                    className="w-full text-center bg-white border border-indigo-400 rounded px-1 py-0.5 text-[12px] font-mono focus:outline-none"
                   />
                 ) : (
                   <span>{formatNum(val)}</span>
@@ -590,17 +590,17 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
               </td>
             )
           })}
-          <td className="px-2 py-2 text-right font-mono font-bold text-indigo-800 border-r border-indigo-300 text-[11px] bg-indigo-50/90">
+          <td className="px-2 py-2 text-right font-mono font-bold text-indigo-800 border-r border-indigo-300 text-[13px] bg-indigo-50/90">
             {formatNum(capTotalAvg)}
           </td>
-          <td className="sticky right-0 z-20 bg-indigo-50 px-3 py-2 text-right font-mono font-bold text-indigo-900 border-l border-indigo-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+          <td className="sticky right-0 z-20 bg-indigo-50 px-3 py-2 text-right font-mono font-bold text-indigo-900 border-l border-indigo-300 text-[13px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
             {formatNum(capTotalSum)}
           </td>
         </tr>
 
         {/* LINHA 5: ADERÊNCIA FATURADO X CAPACIDADE (% Faturado / Capacidade) */}
         <tr className="bg-indigo-100/40 border-b-2 border-indigo-300 hover:bg-indigo-100/60 transition-colors">
-          <td className="sticky left-0 z-20 bg-indigo-100/80 px-3 py-1.5 font-bold text-indigo-900 border-r border-indigo-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] pl-6 text-[10.5px]">
+          <td className="sticky left-0 z-20 bg-indigo-100/80 px-3 py-1.5 font-bold text-indigo-900 border-r border-indigo-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] pl-6 text-xs">
             % Aderência Fat. x Capacidade
           </td>
           {activeFilteredDays.map((d) => {
@@ -611,7 +611,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             return (
               <td 
                 key={`ader-fat-${metricKey}-${d.dayStr}`}
-                className={`px-1.5 py-1.5 text-center font-mono font-bold text-[10.5px] border-r border-indigo-200 ${
+                className={`px-1.5 py-1.5 text-center font-mono font-bold text-[12.5px] border-r border-indigo-200 ${
                   capVal === 0 ? 'text-slate-400' : isGood ? 'text-indigo-800 font-extrabold' : 'text-rose-700'
                 }`}
               >
@@ -619,10 +619,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
               </td>
             )
           })}
-          <td className="px-2 py-1.5 text-right font-mono font-bold text-indigo-800 border-r border-indigo-300 text-[10.5px] bg-indigo-100/60">
+          <td className="px-2 py-1.5 text-right font-mono font-bold text-indigo-800 border-r border-indigo-300 text-[12.5px] bg-indigo-100/60">
             {capTotalAvg > 0 ? formatPercent((fatTotalAvg / capTotalAvg) * 100) : '-'}
           </td>
-          <td className="sticky right-0 z-20 bg-indigo-100/80 px-3 py-1.5 text-right font-mono font-extrabold text-indigo-900 border-l border-indigo-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+          <td className="sticky right-0 z-20 bg-indigo-100/80 px-3 py-1.5 text-right font-mono font-extrabold text-indigo-900 border-l border-indigo-300 text-[13px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
             {capTotalSum > 0 ? formatPercent((fatTotalSum / capTotalSum) * 100) : '0.0%'}
           </td>
         </tr>
@@ -1173,7 +1173,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                           return (
                             <td 
                               key={`ped-${modalName}-${d.dayStr}`}
-                              className={`px-1.5 py-1.5 text-center font-mono text-[11px] border-r border-slate-100 ${
+                              className={`px-1.5 py-1.5 text-center font-mono text-[12px] border-r border-slate-100 ${
                                 isZero ? 'text-slate-400 italic' : 'text-slate-800'
                               }`}
                             >
@@ -1181,10 +1181,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                             </td>
                           )
                         })}
-                        <td className="px-2 py-1.5 text-right font-mono text-[11px] font-semibold text-slate-700 border-r border-slate-200 bg-slate-50/50">
+                        <td className="px-2 py-1.5 text-right font-mono text-[12px] font-semibold text-slate-700 border-r border-slate-200 bg-slate-50/50">
                           {formatNum(dynamicAvg)}
                         </td>
-                        <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
+                        <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 text-[12px] shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
                           {formatNum(dynamicTotal)}
                         </td>
                       </tr>
@@ -1193,21 +1193,21 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
 
                   {/* Linha de Totalização: Pedidos TT (Planejado PMT) */}
                   <tr className="bg-[#e0f2fe]/90 border-y-2 border-sky-300 font-bold">
-                    <td className="sticky left-0 z-20 bg-[#e0f2fe] px-3 py-2 font-bold text-blue-900 border-r border-sky-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)]">
+                    <td className="sticky left-0 z-20 bg-[#e0f2fe] px-3 py-2 font-bold text-blue-900 border-r border-sky-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] text-xs">
                       Pedidos TT (PMT Planejado)
                     </td>
                     {activeFilteredDays.map((d) => (
                       <td 
                         key={`ped-tt-${d.dayStr}`}
-                        className="px-1.5 py-2 text-center font-mono font-bold text-blue-900 border-r border-sky-200 text-[11px]"
+                        className="px-1.5 py-2 text-center font-mono font-bold text-blue-900 border-r border-sky-200 text-[13px]"
                       >
                         {formatNum(matrix.totals.pedidos[d.dayStr])}
                       </td>
                     ))}
-                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-900 border-r border-sky-300 text-[11px] bg-[#e0f2fe]">
+                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-900 border-r border-sky-300 text-[13px] bg-[#e0f2fe]">
                       {formatNum(getRowAverage(matrix.totals.pedidos))}
                     </td>
-                    <td className="sticky right-0 z-20 bg-[#e0f2fe] px-3 py-2 text-right font-mono font-bold text-blue-900 border-l border-sky-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+                    <td className="sticky right-0 z-20 bg-[#e0f2fe] px-3 py-2 text-right font-mono font-bold text-blue-900 border-l border-sky-300 text-[13px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
                       {formatNum(getRowTotal(matrix.totals.pedidos))}
                     </td>
                   </tr>
@@ -1235,7 +1235,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                     const dynamicAvg = getRowAverage(rowData)
                     return (
                       <tr key={`pec-${modalName}`} className="hover:bg-blue-50/40 transition-colors">
-                        <td className="sticky left-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 font-medium text-slate-700 border-r border-slate-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
+                        <td className="sticky left-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 font-medium text-slate-700 border-r border-slate-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)] text-xs">
                           {cleanModalName(modalName)}
                         </td>
                         {activeFilteredDays.map((d) => {
@@ -1244,7 +1244,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                           return (
                             <td 
                               key={`pec-${modalName}-${d.dayStr}`}
-                              className={`px-1.5 py-1.5 text-center font-mono text-[11px] border-r border-slate-100 ${
+                              className={`px-1.5 py-1.5 text-center font-mono text-[12px] border-r border-slate-100 ${
                                 isZero ? 'text-slate-400 italic' : 'text-slate-800'
                               }`}
                             >
@@ -1252,10 +1252,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                             </td>
                           )
                         })}
-                        <td className="px-2 py-1.5 text-right font-mono text-[11px] font-semibold text-slate-700 border-r border-slate-200 bg-slate-50/50">
+                        <td className="px-2 py-1.5 text-right font-mono text-[12px] font-semibold text-slate-700 border-r border-slate-200 bg-slate-50/50">
                           {formatNum(dynamicAvg)}
                         </td>
-                        <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
+                        <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 text-[12px] shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
                           {formatNum(dynamicTotal)}
                         </td>
                       </tr>
@@ -1264,21 +1264,21 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
 
                   {/* Linha de Totalização: Peças TT (Planejado PMT) */}
                   <tr className="bg-[#e0f2fe]/90 border-y-2 border-sky-300 font-bold">
-                    <td className="sticky left-0 z-20 bg-[#e0f2fe] px-3 py-2 font-bold text-blue-900 border-r border-sky-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)]">
+                    <td className="sticky left-0 z-20 bg-[#e0f2fe] px-3 py-2 font-bold text-blue-900 border-r border-sky-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] text-xs">
                       Peças TT (PMT Planejado)
                     </td>
                     {activeFilteredDays.map((d) => (
                       <td 
                         key={`pec-tt-${d.dayStr}`}
-                        className="px-1.5 py-2 text-center font-mono font-bold text-blue-900 border-r border-sky-200 text-[11px]"
+                        className="px-1.5 py-2 text-center font-mono font-bold text-blue-900 border-r border-sky-200 text-[13px]"
                       >
                         {formatNum(matrix.totals.pecas[d.dayStr])}
                       </td>
                     ))}
-                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-900 border-r border-sky-300 text-[11px] bg-[#e0f2fe]">
+                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-900 border-r border-sky-300 text-[13px] bg-[#e0f2fe]">
                       {formatNum(getRowAverage(matrix.totals.pecas))}
                     </td>
-                    <td className="sticky right-0 z-20 bg-[#e0f2fe] px-3 py-2 text-right font-mono font-bold text-blue-900 border-l border-sky-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+                    <td className="sticky right-0 z-20 bg-[#e0f2fe] px-3 py-2 text-right font-mono font-bold text-blue-900 border-l border-sky-300 text-[13px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
                       {formatNum(getRowTotal(matrix.totals.pecas))}
                     </td>
                   </tr>
@@ -1306,7 +1306,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                     const dynamicAvg = getRowAverage(rowData)
                     return (
                       <tr key={`cub-${modalName}`} className="hover:bg-blue-50/40 transition-colors">
-                        <td className="sticky left-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 font-medium text-slate-700 border-r border-slate-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
+                        <td className="sticky left-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 font-medium text-slate-700 border-r border-slate-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)] text-xs">
                           {cleanModalName(modalName)}
                         </td>
                         {activeFilteredDays.map((d) => {
@@ -1315,7 +1315,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                           return (
                             <td 
                               key={`cub-${modalName}-${d.dayStr}`}
-                              className={`px-1.5 py-1.5 text-center font-mono text-[11px] border-r border-slate-100 ${
+                              className={`px-1.5 py-1.5 text-center font-mono text-[12px] border-r border-slate-100 ${
                                 isZero ? 'text-slate-400 italic' : 'text-slate-800'
                               }`}
                             >
@@ -1323,10 +1323,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                             </td>
                           )
                         })}
-                        <td className="px-2 py-1.5 text-right font-mono text-[11px] font-semibold text-slate-700 border-r border-slate-200 bg-slate-50/50">
+                        <td className="px-2 py-1.5 text-right font-mono text-[12px] font-semibold text-slate-700 border-r border-slate-200 bg-slate-50/50">
                           {formatNum(dynamicAvg)}
                         </td>
-                        <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
+                        <td className="sticky right-0 z-20 bg-white hover:bg-inherit px-3 py-1.5 text-right font-mono font-semibold text-slate-900 border-l border-slate-200 text-[12px] shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">
                           {formatNum(dynamicTotal)}
                         </td>
                       </tr>
@@ -1335,21 +1335,21 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
 
                   {/* Linha de Totalização: Cubagem TT (Planejado PMT) */}
                   <tr className="bg-[#e0f2fe]/90 border-y-2 border-sky-300 font-bold">
-                    <td className="sticky left-0 z-20 bg-[#e0f2fe] px-3 py-2 font-bold text-blue-900 border-r border-sky-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)]">
+                    <td className="sticky left-0 z-20 bg-[#e0f2fe] px-3 py-2 font-bold text-blue-900 border-r border-sky-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] text-xs">
                       Cubagem TT (PMT Planejado)
                     </td>
                     {activeFilteredDays.map((d) => (
                       <td 
                         key={`cub-tt-${d.dayStr}`}
-                        className="px-1.5 py-2 text-center font-mono font-bold text-blue-900 border-r border-sky-200 text-[11px]"
+                        className="px-1.5 py-2 text-center font-mono font-bold text-blue-900 border-r border-sky-200 text-[13px]"
                       >
                         {formatNum(matrix.totals.cubagem[d.dayStr])}
                       </td>
                     ))}
-                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-900 border-r border-sky-300 text-[11px] bg-[#e0f2fe]">
+                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-900 border-r border-sky-300 text-[13px] bg-[#e0f2fe]">
                       {formatNum(getRowAverage(matrix.totals.cubagem))}
                     </td>
-                    <td className="sticky right-0 z-20 bg-[#e0f2fe] px-3 py-2 text-right font-mono font-bold text-blue-900 border-l border-sky-300 text-[11px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+                    <td className="sticky right-0 z-20 bg-[#e0f2fe] px-3 py-2 text-right font-mono font-bold text-blue-900 border-l border-sky-300 text-[13px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
                       {formatNum(getRowTotal(matrix.totals.cubagem))}
                     </td>
                   </tr>
