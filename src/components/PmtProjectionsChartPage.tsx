@@ -464,7 +464,6 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
             <div className="h-[360px] flex items-end justify-between gap-1 relative z-10 min-w-[700px] pr-2">
               {daysData.map((d) => {
                 const heightFat = maxVal > 0 ? (d.fatVal / maxVal) * 100 : 0
-                const heightLib = maxVal > 0 ? (d.libVal / maxVal) * 100 : 0
                 const heightCap = maxVal > 0 ? (d.capVal / maxVal) * 100 : 0
 
                 const isHovered = hoveredDay === d.day
@@ -537,14 +536,6 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
 
                     {/* Grupo de Colunas Verticais por Dia */}
                     <div className="w-full h-full flex items-end justify-center gap-0.5 relative z-10 px-0.5">
-                      {/* 2. Coluna Liberado (Verde Esmeralda) */}
-                      {visibleSeries.liberado && (
-                        <div
-                          className="w-1.5 sm:w-2 bg-emerald-500/90 hover:bg-emerald-500 rounded-t-sm transition-all duration-300"
-                          style={{ height: `${Math.max(heightLib, hasData ? 1 : 0)}%` }}
-                        />
-                      )}
-
                       {/* 3. Coluna Faturado (Azul Claro Vibrante com Sombra Suave) */}
                       {visibleSeries.faturado && (
                         <div
@@ -573,27 +564,31 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                 )
               })}
 
-              {/* Linha PMT Planejado (mesma escala das barras) */}
-              {visibleSeries.pmt && maxVal > 0 && (() => {
+              {/* Linhas PMT Planejado e Liberado (mesma escala das barras) */}
+              {maxVal > 0 && ([
+                { key: 'pmt', on: visibleSeries.pmt, color: '#2563eb', dot: 'bg-blue-600', get: (d: typeof daysData[number]) => d.pmtVal },
+                { key: 'lib', on: visibleSeries.liberado, color: '#10b981', dot: 'bg-emerald-500', get: (d: typeof daysData[number]) => d.libVal },
+              ] as const).filter(s => s.on).map(s => {
                 const n = daysData.length
                 const P = daysData
-                  .map((d, i) => ({ d, x: ((i + 0.5) / n) * 100, y: 100 - (d.pmtVal / maxVal) * 100 }))
-                  .filter(p => p.d.pmtVal > 0)
+                  .map((d, i) => ({ d, v: s.get(d), x: ((i + 0.5) / n) * 100 }))
+                  .filter(p => p.v > 0)
+                  .map(p => ({ ...p, y: 100 - (p.v / maxVal) * 100 }))
                 if (P.length < 1) return null
                 const path = P.map((p, i) => `${i ? 'L' : 'M'} ${p.x} ${p.y}`).join(' ')
                 return (
-                  <div className="absolute inset-0 pointer-events-none z-20">
+                  <div key={s.key} className="absolute inset-0 pointer-events-none z-20">
                     <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <path d={path} fill="none" stroke="#2563eb" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+                      <path d={path} fill="none" stroke={s.color} strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
                     </svg>
                     {P.map(p => (
                       <div key={p.d.day} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
-                        <div className={`rounded-full bg-blue-600 border-2 border-white shadow ${hoveredDay === p.d.day ? 'w-3 h-3' : 'w-2 h-2'} transition-all`} />
+                        <div className={`rounded-full ${s.dot} border-2 border-white shadow ${hoveredDay === p.d.day ? 'w-3 h-3' : 'w-2 h-2'} transition-all`} />
                       </div>
                     ))}
                   </div>
                 )
-              })()}
+              })}
 
               {/* Linha de Aderência (Liberado / PMT %) - curva suavizada */}
               {(() => {
