@@ -71,6 +71,7 @@ interface Props {
   pageTitle?: string
   cardsContent?: React.ReactNode
   onAderenciaChange?: (newData: AderenciaDataState) => void
+  onOpenImportModal?: () => void
 }
 
 type SectionView = 'all' | 'pedidos' | 'pecas' | 'cubagem'
@@ -82,7 +83,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
   cd = '994', 
   pageTitle = 'PMT Expedição', 
   cardsContent,
-  onAderenciaChange 
+  onAderenciaChange,
+  onOpenImportModal
 }) => {
   const [matrix, setMatrix] = useState<MatrixData | null>(null)
   const [selectedSection, setSelectedSection] = useState<SectionView>('all')
@@ -665,6 +667,18 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
 
         {/* Ações e Filtros */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Botão de Importar Planilha da pasta PMTs */}
+          {onOpenImportModal && (
+            <button
+              onClick={onOpenImportModal}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50/90 hover:bg-indigo-100 text-indigo-700 text-xs font-bold shadow-2xs transition-all cursor-pointer"
+              title="Importar ou atualizar planilha de metas da pasta PMTs/"
+            >
+              <UploadCloud size={14} className="text-indigo-600" />
+              <span>Importar PMT (Pasta PMTs)</span>
+            </button>
+          )}
+
           {/* Botão de Importar Planilhas de Aderência (Liberado / Faturado) */}
           <button
             onClick={() => setIsUploadModalOpen(true)}

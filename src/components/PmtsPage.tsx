@@ -3182,6 +3182,11 @@ export const PmtsPage: React.FC = () => {
             cd="994" 
             pageTitle={activePage.label} 
             onAderenciaChange={setAderenciaState}
+            onOpenImportModal={() => {
+              setIsImportModalOpen(true)
+              setImportFeedback(null)
+              loadPmtFiles()
+            }}
             cardsContent={
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* CARD 1: VALOR */}
