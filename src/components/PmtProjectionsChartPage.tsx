@@ -705,6 +705,7 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                   <th className="py-2.5 px-3 text-right text-emerald-700">Liberado</th>
                   <th className="py-2.5 px-3 text-right text-sky-700">Faturado</th>
                   <th className="py-2.5 px-3 text-right text-purple-700">Capacidade</th>
+                  <th className="py-2.5 px-3 text-right text-emerald-700">Aderência (Lib x PMT)</th>
                   <th className="py-2.5 px-3 text-right">Aderência (Fat x PMT)</th>
                 </tr>
               </thead>
@@ -726,6 +727,20 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                     <td className="py-2 px-3 text-right text-emerald-700 font-semibold">{formatValue(d.libVal)}</td>
                     <td className="py-2 px-3 text-right text-sky-700 font-bold">{formatValue(d.fatVal)}</td>
                     <td className="py-2 px-3 text-right text-purple-700">{d.capVal > 0 ? formatValue(d.capVal) : '-'}</td>
+                    <td className="py-2 px-3 text-right">
+                      {d.pmtVal > 0 && d.libVal > 0 ? (() => {
+                        const a = (d.libVal / d.pmtVal) * 100
+                        return (
+                          <span className={`px-2 py-0.5 rounded text-[10.5px] font-extrabold ${
+                            a >= 100 ? 'bg-emerald-100 text-emerald-800' : a >= 85 ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {a.toFixed(1)}%
+                          </span>
+                        )
+                      })() : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </td>
                     <td className="py-2 px-3 text-right">
                       {d.pmtVal > 0 && d.fatVal > 0 ? (
                         <span className={`px-2 py-0.5 rounded text-[10.5px] font-extrabold ${
