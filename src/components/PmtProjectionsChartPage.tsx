@@ -465,7 +465,6 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
               {daysData.map((d) => {
                 const heightFat = maxVal > 0 ? (d.fatVal / maxVal) * 100 : 0
                 const heightLib = maxVal > 0 ? (d.libVal / maxVal) * 100 : 0
-                const heightPmt = maxVal > 0 ? (d.pmtVal / maxVal) * 100 : 0
                 const heightCap = maxVal > 0 ? (d.capVal / maxVal) * 100 : 0
 
                 const isHovered = hoveredDay === d.day
@@ -538,14 +537,6 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
 
                     {/* Grupo de Colunas Verticais por Dia */}
                     <div className="w-full h-full flex items-end justify-center gap-0.5 relative z-10 px-0.5">
-                      {/* 1. Coluna PMT (Azul Marinho / Escuro) */}
-                      {visibleSeries.pmt && (
-                        <div
-                          className="w-1.5 sm:w-2 bg-blue-600/80 hover:bg-blue-600 rounded-t-sm transition-all duration-300"
-                          style={{ height: `${Math.max(heightPmt, hasData ? 1 : 0)}%` }}
-                        />
-                      )}
-
                       {/* 2. Coluna Liberado (Verde Esmeralda) */}
                       {visibleSeries.liberado && (
                         <div
@@ -582,7 +573,29 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                 )
               })}
 
-              {/* Linha de Aderência (Faturado / PMT %) - curva suavizada */}
+              {/* Linha PMT Planejado (mesma escala das barras) */}
+              {visibleSeries.pmt && maxVal > 0 && (() => {
+                const n = daysData.length
+                const P = daysData
+                  .map((d, i) => ({ d, x: ((i + 0.5) / n) * 100, y: 100 - (d.pmtVal / maxVal) * 100 }))
+                  .filter(p => p.d.pmtVal > 0)
+                if (P.length < 1) return null
+                const path = P.map((p, i) => `${i ? 'L' : 'M'} ${p.x} ${p.y}`).join(' ')
+                return (
+                  <div className="absolute inset-0 pointer-events-none z-20">
+                    <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      <path d={path} fill="none" stroke="#2563eb" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+                    </svg>
+                    {P.map(p => (
+                      <div key={p.d.day} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
+                        <div className={`rounded-full bg-blue-600 border-2 border-white shadow ${hoveredDay === p.d.day ? 'w-3 h-3' : 'w-2 h-2'} transition-all`} />
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+
+              {/* Linha de Aderência (Liberado / PMT %) - curva suavizada */}
               {(() => {
                 const n = daysData.length
                 const pts = daysData
