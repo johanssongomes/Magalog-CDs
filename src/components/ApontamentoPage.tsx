@@ -248,6 +248,8 @@ export function ApontamentoPage() {
   const [selectedCargos, setSelectedCargos] = useState<string[]>([])
   const [selectedSupervisores, setSelectedSupervisores] = useState<string[]>([])
   const [selectedLideres, setSelectedLideres] = useState<string[]>([])
+  const [openFilterDropdown, setOpenFilterDropdown] = useState<'area' | 'turno' | 'cargo' | 'supervisor' | 'lider' | null>(null)
+
   // Visibilidade de Colunas Fixas (Permite recolher colunas para ganhar mais espaço no acompanhamento dos dias)
   const [visibleColumns, setVisibleColumns] = useState<{
     supervisor: boolean
