@@ -578,6 +578,51 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                   </div>
                 )
               })}
+
+              {/* Linha de Aderência (Faturado / PMT %) - curva suavizada */}
+              {(() => {
+                const n = daysData.length
+                const pts = daysData
+                  .map((d, i) => ({ d, x: ((i + 0.5) / n) * 100, v: d.aderenciaFat }))
+                  .filter(p => p.v > 0)
+                if (pts.length < 2) return null
+                const maxAder = Math.max(120, ...pts.map(p => p.v)) * 1.05
+                const yOf = (v: number) => 100 - (v / maxAder) * 100
+                const P = pts.map(p => ({ ...p, y: yOf(p.v) }))
+                let path = `M ${P[0].x} ${P[0].y}`
+                for (let i = 0; i < P.length - 1; i++) {
+                  const p0 = P[i - 1] || P[i], p1 = P[i], p2 = P[i + 1], p3 = P[i + 2] || p2
+                  const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6
+                  const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6
+                  path += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`
+                }
+                const y100 = yOf(100)
+                return (
+                  <div className="absolute inset-0 pointer-events-none z-20">
+                    {/* Referência 100% */}
+                    <div className="absolute left-0 right-0 border-t border-dotted border-red-300" style={{ top: `${y100}%` }}>
+                      <span className="absolute right-0 -top-4 text-[9px] font-bold font-mono text-red-400">100%</span>
+                    </div>
+                    <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      <path d={path} fill="none" stroke="rgba(220,38,38,0.18)" strokeWidth={8} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+                      <path d={path} fill="none" stroke="#dc2626" strokeWidth={2.5} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+                    </svg>
+                    {P.map(p => {
+                      const hov = hoveredDay === p.d.day
+                      return (
+                        <div key={p.d.day} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
+                          <div className={`rounded-full bg-white border-2 border-red-600 ${hov ? 'w-3 h-3' : 'w-2 h-2'} transition-all`} />
+                          <span className={`absolute left-1/2 -translate-x-1/2 -top-4 text-[9px] font-black font-mono whitespace-nowrap ${
+                            p.v >= 100 ? 'text-emerald-600' : 'text-red-600'
+                          } ${hov ? 'scale-125' : ''}`}>
+                            {p.v.toFixed(0)}%
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Eixo X: Dias do Mês e Dia da Semana */}
