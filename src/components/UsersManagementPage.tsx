@@ -1009,12 +1009,30 @@ export const UsersManagementPage: React.FC = () => {
         localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(currentDeleted))
       } catch {}
 
-      // 3. Deletar do Supabase (app_users e colaboradores)
+      // 3. Deletar do Supabase (app_users e colaboradores) e sincronizar lista global de excluídos
       try {
         await Promise.all([
           supabase.from('app_users').delete().eq('email', targetEmail),
           targetId ? supabase.from('colaboradores').delete().eq('id', targetId) : Promise.resolve()
         ])
+
+        // Sincroniza a lista global de excluídos no Supabase para refletir em todos os aparelhos
+        if (targetId) {
+          const { data: metric } = await supabase
+            .from('performance_metrics')
+            .select('value')
+            .eq('cell_key', 'global_deleted_user_ids')
+            .maybeSingle()
+          let globalDel: string[] = metric?.value ? JSON.parse(metric.value) : []
+          if (!globalDel.includes(targetId)) {
+            globalDel.push(targetId)
+            await supabase.from('performance_metrics').upsert({
+              cell_key: 'global_deleted_user_ids',
+              value: JSON.stringify(globalDel),
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'cell_key' })
+          }
+        }
       } catch (dbErr) {
         console.warn('Aviso ao deletar do Supabase:', dbErr)
       }

@@ -381,10 +381,40 @@ export function ApontamentoPage() {
         }
       } catch {}
 
-      // 2. Busca SEMPRE a lista mais recente do Supabase (tabela colaboradores)
+      // 1.1 Carregar lista de IDs excluídos (local + global do Supabase)
+      let deletedSet = new Set<string>()
       try {
-        const { data: supaColabs, error } = await supabase.from('colaboradores').select('*')
-        if (!error && supaColabs && supaColabs.length > 0) {
+        const localDeleted = localStorage.getItem('magalog_deleted_user_ids')
+        if (localDeleted) {
+          const parsed = JSON.parse(localDeleted)
+          if (Array.isArray(parsed)) {
+            parsed.forEach((id: string) => deletedSet.add(String(id || '').toLowerCase().trim()))
+          }
+        }
+      } catch {}
+
+      // 2. Busca SEMPRE a lista mais recente do Supabase (tabela colaboradores e lista de deletados)
+      try {
+        const [supaColabsRes, deletedMetricRes] = await Promise.all([
+          supabase.from('colaboradores').select('*'),
+          supabase.from('performance_metrics').select('value').eq('cell_key', 'global_deleted_user_ids').maybeSingle()
+        ])
+
+        if (deletedMetricRes.data?.value) {
+          try {
+            const globalDel: string[] = JSON.parse(deletedMetricRes.data.value)
+            if (Array.isArray(globalDel)) {
+              globalDel.forEach(id => deletedSet.add(String(id || '').toLowerCase().trim()))
+              // Sincroniza também no cache local
+              try {
+                localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(Array.from(deletedSet)))
+              } catch {}
+            }
+          } catch {}
+        }
+
+        const supaColabs = supaColabsRes.data
+        if (!supaColabsRes.error && supaColabs && supaColabs.length > 0) {
           const supaMap = new Map<string, any>()
           supaColabs.forEach(sc => {
             if (sc.id) supaMap.set(String(sc.id).trim().toLowerCase(), sc)
@@ -427,17 +457,24 @@ export function ApontamentoPage() {
               })
             }
           })
-
-          // Atualiza o cache local para os próximos acessos rápidos
-          try {
-            localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(baseList))
-          } catch {}
         }
       } catch (e) {
         console.warn('Aviso ao sincronizar colaboradores com Supabase:', e)
       }
 
-      setColaboradores(baseList)
+      // Filtra todos os colaboradores que foram excluídos
+      const finalList = baseList.filter(c => {
+        const cId = String(c.id || '').toLowerCase().trim()
+        const cName = String(c.contratado || '').toLowerCase().trim()
+        return (!cId || !deletedSet.has(cId)) && (!cName || !deletedSet.has(cName))
+      })
+
+      // Atualiza o cache local para os próximos acessos rápidos
+      try {
+        localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(finalList))
+      } catch {}
+
+      setColaboradores(finalList)
     }
 
     loadColaboradores()

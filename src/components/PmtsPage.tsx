@@ -646,11 +646,30 @@ export const PmtsPage: React.FC = () => {
         })
       }
 
-      // 2. Carregar lista de IDs excluídos armazenados localmente e desconsidera qualquer usuário ativo
+      // 2. Carregar lista de IDs excluídos (local e nuvem Supabase)
       let deletedIds: string[] = []
       try {
         const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
         if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
+      } catch {}
+
+      try {
+        const { data: globalDelRes } = await supabase
+          .from('performance_metrics')
+          .select('value')
+          .eq('cell_key', 'global_deleted_user_ids')
+          .maybeSingle()
+        if (globalDelRes?.value) {
+          const parsedGlobal: string[] = JSON.parse(globalDelRes.value)
+          if (Array.isArray(parsedGlobal)) {
+            parsedGlobal.forEach(id => {
+              if (!deletedIds.includes(id)) deletedIds.push(id)
+            })
+            try {
+              localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(deletedIds))
+            } catch {}
+          }
+        }
       } catch {}
 
       if (activeUserIds.size > 0) {
