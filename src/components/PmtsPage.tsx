@@ -1935,7 +1935,7 @@ export const PmtsPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setFiltrosCargo([...listaCargos])}
+                          onClick={() => setFiltrosCargo([])}
                           className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
                         >
                           Marcar Todos
@@ -1943,7 +1943,7 @@ export const PmtsPage: React.FC = () => {
                         <span className="text-slate-300">|</span>
                         <button
                           type="button"
-                          onClick={() => setFiltrosCargo([])}
+                          onClick={() => setFiltrosCargo(['__nenhum__'])}
                           className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
                         >
                           Limpar
@@ -1952,7 +1952,7 @@ export const PmtsPage: React.FC = () => {
                     </div>
                     <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
                       {listaCargos.map((cargo) => {
-                        const isChecked = filtrosCargo.includes(cargo)
+                        const isChecked = filtrosCargo.length === 0 || filtrosCargo.includes(cargo)
                         return (
                           <label
                             key={cargo}
@@ -1962,10 +1962,20 @@ export const PmtsPage: React.FC = () => {
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => {
-                                if (isChecked) {
-                                  setFiltrosCargo(filtrosCargo.filter(c => c !== cargo))
+                                if (filtrosCargo.length === 0) {
+                                  // Estava com todos marcados e o usuário desmarcou este cargo
+                                  setFiltrosCargo(listaCargos.filter(c => c !== cargo))
+                                } else if (filtrosCargo.includes(cargo)) {
+                                  const novo = filtrosCargo.filter(c => c !== cargo)
+                                  setFiltrosCargo(novo)
                                 } else {
-                                  setFiltrosCargo([...filtrosCargo, cargo])
+                                  const novo = [...filtrosCargo, cargo]
+                                  // Se selecionou todos novamente, pode manter ou manter a lista completa
+                                  if (novo.length === listaCargos.length) {
+                                    setFiltrosCargo([])
+                                  } else {
+                                    setFiltrosCargo(novo)
+                                  }
                                 }
                               }}
                               className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
@@ -2018,7 +2028,7 @@ export const PmtsPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setFiltrosCentroCusto([...listaCentrosCusto])}
+                          onClick={() => setFiltrosCentroCusto([])}
                           className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
                         >
                           Marcar Todos
@@ -2026,7 +2036,7 @@ export const PmtsPage: React.FC = () => {
                         <span className="text-slate-300">|</span>
                         <button
                           type="button"
-                          onClick={() => setFiltrosCentroCusto([])}
+                          onClick={() => setFiltrosCentroCusto(['__nenhum__'])}
                           className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
                         >
                           Limpar
@@ -2035,7 +2045,7 @@ export const PmtsPage: React.FC = () => {
                     </div>
                     <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
                       {listaCentrosCusto.map((cc) => {
-                        const isChecked = filtrosCentroCusto.includes(cc)
+                        const isChecked = filtrosCentroCusto.length === 0 || filtrosCentroCusto.includes(cc)
                         return (
                           <label
                             key={cc}
@@ -2045,10 +2055,19 @@ export const PmtsPage: React.FC = () => {
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => {
-                                if (isChecked) {
-                                  setFiltrosCentroCusto(filtrosCentroCusto.filter(c => c !== cc))
+                                if (filtrosCentroCusto.length === 0) {
+                                  setFiltrosCentroCusto(listaCentrosCusto.filter(c => c !== cc))
+                                } else if (filtrosCentroCusto.includes(cc)) {
+                                  const novo = filtrosCentroCusto.filter(c => c !== cc)
+                                  setFiltrosCentroCusto(novo.length === 0 ? ['__nenhum__'] : novo)
                                 } else {
-                                  setFiltrosCentroCusto([...filtrosCentroCusto, cc])
+                                  const base = filtrosCentroCusto.filter(c => c !== '__nenhum__')
+                                  const novo = [...base, cc]
+                                  if (novo.length === listaCentrosCusto.length) {
+                                    setFiltrosCentroCusto([])
+                                  } else {
+                                    setFiltrosCentroCusto(novo)
+                                  }
                                 }
                               }}
                               className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
@@ -2101,7 +2120,7 @@ export const PmtsPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setFiltrosGerencia([...listaGerencias])}
+                          onClick={() => setFiltrosGerencia([])}
                           className="text-[10px] text-indigo-600 hover:underline font-bold cursor-pointer"
                         >
                           Marcar Todas
@@ -2109,7 +2128,7 @@ export const PmtsPage: React.FC = () => {
                         <span className="text-slate-300">|</span>
                         <button
                           type="button"
-                          onClick={() => setFiltrosGerencia([])}
+                          onClick={() => setFiltrosGerencia(['__nenhum__'])}
                           className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
                         >
                           Limpar
@@ -2118,7 +2137,7 @@ export const PmtsPage: React.FC = () => {
                     </div>
                     <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
                       {listaGerencias.map((ger) => {
-                        const isChecked = filtrosGerencia.includes(ger)
+                        const isChecked = filtrosGerencia.length === 0 || filtrosGerencia.includes(ger)
                         return (
                           <label
                             key={ger}
@@ -2128,10 +2147,19 @@ export const PmtsPage: React.FC = () => {
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => {
-                                if (isChecked) {
-                                  setFiltrosGerencia(filtrosGerencia.filter(g => g !== ger))
+                                if (filtrosGerencia.length === 0) {
+                                  setFiltrosGerencia(listaGerencias.filter(g => g !== ger))
+                                } else if (filtrosGerencia.includes(ger)) {
+                                  const novo = filtrosGerencia.filter(g => g !== ger)
+                                  setFiltrosGerencia(novo.length === 0 ? ['__nenhum__'] : novo)
                                 } else {
-                                  setFiltrosGerencia([...filtrosGerencia, ger])
+                                  const base = filtrosGerencia.filter(g => g !== '__nenhum__')
+                                  const novo = [...base, ger]
+                                  if (novo.length === listaGerencias.length) {
+                                    setFiltrosGerencia([])
+                                  } else {
+                                    setFiltrosGerencia(novo)
+                                  }
                                 }
                               }}
                               className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
@@ -2184,7 +2212,7 @@ export const PmtsPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setFiltrosArea([...listaAreas])}
+                          onClick={() => setFiltrosArea([])}
                           className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
                         >
                           Marcar Todas
@@ -2192,7 +2220,7 @@ export const PmtsPage: React.FC = () => {
                         <span className="text-slate-300">|</span>
                         <button
                           type="button"
-                          onClick={() => setFiltrosArea([])}
+                          onClick={() => setFiltrosArea(['__nenhum__'])}
                           className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
                         >
                           Limpar
@@ -2201,7 +2229,7 @@ export const PmtsPage: React.FC = () => {
                     </div>
                     <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
                       {listaAreas.map((area) => {
-                        const isChecked = filtrosArea.includes(area)
+                        const isChecked = filtrosArea.length === 0 || filtrosArea.includes(area)
                         return (
                           <label
                             key={area}
@@ -2211,10 +2239,19 @@ export const PmtsPage: React.FC = () => {
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => {
-                                if (isChecked) {
-                                  setFiltrosArea(filtrosArea.filter(a => a !== area))
+                                if (filtrosArea.length === 0) {
+                                  setFiltrosArea(listaAreas.filter(a => a !== area))
+                                } else if (filtrosArea.includes(area)) {
+                                  const novo = filtrosArea.filter(a => a !== area)
+                                  setFiltrosArea(novo.length === 0 ? ['__nenhum__'] : novo)
                                 } else {
-                                  setFiltrosArea([...filtrosArea, area])
+                                  const base = filtrosArea.filter(a => a !== '__nenhum__')
+                                  const novo = [...base, area]
+                                  if (novo.length === listaAreas.length) {
+                                    setFiltrosArea([])
+                                  } else {
+                                    setFiltrosArea(novo)
+                                  }
                                 }
                               }}
                               className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
@@ -2267,7 +2304,7 @@ export const PmtsPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setFiltrosSituacao([...listaSituacoes])}
+                          onClick={() => setFiltrosSituacao([])}
                           className="text-[10px] text-emerald-600 hover:underline font-bold cursor-pointer"
                         >
                           Marcar Todas
@@ -2275,7 +2312,7 @@ export const PmtsPage: React.FC = () => {
                         <span className="text-slate-300">|</span>
                         <button
                           type="button"
-                          onClick={() => setFiltrosSituacao([])}
+                          onClick={() => setFiltrosSituacao(['__nenhum__'])}
                           className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
                         >
                           Limpar
@@ -2284,7 +2321,7 @@ export const PmtsPage: React.FC = () => {
                     </div>
                     <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
                       {listaSituacoes.map((situacao) => {
-                        const isChecked = filtrosSituacao.includes(situacao)
+                        const isChecked = filtrosSituacao.length === 0 || filtrosSituacao.includes(situacao)
                         return (
                           <label
                             key={situacao}
@@ -2294,10 +2331,19 @@ export const PmtsPage: React.FC = () => {
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => {
-                                if (isChecked) {
-                                  setFiltrosSituacao(filtrosSituacao.filter(s => s !== situacao))
+                                if (filtrosSituacao.length === 0) {
+                                  setFiltrosSituacao(listaSituacoes.filter(s => s !== situacao))
+                                } else if (filtrosSituacao.includes(situacao)) {
+                                  const novo = filtrosSituacao.filter(s => s !== situacao)
+                                  setFiltrosSituacao(novo.length === 0 ? ['__nenhum__'] : novo)
                                 } else {
-                                  setFiltrosSituacao([...filtrosSituacao, situacao])
+                                  const base = filtrosSituacao.filter(s => s !== '__nenhum__')
+                                  const novo = [...base, situacao]
+                                  if (novo.length === listaSituacoes.length) {
+                                    setFiltrosSituacao([])
+                                  } else {
+                                    setFiltrosSituacao(novo)
+                                  }
                                 }
                               }}
                               className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"

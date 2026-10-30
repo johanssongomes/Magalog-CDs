@@ -1207,12 +1207,22 @@ export function ApontamentoPage() {
     }
   }
 
-  // Toggle do Multi-Select
-  const toggleMultiSelect = (item: string, list: string[], setList: (v: string[]) => void) => {
-    if (list.includes(item)) {
-      setList(list.filter(x => x !== item))
+  // Toggle do Multi-Select com suporte a estado inicial flegado ("Todos")
+  const toggleMultiSelect = (item: string, list: string[], setList: (v: string[]) => void, allItems?: string[]) => {
+    if (list.length === 0 && allItems && allItems.length > 0) {
+      // Estava com todos implicitamente selecionados e usuário desmarcou este item
+      setList(allItems.filter(x => x !== item))
+    } else if (list.includes(item)) {
+      const novo = list.filter(x => x !== item)
+      setList(novo.length === 0 ? ['__nenhum__'] : novo)
     } else {
-      setList([...list, item])
+      const base = list.filter(x => x !== '__nenhum__')
+      const novo = [...base, item]
+      if (allItems && novo.length === allItems.length) {
+        setList([])
+      } else {
+        setList(novo)
+      }
     }
   }
 
@@ -1723,17 +1733,24 @@ export function ApontamentoPage() {
               <div className="absolute left-0 mt-1.5 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1 max-h-60 overflow-y-auto">
                 <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100">
                   <span className="text-[11px] font-extrabold text-slate-500 uppercase">Filtrar por Área</span>
-                  {selectedAreas.length > 0 && (
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => setSelectedAreas([])}
-                      className="text-[10px] text-blue-600 hover:underline font-bold"
+                      className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
+                    >
+                      Marcar Todas
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      onClick={() => setSelectedAreas(['__nenhum__'])}
+                      className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
                     >
                       Limpar
                     </button>
-                  )}
+                  </div>
                 </div>
                 {areasUnicos.map(ar => {
-                  const checked = selectedAreas.includes(ar)
+                  const checked = selectedAreas.length === 0 || selectedAreas.includes(ar)
                   return (
                     <label
                       key={ar}
@@ -1742,10 +1759,10 @@ export function ApontamentoPage() {
                       <input
                         type="checkbox"
                         checked={checked}
-                        onChange={() => toggleMultiSelect(ar, selectedAreas, setSelectedAreas)}
+                        onChange={() => toggleMultiSelect(ar, selectedAreas, setSelectedAreas, areasUnicos)}
                         className="rounded-sm border-slate-300 text-blue-600 focus:ring-0 cursor-pointer"
                       />
-                      <span className="truncate">{ar}</span>
+                      <span className={`truncate ${checked ? 'font-bold text-blue-900' : 'text-slate-700'}`}>{ar}</span>
                     </label>
                   )
                 })}
@@ -1772,17 +1789,24 @@ export function ApontamentoPage() {
               <div className="absolute left-0 mt-1.5 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1 max-h-60 overflow-y-auto">
                 <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100">
                   <span className="text-[11px] font-extrabold text-slate-500 uppercase">Filtrar por Turno</span>
-                  {selectedTurnos.length > 0 && (
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => setSelectedTurnos([])}
-                      className="text-[10px] text-blue-600 hover:underline font-bold"
+                      className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
+                    >
+                      Marcar Todos
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      onClick={() => setSelectedTurnos(['__nenhum__'])}
+                      className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
                     >
                       Limpar
                     </button>
-                  )}
+                  </div>
                 </div>
                 {turnosUnicos.map(tr => {
-                  const checked = selectedTurnos.includes(tr)
+                  const checked = selectedTurnos.length === 0 || selectedTurnos.includes(tr)
                   return (
                     <label
                       key={tr}
@@ -1791,10 +1815,10 @@ export function ApontamentoPage() {
                       <input
                         type="checkbox"
                         checked={checked}
-                        onChange={() => toggleMultiSelect(tr, selectedTurnos, setSelectedTurnos)}
+                        onChange={() => toggleMultiSelect(tr, selectedTurnos, setSelectedTurnos, turnosUnicos)}
                         className="rounded-sm border-slate-300 text-blue-600 focus:ring-0 cursor-pointer"
                       />
-                      <span className="truncate">{tr}</span>
+                      <span className={`truncate ${checked ? 'font-bold text-blue-900' : 'text-slate-700'}`}>{tr}</span>
                     </label>
                   )
                 })}
@@ -1821,17 +1845,24 @@ export function ApontamentoPage() {
               <div className="absolute left-0 mt-1.5 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1 max-h-60 overflow-y-auto">
                 <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100">
                   <span className="text-[11px] font-extrabold text-slate-500 uppercase">Filtrar por Cargo</span>
-                  {selectedCargos.length > 0 && (
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => setSelectedCargos([])}
-                      className="text-[10px] text-blue-600 hover:underline font-bold"
+                      className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
+                    >
+                      Marcar Todos
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      onClick={() => setSelectedCargos(['__nenhum__'])}
+                      className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
                     >
                       Limpar
                     </button>
-                  )}
+                  </div>
                 </div>
                 {cargosUnicos.map(cg => {
-                  const checked = selectedCargos.includes(cg)
+                  const checked = selectedCargos.length === 0 || selectedCargos.includes(cg)
                   return (
                     <label
                       key={cg}
@@ -1840,10 +1871,10 @@ export function ApontamentoPage() {
                       <input
                         type="checkbox"
                         checked={checked}
-                        onChange={() => toggleMultiSelect(cg, selectedCargos, setSelectedCargos)}
+                        onChange={() => toggleMultiSelect(cg, selectedCargos, setSelectedCargos, cargosUnicos)}
                         className="rounded-sm border-slate-300 text-blue-600 focus:ring-0 cursor-pointer"
                       />
-                      <span className="truncate">{cg}</span>
+                      <span className={`truncate ${checked ? 'font-bold text-blue-900' : 'text-slate-700'}`}>{cg}</span>
                     </label>
                   )
                 })}
@@ -1870,20 +1901,27 @@ export function ApontamentoPage() {
               <div className="absolute left-0 mt-1.5 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1 max-h-60 overflow-y-auto">
                 <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100">
                   <span className="text-[11px] font-extrabold text-slate-500 uppercase">Filtrar por Supervisor</span>
-                  {selectedSupervisores.length > 0 && (
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => setSelectedSupervisores([])}
-                      className="text-[10px] text-purple-600 hover:underline font-bold"
+                      className="text-[10px] text-purple-600 hover:underline font-bold cursor-pointer"
+                    >
+                      Marcar Todos
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      onClick={() => setSelectedSupervisores(['__nenhum__'])}
+                      className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
                     >
                       Limpar
                     </button>
-                  )}
+                  </div>
                 </div>
                 {supervisoresUnicos.length === 0 ? (
                   <div className="px-2 py-2 text-xs text-slate-400 text-center">Nenhum supervisor encontrado</div>
                 ) : (
                   supervisoresUnicos.map(sup => {
-                    const checked = selectedSupervisores.includes(sup)
+                    const checked = selectedSupervisores.length === 0 || selectedSupervisores.includes(sup)
                     return (
                       <label
                         key={sup}
@@ -1892,10 +1930,10 @@ export function ApontamentoPage() {
                         <input
                           type="checkbox"
                           checked={checked}
-                          onChange={() => toggleMultiSelect(sup, selectedSupervisores, setSelectedSupervisores)}
+                          onChange={() => toggleMultiSelect(sup, selectedSupervisores, setSelectedSupervisores, supervisoresUnicos)}
                           className="rounded-sm border-slate-300 text-purple-600 focus:ring-0 cursor-pointer"
                         />
-                        <span className="truncate">{sup}</span>
+                        <span className={`truncate ${checked ? 'font-bold text-purple-900' : 'text-slate-700'}`}>{sup}</span>
                       </label>
                     )
                   })
@@ -1923,20 +1961,27 @@ export function ApontamentoPage() {
               <div className="absolute left-0 mt-1.5 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1 max-h-60 overflow-y-auto">
                 <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100">
                   <span className="text-[11px] font-extrabold text-slate-500 uppercase">Filtrar por Líder</span>
-                  {selectedLideres.length > 0 && (
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => setSelectedLideres([])}
-                      className="text-[10px] text-sky-600 hover:underline font-bold"
+                      className="text-[10px] text-sky-600 hover:underline font-bold cursor-pointer"
+                    >
+                      Marcar Todos
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      onClick={() => setSelectedLideres(['__nenhum__'])}
+                      className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
                     >
                       Limpar
                     </button>
-                  )}
+                  </div>
                 </div>
                 {lideresUnicos.length === 0 ? (
                   <div className="px-2 py-2 text-xs text-slate-400 text-center">Nenhum líder encontrado</div>
                 ) : (
                   lideresUnicos.map(lid => {
-                    const checked = selectedLideres.includes(lid)
+                    const checked = selectedLideres.length === 0 || selectedLideres.includes(lid)
                     return (
                       <label
                         key={lid}
@@ -1945,10 +1990,10 @@ export function ApontamentoPage() {
                         <input
                           type="checkbox"
                           checked={checked}
-                          onChange={() => toggleMultiSelect(lid, selectedLideres, setSelectedLideres)}
+                          onChange={() => toggleMultiSelect(lid, selectedLideres, setSelectedLideres, lideresUnicos)}
                           className="rounded-sm border-slate-300 text-sky-600 focus:ring-0 cursor-pointer"
                         />
-                        <span className="truncate">{lid}</span>
+                        <span className={`truncate ${checked ? 'font-bold text-sky-900' : 'text-slate-700'}`}>{lid}</span>
                       </label>
                     )
                   })
