@@ -53,6 +53,7 @@ import { BankHoursPage } from './BankHoursPage'
 import { getAderenciaData, type AderenciaDataState } from '../lib/aderenciaService'
 import initialAderenciaOct from '../data/initialAderencia202610.json'
 import { PromocionaisTable } from './PromocionaisTable'
+import { PmtProjectionsChartPage } from './PmtProjectionsChartPage'
 import { TableauIndicadoresPage } from './TableauIndicadoresPage'
 import { LookerCarteiraPage } from './LookerCarteiraPage'
 import { supabase } from '../lib/supabase'
@@ -3130,8 +3131,15 @@ export const PmtsPage: React.FC = () => {
       ) : activePageId === 6 ? (
         /* PÁGINA 6: CARTEIRA CDS (LOOKER STUDIO EMBED / PAINEL OPERACIONAL) */
         <LookerCarteiraPage />
+      ) : (isExpedicao && expedicaoSubPage === 'pg2') ? (
+        /* PÁGINA 2 DO PMT EXPEDIÇÃO: GRÁFICO DE BARRAS DE PROJEÇÕES (PMT, LIBERADO, FATURADO E CAPACIDADE) */
+        <PmtProjectionsChartPage 
+          ano={selectedYear} 
+          mes={selectedMonth} 
+          cd="994" 
+        />
       ) : (isExpedicao && expedicaoSubPage !== 'pg1') ? (
-        /* PÁGINAS EM CONSTRUÇÃO APENAS PARA DEMAIS SUB-PÁGINAS DO PMT EXPEDIÇÃO (pg2, pg3, pg4) */
+        /* PÁGINAS EM CONSTRUÇÃO APENAS PARA DEMAIS SUB-PÁGINAS DO PMT EXPEDIÇÃO (pg3, pg4) */
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-xs space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center mx-auto shadow-2xs">
             <Truck size={30} />
