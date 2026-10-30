@@ -480,7 +480,7 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                   >
                     {/* Tooltip Flutuante no Hover */}
                     {isHovered && (
-                      <div className="absolute -top-32 left-1/2 -translate-x-1/2 bg-slate-900 text-white rounded-xl p-3 shadow-2xl z-40 border border-slate-800 text-xs min-w-[190px] pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+                      <div className={`absolute top-2 ${d.day > daysData.length / 2 ? 'right-full mr-2' : 'left-full ml-2'} bg-slate-900/95 backdrop-blur text-white rounded-xl p-3 shadow-2xl z-50 border border-slate-700 text-xs min-w-[200px] pointer-events-none animate-in fade-in zoom-in-95 duration-150`}>
                         <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-700/80">
                           <strong className="text-white font-bold">{d.weekdayName}, {d.dateFormatted}</strong>
                           {d.pmtVal > 0 && d.libVal > 0 && (() => {
@@ -542,7 +542,7 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                           className="relative w-2 sm:w-2.5 bg-gradient-to-t from-sky-600 to-sky-400 hover:to-sky-300 rounded-t-sm transition-all duration-300 shadow-2xs"
                           style={{ height: `${Math.max(heightFat, hasData ? 1 : 0)}%` }}
                         >
-                          {d.fatVal > 0 && (
+                          {d.fatVal > 0 && isHovered && (
                             <span className="absolute bottom-1 left-1/2 -translate-x-1/2 [writing-mode:vertical-rl] rotate-180 text-[8px] font-bold font-mono text-white whitespace-nowrap">
                               {formatShort(d.fatVal)}
                             </span>
@@ -590,13 +590,13 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                     {P.map(p => (
                       <div key={p.d.day} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
                         <div className={`rounded-full ${s.dot} border-2 border-white shadow ${hoveredDay === p.d.day ? 'w-3 h-3' : 'w-2 h-2'} transition-all`} />
-                        <span
-                          className={`absolute left-1/2 -translate-x-1/2 text-[8px] font-bold font-mono whitespace-nowrap px-0.5 rounded bg-white/80 ${
-                            s.key === 'pmt' ? '-top-4 text-blue-700' : 'top-2.5 text-emerald-700'
-                          } ${hoveredDay === p.d.day ? 'scale-125 z-10' : ''}`}
+                        {hoveredDay === p.d.day && <span
+                          className={`absolute left-1/2 -translate-x-1/2 text-[10px] font-black font-mono whitespace-nowrap px-1 rounded shadow-sm bg-white border ${
+                            s.key === 'pmt' ? '-top-5 text-blue-700 border-blue-200' : 'top-3 text-emerald-700 border-emerald-200'
+                          }`}
                         >
                           {formatShort(p.v)}
-                        </span>
+                        </span>}
                       </div>
                     ))}
                   </div>
