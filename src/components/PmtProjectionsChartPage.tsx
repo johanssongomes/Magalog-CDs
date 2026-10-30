@@ -485,13 +485,16 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                       <div className="absolute -top-32 left-1/2 -translate-x-1/2 bg-slate-900 text-white rounded-xl p-3 shadow-2xl z-40 border border-slate-800 text-xs min-w-[190px] pointer-events-none animate-in fade-in zoom-in-95 duration-150">
                         <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-700/80">
                           <strong className="text-white font-bold">{d.weekdayName}, {d.dateFormatted}</strong>
-                          {d.aderenciaFat > 0 && (
-                            <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded font-mono ${
-                              d.aderenciaFat >= 100 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-sky-500/20 text-sky-300'
-                            }`}>
-                              {d.aderenciaFat.toFixed(0)}% pmt
-                            </span>
-                          )}
+                          {d.pmtVal > 0 && d.libVal > 0 && (() => {
+                            const aderLib = (d.libVal / d.pmtVal) * 100
+                            return (
+                              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded font-mono ${
+                                aderLib >= 100 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+                              }`}>
+                                {aderLib.toFixed(0)}% lib/pmt
+                              </span>
+                            )
+                          })()}
                         </div>
                         <div className="space-y-1 font-mono text-[11px]">
                           {visibleSeries.faturado && (
