@@ -1,22 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { 
   BarChart3, 
-  Calendar, 
   TrendingUp, 
   Package, 
   Boxes, 
   Layers, 
-  Maximize2, 
-  Sparkles, 
   ArrowUpRight, 
-  Activity, 
-  CheckCircle2, 
-  AlertCircle,
+  Calendar,
+  CheckCircle2,
   Clock,
+  Sparkles,
   Zap,
-  SlidersHorizontal,
-  ChevronDown,
-  Info
+  Info,
+  Maximize2
 } from 'lucide-react'
 import { getPmtDailyMatrixFromSupabase, type PmtDailyMatrixResponse } from '../lib/pmtService'
 import { getAderenciaData, type AderenciaDataState } from '../lib/aderenciaService'
@@ -29,7 +25,6 @@ interface Props {
 }
 
 type MetricType = 'cubagem' | 'pedidos' | 'pecas'
-type ViewOrientation = 'horizontal' | 'vertical'
 
 export const PmtProjectionsChartPage: React.FC<Props> = ({ 
   ano, 
@@ -37,8 +32,6 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
   cd = '994' 
 }) => {
   const [metric, setMetric] = useState<MetricType>('cubagem')
-  const [orientation, setOrientation] = useState<ViewOrientation>('horizontal')
-  const [isLoading, setIsLoading] = useState(false)
   const [matrix, setMatrix] = useState<PmtDailyMatrixResponse | null>(null)
   const [aderencia, setAderencia] = useState<AderenciaDataState | null>(() => {
     if (ano === 2026 && mes === 10) {
@@ -47,30 +40,25 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
     return null
   })
 
-  // Filtros de exibição das séries (permite ligar/desligar barras específicas)
-  const [showFaturado, setShowFaturado] = useState(true)
-  const [showLiberado, setShowLiberado] = useState(true)
-  const [showPmt, setShowPmt] = useState(true)
-  const [showCapacidade, setShowCapacidade] = useState(true)
+  // Filtros interativos para ligar/desligar séries
+  const [visibleSeries, setVisibleSeries] = useState({
+    faturado: true,
+    liberado: true,
+    pmt: true,
+    capacidade: true
+  })
 
-  // Hover de detalhes do dia
-  const [hoveredDay, setHoveredDay] = useState<string | null>(null)
+  // Hover ativo do dia
+  const [hoveredDay, setHoveredDay] = useState<number | null>(null)
 
-  // 1. Carregar Matriz PMT (Planejado)
+  // 1. Carregar PMT Matriz (Planejado)
   useEffect(() => {
     let isMounted = true
-    setIsLoading(true)
     getPmtDailyMatrixFromSupabase(ano, mes, cd, 'modal')
       .then(data => {
-        if (isMounted) {
-          setMatrix(data)
-        }
+        if (isMounted) setMatrix(data)
       })
       .catch(() => {})
-      .finally(() => {
-        if (isMounted) setIsLoading(false)
-      })
-
     return () => { isMounted = false }
   }, [ano, mes, cd])
 
@@ -82,9 +70,7 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
     }
 
     getAderenciaData(ano, mes, cd).then(data => {
-      if (isMounted && data) {
-        setAderencia(data)
-      }
+      if (isMounted && data) setAderencia(data)
     })
 
     const handleAderenciaUpdated = (e: Event) => {
@@ -101,11 +87,10 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
     }
   }, [ano, mes, cd])
 
-  // Total de dias do mês
   const totalDaysInMonth = useMemo(() => new Date(ano, mes, 0).getDate(), [ano, mes])
 
-  // Montagem consolidada de cada dia: PMT, Liberado, Faturado, Capacidade
-  const dailyData = useMemo(() => {
+  // Dados consolidados dia a dia
+  const daysData = useMemo(() => {
     const list = []
     const libTotals = aderencia?.liberado?.totals
     const fatTotals = aderencia?.faturado?.totals
@@ -120,7 +105,6 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
       const weekdayLetter = weekdayLetters[weekdayIdx]
       const weekdayName = weekdayNames[weekdayIdx]
 
-      // Valores por métrica
       let pmtVal = 0
       let libVal = 0
       let fatVal = 0
@@ -143,10 +127,8 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
         capVal = Number(capTotals?.pecas?.[dayStr] || 0)
       }
 
-      // Adherence
-      const aderenciaLib = pmtVal > 0 ? (libVal / pmtVal) * 100 : 0
       const aderenciaFat = pmtVal > 0 ? (fatVal / pmtVal) * 100 : 0
-      const aderenciaCap = capVal > 0 ? (fatVal / capVal) * 100 : 0
+      const aderenciaLib = pmtVal > 0 ? (libVal / pmtVal) * 100 : 0
 
       list.push({
         day: d,
@@ -159,42 +141,40 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
         libVal,
         fatVal,
         capVal,
-        aderenciaLib,
         aderenciaFat,
-        aderenciaCap
+        aderenciaLib
       })
     }
     return list
   }, [ano, mes, totalDaysInMonth, metric, matrix, aderencia])
 
-  // Maior valor geral para calcular a escala proporcional (100%)
-  const maxScaleValue = useMemo(() => {
+  // Cálculo da escala máxima para o eixo Y
+  const maxVal = useMemo(() => {
     let max = 0
-    dailyData.forEach(d => {
-      if (showPmt && d.pmtVal > max) max = d.pmtVal
-      if (showLiberado && d.libVal > max) max = d.libVal
-      if (showFaturado && d.fatVal > max) max = d.fatVal
-      if (showCapacidade && d.capVal > max) max = d.capVal
+    daysData.forEach(d => {
+      if (visibleSeries.pmt && d.pmtVal > max) max = d.pmtVal
+      if (visibleSeries.liberado && d.libVal > max) max = d.libVal
+      if (visibleSeries.faturado && d.fatVal > max) max = d.fatVal
+      if (visibleSeries.capacidade && d.capVal > max) max = d.capVal
     })
-    return max > 0 ? max * 1.08 : 100 // +8% de margem visual no topo
-  }, [dailyData, showPmt, showLiberado, showFaturado, showCapacidade])
+    return max > 0 ? max * 1.15 : 1000 // 15% de margem no topo para rótulos legíveis
+  }, [daysData, visibleSeries])
 
-  // Totais Acumulados do Mês
+  // Totais e Projeções do Mês
   const totals = useMemo(() => {
-    const totalPmt = dailyData.reduce((acc, d) => acc + d.pmtVal, 0)
-    const totalLib = dailyData.reduce((acc, d) => acc + d.libVal, 0)
-    const totalFat = dailyData.reduce((acc, d) => acc + d.fatVal, 0)
-    const totalCap = dailyData.reduce((acc, d) => acc + d.capVal, 0)
+    const totalPmt = daysData.reduce((acc, d) => acc + d.pmtVal, 0)
+    const totalLib = daysData.reduce((acc, d) => acc + d.libVal, 0)
+    const totalFat = daysData.reduce((acc, d) => acc + d.fatVal, 0)
+    const totalCap = daysData.reduce((acc, d) => acc + d.capVal, 0)
 
     const percLib = totalPmt > 0 ? (totalLib / totalPmt) * 100 : 0
     const percFat = totalPmt > 0 ? (totalFat / totalPmt) * 100 : 0
-    const percCap = totalCap > 0 ? (totalFat / totalCap) * 100 : 0
 
-    // Dias transcorridos com faturamento
-    const daysRealized = dailyData.filter(d => d.fatVal > 0).length
-    const avgDiariaFat = daysRealized > 0 ? totalFat / daysRealized : 0
-    const projecaoFimMes = avgDiariaFat * totalDaysInMonth
-    const percProjecao = totalPmt > 0 ? (projecaoFimMes / totalPmt) * 100 : 0
+    // Dias realizados com faturamento
+    const daysDone = daysData.filter(d => d.fatVal > 0).length
+    const avgFat = daysDone > 0 ? totalFat / daysDone : 0
+    const projecao = avgFat * totalDaysInMonth
+    const percProjecao = totalPmt > 0 ? (projecao / totalPmt) * 100 : 0
 
     return {
       totalPmt,
@@ -203,524 +183,492 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
       totalCap,
       percLib,
       percFat,
-      percCap,
-      daysRealized,
-      avgDiariaFat,
-      projecaoFimMes,
+      daysDone,
+      avgFat,
+      projecao,
       percProjecao
     }
-  }, [dailyData, totalDaysInMonth])
+  }, [daysData, totalDaysInMonth])
 
-  // Formatação de valores conforme a métrica selecionada
-  const formatVal = (val: number) => {
+  // Formatação de valores
+  const formatValue = (val: number) => {
     if (metric === 'cubagem') {
       return val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' m³'
     }
     return Math.round(val).toLocaleString('pt-BR')
   }
 
-  const formatShortVal = (val: number) => {
-    if (val >= 1_000_000) {
-      return (val / 1_000_000).toFixed(1) + 'M'
-    }
-    if (val >= 1_000) {
-      return (val / 1_000).toFixed(1) + 'k'
-    }
+  const formatShort = (val: number) => {
+    if (val >= 1_000_000) return (val / 1_000_000).toFixed(1) + 'M'
+    if (val >= 1_000) return (val / 1_000).toFixed(0) + 'k'
     return Math.round(val).toString()
   }
 
-  const metricLabel = metric === 'cubagem' ? 'Cubagem (m³)' : metric === 'pedidos' ? 'Pedidos' : 'Peças'
+  // Divisões do Eixo Y (5 linhas de grade)
+  const yAxisTicks = useMemo(() => {
+    return [
+      maxVal,
+      maxVal * 0.75,
+      maxVal * 0.5,
+      maxVal * 0.25,
+      0
+    ]
+  }, [maxVal])
 
   return (
     <div className="space-y-6">
-      {/* CABEÇALHO DO DASHBOARD ANALÍTICO COM SELETORES E KPI TOKENS */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
-              <BarChart3 size={24} />
+      {/* 1. BARRA SUPERIOR: KPI TOKENS & CONTROLES */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-mono">
+                PMT Expedição &bull; PG2
+              </span>
+              <span className="text-xs text-slate-400 font-semibold font-mono">
+                CD {cd} &bull; Mês {mes.toString().padStart(2, '0')}/{ano}
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                  PMT Expedição &bull; PG2
-                </span>
-                <span className="text-xs font-semibold text-slate-400 font-mono">
-                  CD {cd} &bull; {mes.toString().padStart(2, '0')}/{ano}
-                </span>
-              </div>
-              <h2 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                Projeções da PMT &bull; Acompanhamento Diário
-              </h2>
-            </div>
+            <h2 className="text-xl font-black text-slate-900 tracking-tight mt-1 flex items-center gap-2">
+              Projeções da PMT &bull; Linha do Tempo Diária
+            </h2>
           </div>
 
-          {/* CONTROLES: SELETOR DE MÉTRICA E ORIENTAÇÃO */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Seletor de Métrica */}
-            <div className="inline-flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/80 shadow-2xs">
-              <button
-                type="button"
-                onClick={() => setMetric('cubagem')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  metric === 'cubagem'
-                    ? 'bg-white text-blue-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Layers size={13} className={metric === 'cubagem' ? 'text-blue-600' : 'text-slate-400'} />
-                <span>Cubagem (m³)</span>
-              </button>
+          {/* Seletor de Métrica (Tabs Modernas) */}
+          <div className="inline-flex items-center p-1 bg-slate-100/90 rounded-xl border border-slate-200/80">
+            <button
+              type="button"
+              onClick={() => setMetric('cubagem')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                metric === 'cubagem'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Layers size={14} className={metric === 'cubagem' ? 'text-blue-600' : 'text-slate-400'} />
+              <span>Cubagem (m³)</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => setMetric('pedidos')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  metric === 'pedidos'
-                    ? 'bg-white text-blue-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Package size={13} className={metric === 'pedidos' ? 'text-blue-600' : 'text-slate-400'} />
-                <span>Pedidos</span>
-              </button>
+            <button
+              type="button"
+              onClick={() => setMetric('pedidos')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                metric === 'pedidos'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Package size={14} className={metric === 'pedidos' ? 'text-blue-600' : 'text-slate-400'} />
+              <span>Pedidos</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => setMetric('pecas')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  metric === 'pecas'
-                    ? 'bg-white text-blue-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Boxes size={13} className={metric === 'pecas' ? 'text-blue-600' : 'text-slate-400'} />
-                <span>Peças</span>
-              </button>
-            </div>
-
-            {/* Alternar Orientação (Horizontal / Vertical) */}
-            <div className="inline-flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/80">
-              <button
-                type="button"
-                onClick={() => setOrientation('horizontal')}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  orientation === 'horizontal'
-                    ? 'bg-white text-slate-800 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-                title="Visão de Barras Horizontais (estilo PowerBI/Dashboard com leitura dia a dia)"
-              >
-                Barras Horizontais
-              </button>
-              <button
-                type="button"
-                onClick={() => setOrientation('vertical')}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  orientation === 'vertical'
-                    ? 'bg-white text-slate-800 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-                title="Visão de Colunas Verticais (linha do tempo ao longo do mês)"
-              >
-                Colunas Verticais
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setMetric('pecas')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                metric === 'pecas'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Boxes size={14} className={metric === 'pecas' ? 'text-blue-600' : 'text-slate-400'} />
+              <span>Peças</span>
+            </button>
           </div>
         </div>
 
-        {/* CARDS RESUMO / KPIS PRINCIPAIS */}
+        {/* CARDS RESUMO DE PROJEÇÃO */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-4">
-          {/* CARD 1: PMT PLANEJADO */}
-          <div className="p-3.5 rounded-xl border border-blue-200/80 bg-gradient-to-br from-blue-50/70 to-white">
-            <div className="flex items-center justify-between text-xs font-bold text-blue-900/80 mb-1">
+          {/* Card PMT */}
+          <div className="p-3.5 rounded-xl border border-blue-100 bg-gradient-to-b from-blue-50/40 to-white">
+            <div className="flex items-center justify-between text-xs font-bold text-blue-900 mb-1">
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-blue-500" />
+                <span className="w-2.5 h-2.5 rounded-xs bg-blue-600" />
                 PMT Planejado
               </span>
               <span className="text-[10px] text-blue-600 font-mono">Meta</span>
             </div>
-            <div className="text-xl font-black text-slate-900 font-mono tracking-tight">
-              {formatVal(totals.totalPmt)}
+            <div className="text-xl font-black text-slate-900 font-mono">
+              {formatValue(totals.totalPmt)}
             </div>
-            <p className="text-[10.5px] text-slate-500 mt-0.5">
-              Volume orçado total no PMT
-            </p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Meta orçada para o mês</p>
           </div>
 
-          {/* CARD 2: LIBERADO */}
-          <div className="p-3.5 rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 to-white">
-            <div className="flex items-center justify-between text-xs font-bold text-emerald-900/80 mb-1">
+          {/* Card Liberado */}
+          <div className="p-3.5 rounded-xl border border-emerald-100 bg-gradient-to-b from-emerald-50/40 to-white">
+            <div className="flex items-center justify-between text-xs font-bold text-emerald-900 mb-1">
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
+                <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500" />
                 Liberado
               </span>
-              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                totals.percLib >= 95 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-              }`}>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded font-mono">
                 {totals.percLib.toFixed(1)}% pmt
               </span>
             </div>
-            <div className="text-xl font-black text-emerald-900 font-mono tracking-tight">
-              {formatVal(totals.totalLib)}
+            <div className="text-xl font-black text-emerald-950 font-mono">
+              {formatValue(totals.totalLib)}
             </div>
-            <p className="text-[10.5px] text-slate-500 mt-0.5">
-              Carga liberada para expedição
-            </p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Carga liberada acumulada</p>
           </div>
 
-          {/* CARD 3: FATURADO */}
-          <div className="p-3.5 rounded-xl border border-sky-200/80 bg-gradient-to-br from-sky-50/70 to-white">
-            <div className="flex items-center justify-between text-xs font-bold text-sky-900/80 mb-1">
+          {/* Card Faturado */}
+          <div className="p-3.5 rounded-xl border border-sky-100 bg-gradient-to-b from-sky-50/40 to-white">
+            <div className="flex items-center justify-between text-xs font-bold text-sky-900 mb-1">
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-sky-500" />
-                Faturado
+                <span className="w-2.5 h-2.5 rounded-xs bg-sky-500" />
+                Faturado Realizado
               </span>
-              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                totals.percFat >= 95 ? 'bg-sky-100 text-sky-800' : 'bg-slate-100 text-slate-600'
-              }`}>
+              <span className="text-[10px] font-bold text-sky-700 bg-sky-100/80 px-1.5 py-0.2 rounded font-mono">
                 {totals.percFat.toFixed(1)}% pmt
               </span>
             </div>
-            <div className="text-xl font-black text-sky-950 font-mono tracking-tight">
-              {formatVal(totals.totalFat)}
+            <div className="text-xl font-black text-sky-950 font-mono">
+              {formatValue(totals.totalFat)}
             </div>
-            <p className="text-[10.5px] text-slate-500 mt-0.5">
-              Efetivamente faturado até o momento
-            </p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Volume faturado até o momento</p>
           </div>
 
-          {/* CARD 4: PROJEÇÃO & CAPACIDADE */}
-          <div className="p-3.5 rounded-xl border border-purple-200/80 bg-gradient-to-br from-purple-50/70 to-white">
-            <div className="flex items-center justify-between text-xs font-bold text-purple-900/80 mb-1">
+          {/* Card Projeção */}
+          <div className="p-3.5 rounded-xl border border-purple-100 bg-gradient-to-b from-purple-50/40 to-white">
+            <div className="flex items-center justify-between text-xs font-bold text-purple-900 mb-1">
               <span className="flex items-center gap-1.5">
                 <TrendingUp size={13} className="text-purple-600" />
                 Projeção Fim de Mês
               </span>
-              <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded">
+              <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded font-mono">
                 {totals.percProjecao.toFixed(1)}% pmt
               </span>
             </div>
-            <div className="text-xl font-black text-purple-950 font-mono tracking-tight">
-              {formatVal(totals.projecaoFimMes)}
+            <div className="text-xl font-black text-purple-950 font-mono">
+              {formatValue(totals.projecao)}
             </div>
-            <div className="flex items-center justify-between text-[10.5px] text-slate-500 mt-0.5">
-              <span>Média: {formatShortVal(totals.avgDiariaFat)}/dia</span>
+            <div className="flex items-center justify-between text-[11px] text-slate-500 mt-0.5">
+              <span>Média: {formatShort(totals.avgFat)}/dia</span>
               {totals.totalCap > 0 && (
-                <span className="font-bold text-indigo-700">Cap: {formatShortVal(totals.totalCap)}</span>
+                <span className="font-bold text-purple-700">Cap: {formatShort(totals.totalCap)}</span>
               )}
             </div>
           </div>
         </div>
 
-        {/* LEGENDA INTERATIVA COM FILTROS DE SÉRIE */}
+        {/* FILTROS INTERATIVOS DE SÉRIES (CHIPS LIGA/DESLIGA) */}
         <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-3 border-t border-slate-100 text-xs">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold text-slate-400 uppercase font-mono mr-1">
-              Séries no Gráfico:
+              Exibir Séries:
             </span>
-            {/* Toggle Faturado */}
+
+            {/* Faturado */}
             <button
               type="button"
-              onClick={() => setShowFaturado(!showFaturado)}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
-                showFaturado
-                  ? 'bg-sky-50 border-sky-300 text-sky-700 shadow-2xs'
+              onClick={() => setVisibleSeries(s => ({ ...s, faturado: !s.faturado }))}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                visibleSeries.faturado
+                  ? 'bg-sky-50 border-sky-300 text-sky-800 shadow-2xs'
                   : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
               }`}
             >
-              <span className={`w-3 h-3 rounded-xs ${showFaturado ? 'bg-sky-500' : 'bg-slate-300'}`} />
+              <span className={`w-3 h-3 rounded-xs ${visibleSeries.faturado ? 'bg-sky-500' : 'bg-slate-300'}`} />
               <span>Faturado Realizado</span>
             </button>
 
-            {/* Toggle Liberado */}
+            {/* Liberado */}
             <button
               type="button"
-              onClick={() => setShowLiberado(!showLiberado)}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
-                showLiberado
-                  ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-2xs'
+              onClick={() => setVisibleSeries(s => ({ ...s, liberado: !s.liberado }))}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                visibleSeries.liberado
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs'
                   : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
               }`}
             >
-              <span className={`w-3 h-3 rounded-xs ${showLiberado ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+              <span className={`w-3 h-3 rounded-xs ${visibleSeries.liberado ? 'bg-emerald-500' : 'bg-slate-300'}`} />
               <span>Liberado</span>
             </button>
 
-            {/* Toggle PMT */}
+            {/* PMT */}
             <button
               type="button"
-              onClick={() => setShowPmt(!showPmt)}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
-                showPmt
-                  ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-2xs'
+              onClick={() => setVisibleSeries(s => ({ ...s, pmt: !s.pmt }))}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                visibleSeries.pmt
+                  ? 'bg-blue-50 border-blue-300 text-blue-800 shadow-2xs'
                   : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
               }`}
             >
-              <span className={`w-3 h-3 rounded-xs ${showPmt ? 'bg-blue-600' : 'bg-slate-300'}`} />
+              <span className={`w-3 h-3 rounded-xs ${visibleSeries.pmt ? 'bg-blue-600' : 'bg-slate-300'}`} />
               <span>PMT Planejado</span>
             </button>
 
-            {/* Toggle Capacidade */}
+            {/* Capacidade */}
             <button
               type="button"
-              onClick={() => setShowCapacidade(!showCapacidade)}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
-                showCapacidade
-                  ? 'bg-purple-50 border-purple-300 text-purple-700 shadow-2xs'
+              onClick={() => setVisibleSeries(s => ({ ...s, capacidade: !s.capacidade }))}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                visibleSeries.capacidade
+                  ? 'bg-purple-50 border-purple-300 text-purple-800 shadow-2xs'
                   : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
               }`}
             >
-              <span className={`w-3 h-3 rounded-xs ${showCapacidade ? 'bg-purple-500' : 'bg-slate-300'}`} />
+              <span className={`w-3 h-3 rounded-xs ${visibleSeries.capacidade ? 'bg-purple-500' : 'bg-slate-300'}`} />
               <span>Capacidade Operacional</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] text-slate-500">
-            <Info size={13} className="text-slate-400" />
-            <span>Passe o cursor sobre os dias para ver os comparativos e aderências diárias.</span>
+          <div className="flex items-center gap-2 text-[11px] text-slate-400">
+            <Info size={13} />
+            <span>Passe o cursor sobre as colunas para inspecionar os valores e aderência diária.</span>
           </div>
         </div>
       </div>
 
-      {/* ÁREA DO GRÁFICO DE BARRAS */}
-      <div className="bg-slate-900 text-slate-100 rounded-3xl p-6 shadow-xl border border-slate-800">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
+      {/* 2. CARD DO GRÁFICO PRINCIPAL EM COLUNAS VERTICAIS */}
+      <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-sm">
+        {/* Cabeçalho do Card */}
+        <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
           <div className="flex items-center gap-2.5">
-            <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
-            <h3 className="text-base font-extrabold text-white tracking-tight">
-              Gráfico Comparativo Diário &bull; {metricLabel}
+            <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+            <h3 className="text-base font-black text-slate-900 tracking-tight">
+              Acompanhamento Diário ao Longo do Mês
             </h3>
           </div>
           <div className="text-xs text-slate-400 font-mono">
-            Escala máxima: <strong className="text-sky-400">{formatVal(maxScaleValue)}</strong>
+            Métrica: <strong className="text-blue-700 font-bold">{metric === 'cubagem' ? 'Cubagem (m³)' : metric === 'pedidos' ? 'Pedidos' : 'Peças'}</strong>
           </div>
         </div>
 
-        {/* MODO 1: BARRAS HORIZONTAIS (Exatamente no estilo da imagem com barras horizontais por dia) */}
-        {orientation === 'horizontal' ? (
-          <div className="space-y-2.5 max-h-[720px] overflow-y-auto pr-2 custom-scrollbar">
-            {dailyData.map((d) => {
-              const isHovered = hoveredDay === d.dayStr
-              const widthFat = maxScaleValue > 0 ? (d.fatVal / maxScaleValue) * 100 : 0
-              const widthLib = maxScaleValue > 0 ? (d.libVal / maxScaleValue) * 100 : 0
-              const widthPmt = maxScaleValue > 0 ? (d.pmtVal / maxScaleValue) * 100 : 0
-              const widthCap = maxScaleValue > 0 ? (d.capVal / maxScaleValue) * 100 : 0
+        {/* CONTAINER DO GRÁFICO (EIXO Y + COLUNAS DO MÊS) */}
+        <div className="relative h-[420px] flex">
+          {/* Eixo Y com Ticks e Rótulos */}
+          <div className="w-14 shrink-0 h-[360px] flex flex-col justify-between items-end pr-3 border-r border-slate-200 text-[11px] font-mono text-slate-400 select-none">
+            {yAxisTicks.map((tickVal, idx) => (
+              <span key={idx} className="leading-none">
+                {formatShort(tickVal)}
+              </span>
+            ))}
+          </div>
 
-              return (
-                <div
-                  key={d.dayStr}
-                  onMouseEnter={() => setHoveredDay(d.dayStr)}
-                  onMouseLeave={() => setHoveredDay(null)}
-                  className={`p-2 rounded-xl transition-all duration-150 border ${
-                    isHovered
-                      ? 'bg-slate-800/90 border-blue-500/60 shadow-lg'
-                      : d.isWeekend
-                        ? 'bg-slate-950/40 border-slate-800/40'
-                        : 'bg-slate-800/40 border-slate-800/70 hover:bg-slate-800/70'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    {/* Indicador do Dia e Dia da Semana */}
-                    <div className="w-16 shrink-0 flex items-center justify-between font-mono">
-                      <span className="text-xs font-bold text-slate-300">{d.dateFormatted}</span>
-                      <span className={`text-[10px] font-extrabold px-1 rounded ${
-                        d.isWeekend ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-700 text-slate-300'
-                      }`}>
-                        {d.weekdayLetter}
-                      </span>
-                    </div>
+          {/* Área Plotável com Linhas de Grade e Colunas */}
+          <div className="flex-1 h-full relative pl-2 overflow-x-auto custom-scrollbar">
+            {/* Linhas de Grade Horizontais */}
+            <div className="absolute inset-0 right-0 h-[360px] flex flex-col justify-between pointer-events-none">
+              {yAxisTicks.map((_, idx) => (
+                <div 
+                  key={idx} 
+                  className={`w-full border-b ${idx === yAxisTicks.length - 1 ? 'border-slate-300' : 'border-slate-100 border-dashed'}`} 
+                />
+              ))}
+            </div>
 
-                    {/* Barras do Dia */}
-                    <div className="flex-1 space-y-1">
-                      {/* Barra Faturado (Azul Claro Vibrante - Estilo da imagem) */}
-                      {showFaturado && (
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-slate-950/60 rounded-full h-4 overflow-hidden relative border border-slate-800/60">
-                            <div
-                              className="bg-gradient-to-r from-blue-600 to-sky-400 h-full rounded-full transition-all duration-300 relative flex items-center justify-end pr-1.5"
-                              style={{ width: `${Math.max(widthFat, 0.5)}%` }}
-                            >
-                              {widthFat > 15 && (
-                                <span className="text-[10px] font-black text-white font-mono drop-shadow-xs">
-                                  {metric === 'cubagem' ? d.fatVal.toFixed(1) : Math.round(d.fatVal)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          {widthFat <= 15 && (
-                            <span className="text-[10px] font-bold text-sky-400 font-mono w-14 shrink-0">
-                              {metric === 'cubagem' ? d.fatVal.toFixed(1) : Math.round(d.fatVal)}
+            {/* Colunas dos Dias (Linha do Tempo) */}
+            <div className="h-[360px] flex items-end justify-between gap-1 relative z-10 min-w-[700px] pr-2">
+              {daysData.map((d) => {
+                const heightFat = maxVal > 0 ? (d.fatVal / maxVal) * 100 : 0
+                const heightLib = maxVal > 0 ? (d.libVal / maxVal) * 100 : 0
+                const heightPmt = maxVal > 0 ? (d.pmtVal / maxVal) * 100 : 0
+                const heightCap = maxVal > 0 ? (d.capVal / maxVal) * 100 : 0
+
+                const isHovered = hoveredDay === d.day
+                const hasData = d.fatVal > 0 || d.libVal > 0 || d.pmtVal > 0
+
+                return (
+                  <div
+                    key={d.day}
+                    onMouseEnter={() => setHoveredDay(d.day)}
+                    onMouseLeave={() => setHoveredDay(null)}
+                    className={`flex-1 h-full flex flex-col justify-end items-center relative group cursor-pointer transition-all ${
+                      isHovered ? 'z-30' : 'z-10'
+                    }`}
+                  >
+                    {/* Tooltip Flutuante no Hover */}
+                    {isHovered && (
+                      <div className="absolute -top-32 left-1/2 -translate-x-1/2 bg-slate-900 text-white rounded-xl p-3 shadow-2xl z-40 border border-slate-800 text-xs min-w-[190px] pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-700/80">
+                          <strong className="text-white font-bold">{d.weekdayName}, {d.dateFormatted}</strong>
+                          {d.aderenciaFat > 0 && (
+                            <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded font-mono ${
+                              d.aderenciaFat >= 100 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-sky-500/20 text-sky-300'
+                            }`}>
+                              {d.aderenciaFat.toFixed(0)}% pmt
                             </span>
                           )}
                         </div>
-                      )}
-
-                      {/* Barra Liberado (Verde Esmeralda) */}
-                      {showLiberado && (
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-slate-950/60 rounded-full h-2.5 overflow-hidden relative">
-                            <div
-                              className="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full rounded-full transition-all duration-300"
-                              style={{ width: `${Math.max(widthLib, 0.5)}%` }}
-                            />
-                          </div>
-                          <span className="text-[9px] font-mono text-emerald-400/90 w-14 shrink-0">
-                            lib: {metric === 'cubagem' ? d.libVal.toFixed(0) : Math.round(d.libVal)}
-                          </span>
+                        <div className="space-y-1 font-mono text-[11px]">
+                          {visibleSeries.faturado && (
+                            <div className="flex justify-between text-sky-400">
+                              <span>Faturado:</span>
+                              <strong className="text-white">{formatValue(d.fatVal)}</strong>
+                            </div>
+                          )}
+                          {visibleSeries.liberado && (
+                            <div className="flex justify-between text-emerald-400">
+                              <span>Liberado:</span>
+                              <strong className="text-white">{formatValue(d.libVal)}</strong>
+                            </div>
+                          )}
+                          {visibleSeries.pmt && (
+                            <div className="flex justify-between text-blue-400">
+                              <span>PMT:</span>
+                              <strong className="text-white">{formatValue(d.pmtVal)}</strong>
+                            </div>
+                          )}
+                          {visibleSeries.capacidade && d.capVal > 0 && (
+                            <div className="flex justify-between text-purple-400">
+                              <span>Capacidade:</span>
+                              <strong className="text-white">{formatValue(d.capVal)}</strong>
+                            </div>
+                          )}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Fundo de destaque ao passar o mouse ou finais de semana */}
+                    <div 
+                      className={`absolute inset-x-0 bottom-0 top-0 rounded-lg pointer-events-none transition-colors ${
+                        isHovered 
+                          ? 'bg-blue-50/80' 
+                          : d.isWeekend 
+                            ? 'bg-slate-50/70' 
+                            : 'hover:bg-slate-50/50'
+                      }`} 
+                    />
+
+                    {/* Grupo de Colunas Verticais por Dia */}
+                    <div className="w-full h-full flex items-end justify-center gap-0.5 relative z-10 px-0.5">
+                      {/* 1. Coluna PMT (Azul Marinho / Escuro) */}
+                      {visibleSeries.pmt && (
+                        <div
+                          className="w-1.5 sm:w-2 bg-blue-600/80 hover:bg-blue-600 rounded-t-sm transition-all duration-300"
+                          style={{ height: `${Math.max(heightPmt, hasData ? 1 : 0)}%` }}
+                        />
                       )}
 
-                      {/* Barra PMT Planejado (Azul Escuro / Linha Guia) */}
-                      {showPmt && (
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-slate-950/60 rounded-full h-2 overflow-hidden relative">
-                            <div
-                              className="bg-indigo-500/70 h-full rounded-full transition-all duration-300"
-                              style={{ width: `${Math.max(widthPmt, 0.5)}%` }}
-                            />
-                          </div>
-                          <span className="text-[9px] font-mono text-indigo-300/80 w-14 shrink-0">
-                            pmt: {metric === 'cubagem' ? d.pmtVal.toFixed(0) : Math.round(d.pmtVal)}
-                          </span>
-                        </div>
+                      {/* 2. Coluna Liberado (Verde Esmeralda) */}
+                      {visibleSeries.liberado && (
+                        <div
+                          className="w-1.5 sm:w-2 bg-emerald-500/90 hover:bg-emerald-500 rounded-t-sm transition-all duration-300"
+                          style={{ height: `${Math.max(heightLib, hasData ? 1 : 0)}%` }}
+                        />
                       )}
 
-                      {/* Barra Capacidade Operacional */}
-                      {showCapacidade && d.capVal > 0 && (
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-slate-950/60 rounded-full h-2 overflow-hidden relative">
-                            <div
-                              className="bg-purple-500/70 h-full rounded-full transition-all duration-300"
-                              style={{ width: `${Math.max(widthCap, 0.5)}%` }}
-                            />
-                          </div>
-                          <span className="text-[9px] font-mono text-purple-300/80 w-14 shrink-0">
-                            cap: {metric === 'cubagem' ? d.capVal.toFixed(0) : Math.round(d.capVal)}
-                          </span>
-                        </div>
+                      {/* 3. Coluna Faturado (Azul Claro Vibrante com Sombra Suave) */}
+                      {visibleSeries.faturado && (
+                        <div
+                          className="w-2 sm:w-2.5 bg-gradient-to-t from-sky-600 to-sky-400 hover:to-sky-300 rounded-t-sm transition-all duration-300 shadow-2xs"
+                          style={{ height: `${Math.max(heightFat, hasData ? 1 : 0)}%` }}
+                        />
                       )}
-                    </div>
 
-                    {/* Aderência Percentual */}
-                    <div className="w-18 shrink-0 text-right">
-                      {d.pmtVal > 0 && d.fatVal > 0 ? (
-                        <span className={`text-[11px] font-black px-1.5 py-0.5 rounded font-mono ${
-                          d.aderenciaFat >= 100
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                            : d.aderenciaFat >= 85
-                              ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
-                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                        }`}>
-                          {d.aderenciaFat.toFixed(0)}%
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-500 font-mono">-</span>
+                      {/* 4. Coluna Capacidade (Roxo) */}
+                      {visibleSeries.capacidade && d.capVal > 0 && (
+                        <div
+                          className="w-1.5 sm:w-2 bg-purple-500/80 hover:bg-purple-500 rounded-t-sm transition-all duration-300"
+                          style={{ height: `${Math.max(heightCap, hasData ? 1 : 0)}%` }}
+                        />
                       )}
                     </div>
                   </div>
+                )
+              })}
+            </div>
 
-                  {/* Detalhe expandido no Hover do dia */}
-                  {isHovered && (
-                    <div className="mt-2 pt-2 border-t border-slate-700/80 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] bg-slate-900/90 rounded-lg p-2 animate-in fade-in duration-150">
-                      <div>
-                        <span className="text-slate-400 block text-[10px]">Data:</span>
-                        <strong className="text-white">{d.weekdayName}, {d.dateFormatted}</strong>
-                      </div>
-                      <div>
-                        <span className="text-sky-400 block text-[10px]">Faturado Realizado:</span>
-                        <strong className="text-sky-300 font-mono">{formatVal(d.fatVal)}</strong>
-                      </div>
-                      <div>
-                        <span className="text-emerald-400 block text-[10px]">Liberado:</span>
-                        <strong className="text-emerald-300 font-mono">{formatVal(d.libVal)}</strong>
-                      </div>
-                      <div>
-                        <span className="text-indigo-400 block text-[10px]">PMT Planejado:</span>
-                        <strong className="text-indigo-200 font-mono">{formatVal(d.pmtVal)}</strong>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          /* MODO 2: COLUNAS VERTICAIS */
-          <div className="h-80 flex items-end gap-1.5 pt-6 pb-2 overflow-x-auto custom-scrollbar">
-            {dailyData.map((d) => {
-              const heightFat = maxScaleValue > 0 ? (d.fatVal / maxScaleValue) * 100 : 0
-              const heightLib = maxScaleValue > 0 ? (d.libVal / maxScaleValue) * 100 : 0
-              const heightPmt = maxScaleValue > 0 ? (d.pmtVal / maxScaleValue) * 100 : 0
-              const isHovered = hoveredDay === d.dayStr
-
-              return (
-                <div
-                  key={d.dayStr}
-                  onMouseEnter={() => setHoveredDay(d.dayStr)}
-                  onMouseLeave={() => setHoveredDay(null)}
-                  className={`flex-1 min-w-[28px] max-w-[42px] h-full flex flex-col justify-end items-center group relative cursor-pointer ${
-                    isHovered ? 'scale-105 z-20' : ''
-                  }`}
-                >
-                  {/* Tooltip Hover no modo vertical */}
-                  {isHovered && (
-                    <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-700 text-white rounded-lg p-2 shadow-2xl z-30 whitespace-nowrap text-[10px] space-y-0.5">
-                      <div className="font-bold text-sky-300">{d.dateFormatted} ({d.weekdayLetter})</div>
-                      <div>Fat: <strong className="font-mono text-white">{formatVal(d.fatVal)}</strong></div>
-                      <div>Pmt: <strong className="font-mono text-slate-300">{formatVal(d.pmtVal)}</strong></div>
-                    </div>
-                  )}
-
-                  {/* Barras Lado a Lado ou Sobrepostas */}
-                  <div className="w-full h-full flex items-end justify-center gap-0.5">
-                    {/* Barra PMT */}
-                    {showPmt && (
-                      <div
-                        className="w-1.5 bg-indigo-500/60 rounded-t-sm transition-all duration-300"
-                        style={{ height: `${Math.max(heightPmt, 2)}%` }}
-                        title={`PMT: ${formatVal(d.pmtVal)}`}
-                      />
-                    )}
-
-                    {/* Barra Liberado */}
-                    {showLiberado && (
-                      <div
-                        className="w-2 bg-emerald-500/80 rounded-t-sm transition-all duration-300"
-                        style={{ height: `${Math.max(heightLib, 2)}%` }}
-                        title={`Liberado: ${formatVal(d.libVal)}`}
-                      />
-                    )}
-
-                    {/* Barra Faturado */}
-                    {showFaturado && (
-                      <div
-                        className="w-3 bg-gradient-to-t from-blue-600 to-sky-400 rounded-t-sm transition-all duration-300"
-                        style={{ height: `${Math.max(heightFat, 2)}%` }}
-                        title={`Faturado: ${formatVal(d.fatVal)}`}
-                      />
-                    )}
-                  </div>
-
-                  {/* Eixo X: Dia */}
-                  <div className="pt-2 text-[10px] font-mono text-slate-400 text-center border-t border-slate-800 w-full mt-1">
-                    <span className={d.isWeekend ? 'text-amber-400 font-bold' : ''}>
+            {/* Eixo X: Dias do Mês e Dia da Semana */}
+            <div className="flex items-center justify-between gap-1 min-w-[700px] pt-2 border-t border-slate-300 pr-2">
+              {daysData.map((d) => {
+                const isHovered = hoveredDay === d.day
+                return (
+                  <div 
+                    key={d.day}
+                    onMouseEnter={() => setHoveredDay(d.day)}
+                    onMouseLeave={() => setHoveredDay(null)}
+                    className="flex-1 flex flex-col items-center justify-center font-mono cursor-pointer"
+                  >
+                    <span className={`text-[9px] font-bold ${
+                      isHovered ? 'text-blue-700' : d.isWeekend ? 'text-amber-600 font-extrabold' : 'text-slate-400'
+                    }`}>
+                      {d.weekdayLetter}
+                    </span>
+                    <span className={`text-[11px] font-bold ${
+                      isHovered 
+                        ? 'text-blue-700 scale-110 font-black' 
+                        : d.isWeekend 
+                          ? 'text-slate-800' 
+                          : 'text-slate-700'
+                    }`}>
                       {d.dayStr}
                     </span>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
-        )}
+        </div>
 
-        {/* Eixo Inferior de Escala (0 até 1 mil / Máximo) */}
-        <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400">
-          <span>0</span>
-          <span>{formatShortVal(maxScaleValue * 0.25)}</span>
-          <span>{formatShortVal(maxScaleValue * 0.5)}</span>
-          <span>{formatShortVal(maxScaleValue * 0.75)}</span>
-          <span className="text-sky-400 font-bold">{formatShortVal(maxScaleValue)}</span>
+        {/* 3. TABELA ANALÍTICA RÁPIDA DE FECHAMENTO DOS DIAS */}
+        <div className="mt-8 pt-6 border-t border-slate-100">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Calendar size={15} className="text-slate-400" />
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider font-mono">
+                Detalhamento dos Dias Realizados
+              </h4>
+            </div>
+            <span className="text-[11px] text-slate-400 font-mono">
+              Total de dias com faturamento: <strong className="text-blue-700">{totals.daysDone}</strong> de {totalDaysInMonth}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                  <th className="py-2.5 px-3">Data</th>
+                  <th className="py-2.5 px-3">Dia</th>
+                  <th className="py-2.5 px-3 text-right text-blue-700">PMT Planejado</th>
+                  <th className="py-2.5 px-3 text-right text-emerald-700">Liberado</th>
+                  <th className="py-2.5 px-3 text-right text-sky-700">Faturado</th>
+                  <th className="py-2.5 px-3 text-right text-purple-700">Capacidade</th>
+                  <th className="py-2.5 px-3 text-right">Aderência (Fat x PMT)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-mono text-[11.5px]">
+                {daysData.filter(d => d.fatVal > 0 || d.libVal > 0).map((d) => (
+                  <tr 
+                    key={d.day} 
+                    className={`hover:bg-blue-50/40 transition-colors ${d.isWeekend ? 'bg-slate-50/50' : ''}`}
+                  >
+                    <td className="py-2 px-3 font-bold text-slate-800">{d.dateFormatted}</td>
+                    <td className="py-2 px-3">
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold ${
+                        d.isWeekend ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
+                      }`}>
+                        {d.weekdayName}
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 text-right text-slate-600">{formatValue(d.pmtVal)}</td>
+                    <td className="py-2 px-3 text-right text-emerald-700 font-semibold">{formatValue(d.libVal)}</td>
+                    <td className="py-2 px-3 text-right text-sky-700 font-bold">{formatValue(d.fatVal)}</td>
+                    <td className="py-2 px-3 text-right text-purple-700">{d.capVal > 0 ? formatValue(d.capVal) : '-'}</td>
+                    <td className="py-2 px-3 text-right">
+                      {d.pmtVal > 0 && d.fatVal > 0 ? (
+                        <span className={`px-2 py-0.5 rounded text-[10.5px] font-extrabold ${
+                          d.aderenciaFat >= 100
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : d.aderenciaFat >= 85
+                              ? 'bg-sky-100 text-sky-800'
+                              : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {d.aderenciaFat.toFixed(1)}%
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
