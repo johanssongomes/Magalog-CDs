@@ -539,9 +539,15 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                       {/* 3. Coluna Faturado (Azul Claro Vibrante com Sombra Suave) */}
                       {visibleSeries.faturado && (
                         <div
-                          className="w-2 sm:w-2.5 bg-gradient-to-t from-sky-600 to-sky-400 hover:to-sky-300 rounded-t-sm transition-all duration-300 shadow-2xs"
+                          className="relative w-2 sm:w-2.5 bg-gradient-to-t from-sky-600 to-sky-400 hover:to-sky-300 rounded-t-sm transition-all duration-300 shadow-2xs"
                           style={{ height: `${Math.max(heightFat, hasData ? 1 : 0)}%` }}
-                        />
+                        >
+                          {d.fatVal > 0 && (
+                            <span className="absolute bottom-1 left-1/2 -translate-x-1/2 [writing-mode:vertical-rl] rotate-180 text-[8px] font-bold font-mono text-white whitespace-nowrap">
+                              {formatShort(d.fatVal)}
+                            </span>
+                          )}
+                        </div>
                       )}
 
                     </div>
@@ -584,6 +590,13 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                     {P.map(p => (
                       <div key={p.d.day} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
                         <div className={`rounded-full ${s.dot} border-2 border-white shadow ${hoveredDay === p.d.day ? 'w-3 h-3' : 'w-2 h-2'} transition-all`} />
+                        <span
+                          className={`absolute left-1/2 -translate-x-1/2 text-[8px] font-bold font-mono whitespace-nowrap px-0.5 rounded bg-white/80 ${
+                            s.key === 'pmt' ? '-top-4 text-blue-700' : 'top-2.5 text-emerald-700'
+                          } ${hoveredDay === p.d.day ? 'scale-125 z-10' : ''}`}
+                        >
+                          {formatShort(p.v)}
+                        </span>
                       </div>
                     ))}
                   </div>
