@@ -357,7 +357,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         const resolvedColabId = colabInfo?.id || (isInitialAdmin ? '169959' : data.colaborador_id || knownUser?.colaborador_id || knownUser?.id || data.id)
-        
+
         let resolvedRole = data.role
         if (!resolvedRole || resolvedRole.toLowerCase() === 'colaborador') {
           if (isInitialAdmin) {
@@ -383,8 +383,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ? knownUser.allowed_pages
             : getDefaultPagesForCargo(resolvedCargo)
 
+        // Resolução sólida do Nome: nunca exibe apenas login/email prefix se houver nome completo cadastrado
+        let resolvedName = data.name || colabInfo?.contratado || knownUser?.name
+        if (!resolvedName || resolvedName.trim().toLowerCase() === cleanEmail.split('@')[0].toLowerCase() || resolvedName.trim().toLowerCase() === cleanEmail) {
+          if (colabInfo?.contratado) {
+            resolvedName = colabInfo.contratado
+          } else if (knownUser?.name && knownUser.name.toLowerCase() !== cleanEmail.split('@')[0].toLowerCase()) {
+            resolvedName = knownUser.name
+          } else if (cleanEmail === 'johansson.gomes@magazineluiza.com.br' || cleanEmail === 'joh_gomes@magalog.com.br') {
+            resolvedName = 'JOHANSSON MARTINS DE MENESES GOMES'
+          }
+        }
+
         const enriched: AppUserProfile = {
           ...data,
+          name: resolvedName || data.name || cleanEmail.split('@')[0],
           avatar_url: finalAvatar,
           bio: data.bio || extraProfile?.bio,
           phone: data.phone || extraProfile?.phone,
@@ -415,10 +428,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const colabInfo = findColaboradorMatch(cleanEmail, knownUser?.name, knownUser?.colaborador_id)
 
-      const isInitialAdmin = cleanEmail.includes('admin') || cleanEmail.includes('joh_gomes') || cleanEmail === 'johansson.gomes@magazineluiza.com.br'
+      const isMasterAdmin = cleanEmail === 'johansson.gomes@magazineluiza.com.br' || cleanEmail === 'joh_gomes@magalog.com.br'
+      const isInitialAdmin = isMasterAdmin || cleanEmail.includes('admin')
       const determinedCargo = colabInfo?.cargo || knownUser?.cargo || (isInitialAdmin ? 'COORDENADOR LOGISTICA' : 'Colaborador')
       const determinedRole = isInitialAdmin ? 'admin' : (knownUser?.role ? mapCargoToValidRole(knownUser.role) : mapCargoToValidRole(determinedCargo))
       const determinedPages = knownUser?.allowed_pages || getDefaultPagesForCargo(determinedCargo)
+      const determinedName = isMasterAdmin ? 'JOHANSSON MARTINS DE MENESES GOMES' : (colabInfo?.contratado || knownUser?.name || cleanEmail.split('@')[0])
 
       const fallbackAvatar = knownUser?.avatar_url || cachedAvatar || undefined
       if (fallbackAvatar) setStoredAvatar(cleanEmail, fallbackAvatar)
@@ -428,7 +443,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user_id: authUserId,
         colaborador_id: colabInfo?.id || knownUser?.colaborador_id || knownUser?.id || authUserId,
         email: cleanEmail,
-        name: knownUser?.name || cleanEmail.split('@')[0],
+        name: determinedName,
         cargo: determinedCargo,
         role: determinedRole,
         allowed_pages: determinedPages,
@@ -442,14 +457,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(fallbackUser)
     } catch (err) {
       console.warn('Erro ao carregar perfil:', err)
-      const isInitialAdmin = cleanEmail.includes('admin') || cleanEmail.includes('joh_gomes') || cleanEmail === 'johansson.gomes@magazineluiza.com.br'
+      const isMasterAdmin = cleanEmail === 'johansson.gomes@magazineluiza.com.br' || cleanEmail === 'joh_gomes@magalog.com.br'
+      const isInitialAdmin = isMasterAdmin || cleanEmail.includes('admin')
       const fallbackRole = isInitialAdmin ? 'admin' : 'colaborador'
       setUser({
         id: authUserId,
         email: cleanEmail,
-        name: cleanEmail.split('@')[0],
+        name: isMasterAdmin ? 'JOHANSSON MARTINS DE MENESES GOMES' : cleanEmail.split('@')[0],
         role: fallbackRole,
-        cargo: isInitialAdmin ? 'Administrador' : 'Colaborador',
+        cargo: isInitialAdmin ? 'COORDENADOR LOGISTICA' : 'Colaborador',
         allowed_pages: DEFAULT_ROLE_PAGES[fallbackRole],
         avatar_url: cachedAvatar || undefined,
         active: true
@@ -492,6 +508,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (parsed.email && !parsed.avatar_url) {
           const cached = getStoredAvatar(parsed.email)
           if (cached) parsed.avatar_url = cached
+        }
+        const cleanMail = (parsed.email || '').trim().toLowerCase()
+        if (cleanMail === 'johansson.gomes@magazineluiza.com.br' || cleanMail === 'joh_gomes@magalog.com.br') {
+          parsed.name = 'JOHANSSON MARTINS DE MENESES GOMES'
+          parsed.cargo = 'COORDENADOR LOGISTICA'
+          parsed.role = 'admin'
         }
         setUser(parsed)
         setLoading(false)
@@ -572,12 +594,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const resolvedCargo = colabInfo?.cargo || (row.cargo && row.cargo.toLowerCase() !== 'colaborador' ? row.cargo : (currentObj.cargo && currentObj.cargo.toLowerCase() !== 'colaborador' ? currentObj.cargo : (row.cargo || row.role || 'Colaborador')))
               const resolvedRole = (row.role && row.role.toLowerCase() !== 'colaborador') ? row.role : (resolvedCargo && resolvedCargo.toLowerCase() !== 'colaborador' ? mapCargoToValidRole(resolvedCargo) : (row.role || 'colaborador'))
 
+              const resolvedName = (colabInfo?.contratado && row.name && row.name.toLowerCase() === row.email.split('@')[0].toLowerCase())
+                ? colabInfo.contratado
+                : (row.name || colabInfo?.contratado || currentObj.name)
+
               const newProf: AppUserProfile = {
                 id: row.id,
                 user_id: row.user_id || currentObj.user_id,
                 colaborador_id: colabInfo?.id || row.colaborador_id || currentObj.colaborador_id,
                 email: row.email,
-                name: row.name,
+                name: resolvedName,
                 role: resolvedRole as UserRole,
                 cargo: resolvedCargo,
                 allowed_pages: row.allowed_pages || currentObj.allowed_pages || [],
@@ -640,12 +666,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const resolvedCargo = colabInfo?.cargo || (latest.cargo && latest.cargo.toLowerCase() !== 'colaborador' ? latest.cargo : (u.cargo && u.cargo.toLowerCase() !== 'colaborador' ? u.cargo : (latest.cargo || latest.role || 'Colaborador')))
             const resolvedRole = (latest.role && latest.role.toLowerCase() !== 'colaborador') ? latest.role : (resolvedCargo && resolvedCargo.toLowerCase() !== 'colaborador' ? mapCargoToValidRole(resolvedCargo) : (latest.role || 'colaborador'))
 
+            const resolvedName = (colabInfo?.contratado && latest.name && latest.name.toLowerCase() === latest.email.split('@')[0].toLowerCase())
+              ? colabInfo.contratado
+              : (latest.name || colabInfo?.contratado || u.name)
+
             const newProf: AppUserProfile = {
               id: latest.id,
               user_id: latest.user_id || u.user_id,
               colaborador_id: colabInfo?.id || latest.colaborador_id || u.colaborador_id,
               email: latest.email,
-              name: latest.name,
+              name: resolvedName,
               role: resolvedRole as UserRole,
               cargo: resolvedCargo,
               allowed_pages: latest.allowed_pages || u.allowed_pages || [],
