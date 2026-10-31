@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { 
-  useAuth, 
-  type AppUserProfile, 
-  type UserRole, 
+import {
+  useAuth,
+  type AppUserProfile,
+  type UserRole,
   type ColaboradorData,
   LISTA_AREAS_OPCOES,
   LISTA_SITUACAO_SISTEMA_OPCOES,
@@ -16,16 +16,16 @@ import { OnlineUsersModal } from './OnlineUsersModal'
 import initialUsersData from '../data/initialUsers.json'
 import initialColaboradoresData from '../data/initialColaboradores.json'
 import * as XLSX from 'xlsx'
-import { 
-  Users, 
-  ShieldCheck, 
-  UserPlus, 
-  Search, 
-  Check, 
-  X, 
-  Edit2, 
-  Trash2, 
-  CheckCircle2, 
+import {
+  Users,
+  ShieldCheck,
+  UserPlus,
+  Search,
+  Check,
+  X,
+  Edit2,
+  Trash2,
+  CheckCircle2,
   AlertCircle,
   LayoutDashboard,
   Zap,
@@ -276,8 +276,8 @@ export const UsersManagementPage: React.FC = () => {
                   allowed_pages: localItem.allowed_pages !== undefined ? localItem.allowed_pages : u.allowed_pages,
                   allowed_subpages: localItem.allowed_subpages !== undefined ? localItem.allowed_subpages : u.allowed_subpages,
                   active: localItem.active !== undefined ? localItem.active : u.active,
-                  dados_colaborador: { 
-                    ...(u.dados_colaborador || {}), 
+                  dados_colaborador: {
+                    ...(u.dados_colaborador || {}),
                     ...(localItem.dados_colaborador || {}),
                     area: mergedArea
                   }
@@ -287,14 +287,14 @@ export const UsersManagementPage: React.FC = () => {
             })
           }
         }
-      } catch {}
+      } catch { }
 
       // Carregar lista de IDs excluídos armazenados localmente e no banco
       let deletedIds: string[] = []
       try {
         const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
         if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
-      } catch {}
+      } catch { }
 
       // 1. Tentar sincronizar em paralelo do Supabase app_users, colaboradores e perfis extras (subpáginas)
       const [appUsersRes, colabRes, extraProfilesRes] = await Promise.all([
@@ -312,7 +312,7 @@ export const UsersManagementPage: React.FC = () => {
           try {
             const emailKey = row.cell_key.replace('_user_extra_profile_', '').trim().toLowerCase()
             extraProfilesMap.set(emailKey, JSON.parse(row.value))
-          } catch {}
+          } catch { }
         })
       }
 
@@ -364,11 +364,11 @@ export const UsersManagementPage: React.FC = () => {
           const dbColab = colabMapById.get(targetColabId) || colabMapByLogin.get(loginPrefix)
 
           // Precedência: Se o colaborador existe no Supabase colaboradores, o valor dele (mesmo que vazio/desmarcado) tem prioridade absoluta!
-          const finalArea = dbColab 
+          const finalArea = dbColab
             ? (dbColab.area || '')
             : ((dbItem?.dados_colaborador as any)?.area || (dbItem as any)?.area || (u as any).area || u.dados_colaborador?.area || '')
 
-          const finalDadosColaborador = dbColab 
+          const finalDadosColaborador = dbColab
             ? { ...(u.dados_colaborador || {}), ...dbColab, area: finalArea }
             : { ...(u.dados_colaborador || {}), area: finalArea }
 
@@ -409,10 +409,10 @@ export const UsersManagementPage: React.FC = () => {
         dbData.forEach(d => {
           const colab = findColaboradorInSpreadsheet(d.email, d.name)
           const targetId = colab?.id || d.colaborador_id || d.id
-          
+
           // Se já existe um colaborador com esse mesmo ID ou e-mail, NÃO duplica na tabela
-          const alreadyExists = mergedList.some(m => 
-            (m.id && targetId && m.id === targetId) || 
+          const alreadyExists = mergedList.some(m =>
+            (m.id && targetId && m.id === targetId) ||
             (m.email?.toLowerCase() === d.email?.toLowerCase())
           )
 
@@ -460,8 +460,8 @@ export const UsersManagementPage: React.FC = () => {
           const loginPrefix = (u.email || '').split('@')[0].toLowerCase().trim()
           const dbColab = colabMapById.get(targetColabId) || colabMapByLogin.get(loginPrefix)
           const finalArea = dbColab?.area || (u as any).area || u.dados_colaborador?.area || ''
-          return dbColab 
-            ? { ...u, area: finalArea, dados_colaborador: { ...(u.dados_colaborador || {}), ...dbColab, area: finalArea } } 
+          return dbColab
+            ? { ...u, area: finalArea, dados_colaborador: { ...(u.dados_colaborador || {}), ...dbColab, area: finalArea } }
             : { ...u, area: finalArea }
         })
         setUsers(mergedList)
@@ -563,7 +563,7 @@ export const UsersManagementPage: React.FC = () => {
               return u
             })
             if (changed) {
-              try { localStorage.setItem('magalog_users_list', JSON.stringify(next)) } catch {}
+              try { localStorage.setItem('magalog_users_list', JSON.stringify(next)) } catch { }
             }
             return changed ? next : prev
           })
@@ -761,7 +761,7 @@ export const UsersManagementPage: React.FC = () => {
         }
 
         let { error: upsertErr } = await supabase.from('app_users').upsert([payloadSupabase], { onConflict: 'email' })
-        
+
         // Se a coluna allowed_subpages ou qualquer outra coluna não existir no schema do Supabase, retira e tenta salvar o essencial
         if (upsertErr) {
           console.warn('Tentando salvar app_users com campos essenciais:', upsertErr.message)
@@ -787,7 +787,7 @@ export const UsersManagementPage: React.FC = () => {
           .maybeSingle()
         let parsedExtra: any = {}
         if (existingExtra?.value) {
-          try { parsedExtra = JSON.parse(existingExtra.value) } catch {}
+          try { parsedExtra = JSON.parse(existingExtra.value) } catch { }
         }
         parsedExtra.allowed_subpages = sanitizedAllowedSubpages || []
         await supabase
@@ -860,7 +860,7 @@ export const UsersManagementPage: React.FC = () => {
           })
           localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(cleaned))
         }
-      } catch {}
+      } catch { }
 
       // Atualiza o cache do Quadro TT em tempo real e dispara evento de sincronização instantânea
       try {
@@ -881,13 +881,13 @@ export const UsersManagementPage: React.FC = () => {
           }
           localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedQuadro))
         }
-      } catch {}
+      } catch { }
 
       try {
         window.dispatchEvent(new CustomEvent('magalog_users_updated', {
           detail: { action: editingUser ? 'update' : 'create', id: finalId, colaborador: updatedColaborador }
         }))
-      } catch {}
+      } catch { }
 
       // Se o usuário editado for o próprio usuário atualmente conectado, atualiza a sessão imediatamente
       if (currentUser && (currentUser.email?.toLowerCase() === finalEmail || currentUser.id === finalId)) {
@@ -905,15 +905,15 @@ export const UsersManagementPage: React.FC = () => {
             key: 'magalog_admin_session',
             newValue: JSON.stringify(sessionUpdate)
           }))
-        } catch {}
+        } catch { }
       }
 
       // Recarrega todos os dados do Supabase para garantir que a tela e o cache fiquem sincronizados com o banco
       await fetchUsers()
 
-      setMessage({ 
-        text: editingUser ? 'Perfil e permissões do usuário atualizados com sucesso!' : 'Novo usuário cadastrado com sucesso!', 
-        type: 'success' 
+      setMessage({
+        text: editingUser ? 'Perfil e permissões do usuário atualizados com sucesso!' : 'Novo usuário cadastrado com sucesso!',
+        type: 'success'
       })
       setIsModalOpen(false)
     } catch (err: any) {
@@ -964,7 +964,7 @@ export const UsersManagementPage: React.FC = () => {
           })
           localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedQuadro))
         }
-      } catch {}
+      } catch { }
 
       // 3. Atualizar no Banco Supabase (colaboradores) para refletir para todos os computadores
       if (targetId) {
@@ -972,11 +972,11 @@ export const UsersManagementPage: React.FC = () => {
         const cargoNome = u.cargo || u.role || u.dados_colaborador?.cargo || 'CONFERENTE'
         const centroDeCusto = u.dados_colaborador?.centroDeCusto || 'OPERACIONAL'
         const loginStr = u.dados_colaborador?.login || (targetEmail ? targetEmail.split('@')[0].toUpperCase() : '')
-        
+
         // Tenta update no registro existente
         const { data: updatedRows, error: updError } = await supabase
           .from('colaboradores')
-          .update({ 
+          .update({
             area: newArea,
             updated_at: new Date().toISOString()
           })
@@ -1015,7 +1015,7 @@ export const UsersManagementPage: React.FC = () => {
         window.dispatchEvent(new CustomEvent('magalog_users_updated', {
           detail: { action: 'update', id: targetId, area: newArea }
         }))
-      } catch {}
+      } catch { }
 
       // Se for o próprio usuário logado, atualiza sessão
       if (currentUser && (currentUser.email?.toLowerCase() === targetEmail || currentUser.id === targetId)) {
@@ -1030,7 +1030,7 @@ export const UsersManagementPage: React.FC = () => {
             key: 'magalog_admin_session',
             newValue: JSON.stringify(sessionUpdate)
           }))
-        } catch {}
+        } catch { }
       }
     } catch (err) {
       console.error('Erro ao atualizar área rapidamente:', err)
@@ -1061,7 +1061,7 @@ export const UsersManagementPage: React.FC = () => {
         if (targetId && !currentDeleted.includes(targetId)) currentDeleted.push(targetId)
         if (targetEmail && !currentDeleted.includes(targetEmail)) currentDeleted.push(targetEmail)
         localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(currentDeleted))
-      } catch {}
+      } catch { }
 
       // 3. Deletar do Supabase (app_users e colaboradores) e sincronizar lista global de excluídos
       try {
@@ -1100,12 +1100,12 @@ export const UsersManagementPage: React.FC = () => {
           const updatedQuadro = quadroList.filter((c: any) => String(c.id || '').trim().toLowerCase() !== normTargetId)
           localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedQuadro))
         }
-      } catch {}
+      } catch { }
 
       // 5. Dispara evento customizado para atualização instantânea em componentes na mesma janela
       try {
         window.dispatchEvent(new CustomEvent('magalog_users_updated', { detail: { action: 'delete', id: targetId, email: targetEmail } }))
-      } catch {}
+      } catch { }
 
       setMessage({ text: `Usuário "${u.name}" removido com sucesso.`, type: 'success' })
     } catch (err: any) {
@@ -1269,9 +1269,9 @@ export const UsersManagementPage: React.FC = () => {
 
         if (parsed.length === 0) {
           if (duplicatesBlocked > 0) {
-            setBulkFeedback({ 
-              type: 'warning', 
-              message: `Todos os ${duplicatesBlocked} registros da planilha foram ignorados por já estarem cadastrados no sistema (IDs ou e-mails já existentes). Nenhum dado duplicado foi importado.` 
+            setBulkFeedback({
+              type: 'warning',
+              message: `Todos os ${duplicatesBlocked} registros da planilha foram ignorados por já estarem cadastrados no sistema (IDs ou e-mails já existentes). Nenhum dado duplicado foi importado.`
             })
           } else {
             setBulkFeedback({ type: 'error', message: 'Não foi possível encontrar colunas válidas na planilha.' })
@@ -1368,7 +1368,7 @@ export const UsersManagementPage: React.FC = () => {
           })
           localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(cleaned))
         }
-      } catch {}
+      } catch { }
 
       // 4. Sincronizar cache local magalog_quadro_colaboradores para a Gestão 360°
       try {
@@ -1383,14 +1383,14 @@ export const UsersManagementPage: React.FC = () => {
           mergedQuadro = Array.from(colabMap.values())
         }
         localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(mergedQuadro))
-      } catch {}
+      } catch { }
 
       // 5. Dispara evento customizado para atualização instantânea em tempo real em todas as abas e componentes
       try {
         window.dispatchEvent(new CustomEvent('magalog_users_updated', {
           detail: { action: 'bulk_import', count: bulkParsedData.length }
         }))
-      } catch {}
+      } catch { }
 
       await fetchUsers()
 
@@ -1417,7 +1417,7 @@ export const UsersManagementPage: React.FC = () => {
   const filteredUsers = users.filter(u => {
     const userArea = (u.dados_colaborador?.area || (u as any).area || '').trim()
 
-    const matchesSearch = 
+    const matchesSearch =
       (u.name || '').toLowerCase().includes(search.toLowerCase()) ||
       (u.email || '').toLowerCase().includes(search.toLowerCase()) ||
       (u.cargo || u.role || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -1516,9 +1516,8 @@ export const UsersManagementPage: React.FC = () => {
 
       {/* Alerta de Feedback */}
       {message && (
-        <div className={`p-4 rounded-xl flex items-center justify-between text-xs font-medium ${
-          message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
-        }`}>
+        <div className={`p-4 rounded-xl flex items-center justify-between text-xs font-medium ${message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
+          }`}>
           <div className="flex items-center gap-2">
             {message.type === 'success' ? <CheckCircle2 size={16} className="text-emerald-600" /> : <AlertCircle size={16} className="text-rose-600" />}
             <span>{message.text}</span>
@@ -1687,11 +1686,10 @@ export const UsersManagementPage: React.FC = () => {
                             <select
                               value={currentArea}
                               onChange={(e) => handleQuickChangeArea(u, e.target.value)}
-                              className={`w-full rounded-lg px-2.5 py-1 text-[11px] font-bold outline-none cursor-pointer transition-all shadow-2xs border ${
-                                isFilled
+                              className={`w-full rounded-lg px-2.5 py-1 text-[11px] font-bold outline-none cursor-pointer transition-all shadow-2xs border ${isFilled
                                   ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100/70 focus:border-emerald-500 focus:bg-emerald-100/50'
                                   : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100/70 focus:border-rose-500 focus:bg-rose-100/50'
-                              }`}
+                                }`}
                             >
                               <option value="" className="bg-white text-slate-500 font-normal">(Selecione Área)</option>
                               {LISTA_AREAS_OPCOES.map((areaOpcao) => (
@@ -1809,7 +1807,7 @@ export const UsersManagementPage: React.FC = () => {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            
+
             {/* Cabeçalho do Perfil */}
             <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
               <div className="flex items-center gap-3">
@@ -1831,8 +1829,8 @@ export const UsersManagementPage: React.FC = () => {
                 </div>
               </div>
 
-              <button 
-                onClick={() => setIsModalOpen(false)} 
+              <button
+                onClick={() => setIsModalOpen(false)}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X size={20} />
@@ -1844,11 +1842,10 @@ export const UsersManagementPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTabModal('dados')}
-                className={`py-3 text-xs font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
-                  activeTabModal === 'dados'
+                className={`py-3 text-xs font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${activeTabModal === 'dados'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
+                  }`}
               >
                 <FileSpreadsheet size={16} />
                 <span>Aba 1: Dados do Colaborador (Planilha)</span>
@@ -1857,11 +1854,10 @@ export const UsersManagementPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTabModal('acesso')}
-                className={`py-3 text-xs font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
-                  activeTabModal === 'acesso'
+                className={`py-3 text-xs font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${activeTabModal === 'acesso'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
+                  }`}
               >
                 <KeyRound size={16} />
                 <span>Aba 2: Dados de Acesso & Permissões por Cargo</span>
@@ -1877,7 +1873,7 @@ export const UsersManagementPage: React.FC = () => {
                 {/* ======================================================== */}
                 {activeTabModal === 'dados' && (
                   <div className="space-y-5 animate-in fade-in duration-150">
-                    
+
                     {/* SEÇÃO 1: DADOS PRINCIPAIS & LOTAÇÃO */}
                     <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4">
                       <div className="flex items-center gap-2 pb-3 mb-3 border-b border-slate-200/60">
@@ -2082,11 +2078,10 @@ export const UsersManagementPage: React.FC = () => {
                           <select
                             value={formColaboradorData.area || ''}
                             onChange={(e) => setFormColaboradorData({ ...formColaboradorData, area: e.target.value })}
-                            className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold outline-none cursor-pointer transition-all ${
-                              formColaboradorData.area && formColaboradorData.area.trim()
+                            className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold outline-none cursor-pointer transition-all ${formColaboradorData.area && formColaboradorData.area.trim()
                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-300 focus:border-emerald-500'
                                 : 'bg-rose-50 text-rose-700 border-rose-300 focus:border-rose-500'
-                            }`}
+                              }`}
                           >
                             <option value="" className="bg-white text-slate-500 font-normal">Selecione uma Área...</option>
                             {LISTA_AREAS_OPCOES.map((areaOpcao) => (
@@ -2341,7 +2336,7 @@ export const UsersManagementPage: React.FC = () => {
                 {/* ======================================================== */}
                 {activeTabModal === 'acesso' && (
                   <div className="space-y-5 animate-in fade-in duration-150">
-                    
+
                     {/* Bloco de Credenciais */}
                     <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
                       <div className="flex items-center gap-2 pb-2 border-b border-slate-200 text-slate-800">
@@ -2412,11 +2407,10 @@ export const UsersManagementPage: React.FC = () => {
                                 key={cargoOption}
                                 type="button"
                                 onClick={() => handleCargoChange(cargoOption)}
-                                className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${
-                                  isSelected
+                                className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${isSelected
                                     ? 'border-blue-600 bg-blue-50 text-blue-900 font-bold shadow-2xs'
                                     : 'border-slate-100 hover:bg-slate-50 text-slate-600'
-                                }`}
+                                  }`}
                               >
                                 <div className="text-[10px] font-bold uppercase truncate">{cargoOption}</div>
                               </button>
@@ -2457,11 +2451,10 @@ export const UsersManagementPage: React.FC = () => {
                             return (
                               <label
                                 key={page.id}
-                                className={`flex items-center gap-2.5 p-2 rounded-xl border text-xs cursor-pointer transition-all ${
-                                  isChecked 
-                                    ? 'bg-blue-50/80 border-blue-200 text-blue-900 font-semibold shadow-2xs' 
+                                className={`flex items-center gap-2.5 p-2 rounded-xl border text-xs cursor-pointer transition-all ${isChecked
+                                    ? 'bg-blue-50/80 border-blue-200 text-blue-900 font-semibold shadow-2xs'
                                     : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                                }`}
+                                  }`}
                               >
                                 <input
                                   type="checkbox"
@@ -2536,24 +2529,22 @@ export const UsersManagementPage: React.FC = () => {
                                       <label
                                         key={sub.id}
                                         title={!isParentPageActive ? `Marque primeiro a página principal "${page.label}"` : undefined}
-                                        className={`flex items-center gap-2 p-1.5 rounded-lg border text-[11px] transition-all ${
-                                          !isParentPageActive
+                                        className={`flex items-center gap-2 p-1.5 rounded-lg border text-[11px] transition-all ${!isParentPageActive
                                             ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
                                             : isSubChecked
-                                            ? 'bg-indigo-50/70 border-indigo-200 text-indigo-900 font-semibold cursor-pointer shadow-2xs'
-                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer'
-                                        }`}
+                                              ? 'bg-indigo-50/70 border-indigo-200 text-indigo-900 font-semibold cursor-pointer shadow-2xs'
+                                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer'
+                                          }`}
                                       >
                                         <input
                                           type="checkbox"
                                           disabled={!isParentPageActive}
                                           checked={isSubChecked}
                                           onChange={() => toggleSubpagePermission(sub.id)}
-                                          className={`rounded border-slate-300 scale-90 ${
-                                            !isParentPageActive 
-                                              ? 'cursor-not-allowed opacity-40' 
+                                          className={`rounded border-slate-300 scale-90 ${!isParentPageActive
+                                              ? 'cursor-not-allowed opacity-40'
                                               : 'text-indigo-600 focus:ring-indigo-500 cursor-pointer'
-                                          }`}
+                                            }`}
                                         />
                                         <span className="truncate">{sub.label}</span>
                                       </label>
@@ -2575,14 +2566,12 @@ export const UsersManagementPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setFormActive(!formActive)}
-                          className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
-                            formActive ? 'bg-blue-600' : 'bg-slate-300'
-                          }`}
+                          className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${formActive ? 'bg-blue-600' : 'bg-slate-300'
+                            }`}
                         >
                           <div
-                            className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                              formActive ? 'translate-x-6' : 'translate-x-0'
-                            }`}
+                            className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${formActive ? 'translate-x-6' : 'translate-x-0'
+                              }`}
                           />
                         </button>
                       </div>
@@ -2638,7 +2627,7 @@ export const UsersManagementPage: React.FC = () => {
                   <p className="text-xs text-slate-500">Cadastre e atualize perfis de usuários em massa através de arquivo Excel ou CSV</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => { setIsImportModalOpen(false); setBulkFeedback(null); }}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
@@ -2673,14 +2662,14 @@ export const UsersManagementPage: React.FC = () => {
                   <FolderOpen size={14} className="text-blue-600" />
                   Selecione o arquivo no seu computador
                 </label>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileUpload} 
-                  accept=".xlsx, .xls, .csv" 
-                  className="hidden" 
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".xlsx, .xls, .csv"
+                  className="hidden"
                 />
-                <div 
+                <div
                   onClick={() => fileInputRef.current?.click()}
                   className="border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/20 rounded-2xl p-6 text-center cursor-pointer transition-all space-y-2"
                 >
@@ -2701,13 +2690,12 @@ export const UsersManagementPage: React.FC = () => {
 
               {/* Feedback de Importação */}
               {bulkFeedback && (
-                <div className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${
-                  bulkFeedback.type === 'success' 
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                <div className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${bulkFeedback.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                     : bulkFeedback.type === 'warning'
-                    ? 'bg-amber-50 text-amber-900 border border-amber-200'
-                    : 'bg-red-50 text-red-800 border border-red-200'
-                }`}>
+                      ? 'bg-amber-50 text-amber-900 border border-amber-200'
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
                   {bulkFeedback.type === 'success' ? (
                     <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
                   ) : bulkFeedback.type === 'warning' ? (
@@ -2785,9 +2773,9 @@ export const UsersManagementPage: React.FC = () => {
       )}
 
       {/* Modal de Usuários Online */}
-      <OnlineUsersModal 
-        isOpen={isOnlineModalOpen} 
-        onClose={() => setIsOnlineModalOpen(false)} 
+      <OnlineUsersModal
+        isOpen={isOnlineModalOpen}
+        onClose={() => setIsOnlineModalOpen(false)}
       />
     </div>
   )

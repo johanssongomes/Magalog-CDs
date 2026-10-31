@@ -231,7 +231,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (avatar) {
         localStorage.setItem(`magalog_avatar_${clean}`, avatar)
       }
-    } catch {}
+    } catch { }
   }
 
   // Helper robusto para encontrar o colaborador correspondente na base por e-mail, login, nome ou id
@@ -286,7 +286,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (extraRow?.value) {
             extraProfile = JSON.parse(extraRow.value)
           }
-        } catch {}
+        } catch { }
 
         const finalAvatar = data.avatar_url || extraProfile?.avatar_url || cachedAvatar || undefined
         if (finalAvatar) setStoredAvatar(cleanEmail, finalAvatar)
@@ -326,7 +326,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const parsed = JSON.parse(localUsers)
           knownUser = parsed.find((u: any) => (u.email || '').trim().toLowerCase() === cleanEmail)
         }
-      } catch {}
+      } catch { }
 
       if (!knownUser) {
         knownUser = (initialUsers as any[]).find(u => (u.email || '').trim().toLowerCase() === cleanEmail)
@@ -357,7 +357,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // Salva no Supabase app_users se possível
-      await supabase.from('app_users').insert([fallbackUser]).catch(() => {})
+      await supabase.from('app_users').insert([fallbackUser]).catch(() => { })
       setUser(fallbackUser)
     } catch (err) {
       console.warn('Erro ao carregar perfil:', err)
@@ -396,7 +396,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const trimmed = { ...updatedProfile, avatar_url: undefined }
         try {
           localStorage.setItem('magalog_admin_session', JSON.stringify(trimmed))
-        } catch {}
+        } catch { }
       }
       setUser(updatedProfile)
     }
@@ -414,7 +414,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         setUser(parsed)
         setLoading(false)
-      } catch {}
+      } catch { }
     }
 
     // 2. Verificar sessão atual no Supabase Auth ou restaurar com loadProfile
@@ -429,7 +429,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (p?.email) {
               loadProfile(p.user_id || p.id, p.email)
             }
-          } catch {}
+          } catch { }
         } else {
           setUser(null)
         }
@@ -479,7 +479,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   .eq('cell_key', profileStorageKey)
                   .maybeSingle()
                 if (extraRow?.value) extraProfile = JSON.parse(extraRow.value)
-              } catch {}
+              } catch { }
 
               const colabInfo = findColaboradorMatch(row.email, row.name, row.colaborador_id)
               const resolvedSubpages = (Array.isArray(row.allowed_subpages) && row.allowed_subpages.length > 0)
@@ -505,7 +505,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
               applyProfileUpdate(newProf)
             }
-          } catch {}
+          } catch { }
         }
       )
       .subscribe()
@@ -528,7 +528,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const latest = appUserRes.data
         let extraProfile: any = null
         if (extraRes.data?.value) {
-          try { extraProfile = JSON.parse(extraRes.data.value) } catch {}
+          try { extraProfile = JSON.parse(extraRes.data.value) } catch { }
         }
 
         if (latest) {
@@ -571,7 +571,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             applyProfileUpdate(newProf)
           }
         }
-      } catch {}
+      } catch { }
     }, 2000)
 
     // 6. Ouvinte de evento entre abas do mesmo navegador (storage event)
@@ -582,7 +582,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           try {
             setUser(JSON.parse(e.newValue))
-          } catch {}
+          } catch { }
         }
       }
     }
@@ -626,7 +626,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const presences = state[key] as any[]
         if (presences && presences.length > 0) {
           const latest = presences[presences.length - 1]
-          const colabInfo = (initialColaboradores as any[]).find(c => 
+          const colabInfo = (initialColaboradores as any[]).find(c =>
             (c.login && (latest.email || key).toLowerCase().includes(c.login.toLowerCase())) ||
             (c.contratado && latest.name && c.contratado.toLowerCase() === latest.name.toLowerCase())
           )
@@ -726,7 +726,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setStoredAvatar(cleanEmail, remoteAvatar)
             }
           }
-        } catch {}
+        } catch { }
 
         const adminMaster: AppUserProfile = {
           id: cleanEmail === 'joh_gomes@magalog.com.br' ? '169959' : 'admin-master',
@@ -743,7 +743,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Persiste registro mestre
         try {
           await supabase.from('app_users').upsert([adminMaster], { onConflict: 'email' })
-        } catch {}
+        } catch { }
 
         localStorage.setItem('magalog_admin_session', JSON.stringify(adminMaster))
         setUser(adminMaster)
@@ -788,9 +788,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .eq('cell_key', profileStorageKey)
               .maybeSingle()
             if (extraRow?.value) extraProfile = JSON.parse(extraRow.value)
-          } catch {}
+          } catch { }
 
-          const colabInfo = (initialColaboradores as any[]).find(c => 
+          const colabInfo = (initialColaboradores as any[]).find(c =>
             (c.login && cleanEmail.includes(c.login.toLowerCase())) ||
             (c.contratado && dbUser.name && c.contratado.toLowerCase() === dbUser.name.toLowerCase())
           )
@@ -832,7 +832,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const localList: AppUserProfile[] = JSON.parse(localUsersJson)
           localMatched = localList.find(u => (u.email || '').toLowerCase() === cleanEmail)
-        } catch {}
+        } catch { }
       }
 
       if (!localMatched) {
@@ -846,7 +846,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         const passOk = localMatched.password_hash ? localMatched.password_hash === cleanPass : cleanPass === '123456'
         if (passOk) {
-          const colabInfo = (initialColaboradores as any[]).find(c => 
+          const colabInfo = (initialColaboradores as any[]).find(c =>
             (c.login && cleanEmail.includes(c.login.toLowerCase())) ||
             (c.contratado && localMatched.name && c.contratado.toLowerCase() === localMatched.name.toLowerCase())
           )
@@ -984,7 +984,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }),
           updated_at: new Date().toISOString()
         }, { onConflict: 'cell_key' })
-    } catch {}
+    } catch { }
   }
 
   return (
