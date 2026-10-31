@@ -391,6 +391,9 @@ export const UsersManagementPage: React.FC = () => {
               ? ''
               : ((u as any).area || u.dados_colaborador?.area || (dbItem?.dados_colaborador as any)?.area || (dbItem as any)?.area || ''))
 
+          const cleanEmail = (u.email || '').toLowerCase().trim()
+          const extraProf = extraProfilesMap.get(cleanEmail)
+
           const resolvedSelos = (Array.isArray(extraProf?.selos) && extraProf.selos.length > 0)
             ? extraProf.selos
             : (Array.isArray(dbColab?.selos) && dbColab.selos.length > 0)
@@ -403,8 +406,6 @@ export const UsersManagementPage: React.FC = () => {
             ? { ...(u.dados_colaborador || {}), ...dbColab, area: finalArea, selos: resolvedSelos }
             : { ...(u.dados_colaborador || {}), area: finalArea, selos: resolvedSelos }
 
-          const cleanEmail = (u.email || '').toLowerCase().trim()
-          const extraProf = extraProfilesMap.get(cleanEmail)
           const resolvedSubpages = (Array.isArray(dbItem?.allowed_subpages) && dbItem.allowed_subpages.length > 0)
             ? dbItem.allowed_subpages
             : (Array.isArray(extraProf?.allowed_subpages))
