@@ -226,7 +226,7 @@ export function ApontamentoPage() {
   const now = new Date()
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear())
   const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth()) // 0 = Jan, 9 = Out
-  
+
   // Colaboradores e Saldos de BH da Planilha
   const [colaboradores, setColaboradores] = useState<any[]>([])
   const [bhBalances, setBhBalances] = useState<Record<string, { saldoStr: string; saldoDec: number }>>({})
@@ -264,7 +264,7 @@ export function ApontamentoPage() {
     try {
       const saved = localStorage.getItem('magalog_apontamento_visible_columns')
       if (saved) return JSON.parse(saved)
-    } catch {}
+    } catch { }
     return {
       supervisor: true,
       lider: true,
@@ -285,7 +285,7 @@ export function ApontamentoPage() {
       const updated = { ...prev, [colKey]: !prev[colKey] }
       try {
         localStorage.setItem('magalog_apontamento_visible_columns', JSON.stringify(updated))
-      } catch {}
+      } catch { }
       return updated
     })
   }
@@ -320,11 +320,11 @@ export function ApontamentoPage() {
 
     if (visibleColumns.supervisor) {
       offsets.supervisor = currentLeft
-      currentLeft += 95
+      currentLeft += 125
     }
     if (visibleColumns.lider) {
       offsets.lider = currentLeft
-      currentLeft += 95
+      currentLeft += 125
     }
     if (visibleColumns.area) {
       offsets.area = currentLeft
@@ -472,7 +472,7 @@ export function ApontamentoPage() {
   const toggleDayFilter = (day: number) => {
     setStartDateFilter('')
     setEndDateFilter('')
-    setSelectedDays(prev => 
+    setSelectedDays(prev =>
       prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort((a, b) => a - b)
     )
   }
@@ -492,7 +492,7 @@ export function ApontamentoPage() {
             baseList = parsed
           }
         }
-      } catch {}
+      } catch { }
 
       // 1.1 Carregar lista de IDs excluídos (local + global do Supabase)
       let deletedSet = new Set<string>()
@@ -504,7 +504,7 @@ export function ApontamentoPage() {
             parsed.forEach((id: string) => deletedSet.add(String(id || '').toLowerCase().trim()))
           }
         }
-      } catch {}
+      } catch { }
 
       // 2. Busca SEMPRE a lista mais recente do Supabase (tabela colaboradores e lista de deletados)
       try {
@@ -521,9 +521,9 @@ export function ApontamentoPage() {
               // Sincroniza também no cache local
               try {
                 localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(Array.from(deletedSet)))
-              } catch {}
+              } catch { }
             }
-          } catch {}
+          } catch { }
         }
 
         const supaColabs = supaColabsRes.data
@@ -536,7 +536,7 @@ export function ApontamentoPage() {
 
           baseList = baseList.map(item => {
             const sc = supaMap.get(String(item.id || '').trim().toLowerCase()) ||
-                       supaMap.get(String(item.contratado || '').trim().toUpperCase())
+              supaMap.get(String(item.contratado || '').trim().toUpperCase())
             if (sc) {
               return {
                 ...item,
@@ -585,7 +585,7 @@ export function ApontamentoPage() {
       // Atualiza o cache local para os próximos acessos rápidos
       try {
         localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(finalList))
-      } catch {}
+      } catch { }
 
       setColaboradores(finalList)
     }
@@ -703,7 +703,7 @@ export function ApontamentoPage() {
   useEffect(() => {
     const storageKey = `magalog_apontamentos_${selectedYear}_${selectedMonth + 1}`
     const dsrStorageKey = `magalog_dsr_manual_${selectedYear}_${selectedMonth + 1}`
-    
+
     // Tenta carregar do localStorage primeiro para exibição imediata
     try {
       const local = localStorage.getItem(storageKey)
@@ -762,7 +762,7 @@ export function ApontamentoPage() {
     setApontamentos(newApontamentos)
     const storageKey = `magalog_apontamentos_${selectedYear}_${selectedMonth + 1}`
     const jsonStr = JSON.stringify(newApontamentos)
-    
+
     try {
       localStorage.setItem(storageKey, jsonStr)
     } catch (e) {
@@ -791,7 +791,7 @@ export function ApontamentoPage() {
     setManualDsrAdjustments(newAdjustments)
     const dsrStorageKey = `magalog_dsr_manual_${selectedYear}_${selectedMonth + 1}`
     const jsonStr = JSON.stringify(newAdjustments)
-    
+
     try {
       localStorage.setItem(dsrStorageKey, jsonStr)
     } catch (e) {
@@ -827,7 +827,7 @@ export function ApontamentoPage() {
       })
       try {
         localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated))
-      } catch {}
+      } catch { }
       return updated
     })
     setEditingAreaColabId(null)
@@ -1045,13 +1045,19 @@ export function ApontamentoPage() {
     return map
   }, [colaboradores])
 
-  const getFirstName = (fullName: string | undefined | null) => {
+  // Formatar primeiro e segundo nome com capitalização adequada
+  const getFirstTwoNames = (fullName: string | undefined | null) => {
     if (!fullName) return '-'
     const clean = fullName.trim()
     if (!clean) return '-'
-    const parts = clean.split(/\s+/)
-    const first = parts[0]
-    return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase()
+    const parts = clean.split(/\s+/).filter(Boolean)
+    if (parts.length === 0) return '-'
+    if (parts.length === 1) {
+      return parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase()
+    }
+    const first = parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase()
+    const second = parts[1].charAt(0).toUpperCase() + parts[1].slice(1).toLowerCase()
+    return `${first} ${second}`
   }
 
   const getLeadershipNames = (colab: any) => {
@@ -1093,8 +1099,8 @@ export function ApontamentoPage() {
     }
 
     return {
-      supervisorFirstName: getFirstName(supervisorNome),
-      liderFirstName: getFirstName(liderNome)
+      supervisorFirstName: getFirstTwoNames(supervisorNome),
+      liderFirstName: getFirstTwoNames(liderNome)
     }
   }
 
@@ -1131,7 +1137,7 @@ export function ApontamentoPage() {
 
     // Obter ID do colaborador vinculado ao usuário logado
     const userEmail = (user?.email || '').toLowerCase().trim()
-    const matchedColab = colaboradores.find(c => 
+    const matchedColab = colaboradores.find(c =>
       (c.id && String(c.id).trim().toLowerCase() === String(user?.colaborador_id || user?.id).trim().toLowerCase()) ||
       (c.login && userEmail.includes(c.login.toLowerCase().trim())) ||
       (c.contratado && user?.name && c.contratado.toLowerCase().trim() === user.name.toLowerCase().trim())
@@ -1277,7 +1283,7 @@ export function ApontamentoPage() {
 
   return (
     <div className={`space-y-3 animate-in fade-in duration-200 ${isWideView ? '-mx-3 sm:-mx-6 lg:-mx-8 px-2' : ''}`}>
-      
+
       {/* 1. BARRA SUPERIOR COMPACTA COM TÍTULO E AÇÃO DE EXPORTAR */}
       <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Identificação da Página */}
@@ -1316,11 +1322,10 @@ export function ApontamentoPage() {
             <button
               type="button"
               onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
-                visibleFixedColumnsCount < 9
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${visibleFixedColumnsCount < 9
                   ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
                   : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
-              }`}
+                }`}
               title="Personalizar quais colunas fixas são exibidas para ganhar espaço nos dias"
             >
               <SlidersHorizontal size={13} className={visibleFixedColumnsCount < 9 ? 'text-amber-600' : 'text-slate-500'} />
@@ -1349,7 +1354,7 @@ export function ApontamentoPage() {
                           dsr: true
                         }
                         setVisibleColumns(allTrue)
-                        try { localStorage.setItem('magalog_apontamento_visible_columns', JSON.stringify(allTrue)) } catch {}
+                        try { localStorage.setItem('magalog_apontamento_visible_columns', JSON.stringify(allTrue)) } catch { }
                       }}
                       className="text-[10px] text-blue-600 hover:underline font-bold"
                     >
@@ -1371,7 +1376,7 @@ export function ApontamentoPage() {
                           dsr: false
                         }
                         setVisibleColumns(compact)
-                        try { localStorage.setItem('magalog_apontamento_visible_columns', JSON.stringify(compact)) } catch {}
+                        try { localStorage.setItem('magalog_apontamento_visible_columns', JSON.stringify(compact)) } catch { }
                       }}
                       className="text-[10px] text-amber-600 hover:underline font-bold"
                       title="Oculta tudo exceto Nome, Área e Turno"
@@ -1428,11 +1433,10 @@ export function ApontamentoPage() {
           <button
             type="button"
             onClick={() => setIsWideView(!isWideView)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
-              isWideView
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${isWideView
                 ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                 : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
-            }`}
+              }`}
             title={isWideView ? 'Restaurar layout padrão' : 'Ativar modo tela ampla para ver o mês inteiro'}
           >
             {isWideView ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
@@ -1453,7 +1457,7 @@ export function ApontamentoPage() {
       {/* 2. BARRA DE FILTROS E SELEÇÃO DE MÊS/ANO INTEGRADA (LAYOUT COMPACTO) */}
       <div ref={filtersContainerRef} className="bg-white border border-slate-200 rounded-2xl p-2.5 shadow-xs">
         <div className="flex flex-wrap items-center gap-2">
-          
+
           {/* Navegação Rápida de Mês e Ano */}
           <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 shadow-2xs shrink-0">
             <button
@@ -1504,11 +1508,10 @@ export function ApontamentoPage() {
             <button
               type="button"
               onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
-                selectedDays.length > 0 || startDateFilter || endDateFilter
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${selectedDays.length > 0 || startDateFilter || endDateFilter
                   ? 'bg-amber-500 border-amber-600 text-white shadow-amber-500/20'
                   : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
-              }`}
+                }`}
             >
               <Calendar size={13} className={selectedDays.length > 0 || startDateFilter || endDateFilter ? 'text-white' : 'text-slate-500'} />
               <span>
@@ -1520,18 +1523,17 @@ export function ApontamentoPage() {
                   'PERÍODO: Faixa'
                 )}
               </span>
-              <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
-                selectedDays.length > 0 || startDateFilter || endDateFilter
+              <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${selectedDays.length > 0 || startDateFilter || endDateFilter
                   ? 'bg-white/20 text-white'
                   : 'bg-amber-100 text-amber-800'
-              }`}>
+                }`}>
                 {activeFilteredDays.length}
               </span>
             </button>
 
             {/* Dropdown Popover do Calendário */}
             {isDateDropdownOpen && (
-              <div 
+              <div
                 className="absolute left-0 mt-2 z-50 bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 w-[340px] space-y-3 animate-in fade-in zoom-in-95 duration-100"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -1555,11 +1557,10 @@ export function ApontamentoPage() {
                   <button
                     type="button"
                     onClick={() => applyDatePreset('all')}
-                    className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center border transition-all cursor-pointer ${
-                      selectedDays.length === 0 && !startDateFilter && !endDateFilter
+                    className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center border transition-all cursor-pointer ${selectedDays.length === 0 && !startDateFilter && !endDateFilter
                         ? 'bg-amber-500 text-white border-amber-600 shadow-2xs'
                         : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200/60'
-                    }`}
+                      }`}
                   >
                     Mês Todo ({daysInMonth}d)
                   </button>
@@ -1590,11 +1591,10 @@ export function ApontamentoPage() {
                 <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-200/80">
                   <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
                     {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((dia, idx) => (
-                      <span 
-                        key={dia} 
-                        className={`text-[9px] font-bold uppercase tracking-wider ${
-                          idx === 0 || idx === 6 ? 'text-amber-600' : 'text-slate-400'
-                        }`}
+                      <span
+                        key={dia}
+                        className={`text-[9px] font-bold uppercase tracking-wider ${idx === 0 || idx === 6 ? 'text-amber-600' : 'text-slate-400'
+                          }`}
                       >
                         {dia}
                       </span>
@@ -1630,13 +1630,12 @@ export function ApontamentoPage() {
                                 toggleDayFilter(d.day)
                               }}
                               title={`Dia ${d.day}`}
-                              className={`h-7 rounded-lg text-[11px] font-bold flex flex-col items-center justify-center transition-all cursor-pointer ${
-                                isSelected
+                              className={`h-7 rounded-lg text-[11px] font-bold flex flex-col items-center justify-center transition-all cursor-pointer ${isSelected
                                   ? 'bg-amber-500 text-white shadow-xs shadow-amber-500/30 scale-105 z-10'
                                   : isWeekend
                                     ? 'bg-amber-100/50 hover:bg-amber-200/60 text-amber-900 border border-amber-200/40'
                                     : 'bg-white hover:bg-slate-200/60 text-slate-700 border border-slate-200/50 hover:border-slate-300'
-                              }`}
+                                }`}
                             >
                               <span>{d.day}</span>
                             </button>
@@ -1722,11 +1721,10 @@ export function ApontamentoPage() {
           <div className="relative">
             <button
               onClick={() => setOpenFilterDropdown(openFilterDropdown === 'area' ? null : 'area')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
-                selectedAreas.length > 0
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${selectedAreas.length > 0
                   ? 'bg-blue-50 border-blue-300 text-blue-700'
                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
+                }`}
             >
               <Building2 size={13} className="text-slate-400" />
               <span>Área {selectedAreas.length > 0 ? `(${selectedAreas.length})` : ''}</span>
@@ -1778,11 +1776,10 @@ export function ApontamentoPage() {
           <div className="relative">
             <button
               onClick={() => setOpenFilterDropdown(openFilterDropdown === 'turno' ? null : 'turno')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
-                selectedTurnos.length > 0
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${selectedTurnos.length > 0
                   ? 'bg-blue-50 border-blue-300 text-blue-700'
                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
+                }`}
             >
               <Clock size={13} className="text-slate-400" />
               <span>Turno {selectedTurnos.length > 0 ? `(${selectedTurnos.length})` : ''}</span>
@@ -1834,11 +1831,10 @@ export function ApontamentoPage() {
           <div className="relative">
             <button
               onClick={() => setOpenFilterDropdown(openFilterDropdown === 'cargo' ? null : 'cargo')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
-                selectedCargos.length > 0
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${selectedCargos.length > 0
                   ? 'bg-blue-50 border-blue-300 text-blue-700'
                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
+                }`}
             >
               <Briefcase size={13} className="text-slate-400" />
               <span>Cargo {selectedCargos.length > 0 ? `(${selectedCargos.length})` : ''}</span>
@@ -1890,11 +1886,10 @@ export function ApontamentoPage() {
           <div className="relative">
             <button
               onClick={() => setOpenFilterDropdown(openFilterDropdown === 'supervisor' ? null : 'supervisor')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
-                selectedSupervisores.length > 0
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${selectedSupervisores.length > 0
                   ? 'bg-purple-50 border-purple-300 text-purple-700'
                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
+                }`}
             >
               <Users size={13} className="text-slate-400" />
               <span>Supervisor {selectedSupervisores.length > 0 ? `(${selectedSupervisores.length})` : ''}</span>
@@ -1950,11 +1945,10 @@ export function ApontamentoPage() {
           <div className="relative">
             <button
               onClick={() => setOpenFilterDropdown(openFilterDropdown === 'lider' ? null : 'lider')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${
-                selectedLideres.length > 0
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${selectedLideres.length > 0
                   ? 'bg-sky-50 border-sky-300 text-sky-700'
                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
+                }`}
             >
               <Users size={13} className="text-slate-400" />
               <span>Líder {selectedLideres.length > 0 ? `(${selectedLideres.length})` : ''}</span>
@@ -2039,13 +2033,13 @@ export function ApontamentoPage() {
           <table className={`${activeFilteredDays.length < 15 ? 'w-auto' : 'w-full'} text-left border-collapse text-xs`}>
             {/* Cabeçalho da Tabela */}
             <thead className="sticky top-0 z-30 bg-slate-100 shadow-xs border-b border-slate-200">
-              
+
               {/* Linha 1: Títulos das Colunas Fixas + Dias da Semana */}
               <tr className="bg-blue-600 text-white font-extrabold uppercase text-[11px] tracking-wider">
                 {visibleColumns.supervisor && (
                   <th
                     style={{ left: `${stickyOffsets.supervisor}px` }}
-                    className="sticky z-40 bg-blue-700 px-2.5 py-2.5 border-r border-blue-500 min-w-[95px] max-w-[95px]"
+                    className="sticky z-40 bg-blue-700 px-2.5 py-2.5 border-r border-blue-500 min-w-[125px] max-w-[125px]"
                   >
                     Supervisor
                   </th>
@@ -2053,7 +2047,7 @@ export function ApontamentoPage() {
                 {visibleColumns.lider && (
                   <th
                     style={{ left: `${stickyOffsets.lider}px` }}
-                    className="sticky z-40 bg-blue-700 px-2.5 py-2.5 border-r border-blue-500 min-w-[95px] max-w-[95px]"
+                    className="sticky z-40 bg-blue-700 px-2.5 py-2.5 border-r border-blue-500 min-w-[125px] max-w-[125px]"
                   >
                     Líder
                   </th>
@@ -2120,9 +2114,8 @@ export function ApontamentoPage() {
                 {activeFilteredDays.map(m => (
                   <th
                     key={`w-${m.day}`}
-                    className={`px-1 py-1.5 text-center min-w-[50px] w-[54px] border-r border-blue-500/50 text-[10px] font-bold ${
-                      m.isSunday ? 'bg-amber-500 text-slate-950 font-black' : m.isSaturday ? 'bg-blue-700 text-blue-100' : ''
-                    }`}
+                    className={`px-1 py-1.5 text-center min-w-[50px] w-[54px] border-r border-blue-500/50 text-[10px] font-bold ${m.isSunday ? 'bg-amber-500 text-slate-950 font-black' : m.isSaturday ? 'bg-blue-700 text-blue-100' : ''
+                      }`}
                   >
                     {m.weekdayName}
                   </th>
@@ -2140,9 +2133,8 @@ export function ApontamentoPage() {
                 {activeFilteredDays.map(m => (
                   <th
                     key={`d-${m.day}`}
-                    className={`px-1 py-1 text-center min-w-[50px] w-[54px] border-r border-slate-300 text-[10px] ${
-                      m.isSunday ? 'bg-amber-100 text-amber-900 font-black' : m.isSaturday ? 'bg-blue-100/70 text-blue-900 font-bold' : ''
-                    }`}
+                    className={`px-1 py-1 text-center min-w-[50px] w-[54px] border-r border-slate-300 text-[10px] ${m.isSunday ? 'bg-amber-100 text-amber-900 font-black' : m.isSaturday ? 'bg-blue-100/70 text-blue-900 font-bold' : ''
+                      }`}
                   >
                     {m.dateStr.slice(0, 5)}
                   </th>
@@ -2172,31 +2164,30 @@ export function ApontamentoPage() {
                   return (
                     <tr
                       key={colabId || idx}
-                      className={`hover:bg-blue-50/40 transition-colors group ${
-                        isEven ? 'bg-white' : 'bg-slate-50/50'
-                      }`}
+                      className={`hover:bg-blue-50/40 transition-colors group ${isEven ? 'bg-white' : 'bg-slate-50/50'
+                        }`}
                     >
-                      {/* 1. Supervisor (Primeiro Nome) */}
+                      {/* 1. Supervisor (Primeiro e Segundo Nome) */}
                       {visibleColumns.supervisor && (
                         <td
                           style={{ left: `${stickyOffsets.supervisor}px` }}
-                          className="sticky z-20 bg-inherit px-2.5 py-2 border-r border-slate-200 text-slate-800 font-bold truncate max-w-[95px]"
+                          className="sticky z-20 bg-inherit px-2 py-2 border-r border-slate-200 text-slate-800 font-bold truncate max-w-[125px]"
                           title={colab.nomeLider}
                         >
-                          <span className="px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-800 border border-purple-200 text-[10px]">
+                          <span className="inline-block px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-800 border border-purple-200 text-[10px] truncate max-w-full">
                             {leadInfo.supervisorFirstName}
                           </span>
                         </td>
                       )}
 
-                      {/* 2. Líder (Primeiro Nome) */}
+                      {/* 2. Líder (Primeiro e Segundo Nome) */}
                       {visibleColumns.lider && (
                         <td
                           style={{ left: `${stickyOffsets.lider}px` }}
-                          className="sticky z-20 bg-inherit px-2.5 py-2 border-r border-slate-200 text-slate-800 font-bold truncate max-w-[95px]"
+                          className="sticky z-20 bg-inherit px-2 py-2 border-r border-slate-200 text-slate-800 font-bold truncate max-w-[125px]"
                           title={colab.nomeLider}
                         >
-                          <span className="px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-800 border border-sky-200 text-[10px]">
+                          <span className="inline-block px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-800 border border-sky-200 text-[10px] truncate max-w-full">
                             {leadInfo.liderFirstName}
                           </span>
                         </td>
@@ -2307,11 +2298,10 @@ export function ApontamentoPage() {
                           style={{ left: `${stickyOffsets.bh}px` }}
                           className="sticky z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-center font-mono font-bold whitespace-nowrap"
                         >
-                          <span className={`px-2 py-0.5 rounded-md text-[11px] ${
-                            isDebito
+                          <span className={`px-2 py-0.5 rounded-md text-[11px] ${isDebito
                               ? 'bg-rose-50 text-rose-700 border border-rose-200'
                               : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          }`}>
+                            }`}>
                             {saldoStr}
                           </span>
                         </td>
@@ -2323,76 +2313,75 @@ export function ApontamentoPage() {
                           style={{ left: `${stickyOffsets.dsr}px` }}
                           className="sticky z-20 bg-slate-100 px-1 py-1.5 border-r-2 border-slate-400 text-center font-mono font-black text-xs shadow-md"
                         >
-                        {editingDsrColabId === colabId ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <input
-                              type="number"
-                              autoFocus
-                              value={tempDsrInput}
-                              onChange={(e) => setTempDsrInput(e.target.value)}
-                              onBlur={() => handleSaveManualDsrInput(colabId)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleSaveManualDsrInput(colabId)
-                                if (e.key === 'Escape') setEditingDsrColabId(null)
-                              }}
-                              className="w-12 h-6 text-center text-xs font-black bg-white border-2 border-blue-500 rounded outline-none shadow-inner"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleSaveManualDsrInput(colabId)}
-                              className="w-5 h-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded flex items-center justify-center text-[10px]"
-                              title="Confirmar"
-                            >
-                              ✓
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="inline-flex items-center justify-center gap-0.5 group/dsr">
-                            {/* Botão Diminuir DSR (-1) */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleStepDsr(colabId, -1)
-                              }}
-                              title="Reduzir 1 DSR manual"
-                              className="w-4 h-4 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center text-[9px] transition-colors cursor-pointer opacity-40 group-hover/dsr:opacity-100"
-                            >
-                              <Minus size={10} strokeWidth={3} />
-                            </button>
+                          {editingDsrColabId === colabId ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <input
+                                type="number"
+                                autoFocus
+                                value={tempDsrInput}
+                                onChange={(e) => setTempDsrInput(e.target.value)}
+                                onBlur={() => handleSaveManualDsrInput(colabId)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveManualDsrInput(colabId)
+                                  if (e.key === 'Escape') setEditingDsrColabId(null)
+                                }}
+                                className="w-12 h-6 text-center text-xs font-black bg-white border-2 border-blue-500 rounded outline-none shadow-inner"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleSaveManualDsrInput(colabId)}
+                                className="w-5 h-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded flex items-center justify-center text-[10px]"
+                                title="Confirmar"
+                              >
+                                ✓
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center justify-center gap-0.5 group/dsr">
+                              {/* Botão Diminuir DSR (-1) */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleStepDsr(colabId, -1)
+                                }}
+                                title="Reduzir 1 DSR manual"
+                                className="w-4 h-4 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center text-[9px] transition-colors cursor-pointer opacity-40 group-hover/dsr:opacity-100"
+                              >
+                                <Minus size={10} strokeWidth={3} />
+                              </button>
 
-                            {/* Valor de DSR com clique para digitação direta */}
-                            <span
-                              onClick={() => {
-                                setEditingDsrColabId(colabId)
-                                setTempDsrInput(String(dsrBalance))
-                              }}
-                              title={`Saldo de DSR: ${dsrBalance} (Automático: ${calculateAutoDsr(colabId)}${(manualDsrAdjustments[colabId] || 0) !== 0 ? ` | Ajuste Manual: ${manualDsrAdjustments[colabId] > 0 ? '+' : ''}${manualDsrAdjustments[colabId]}` : ''}) - Clique para digitar`}
-                              className={`px-2 py-0.5 rounded-full cursor-pointer transition-all hover:ring-2 hover:ring-blue-400 select-none ${
-                                dsrBalance > 0
-                                  ? 'bg-amber-100 text-amber-800 border border-amber-300 font-black'
-                                  : dsrBalance < 0
-                                  ? 'bg-rose-100 text-rose-800 border border-rose-300 font-black'
-                                  : 'text-slate-600 hover:bg-slate-200'
-                              } ${(manualDsrAdjustments[colabId] || 0) !== 0 ? 'ring-1 ring-blue-500/70' : ''}`}
-                            >
-                              {dsrBalance}
-                            </span>
+                              {/* Valor de DSR com clique para digitação direta */}
+                              <span
+                                onClick={() => {
+                                  setEditingDsrColabId(colabId)
+                                  setTempDsrInput(String(dsrBalance))
+                                }}
+                                title={`Saldo de DSR: ${dsrBalance} (Automático: ${calculateAutoDsr(colabId)}${(manualDsrAdjustments[colabId] || 0) !== 0 ? ` | Ajuste Manual: ${manualDsrAdjustments[colabId] > 0 ? '+' : ''}${manualDsrAdjustments[colabId]}` : ''}) - Clique para digitar`}
+                                className={`px-2 py-0.5 rounded-full cursor-pointer transition-all hover:ring-2 hover:ring-blue-400 select-none ${dsrBalance > 0
+                                    ? 'bg-amber-100 text-amber-800 border border-amber-300 font-black'
+                                    : dsrBalance < 0
+                                      ? 'bg-rose-100 text-rose-800 border border-rose-300 font-black'
+                                      : 'text-slate-600 hover:bg-slate-200'
+                                  } ${(manualDsrAdjustments[colabId] || 0) !== 0 ? 'ring-1 ring-blue-500/70' : ''}`}
+                              >
+                                {dsrBalance}
+                              </span>
 
-                            {/* Botão Aumentar DSR (+1) */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleStepDsr(colabId, 1)
-                              }}
-                              title="Adicionar 1 DSR manual (+1)"
-                              className="w-4 h-4 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 flex items-center justify-center text-[9px] transition-colors cursor-pointer opacity-40 group-hover/dsr:opacity-100"
-                            >
-                              <Plus size={10} strokeWidth={3} />
-                            </button>
-                          </div>
-                        )}
+                              {/* Botão Aumentar DSR (+1) */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleStepDsr(colabId, 1)
+                                }}
+                                title="Adicionar 1 DSR manual (+1)"
+                                className="w-4 h-4 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 flex items-center justify-center text-[9px] transition-colors cursor-pointer opacity-40 group-hover/dsr:opacity-100"
+                              >
+                                <Plus size={10} strokeWidth={3} />
+                              </button>
+                            </div>
+                          )}
                         </td>
                       )}
 
@@ -2404,9 +2393,8 @@ export function ApontamentoPage() {
                         return (
                           <td
                             key={`cell-${colabId}-${m.day}`}
-                            className={`p-0.5 border-r border-slate-200 text-center ${
-                              m.isSunday ? 'bg-amber-50/30' : m.isSaturday ? 'bg-blue-50/20' : ''
-                            }`}
+                            className={`p-0.5 border-r border-slate-200 text-center ${m.isSunday ? 'bg-amber-50/30' : m.isSaturday ? 'bg-blue-50/20' : ''
+                              }`}
                           >
                             <div className="relative w-full h-full flex items-center justify-center">
                               <select
@@ -2415,11 +2403,10 @@ export function ApontamentoPage() {
                                 onChange={(e) => handleCellChange(colabId, m.day, e.target.value as any)}
                                 onKeyDown={(e) => handleCellKeyDown(e, idx, dayIdx, colabId, m.day)}
                                 title={`${m.weekdayName} (${m.dateStr})`}
-                                className={`w-full py-1 text-center font-black rounded-md outline-hidden border transition cursor-pointer text-[11px] appearance-none focus:ring-2 focus:ring-blue-500 focus:z-10 ${
-                                  cfg
+                                className={`w-full py-1 text-center font-black rounded-md outline-hidden border transition cursor-pointer text-[11px] appearance-none focus:ring-2 focus:ring-blue-500 focus:z-10 ${cfg
                                     ? `${cfg.bg} ${cfg.text} ${cfg.border}`
                                     : 'bg-transparent text-slate-300 hover:bg-slate-100 border-transparent hover:border-slate-300'
-                                }`}
+                                  }`}
                               >
                                 <option value="" className="text-slate-400 bg-white font-normal">-</option>
                                 <option value="T" className="text-emerald-700 font-bold bg-white">T</option>
@@ -2457,7 +2444,7 @@ export function ApontamentoPage() {
           const wDay = dt.getDay()
           const isSun = wDay === 0
           const isSat = wDay === 6
-          const isDsr = 
+          const isDsr =
             intervalModal.status === 'DSR' ||
             (intervalModal.dsrMode === 'sundays' && isSun) ||
             (intervalModal.dsrMode === 'weekends' && (isSun || isSat)) ||
@@ -2488,7 +2475,7 @@ export function ApontamentoPage() {
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200/80 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150">
-              
+
               {/* Header com avatar e info do colaborador */}
               <div className="px-6 py-4.5 bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 text-white flex items-center justify-between relative overflow-hidden shadow-sm">
                 <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -2536,11 +2523,10 @@ export function ApontamentoPage() {
                           key={st}
                           type="button"
                           onClick={() => setIntervalModal({ ...intervalModal, status: st })}
-                          className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-black transition-all cursor-pointer border ${
-                            isSelected
+                          className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-black transition-all cursor-pointer border ${isSelected
                               ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25 scale-[1.02]'
                               : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
-                          }`}
+                            }`}
                         >
                           <span>{cfg.label}</span>
                           {isSelected && <Check size={12} className="stroke-[3]" />}
@@ -2649,11 +2635,10 @@ export function ApontamentoPage() {
                               ...intervalModal,
                               dsrMode: opt.id as any
                             })}
-                            className={`p-2 rounded-xl text-left border transition-all cursor-pointer flex flex-col ${
-                              isAct
+                            className={`p-2 rounded-xl text-left border transition-all cursor-pointer flex flex-col ${isAct
                                 ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                                 : 'bg-white hover:bg-indigo-50/80 text-slate-700 border-indigo-200/80'
-                            }`}
+                              }`}
                           >
                             <span className="text-[11px] font-black">{opt.label}</span>
                             <span className={`text-[9px] ${isAct ? 'text-indigo-100' : 'text-slate-400'}`}>
@@ -2689,13 +2674,12 @@ export function ApontamentoPage() {
                               type="button"
                               onClick={() => toggleCustomDay(item.day)}
                               title={`Dia ${item.day} (${item.weekday}) - Clique para alternar DSR`}
-                              className={`flex flex-col items-center justify-center w-9 h-11 rounded-lg text-[10px] transition cursor-pointer border ${
-                                item.isDsr
+                              className={`flex flex-col items-center justify-center w-9 h-11 rounded-lg text-[10px] transition cursor-pointer border ${item.isDsr
                                   ? 'bg-indigo-600 text-white border-indigo-700 font-black shadow-xs ring-2 ring-indigo-400/30'
                                   : item.isSun || item.isSat
-                                  ? 'bg-amber-50/80 hover:bg-indigo-100 text-amber-900 border-amber-200 font-bold'
-                                  : 'bg-slate-50 hover:bg-indigo-50 text-slate-700 border-slate-200 font-medium'
-                              }`}
+                                    ? 'bg-amber-50/80 hover:bg-indigo-100 text-amber-900 border-amber-200 font-bold'
+                                    : 'bg-slate-50 hover:bg-indigo-50 text-slate-700 border-slate-200 font-medium'
+                                }`}
                             >
                               <span className="text-[8px] leading-tight opacity-75">{item.weekday}</span>
                               <span className="text-[11px] font-extrabold leading-tight">{item.day}</span>
