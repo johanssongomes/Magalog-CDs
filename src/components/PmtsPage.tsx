@@ -240,12 +240,33 @@ export const PmtsPage: React.FC = () => {
   // Módulos PMT aos quais o usuário tem permissão
   const allowedPmtPages = useMemo(() => {
     return PMT_PAGES_CONFIG.filter(page => {
-      const subId = page.id === 1 ? 'sub-pmt-expedicao' :
-                    page.id === 2 ? 'sub-pmt-recebimento' :
-                    page.id === 3 ? 'sub-pmt-quadro' :
-                    page.id === 4 ? 'sub-pmt-promocionais' :
-                    page.id === 5 ? 'sub-pmt-tableau' : 'sub-pmt-carteira-cds'
-      return hasPermission('pmts', subId)
+      if (page.id === 1) {
+        return (
+          hasPermission('pmts', 'sub-pmt-expedicao') ||
+          hasPermission('pmts', 'sub-pmt-expedicao-pg1') ||
+          hasPermission('pmts', 'sub-pmt-expedicao-pg2') ||
+          hasPermission('pmts', 'sub-pmt-expedicao-pg3') ||
+          hasPermission('pmts', 'sub-pmt-expedicao-pg4')
+        )
+      }
+      if (page.id === 2) {
+        return hasPermission('pmts', 'sub-pmt-recebimento')
+      }
+      if (page.id === 3) {
+        return (
+          hasPermission('pmts', 'sub-pmt-quadro') ||
+          hasPermission('pmts', 'sub-quadro-dashboard') ||
+          hasPermission('pmts', 'sub-quadro-tt') ||
+          hasPermission('pmts', 'sub-quadro-bh') ||
+          hasPermission('pmts', 'sub-quadro-padu') ||
+          hasPermission('pmts', 'sub-quadro-medio') ||
+          hasPermission('pmts', 'sub-apontamento')
+        )
+      }
+      if (page.id === 4) return hasPermission('pmts', 'sub-pmt-promocionais')
+      if (page.id === 5) return hasPermission('pmts', 'sub-pmt-tableau')
+      if (page.id === 6) return hasPermission('pmts', 'sub-pmt-carteira-cds')
+      return false
     })
   }, [hasPermission])
 
@@ -1828,7 +1849,7 @@ export const PmtsPage: React.FC = () => {
         { id: 'pg2', subId: 'sub-pmt-expedicao-pg2' },
         { id: 'pg3', subId: 'sub-pmt-expedicao-pg3' },
         { id: 'pg4', subId: 'sub-pmt-expedicao-pg4' }
-      ].filter(sub => hasPermission('pmts', sub.subId))
+      ].filter(sub => hasPermission('pmts', sub.subId) || hasPermission('pmts', 'sub-pmt-expedicao'))
       if (allowed.length > 0 && !allowed.some(s => s.id === expedicaoSubPage)) {
         setExpedicaoSubPage(allowed[0].id as any)
       }
@@ -1844,7 +1865,7 @@ export const PmtsPage: React.FC = () => {
         { id: 'pg3', subId: 'sub-quadro-padu' },
         { id: 'pg4', subId: 'sub-quadro-medio' },
         { id: 'pg5', subId: 'sub-apontamento' }
-      ].filter(sub => hasPermission('pmts', sub.subId))
+      ].filter(sub => hasPermission('pmts', sub.subId) || hasPermission('pmts', 'sub-pmt-quadro'))
       if (allowed.length > 0 && !allowed.some(s => s.id === quadroSubPage)) {
         setQuadroSubPage(allowed[0].id as any)
       }
@@ -1914,7 +1935,7 @@ export const PmtsPage: React.FC = () => {
                 { id: 'pg2', label: 'pg2', subId: 'sub-pmt-expedicao-pg2' },
                 { id: 'pg3', label: 'pg3', subId: 'sub-pmt-expedicao-pg3' },
                 { id: 'pg4', label: 'pg4', subId: 'sub-pmt-expedicao-pg4' }
-              ].filter(sub => hasPermission('pmts', sub.subId)).map((sub) => {
+              ].filter(sub => hasPermission('pmts', sub.subId) || hasPermission('pmts', 'sub-pmt-expedicao')).map((sub) => {
                 const isSubActive = expedicaoSubPage === sub.id
                 return (
                   <button
@@ -1948,7 +1969,7 @@ export const PmtsPage: React.FC = () => {
                 { id: 'pg3', label: 'Controle PADU', subId: 'sub-quadro-padu' },
                 { id: 'pg4', label: 'Qd Médio', subId: 'sub-quadro-medio' },
                 { id: 'pg5', label: 'Apontamento', subId: 'sub-apontamento' }
-              ].filter(sub => hasPermission('pmts', sub.subId)).map((sub) => {
+              ].filter(sub => hasPermission('pmts', sub.subId) || hasPermission('pmts', 'sub-pmt-quadro')).map((sub) => {
                 const isSubActive = quadroSubPage === sub.id
                 return (
                   <button
