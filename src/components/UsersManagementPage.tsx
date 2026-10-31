@@ -248,10 +248,9 @@ export const UsersManagementPage: React.FC = () => {
   // Carrega Usuários da Tabela app_users e colaboradores do Supabase
   const fetchUsers = async () => {
     try {
-      setLoading(true)
       let initialList = (initialUsersData as unknown as AppUserProfile[]) || []
 
-      // Se houver lista salva localmente no navegador, aproveita as alterações já feitas
+      // Se houver lista salva localmente no navegador, exibe IMEDIATAMENTE (zero delay na tela)
       try {
         const storedUsers = localStorage.getItem('magalog_users_list')
         if (storedUsers) {
@@ -287,9 +286,18 @@ export const UsersManagementPage: React.FC = () => {
               }
               return u
             })
+
+            // Renderiza de imediato para o usuário não ver a tela em branco/carregando
+            setUsers(initialList)
+            setLoading(false)
           }
         }
       } catch { }
+
+      // Se ainda não tinha nada no cache local, define loading enquanto busca
+      if (!localStorage.getItem('magalog_users_list')) {
+        setLoading(true)
+      }
 
       // Carregar lista de IDs excluídos armazenados localmente e no banco
       let deletedIds: string[] = []
