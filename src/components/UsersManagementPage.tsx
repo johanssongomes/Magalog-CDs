@@ -132,7 +132,7 @@ const defaultColaboradorForm: ColaboradorData = {
 export const UsersManagementPage: React.FC = () => {
   const { user: currentUser, onlineUsers } = useAuth()
   const [isOnlineModalOpen, setIsOnlineModalOpen] = useState(false)
-  
+
   // Inicialização síncrona com os dados do localStorage / initialUsers (ZERO DELAY de montagem)
   const [users, setUsers] = useState<AppUserProfile[]>(() => {
     try {
@@ -384,10 +384,12 @@ export const UsersManagementPage: React.FC = () => {
           const loginPrefix = (u.email || '').split('@')[0].toLowerCase().trim()
           const dbColab = colabMapById.get(targetColabId) || colabMapByLogin.get(loginPrefix)
 
-          // Precedência: Se o colaborador existe no Supabase colaboradores, o valor dele (mesmo que vazio/desmarcado) tem prioridade absoluta!
-          const finalArea = dbColab
-            ? (dbColab.area || '')
-            : ((dbItem?.dados_colaborador as any)?.area || (dbItem as any)?.area || (u as any).area || u.dados_colaborador?.area || '')
+          // Precedência de Área: se existe no banco de colaboradores, usa o do banco; caso contrário, preserva a área que o usuário já tinha
+          const finalArea = dbColab?.area
+            ? dbColab.area
+            : (dbColab && dbColab.area === ''
+              ? ''
+              : ((u as any).area || u.dados_colaborador?.area || (dbItem?.dados_colaborador as any)?.area || (dbItem as any)?.area || ''))
 
           const resolvedSelos = (Array.isArray(extraProf?.selos) && extraProf.selos.length > 0)
             ? extraProf.selos
@@ -499,7 +501,11 @@ export const UsersManagementPage: React.FC = () => {
           const targetColabId = String(u.id || u.colaborador_id || '').trim()
           const loginPrefix = (u.email || '').split('@')[0].toLowerCase().trim()
           const dbColab = colabMapById.get(targetColabId) || colabMapByLogin.get(loginPrefix)
-          const finalArea = dbColab?.area || (u as any).area || u.dados_colaborador?.area || ''
+          const finalArea = dbColab?.area
+            ? dbColab.area
+            : (dbColab && dbColab.area === ''
+              ? ''
+              : ((u as any).area || u.dados_colaborador?.area || ''))
           return dbColab
             ? { ...u, area: finalArea, dados_colaborador: { ...(u.dados_colaborador || {}), ...dbColab, area: finalArea } }
             : { ...u, area: finalArea }
@@ -586,9 +592,10 @@ export const UsersManagementPage: React.FC = () => {
             const next = prev.map(u => {
               const uId = String(u.id || u.colaborador_id || '').trim().toLowerCase()
               if (areaMap.has(uId)) {
-                const cloudArea = areaMap.get(uId) || ''
+                const cloudArea = areaMap.get(uId)
                 const currentArea = (u as any).area || u.dados_colaborador?.area || ''
-                if (cloudArea !== currentArea) {
+                // Só atualiza se no cloud realmente tiver um valor diferente e não-nulo
+                if (cloudArea && cloudArea !== currentArea) {
                   changed = true
                   return {
                     ...u,
@@ -1735,8 +1742,8 @@ export const UsersManagementPage: React.FC = () => {
                               value={currentArea}
                               onChange={(e) => handleQuickChangeArea(u, e.target.value)}
                               className={`w-full rounded-lg px-2.5 py-1 text-[11px] font-bold outline-none cursor-pointer transition-all shadow-2xs border ${isFilled
-                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100/70 focus:border-emerald-500 focus:bg-emerald-100/50'
-                                  : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100/70 focus:border-rose-500 focus:bg-rose-100/50'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100/70 focus:border-emerald-500 focus:bg-emerald-100/50'
+                                : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100/70 focus:border-rose-500 focus:bg-rose-100/50'
                                 }`}
                             >
                               <option value="" className="bg-white text-slate-500 font-normal">(Selecione Área)</option>
@@ -1891,8 +1898,8 @@ export const UsersManagementPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveTabModal('dados')}
                 className={`py-3 text-xs font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${activeTabModal === 'dados'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
                   }`}
               >
                 <FileSpreadsheet size={16} />
@@ -1903,8 +1910,8 @@ export const UsersManagementPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveTabModal('acesso')}
                 className={`py-3 text-xs font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${activeTabModal === 'acesso'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
                   }`}
               >
                 <KeyRound size={16} />
@@ -2072,11 +2079,10 @@ export const UsersManagementPage: React.FC = () => {
                                       : [...currentSelos, selo.id]
                                     setFormColaboradorData({ ...formColaboradorData, selos: next })
                                   }}
-                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-2xs ${
-                                    isChecked
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-2xs ${isChecked
                                       ? `${selo.bgChecked} border-transparent shadow-sm scale-102`
                                       : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
-                                  }`}
+                                    }`}
                                 >
                                   <span className={`w-2 h-2 rounded-full ${isChecked ? 'bg-white' : 'bg-slate-300'}`}></span>
                                   <span>{selo.label}</span>
@@ -2165,8 +2171,8 @@ export const UsersManagementPage: React.FC = () => {
                             value={formColaboradorData.area || ''}
                             onChange={(e) => setFormColaboradorData({ ...formColaboradorData, area: e.target.value })}
                             className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold outline-none cursor-pointer transition-all ${formColaboradorData.area && formColaboradorData.area.trim()
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 focus:border-emerald-500'
-                                : 'bg-rose-50 text-rose-700 border-rose-300 focus:border-rose-500'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 focus:border-emerald-500'
+                              : 'bg-rose-50 text-rose-700 border-rose-300 focus:border-rose-500'
                               }`}
                           >
                             <option value="" className="bg-white text-slate-500 font-normal">Selecione uma Área...</option>
@@ -2494,8 +2500,8 @@ export const UsersManagementPage: React.FC = () => {
                                 type="button"
                                 onClick={() => handleCargoChange(cargoOption)}
                                 className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${isSelected
-                                    ? 'border-blue-600 bg-blue-50 text-blue-900 font-bold shadow-2xs'
-                                    : 'border-slate-100 hover:bg-slate-50 text-slate-600'
+                                  ? 'border-blue-600 bg-blue-50 text-blue-900 font-bold shadow-2xs'
+                                  : 'border-slate-100 hover:bg-slate-50 text-slate-600'
                                   }`}
                               >
                                 <div className="text-[10px] font-bold uppercase truncate">{cargoOption}</div>
@@ -2538,8 +2544,8 @@ export const UsersManagementPage: React.FC = () => {
                               <label
                                 key={page.id}
                                 className={`flex items-center gap-2.5 p-2 rounded-xl border text-xs cursor-pointer transition-all ${isChecked
-                                    ? 'bg-blue-50/80 border-blue-200 text-blue-900 font-semibold shadow-2xs'
-                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                  ? 'bg-blue-50/80 border-blue-200 text-blue-900 font-semibold shadow-2xs'
+                                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                                   }`}
                               >
                                 <input
@@ -2616,10 +2622,10 @@ export const UsersManagementPage: React.FC = () => {
                                         key={sub.id}
                                         title={!isParentPageActive ? `Marque primeiro a página principal "${page.label}"` : undefined}
                                         className={`flex items-center gap-2 p-1.5 rounded-lg border text-[11px] transition-all ${!isParentPageActive
-                                            ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
-                                            : isSubChecked
-                                              ? 'bg-indigo-50/70 border-indigo-200 text-indigo-900 font-semibold cursor-pointer shadow-2xs'
-                                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer'
+                                          ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                                          : isSubChecked
+                                            ? 'bg-indigo-50/70 border-indigo-200 text-indigo-900 font-semibold cursor-pointer shadow-2xs'
+                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer'
                                           }`}
                                       >
                                         <input
@@ -2628,8 +2634,8 @@ export const UsersManagementPage: React.FC = () => {
                                           checked={isSubChecked}
                                           onChange={() => toggleSubpagePermission(sub.id)}
                                           className={`rounded border-slate-300 scale-90 ${!isParentPageActive
-                                              ? 'cursor-not-allowed opacity-40'
-                                              : 'text-indigo-600 focus:ring-indigo-500 cursor-pointer'
+                                            ? 'cursor-not-allowed opacity-40'
+                                            : 'text-indigo-600 focus:ring-indigo-500 cursor-pointer'
                                             }`}
                                         />
                                         <span className="truncate">{sub.label}</span>
@@ -2777,10 +2783,10 @@ export const UsersManagementPage: React.FC = () => {
               {/* Feedback de Importação */}
               {bulkFeedback && (
                 <div className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${bulkFeedback.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : bulkFeedback.type === 'warning'
-                      ? 'bg-amber-50 text-amber-900 border border-amber-200'
-                      : 'bg-red-50 text-red-800 border border-red-200'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  : bulkFeedback.type === 'warning'
+                    ? 'bg-amber-50 text-amber-900 border border-amber-200'
+                    : 'bg-red-50 text-red-800 border border-red-200'
                   }`}>
                   {bulkFeedback.type === 'success' ? (
                     <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
