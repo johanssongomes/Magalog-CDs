@@ -245,3 +245,133 @@ export const deleteLink = async (id: string, allLinks: QuickLink[]): Promise<Qui
 
   return updatedList
 }
+
+// =========================================================================
+// MÉTODOS PARA LINKS INDIVIDUAIS / PESSOAIS DE CADA USUÁRIO
+// =========================================================================
+
+export const getPersonalLinksStorageKey = (email: string) => 
+  `magalog_personal_links_${(email || 'anonymous').trim().toLowerCase()}`
+
+export const getPersonalLinksDbKey = (email: string) => 
+  `_user_personal_links_${(email || 'anonymous').trim().toLowerCase()}`
+
+// Buscar links pessoais do usuário
+export const fetchPersonalLinks = async (email: string): Promise<QuickLink[]> => {
+  if (!email) return []
+  const cleanEmail = email.trim().toLowerCase()
+  const dbKey = getPersonalLinksDbKey(cleanEmail)
+  const localKey = getPersonalLinksStorageKey(cleanEmail)
+
+  try {
+    // 1. Tentar buscar da nuvem (performance_metrics)
+    const { data: metricData, error } = await supabase
+      .from('performance_metrics')
+      .select('value')
+      .eq('cell_key', dbKey)
+      .maybeSingle()
+
+    if (!error && metricData?.value) {
+      const parsed = JSON.parse(metricData.value)
+      if (Array.isArray(parsed)) {
+        const normalized = parsed.map(normalizeLink)
+        try {
+          localStorage.setItem(localKey, JSON.stringify(normalized))
+        } catch {}
+        return normalized
+      }
+    }
+
+    // 2. Fallback no LocalStorage pessoal
+    const local = localStorage.getItem(localKey)
+    if (local) {
+      const parsed = JSON.parse(local)
+      if (Array.isArray(parsed)) {
+        return parsed.map(normalizeLink)
+      }
+    }
+
+    return []
+  } catch (err) {
+    console.warn('Erro ao carregar links pessoais:', err)
+    const local = localStorage.getItem(localKey)
+    return local ? JSON.parse(local) : []
+  }
+}
+
+// Salvar link pessoal do usuário
+export const savePersonalLink = async (
+  email: string,
+  link: Partial<QuickLink>,
+  allPersonalLinks: QuickLink[]
+): Promise<QuickLink> => {
+  const cleanEmail = (email || 'anonymous').trim().toLowerCase()
+  const isNew = !link.id
+  const now = new Date().toISOString()
+  const cleanId = link.id || `personal-link-${Date.now()}`
+  const dbKey = getPersonalLinksDbKey(cleanEmail)
+  const localKey = getPersonalLinksStorageKey(cleanEmail)
+
+  const normalized: QuickLink = {
+    id: cleanId,
+    title: link.title || '',
+    url: link.url || '',
+    description: link.description || '',
+    category: link.category || 'Meus Atalhos',
+    iconColor: link.iconColor || 'bg-blue-600',
+    isFavorite: link.isFavorite || false,
+    createdBy: cleanEmail,
+    createdAt: link.createdAt || now,
+    updatedAt: now
+  }
+
+  const updatedList = isNew
+    ? [normalized, ...allPersonalLinks]
+    : allPersonalLinks.map(l => l.id === cleanId ? normalized : l)
+
+  try {
+    localStorage.setItem(localKey, JSON.stringify(updatedList))
+  } catch {}
+
+  // Sincronizar na nuvem individual
+  try {
+    await supabase.from('performance_metrics').upsert({
+      cell_key: dbKey,
+      value: JSON.stringify(updatedList),
+      updated_at: now
+    }, { onConflict: 'cell_key' })
+  } catch (err) {
+    console.warn('Erro ao sincronizar link pessoal no Supabase:', err)
+  }
+
+  return normalized
+}
+
+// Deletar link pessoal
+export const deletePersonalLink = async (
+  email: string,
+  id: string,
+  allPersonalLinks: QuickLink[]
+): Promise<QuickLink[]> => {
+  const cleanEmail = (email || 'anonymous').trim().toLowerCase()
+  const updatedList = allPersonalLinks.filter(l => l.id !== id)
+  const now = new Date().toISOString()
+  const dbKey = getPersonalLinksDbKey(cleanEmail)
+  const localKey = getPersonalLinksStorageKey(cleanEmail)
+
+  try {
+    localStorage.setItem(localKey, JSON.stringify(updatedList))
+  } catch {}
+
+  try {
+    await supabase.from('performance_metrics').upsert({
+      cell_key: dbKey,
+      value: JSON.stringify(updatedList),
+      updated_at: now
+    }, { onConflict: 'cell_key' })
+  } catch (err) {
+    console.warn('Erro ao deletar link pessoal no Supabase:', err)
+  }
+
+  return updatedList
+}

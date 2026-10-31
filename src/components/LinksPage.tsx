@@ -25,13 +25,20 @@ import {
   List,
   RefreshCw,
   Lock,
-  Users
+  Users,
+  User,
+  Building2,
+  Sparkles
 } from 'lucide-react'
 import { useAuth } from '../lib/authContext'
 import { 
   fetchLinks, 
   saveLink, 
   deleteLink, 
+  fetchPersonalLinks,
+  savePersonalLink,
+  deletePersonalLink,
+  getPersonalLinksStorageKey,
   type QuickLink, 
   INITIAL_LINKS,
   STORAGE_KEY_LINKS
@@ -77,12 +84,29 @@ export const LinksPage: React.FC = () => {
     user?.role === 'admin'
   const canManage = isMasterOrAdmin || user?.role === 'gerente' || user?.role === 'coordenador'
 
-  const [links, setLinks] = useState<QuickLink[]>(() => {
+  const userEmail = user?.email || ''
+
+  // Aba ativa: 'personal' (Meus Links Pessoais) ou 'shared' (Links Gerais CD 994)
+  const [activeTab, setActiveTab] = useState<'personal' | 'shared'>('personal')
+
+  // Links compartilhados / corporativos
+  const [sharedLinks, setSharedLinks] = useState<QuickLink[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_LINKS)
       if (saved) return JSON.parse(saved)
     } catch {}
     return INITIAL_LINKS
+  })
+
+  // Links pessoais do usuário logado
+  const [personalLinks, setPersonalLinks] = useState<QuickLink[]>(() => {
+    try {
+      if (userEmail) {
+        const saved = localStorage.getItem(getPersonalLinksStorageKey(userEmail))
+        if (saved) return JSON.parse(saved)
+      }
+    } catch {}
+    return []
   })
 
   const [loading, setLoading] = useState(false)
@@ -102,8 +126,12 @@ export const LinksPage: React.FC = () => {
   const loadLinksFromDb = async () => {
     setLoading(true)
     try {
-      const data = await fetchLinks()
-      setLinks(data)
+      const [sharedData, personalData] = await Promise.all([
+        fetchLinks(),
+        userEmail ? fetchPersonalLinks(userEmail) : Promise.resolve([])
+      ])
+      setSharedLinks(sharedData)
+      setPersonalLinks(personalData)
     } catch (err) {
       console.warn('Erro ao carregar links:', err)
     } finally {
@@ -113,7 +141,7 @@ export const LinksPage: React.FC = () => {
 
   useEffect(() => {
     loadLinksFromDb()
-  }, [])
+  }, [userEmail])
 
   const handleToggleViewMode = (mode: 'grid' | 'list') => {
     setViewMode(mode)
@@ -135,8 +163,13 @@ export const LinksPage: React.FC = () => {
   const [formRoles, setFormRoles] = useState<string[]>(['admin', 'gerente', 'coordenador', 'supervisor', 'lider', 'bp', 'colaborador'])
   const [saving, setSaving] = useState(false)
 
-  // Categorias únicas
-  const categories = ['Todos', ...Array.from(new Set(links.map(l => l.category).filter(Boolean)))]
+  // Links da aba ativa
+  const currentTabLinks = activeTab === 'personal' ? personalLinks : sharedLinks
+  const canCreate = activeTab === 'personal' ? true : canManage
+
+  // Categorias únicas baseadas na aba atual
+  const defaultCategory = activeTab === 'personal' ? 'Meus Atalhos' : 'Sistemas Internos'
+  const categories = ['Todos', ...Array.from(new Set(currentTabLinks.map(l => l.category).filter(Boolean)))]
 
   // Abrir Modal para Novo Link
   const handleOpenCreateModal = () => {
@@ -144,7 +177,7 @@ export const LinksPage: React.FC = () => {
     setFormTitle('')
     setFormUrl('')
     setFormDescription('')
-    setFormCategory('Sistemas Internos')
+    setFormCategory(defaultCategory)
     setFormCustomCategory('')
     setFormColor('bg-blue-600')
     setFormFavorite(false)
@@ -196,8 +229,13 @@ export const LinksPage: React.FC = () => {
         createdBy: user?.name || user?.email
       }
 
-      await saveLink(payload, links)
-      await loadLinksFromDb()
+      if (activeTab === 'personal') {
+        const saved = await savePersonalLink(userEmail, payload, personalLinks)
+        setPersonalLinks(prev => editingId ? prev.map(l => l.id === editingId ? saved : l) : [saved, ...prev])
+      } else {
+        const saved = await saveLink(payload, sharedLinks)
+        setSharedLinks(prev => editingId ? prev.map(l => l.id === editingId ? saved : l) : [saved, ...prev])
+      }
       setIsModalOpen(false)
     } catch (err) {
       console.error('Erro ao salvar link:', err)
@@ -206,12 +244,22 @@ export const LinksPage: React.FC = () => {
     }
   }
 
-  // Deletar Link no Supabase
+  // Deletar Link
   const handleDeleteLink = async (id: string) => {
-    if (window.confirm('Tem certeza de que deseja remover este link para todos os usuários?')) {
+    const isPersonal = activeTab === 'personal'
+    const confirmMsg = isPersonal
+      ? 'Tem certeza de que deseja remover este link dos seus atalhos pessoais?'
+      : 'Tem certeza de que deseja remover este link corporativo para todos os usuários?'
+
+    if (window.confirm(confirmMsg)) {
       try {
-        const updated = await deleteLink(id, links)
-        setLinks(updated)
+        if (isPersonal) {
+          const updated = await deletePersonalLink(userEmail, id, personalLinks)
+          setPersonalLinks(updated)
+        } else {
+          const updated = await deleteLink(id, sharedLinks)
+          setSharedLinks(updated)
+        }
       } catch (err) {
         console.error('Erro ao deletar link:', err)
       }
@@ -221,12 +269,21 @@ export const LinksPage: React.FC = () => {
   // Alternar Favorito
   const handleToggleFavorite = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    const target = links.find(l => l.id === id)
+    const isPersonal = activeTab === 'personal'
+    const currentList = isPersonal ? personalLinks : sharedLinks
+    const target = currentList.find(l => l.id === id)
     if (!target) return
     const updatedFavorite = !(target.isFavorite ?? target.is_favorite)
+    const updatedTarget = { ...target, isFavorite: updatedFavorite, is_favorite: updatedFavorite }
+
     try {
-      await saveLink({ ...target, isFavorite: updatedFavorite }, links)
-      setLinks(prev => prev.map(l => l.id === id ? { ...l, isFavorite: updatedFavorite, is_favorite: updatedFavorite } : l))
+      if (isPersonal) {
+        await savePersonalLink(userEmail, updatedTarget, personalLinks)
+        setPersonalLinks(prev => prev.map(l => l.id === id ? updatedTarget : l))
+      } else {
+        await saveLink(updatedTarget, sharedLinks)
+        setSharedLinks(prev => prev.map(l => l.id === id ? updatedTarget : l))
+      }
     } catch {}
   }
 
@@ -257,9 +314,9 @@ export const LinksPage: React.FC = () => {
   // Filtragem considerando Permissões de Acesso por Cargo
   const userRole = user?.role || 'colaborador'
 
-  const filteredLinks = links.filter(link => {
-    // 1. Verificação de Permissão por Cargo
-    if (!isMasterOrAdmin) {
+  const filteredLinks = currentTabLinks.filter(link => {
+    // 1. Verificação de Permissão por Cargo (apenas para links corporativos compartilhados)
+    if (activeTab === 'shared' && !isMasterOrAdmin) {
       const allowedRoles = link.targetRoles || link.target_roles
       if (Array.isArray(allowedRoles) && allowedRoles.length > 0) {
         if (!allowedRoles.includes(userRole)) {
@@ -283,7 +340,7 @@ export const LinksPage: React.FC = () => {
   })
 
   // Contadores
-  const totalFavorites = links.filter(l => (l.isFavorite ?? l.is_favorite)).length
+  const totalFavorites = currentTabLinks.filter(l => (l.isFavorite ?? l.is_favorite)).length
 
   return (
     <div className="space-y-6 w-full max-w-7xl mx-auto pb-12">
@@ -300,17 +357,17 @@ export const LinksPage: React.FC = () => {
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Links Úteis & Ferramentas Operacionais
+            Links & Ferramentas de Trabalho
           </h1>
 
           <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-2xl">
-            Acesso facilitado para sistemas internos (WMS, TMS), relatórios corporativos, planilhas compartilhadas e portais de suporte do CD 994 com controle de permissão por cargo.
+            Acesse seus links pessoais favoritos salvos individualmente para o seu usuário ou consulte os links corporativos oficiais da operação do CD 994.
           </p>
 
           <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-slate-300">
             <div className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
               <Globe size={14} className="text-blue-400" />
-              <span>Disponíveis para você: <strong>{filteredLinks.length}</strong></span>
+              <span>{activeTab === 'personal' ? 'Seus links salvos:' : 'Disponíveis para você:'} <strong>{filteredLinks.length}</strong></span>
             </div>
             <div className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
               <Star size={14} className="text-amber-400 fill-amber-400" />
@@ -320,14 +377,53 @@ export const LinksPage: React.FC = () => {
               <Layers size={14} className="text-emerald-400" />
               <span>Categorias: <strong>{categories.length - 1}</strong></span>
             </div>
-            {canManage && (
+            {canManage && activeTab === 'shared' && (
               <div className="flex items-center gap-1.5 bg-purple-950/60 text-purple-300 px-3 py-1.5 rounded-lg border border-purple-500/30">
                 <ShieldCheck size={14} className="text-purple-400" />
-                <span>Modo de Gestão Ativo</span>
+                <span>Gestão Corporativa Ativa</span>
               </div>
             )}
           </div>
         </div>
+      </div>
+
+      {/* Seletor de Abas: Meus Links Pessoais vs Links Gerais CD 994 */}
+      <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200/80 w-fit">
+        <button
+          type="button"
+          onClick={() => { setActiveTab('personal'); setSelectedCategory('Todos'); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            activeTab === 'personal'
+              ? 'bg-white text-blue-700 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <User size={16} className={activeTab === 'personal' ? 'text-blue-600' : 'text-slate-400'} />
+          <span>Meus Links Pessoais</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+            activeTab === 'personal' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'
+          }`}>
+            {personalLinks.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => { setActiveTab('shared'); setSelectedCategory('Todos'); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            activeTab === 'shared'
+              ? 'bg-white text-blue-700 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Building2 size={16} className={activeTab === 'shared' ? 'text-blue-600' : 'text-slate-400'} />
+          <span>Links Gerais CD 994</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+            activeTab === 'shared' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'
+          }`}>
+            {sharedLinks.length}
+          </span>
+        </button>
       </div>
 
       {/* Barra de Controles: Busca, Categorias e Botão de Novo Link */}
@@ -338,7 +434,7 @@ export const LinksPage: React.FC = () => {
             <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar por nome, categoria, descrição ou URL..."
+              placeholder={activeTab === 'personal' ? "Buscar nos seus links pessoais..." : "Buscar por nome, categoria, descrição ou URL..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
@@ -405,14 +501,14 @@ export const LinksPage: React.FC = () => {
               <span>Apenas Favoritos</span>
             </button>
 
-            {/* Botão Adicionar Link (Apenas Gestão / Admin) */}
-            {canManage && (
+            {/* Botão Adicionar Link */}
+            {canCreate && (
               <button
                 onClick={handleOpenCreateModal}
                 className="px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20 transition-all cursor-pointer shrink-0"
               >
                 <Plus size={16} />
-                <span>Adicionar Link</span>
+                <span>{activeTab === 'personal' ? 'Novo Link Pessoal' : 'Adicionar Link'}</span>
               </button>
             )}
           </div>
@@ -443,21 +539,27 @@ export const LinksPage: React.FC = () => {
       {filteredLinks.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-sm">
           <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
-            <Globe size={32} />
+            {activeTab === 'personal' ? <User size={32} /> : <Globe size={32} />}
           </div>
-          <h3 className="text-base font-bold text-slate-800 mb-1">Nenhum link encontrado</h3>
+          <h3 className="text-base font-bold text-slate-800 mb-1">
+            {activeTab === 'personal' && personalLinks.length === 0
+              ? 'Você ainda não cadastrou nenhum link pessoal'
+              : 'Nenhum link encontrado'}
+          </h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto mb-6">
-            {searchTerm || selectedCategory !== 'Todos' || onlyFavorites
-              ? 'Tente ajustar os filtros de busca ou a categoria selecionada.'
-              : 'Nenhum link disponível para o seu nível de acesso no momento.'}
+            {activeTab === 'personal' && personalLinks.length === 0
+              ? 'Monte sua própria central de atalhos! Salve suas planilhas, sites e ferramentas que mais utiliza no seu dia a dia de forma rápida e segura.'
+              : searchTerm || selectedCategory !== 'Todos' || onlyFavorites
+                ? 'Tente ajustar os filtros de busca ou a categoria selecionada.'
+                : 'Nenhum link disponível para o seu nível de acesso no momento.'}
           </p>
-          {canManage && (
+          {canCreate && (
             <button
               onClick={handleOpenCreateModal}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer shadow-md shadow-blue-600/20"
             >
               <Plus size={15} />
-              <span>Cadastrar Primeiro Link</span>
+              <span>{activeTab === 'personal' ? 'Adicionar Meu Primeiro Link' : 'Cadastrar Primeiro Link'}</span>
             </button>
           )}
         </div>
@@ -516,7 +618,7 @@ export const LinksPage: React.FC = () => {
                       </button>
 
                       {/* Gestão (Editar e Deletar) */}
-                      {canManage && (
+                      {(activeTab === 'personal' || canManage) && (
                         <>
                           <button
                             onClick={() => handleOpenEditModal(item)}
@@ -638,7 +740,7 @@ export const LinksPage: React.FC = () => {
                       )}
                     </button>
 
-                    {canManage && (
+                    {(activeTab === 'personal' || canManage) && (
                       <>
                         <button
                           onClick={() => handleOpenEditModal(item)}
@@ -682,14 +784,18 @@ export const LinksPage: React.FC = () => {
             <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center">
-                  <Globe size={18} />
+                  {activeTab === 'personal' ? <User size={18} /> : <Globe size={18} />}
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-slate-800">
-                    {editingId ? 'Editar Link Operacional' : 'Novo Link de Acesso Rápido'}
+                    {activeTab === 'personal'
+                      ? (editingId ? 'Editar Meu Link Pessoal' : 'Novo Link Pessoal')
+                      : (editingId ? 'Editar Link Corporativo' : 'Novo Link de Acesso Rápido CD 994')}
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Disponibilize sistemas e ferramentas com controle de permissões.
+                    {activeTab === 'personal'
+                      ? 'Este atalho ficará salvo exclusivamente para você na sua conta.'
+                      : 'Disponibilize sistemas e ferramentas com controle de permissões por cargo.'}
                   </p>
                 </div>
               </div>
@@ -710,7 +816,7 @@ export const LinksPage: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Portal WMS CD 994"
+                  placeholder={activeTab === 'personal' ? "Ex: Minha Planilha de Escala" : "Ex: Portal WMS CD 994"}
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -754,6 +860,9 @@ export const LinksPage: React.FC = () => {
                     onChange={(e) => setFormCategory(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
                   >
+                    {activeTab === 'personal' && (
+                      <option value="Meus Atalhos">Meus Atalhos</option>
+                    )}
                     <option value="Sistemas Internos">Sistemas Internos</option>
                     <option value="Operação & WMS">Operação & WMS</option>
                     <option value="Transporte & Docas">Transporte & Docas</option>
@@ -800,43 +909,45 @@ export const LinksPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Controle de Permissões por Cargo */}
-              <div className="pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Permissões de Acesso por Cargo
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleSelectAllRoles}
-                    className="text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-                  >
-                    {formRoles.length === ALL_ROLES.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
-                  </button>
+              {/* Controle de Permissões por Cargo (apenas para links corporativos/gerais) */}
+              {activeTab === 'shared' && (
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Permissões de Acesso por Cargo
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleSelectAllRoles}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                    >
+                      {formRoles.length === ALL_ROLES.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
+                    {ALL_ROLES.map((r) => {
+                      const isChecked = formRoles.includes(r.id)
+                      return (
+                        <label
+                          key={r.id}
+                          className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer hover:text-slate-900 select-none"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleToggleRole(r.id)}
+                            className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                          />
+                          <span className="truncate">{r.label}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Apenas usuários com os cargos marcados verão este link em seus painéis.
+                  </p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
-                  {ALL_ROLES.map((r) => {
-                    const isChecked = formRoles.includes(r.id)
-                    return (
-                      <label
-                        key={r.id}
-                        className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer hover:text-slate-900 select-none"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleToggleRole(r.id)}
-                          className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
-                        />
-                        <span className="truncate">{r.label}</span>
-                      </label>
-                    )
-                  })}
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Apenas usuários com os cargos marcados verão este link em seus painéis.
-                </p>
-              </div>
+              )}
 
               {/* Checkbox Favorito */}
               <div className="flex items-center gap-2 pt-1">

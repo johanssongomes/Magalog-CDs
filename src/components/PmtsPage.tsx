@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import * as XLSX from 'xlsx'
-import { 
-  BarChart3, 
-  Truck, 
-  Target, 
-  ShieldCheck, 
-  FileSpreadsheet, 
-  CheckCircle2, 
-  RefreshCw, 
+import {
+  BarChart3,
+  Truck,
+  Target,
+  ShieldCheck,
+  FileSpreadsheet,
+  CheckCircle2,
+  RefreshCw,
   Plus,
   ArrowDownToLine,
   Calendar,
@@ -417,7 +417,7 @@ export const PmtsPage: React.FC = () => {
       if (storedUsers) {
         activeUsersList = JSON.parse(storedUsers)
       }
-    } catch {}
+    } catch { }
 
     const activeUserIds = new Set<string>()
     const activeUserNames = new Set<string>()
@@ -437,7 +437,7 @@ export const PmtsPage: React.FC = () => {
     try {
       const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
       if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
-    } catch {}
+    } catch { }
 
     if (activeUserIds.size > 0) {
       const cleanedDeleted = deletedIds.filter(id => {
@@ -447,7 +447,7 @@ export const PmtsPage: React.FC = () => {
       if (cleanedDeleted.length !== deletedIds.length) {
         try {
           localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(cleanedDeleted))
-        } catch {}
+        } catch { }
       }
       deletedIds = cleanedDeleted
     }
@@ -509,7 +509,7 @@ export const PmtsPage: React.FC = () => {
       if (listFromUsers.length > 0) {
         try {
           localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(listFromUsers))
-        } catch {}
+        } catch { }
         return listFromUsers
       }
     }
@@ -526,8 +526,8 @@ export const PmtsPage: React.FC = () => {
               return (!cId || !deletedSet.has(cId)) && (!cName || !deletedSet.has(cName))
             })
             .map(colab => {
-              const match = fullDataMap.get(String(colab.id || '').trim().toLowerCase()) || 
-                            fullDataMap.get(String(colab.contratado || '').trim().toUpperCase())
+              const match = fullDataMap.get(String(colab.id || '').trim().toLowerCase()) ||
+                fullDataMap.get(String(colab.contratado || '').trim().toUpperCase())
               if (match) {
                 const isCcNumeric = /^\d+$/.test(colab.centroDeCusto || '')
                 const fixedCentroDeCusto = isCcNumeric ? match.centroDeCusto : (colab.centroDeCusto || match.centroDeCusto)
@@ -572,12 +572,12 @@ export const PmtsPage: React.FC = () => {
           if (mergedList.length > 0) {
             try {
               localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(mergedList))
-            } catch {}
+            } catch { }
             return mergedList
           }
         }
       }
-    } catch {}
+    } catch { }
 
     // Carrega a base padrão com os colaboradores completos, excluindo os IDs deletados
     return initialRaw.filter(c => {
@@ -678,7 +678,7 @@ export const PmtsPage: React.FC = () => {
         if (storedUsers) {
           activeUsersList = JSON.parse(storedUsers)
         }
-      } catch {}
+      } catch { }
 
       const activeUserIds = new Set<string>()
       const activeUserNames = new Set<string>()
@@ -698,7 +698,7 @@ export const PmtsPage: React.FC = () => {
       try {
         const storedDeleted = localStorage.getItem('magalog_deleted_user_ids')
         if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
-      } catch {}
+      } catch { }
 
       try {
         const { data: globalDelRes } = await supabase
@@ -714,10 +714,10 @@ export const PmtsPage: React.FC = () => {
             })
             try {
               localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(deletedIds))
-            } catch {}
+            } catch { }
           }
         }
-      } catch {}
+      } catch { }
 
       if (activeUserIds.size > 0) {
         const cleanedDeleted = deletedIds.filter(id => {
@@ -727,7 +727,7 @@ export const PmtsPage: React.FC = () => {
         if (cleanedDeleted.length !== deletedIds.length) {
           try {
             localStorage.setItem('magalog_deleted_user_ids', JSON.stringify(cleanedDeleted))
-          } catch {}
+          } catch { }
         }
         deletedIds = cleanedDeleted
       }
@@ -791,7 +791,7 @@ export const PmtsPage: React.FC = () => {
           setColaboradoresList(listFromUsers)
           try {
             localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(listFromUsers))
-          } catch {}
+          } catch { }
           return
         }
       }
@@ -805,7 +805,7 @@ export const PmtsPage: React.FC = () => {
 
         if (!supaErr && Array.isArray(supaData) && supaData.length > 0) {
           const supaList = supaData.map(mapFromSupabase)
-          
+
           // Mapeia por ID e Nome os dados vindos do Supabase
           const supaMap = new Map<string, ColaboradorItem>()
           supaList.forEach(item => {
@@ -816,7 +816,7 @@ export const PmtsPage: React.FC = () => {
           // Mescla com a base completa de colaboradores padrão
           const mergedBase = initialList.map(baseItem => {
             const dbMatch = supaMap.get(String(baseItem.id).trim().toLowerCase()) ||
-                            supaMap.get(String(baseItem.contratado).trim().toUpperCase())
+              supaMap.get(String(baseItem.contratado).trim().toUpperCase())
             return dbMatch ? { ...baseItem, ...dbMatch } : baseItem
           })
 
@@ -838,7 +838,7 @@ export const PmtsPage: React.FC = () => {
             setColaboradoresList(finalList)
             try {
               localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(finalList))
-            } catch {}
+            } catch { }
             return
           }
         }
@@ -862,7 +862,7 @@ export const PmtsPage: React.FC = () => {
             setColaboradoresList(list)
             try {
               localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(list))
-            } catch {}
+            } catch { }
             return
           }
         }
@@ -884,7 +884,7 @@ export const PmtsPage: React.FC = () => {
           if (!existing || JSON.parse(existing).length === 0) {
             localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(filteredInitial))
           }
-        } catch {}
+        } catch { }
       }
     } catch (err) {
       console.warn('Banco de dados local/remoto não respondeu, utilizando base em memória/local:', err)
@@ -901,7 +901,7 @@ export const PmtsPage: React.FC = () => {
     const handleStorageUpdate = (e?: StorageEvent | CustomEvent) => {
       try {
         fetchColaboradoresFromDb()
-      } catch {}
+      } catch { }
     }
 
     window.addEventListener('storage', handleStorageUpdate)
@@ -920,14 +920,14 @@ export const PmtsPage: React.FC = () => {
               const newItem = mapFromSupabase(payload.new)
               setColaboradoresList((prev) => {
                 const updated = [newItem, ...prev.filter((c) => String(c.id).trim() !== String(newItem.id).trim())]
-                try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch {}
+                try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch { }
                 return updated
               })
             } else if (payload.eventType === 'UPDATE') {
               const updatedItem = mapFromSupabase(payload.new)
               setColaboradoresList((prev) => {
                 const updated = prev.map((c) => String(c.id).trim() === String(updatedItem.id).trim() ? updatedItem : c)
-                try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch {}
+                try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch { }
                 return updated
               })
             } else if (payload.eventType === 'DELETE') {
@@ -938,7 +938,7 @@ export const PmtsPage: React.FC = () => {
                     const cId = String(c.id).trim().toLowerCase()
                     return cId !== deletedId
                   })
-                  try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch {}
+                  try { localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated)) } catch { }
                   return updated
                 })
               }
@@ -960,7 +960,7 @@ export const PmtsPage: React.FC = () => {
       if (channel) {
         try {
           supabase.removeChannel(channel)
-        } catch {}
+        } catch { }
       }
     }
   }, [])
@@ -974,8 +974,8 @@ export const PmtsPage: React.FC = () => {
 
     // Validação de duplicidade no cadastro individual
     const exists = colaboradoresList.some(
-      c => c.id.toLowerCase() === normalizedId.toLowerCase() || 
-           c.contratado.toLowerCase() === normalizedNome.toLowerCase()
+      c => c.id.toLowerCase() === normalizedId.toLowerCase() ||
+        c.contratado.toLowerCase() === normalizedNome.toLowerCase()
     )
 
     if (exists) {
@@ -996,12 +996,12 @@ export const PmtsPage: React.FC = () => {
     setColaboradoresList(updated)
     try {
       localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated))
-    } catch {}
+    } catch { }
 
     // Grava no Banco de Dados via Supabase (Vercel) e API local
     try {
       await supabase.from('colaboradores').upsert(mapToSupabase(novoColaborador), { onConflict: 'id' })
-    } catch {}
+    } catch { }
 
     try {
       await fetch('http://localhost:3001/api/colaboradores', {
@@ -1034,19 +1034,19 @@ export const PmtsPage: React.FC = () => {
     e.preventDefault()
     if (!editingColaborador || !editingColaborador.id || !editingColaborador.contratado) return
 
-    const updatedList = colaboradoresList.map(c => 
+    const updatedList = colaboradoresList.map(c =>
       c.id === editingColaborador.id ? { ...editingColaborador } : c
     )
 
     setColaboradoresList(updatedList)
     try {
       localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedList))
-    } catch {}
+    } catch { }
 
     // Grava alteração no Banco de Dados (Supabase Vercel + API Local)
     try {
       await supabase.from('colaboradores').upsert(mapToSupabase(editingColaborador), { onConflict: 'id' })
-    } catch {}
+    } catch { }
 
     try {
       await fetch('http://localhost:3001/api/colaboradores', {
@@ -1080,7 +1080,7 @@ export const PmtsPage: React.FC = () => {
       window.dispatchEvent(new CustomEvent('magalog_users_updated', {
         detail: { action: 'update', id: editingColaborador.id, colaborador: editingColaborador, area: editingColaborador.area }
       }))
-    } catch {}
+    } catch { }
 
     setEditSuccessMsg('Dados do colaborador atualizados e salvos no Banco de Dados!')
     setTimeout(() => {
@@ -1157,7 +1157,7 @@ export const PmtsPage: React.FC = () => {
 
           const rawId = String(findVal(['id', 'matrícula', 'matricula', 'crachá', 'cracha', 'codigo', 'código'])).trim()
           const rawContratado = String(findVal(['contratado', 'nome', 'colaborador', 'funcionario', 'funcionário'])).trim()
-          
+
           if (rawId || rawContratado) {
             const normId = (rawId || `AUTO-${Math.floor(100000 + Math.random() * 900000)}`).trim()
             const normNome = (rawContratado || 'SEM NOME').trim().toUpperCase()
@@ -1280,7 +1280,7 @@ export const PmtsPage: React.FC = () => {
     setColaboradoresList(updatedList)
     try {
       localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updatedList))
-    } catch {}
+    } catch { }
 
     // Grava todos os registros na tabela do Banco de Dados (Supabase Vercel + API Local)
     try {
@@ -1292,7 +1292,7 @@ export const PmtsPage: React.FC = () => {
       for (let i = 0; i < supaRows.length; i += 100) {
         await supabase.from('colaboradores').upsert(supaRows.slice(i, i + 100), { onConflict: 'id' })
       }
-    } catch {}
+    } catch { }
 
     try {
       await fetch('http://localhost:3001/api/colaboradores/bulk', {
@@ -1334,12 +1334,12 @@ export const PmtsPage: React.FC = () => {
     setColaboradoresList(updated)
     try {
       localStorage.setItem('magalog_quadro_colaboradores', JSON.stringify(updated))
-    } catch {}
+    } catch { }
 
     // Remove do Banco de Dados (Supabase Vercel + API Local)
     try {
       await supabase.from('colaboradores').delete().eq('id', id)
-    } catch {}
+    } catch { }
 
     try {
       await fetch(`http://localhost:3001/api/colaboradores/${encodeURIComponent(id)}`, {
@@ -1355,12 +1355,12 @@ export const PmtsPage: React.FC = () => {
     setColaboradoresList([])
     try {
       localStorage.removeItem('magalog_quadro_colaboradores')
-    } catch {}
+    } catch { }
 
     // Limpa a tabela no Banco de Dados (Supabase Vercel + API Local)
     try {
       await supabase.from('colaboradores').delete().neq('id', '___all___')
-    } catch {}
+    } catch { }
 
     try {
       await fetch('http://localhost:3001/api/colaboradores', {
@@ -1397,7 +1397,7 @@ export const PmtsPage: React.FC = () => {
       }
 
       // 2. Filtros de interface
-      const matchBusca = !buscaColaborador || 
+      const matchBusca = !buscaColaborador ||
         colab.contratado.toLowerCase().includes(buscaColaborador.toLowerCase()) ||
         colab.id.toLowerCase().includes(buscaColaborador.toLowerCase())
       const matchCargo = filtrosCargo.length === 0 || filtrosCargo.includes(colab.cargo)
@@ -1527,7 +1527,7 @@ export const PmtsPage: React.FC = () => {
   // Estado dos Filtros de Ano e Mês (para PMT Expedição/Recebimento)
   const [selectedYear, setSelectedYear] = useState<number>(2026)
   const [selectedMonth, setSelectedMonth] = useState<number>(10)
-  
+
   // Estado do Modal de Importação / Atualização PMT
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [importVersion, setImportVersion] = useState('v14')
@@ -1752,8 +1752,8 @@ export const PmtsPage: React.FC = () => {
     }
     window.addEventListener('aderenciaDataUpdated', handleAderenciaUpdated)
 
-    return () => { 
-      isMounted = false 
+    return () => {
+      isMounted = false
       window.removeEventListener('aderenciaDataUpdated', handleAderenciaUpdated)
     }
   }, [selectedYear, selectedMonth])
@@ -1904,11 +1904,10 @@ export const PmtsPage: React.FC = () => {
               <button
                 key={page.id}
                 onClick={() => setActivePageId(page.id)}
-                className={`relative flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer text-center min-w-[140px] flex-1 sm:flex-initial ${
-                  isActive
+                className={`relative flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer text-center min-w-[140px] flex-1 sm:flex-initial ${isActive
                     ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25 ring-2 ring-blue-500/20'
                     : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 hover:text-blue-700'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className={isActive ? 'text-white' : 'text-slate-400'}>
@@ -1941,11 +1940,10 @@ export const PmtsPage: React.FC = () => {
                   <button
                     key={sub.id}
                     onClick={() => setExpedicaoSubPage(sub.id as any)}
-                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer border ${
-                      isSubActive
+                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer border ${isSubActive
                         ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                         : 'bg-slate-50 text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
-                    }`}
+                      }`}
                   >
                     {sub.label}
                   </button>
@@ -1975,11 +1973,10 @@ export const PmtsPage: React.FC = () => {
                   <button
                     key={sub.id}
                     onClick={() => setQuadroSubPage(sub.id as any)}
-                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer border ${
-                      isSubActive
+                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer border ${isSubActive
                         ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                         : 'bg-slate-50 text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
-                    }`}
+                      }`}
                   >
                     {sub.label}
                   </button>
@@ -1999,598 +1996,593 @@ export const PmtsPage: React.FC = () => {
       {activePageId !== 1 && activePageId !== 4 && activePageId !== 5 && activePageId !== 6 && (!isQuadro || quadroSubPage === 'pg1' || quadroSubPage === 'dashboard') && (
         <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
           {isQuadro ? (
-          /* FILTROS ESPECÍFICOS DO QUADRO */
-          <div className="flex flex-wrap items-center gap-2.5 flex-1">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider font-mono mr-1">
-              <Filter size={15} className="text-blue-600" />
-              <span>Filtro Quadro:</span>
-            </div>
+            /* FILTROS ESPECÍFICOS DO QUADRO */
+            <div className="flex flex-wrap items-center gap-2.5 flex-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider font-mono mr-1">
+                <Filter size={15} className="text-blue-600" />
+                <span>Filtro Quadro:</span>
+              </div>
 
-            {/* Busca por Colaborador ou ID */}
-            <div className="relative min-w-[200px] flex-1 max-w-xs">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Buscar por nome ou ID..."
-                value={buscaColaborador}
-                onChange={(e) => setBuscaColaborador(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 hover:border-blue-400 focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 rounded-xl pl-8 pr-3 py-2 text-xs font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400"
-              />
-              {buscaColaborador && (
-                <button 
-                  onClick={() => setBuscaColaborador('')} 
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              {/* Busca por Colaborador ou ID */}
+              <div className="relative min-w-[200px] flex-1 max-w-xs">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar por nome ou ID..."
+                  value={buscaColaborador}
+                  onChange={(e) => setBuscaColaborador(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 hover:border-blue-400 focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 rounded-xl pl-8 pr-3 py-2 text-xs font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400"
+                />
+                {buscaColaborador && (
+                  <button
+                    onClick={() => setBuscaColaborador('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+
+              {/* Filtro por Cargo (Múltipla Seleção) */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenDropdown(openDropdown === 'cargo' ? null : 'cargo')}
+                  className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${filtrosCargo.length > 0
+                      ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs'
+                      : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
+                    }`}
                 >
-                  <X size={12} />
+                  <Briefcase size={14} className={filtrosCargo.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
+                  <div className="flex flex-col">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                      Cargo
+                    </label>
+                    <span className="text-xs font-bold truncate max-w-[140px]">
+                      {filtrosCargo.length === 0
+                        ? 'Todos os Cargos'
+                        : filtrosCargo.length === 1
+                          ? filtrosCargo[0]
+                          : `${filtrosCargo.length} selecionados`}
+                    </span>
+                  </div>
+                  <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'cargo' ? 'rotate-180' : ''}`} />
                 </button>
-              )}
-            </div>
 
-            {/* Filtro por Cargo (Múltipla Seleção) */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setOpenDropdown(openDropdown === 'cargo' ? null : 'cargo')}
-                className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${
-                  filtrosCargo.length > 0 
-                    ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs' 
-                    : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
-                }`}
-              >
-                <Briefcase size={14} className={filtrosCargo.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
-                <div className="flex flex-col">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                    Cargo
-                  </label>
-                  <span className="text-xs font-bold truncate max-w-[140px]">
-                    {filtrosCargo.length === 0 
-                      ? 'Todos os Cargos' 
-                      : filtrosCargo.length === 1 
-                        ? filtrosCargo[0] 
-                        : `${filtrosCargo.length} selecionados`}
-                  </span>
-                </div>
-                <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'cargo' ? 'rotate-180' : ''}`} />
-              </button>
-
-              {openDropdown === 'cargo' && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
-                  <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
-                      <span className="font-bold text-slate-700">Filtrar por Cargos</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setFiltrosCargo([])}
-                          className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
-                        >
-                          Marcar Todos
-                        </button>
-                        <span className="text-slate-300">|</span>
-                        <button
-                          type="button"
-                          onClick={() => setFiltrosCargo(['__nenhum__'])}
-                          className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
-                        >
-                          Limpar
-                        </button>
-                      </div>
-                    </div>
-                    <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
-                      {listaCargos.map((cargo) => {
-                        const isChecked = filtrosCargo.length === 0 || filtrosCargo.includes(cargo)
-                        return (
-                          <label
-                            key={cargo}
-                            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
+                {openDropdown === 'cargo' && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                    <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
+                        <span className="font-bold text-slate-700">Filtrar por Cargos</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setFiltrosCargo([])}
+                            className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
                           >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                if (filtrosCargo.length === 0) {
-                                  // Estava com todos marcados e o usuário desmarcou este cargo
-                                  setFiltrosCargo(listaCargos.filter(c => c !== cargo))
-                                } else if (filtrosCargo.includes(cargo)) {
-                                  const novo = filtrosCargo.filter(c => c !== cargo)
-                                  setFiltrosCargo(novo)
-                                } else {
-                                  const novo = [...filtrosCargo, cargo]
-                                  // Se selecionou todos novamente, pode manter ou manter a lista completa
-                                  if (novo.length === listaCargos.length) {
-                                    setFiltrosCargo([])
-                                  } else {
+                            Marcar Todos
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => setFiltrosCargo(['__nenhum__'])}
+                            className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
+                          >
+                            Limpar
+                          </button>
+                        </div>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
+                        {listaCargos.map((cargo) => {
+                          const isChecked = filtrosCargo.length === 0 || filtrosCargo.includes(cargo)
+                          return (
+                            <label
+                              key={cargo}
+                              className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (filtrosCargo.length === 0) {
+                                    // Estava com todos marcados e o usuário desmarcou este cargo
+                                    setFiltrosCargo(listaCargos.filter(c => c !== cargo))
+                                  } else if (filtrosCargo.includes(cargo)) {
+                                    const novo = filtrosCargo.filter(c => c !== cargo)
                                     setFiltrosCargo(novo)
+                                  } else {
+                                    const novo = [...filtrosCargo, cargo]
+                                    // Se selecionou todos novamente, pode manter ou manter a lista completa
+                                    if (novo.length === listaCargos.length) {
+                                      setFiltrosCargo([])
+                                    } else {
+                                      setFiltrosCargo(novo)
+                                    }
                                   }
-                                }
-                              }}
-                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                            />
-                            <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
-                              {cargo}
-                            </span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Filtro por Centro de Custo (Múltipla Seleção) */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setOpenDropdown(openDropdown === 'cc' ? null : 'cc')}
-                className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${
-                  filtrosCentroCusto.length > 0 
-                    ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs' 
-                    : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
-                }`}
-              >
-                <Building2 size={14} className={filtrosCentroCusto.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
-                <div className="flex flex-col">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                    Centro de Custo
-                  </label>
-                  <span className="text-xs font-bold truncate max-w-[140px]">
-                    {filtrosCentroCusto.length === 0 
-                      ? 'Todos os Centros' 
-                      : filtrosCentroCusto.length === 1 
-                        ? filtrosCentroCusto[0] 
-                        : `${filtrosCentroCusto.length} selecionados`}
-                  </span>
-                </div>
-                <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'cc' ? 'rotate-180' : ''}`} />
-              </button>
-
-              {openDropdown === 'cc' && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
-                  <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
-                      <span className="font-bold text-slate-700">Filtrar Centros de Custo</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setFiltrosCentroCusto([])}
-                          className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
-                        >
-                          Marcar Todos
-                        </button>
-                        <span className="text-slate-300">|</span>
-                        <button
-                          type="button"
-                          onClick={() => setFiltrosCentroCusto(['__nenhum__'])}
-                          className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
-                        >
-                          Limpar
-                        </button>
+                                }}
+                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
+                                {cargo}
+                              </span>
+                            </label>
+                          )
+                        })}
                       </div>
                     </div>
-                    <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
-                      {listaCentrosCusto.map((cc) => {
-                        const isChecked = filtrosCentroCusto.length === 0 || filtrosCentroCusto.includes(cc)
-                        return (
-                          <label
-                            key={cc}
-                            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                if (filtrosCentroCusto.length === 0) {
-                                  setFiltrosCentroCusto(listaCentrosCusto.filter(c => c !== cc))
-                                } else if (filtrosCentroCusto.includes(cc)) {
-                                  const novo = filtrosCentroCusto.filter(c => c !== cc)
-                                  setFiltrosCentroCusto(novo.length === 0 ? ['__nenhum__'] : novo)
-                                } else {
-                                  const base = filtrosCentroCusto.filter(c => c !== '__nenhum__')
-                                  const novo = [...base, cc]
-                                  if (novo.length === listaCentrosCusto.length) {
-                                    setFiltrosCentroCusto([])
-                                  } else {
-                                    setFiltrosCentroCusto(novo)
-                                  }
-                                }
-                              }}
-                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                            />
-                            <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
-                              {cc}
-                            </span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+                  </>
+                )}
+              </div>
 
-            {/* Filtro por Gerência (Múltipla Seleção) */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setOpenDropdown(openDropdown === 'gerencia' ? null : 'gerencia')}
-                className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${
-                  filtrosGerencia.length > 0 
-                    ? 'bg-indigo-50/80 border-indigo-400 text-indigo-900 shadow-2xs' 
-                    : 'bg-slate-50 border-slate-200 hover:border-indigo-400 text-slate-800'
-                }`}
-              >
-                <Layers size={14} className={filtrosGerencia.length > 0 ? 'text-indigo-600' : 'text-slate-500'} />
-                <div className="flex flex-col">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                    Gerência
-                  </label>
-                  <span className="text-xs font-bold truncate max-w-[140px]">
-                    {filtrosGerencia.length === 0 
-                      ? 'Todas as Gerências' 
-                      : filtrosGerencia.length === 1 
-                        ? filtrosGerencia[0] 
-                        : `${filtrosGerencia.length} selecionadas`}
-                  </span>
-                </div>
-                <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'gerencia' ? 'rotate-180' : ''}`} />
-              </button>
-
-              {openDropdown === 'gerencia' && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
-                  <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
-                      <span className="font-bold text-slate-700">Filtrar Gerências</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setFiltrosGerencia([])}
-                          className="text-[10px] text-indigo-600 hover:underline font-bold cursor-pointer"
-                        >
-                          Marcar Todas
-                        </button>
-                        <span className="text-slate-300">|</span>
-                        <button
-                          type="button"
-                          onClick={() => setFiltrosGerencia(['__nenhum__'])}
-                          className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
-                        >
-                          Limpar
-                        </button>
-                      </div>
-                    </div>
-                    <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
-                      {listaGerencias.map((ger) => {
-                        const isChecked = filtrosGerencia.length === 0 || filtrosGerencia.includes(ger)
-                        return (
-                          <label
-                            key={ger}
-                            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                if (filtrosGerencia.length === 0) {
-                                  setFiltrosGerencia(listaGerencias.filter(g => g !== ger))
-                                } else if (filtrosGerencia.includes(ger)) {
-                                  const novo = filtrosGerencia.filter(g => g !== ger)
-                                  setFiltrosGerencia(novo.length === 0 ? ['__nenhum__'] : novo)
-                                } else {
-                                  const base = filtrosGerencia.filter(g => g !== '__nenhum__')
-                                  const novo = [...base, ger]
-                                  if (novo.length === listaGerencias.length) {
-                                    setFiltrosGerencia([])
-                                  } else {
-                                    setFiltrosGerencia(novo)
-                                  }
-                                }
-                              }}
-                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                            />
-                            <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-indigo-900' : 'text-slate-700'}`}>
-                              {ger}
-                            </span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Filtro por Área (Múltipla Seleção) */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setOpenDropdown(openDropdown === 'area' ? null : 'area')}
-                className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${
-                  filtrosArea.length > 0 
-                    ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs' 
-                    : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
-                }`}
-              >
-                <Building2 size={14} className={filtrosArea.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
-                <div className="flex flex-col">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                    Área
-                  </label>
-                  <span className="text-xs font-bold truncate max-w-[140px]">
-                    {filtrosArea.length === 0 
-                      ? 'Todas as Áreas' 
-                      : filtrosArea.length === 1 
-                        ? filtrosArea[0] 
-                        : `${filtrosArea.length} selecionadas`}
-                  </span>
-                </div>
-                <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'area' ? 'rotate-180' : ''}`} />
-              </button>
-
-              {openDropdown === 'area' && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
-                  <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
-                      <span className="font-bold text-slate-700">Filtrar Áreas</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setFiltrosArea([])}
-                          className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
-                        >
-                          Marcar Todas
-                        </button>
-                        <span className="text-slate-300">|</span>
-                        <button
-                          type="button"
-                          onClick={() => setFiltrosArea(['__nenhum__'])}
-                          className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
-                        >
-                          Limpar
-                        </button>
-                      </div>
-                    </div>
-                    <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
-                      {listaAreas.map((area) => {
-                        const isChecked = filtrosArea.length === 0 || filtrosArea.includes(area)
-                        return (
-                          <label
-                            key={area}
-                            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                if (filtrosArea.length === 0) {
-                                  setFiltrosArea(listaAreas.filter(a => a !== area))
-                                } else if (filtrosArea.includes(area)) {
-                                  const novo = filtrosArea.filter(a => a !== area)
-                                  setFiltrosArea(novo.length === 0 ? ['__nenhum__'] : novo)
-                                } else {
-                                  const base = filtrosArea.filter(a => a !== '__nenhum__')
-                                  const novo = [...base, area]
-                                  if (novo.length === listaAreas.length) {
-                                    setFiltrosArea([])
-                                  } else {
-                                    setFiltrosArea(novo)
-                                  }
-                                }
-                              }}
-                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                            />
-                            <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
-                              {area}
-                            </span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Filtro por Situação Sistema (Múltipla Seleção) */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setOpenDropdown(openDropdown === 'situacao' ? null : 'situacao')}
-                className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${
-                  filtrosSituacao.length > 0 
-                    ? 'bg-emerald-50/80 border-emerald-400 text-emerald-900 shadow-2xs' 
-                    : 'bg-slate-50 border-slate-200 hover:border-emerald-400 text-slate-800'
-                }`}
-              >
-                <ShieldCheck size={14} className={filtrosSituacao.length > 0 ? 'text-emerald-600' : 'text-slate-500'} />
-                <div className="flex flex-col">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                    Situação Sistema
-                  </label>
-                  <span className="text-xs font-bold truncate max-w-[140px]">
-                    {filtrosSituacao.length === 0 
-                      ? 'Todas as Situações' 
-                      : filtrosSituacao.length === 1 
-                        ? filtrosSituacao[0] 
-                        : `${filtrosSituacao.length} selecionadas`}
-                  </span>
-                </div>
-                <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'situacao' ? 'rotate-180' : ''}`} />
-              </button>
-
-              {openDropdown === 'situacao' && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
-                  <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
-                      <span className="font-bold text-slate-700">Filtrar Situação Sistema</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setFiltrosSituacao([])}
-                          className="text-[10px] text-emerald-600 hover:underline font-bold cursor-pointer"
-                        >
-                          Marcar Todas
-                        </button>
-                        <span className="text-slate-300">|</span>
-                        <button
-                          type="button"
-                          onClick={() => setFiltrosSituacao(['__nenhum__'])}
-                          className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
-                        >
-                          Limpar
-                        </button>
-                      </div>
-                    </div>
-                    <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
-                      {listaSituacoes.map((situacao) => {
-                        const isChecked = filtrosSituacao.length === 0 || filtrosSituacao.includes(situacao)
-                        return (
-                          <label
-                            key={situacao}
-                            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                if (filtrosSituacao.length === 0) {
-                                  setFiltrosSituacao(listaSituacoes.filter(s => s !== situacao))
-                                } else if (filtrosSituacao.includes(situacao)) {
-                                  const novo = filtrosSituacao.filter(s => s !== situacao)
-                                  setFiltrosSituacao(novo.length === 0 ? ['__nenhum__'] : novo)
-                                } else {
-                                  const base = filtrosSituacao.filter(s => s !== '__nenhum__')
-                                  const novo = [...base, situacao]
-                                  if (novo.length === listaSituacoes.length) {
-                                    setFiltrosSituacao([])
-                                  } else {
-                                    setFiltrosSituacao(novo)
-                                  }
-                                }
-                              }}
-                              className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                            />
-                            <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-emerald-900' : 'text-slate-700'}`}>
-                              {situacao}
-                            </span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Tag de Resumo do Quadro */}
-            <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50/70 border border-blue-100 text-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-              <span className="text-slate-600">
-                Efetivo Total: <strong className="text-blue-700 font-bold">{colaboradoresList.length}</strong>
-              </span>
-              <span className="text-slate-300">|</span>
-              <span className="text-slate-500 text-[11px]">
-                Exibindo: <strong className="text-slate-800">{filteredColaboradores.length}</strong>
-              </span>
-            </div>
-          </div>
-        ) : (
-          /* FILTROS PADRÃO DOS DEMAIS PMTS */
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider font-mono mr-1">
-              <Filter size={16} className="text-blue-600" />
-              <span>Filtro PMT:</span>
-            </div>
-
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/10 rounded-xl px-3 py-2 transition-all">
-              <Calendar size={16} className="text-blue-600 shrink-0" />
-              <div className="flex flex-col text-left">
-                <label htmlFor="pmt-ano-select" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                  Ano
-                </label>
-                <select
-                  id="pmt-ano-select"
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(Number(e.target.value))}
-                  className="bg-transparent text-sm font-bold text-slate-800 outline-none cursor-pointer pr-4"
+              {/* Filtro por Centro de Custo (Múltipla Seleção) */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenDropdown(openDropdown === 'cc' ? null : 'cc')}
+                  className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${filtrosCentroCusto.length > 0
+                      ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs'
+                      : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
+                    }`}
                 >
-                  {YEARS_LIST.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
+                  <Building2 size={14} className={filtrosCentroCusto.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
+                  <div className="flex flex-col">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                      Centro de Custo
+                    </label>
+                    <span className="text-xs font-bold truncate max-w-[140px]">
+                      {filtrosCentroCusto.length === 0
+                        ? 'Todos os Centros'
+                        : filtrosCentroCusto.length === 1
+                          ? filtrosCentroCusto[0]
+                          : `${filtrosCentroCusto.length} selecionados`}
+                    </span>
+                  </div>
+                  <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'cc' ? 'rotate-180' : ''}`} />
+                </button>
+
+                {openDropdown === 'cc' && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                    <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
+                        <span className="font-bold text-slate-700">Filtrar Centros de Custo</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setFiltrosCentroCusto([])}
+                            className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
+                          >
+                            Marcar Todos
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => setFiltrosCentroCusto(['__nenhum__'])}
+                            className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
+                          >
+                            Limpar
+                          </button>
+                        </div>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
+                        {listaCentrosCusto.map((cc) => {
+                          const isChecked = filtrosCentroCusto.length === 0 || filtrosCentroCusto.includes(cc)
+                          return (
+                            <label
+                              key={cc}
+                              className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (filtrosCentroCusto.length === 0) {
+                                    setFiltrosCentroCusto(listaCentrosCusto.filter(c => c !== cc))
+                                  } else if (filtrosCentroCusto.includes(cc)) {
+                                    const novo = filtrosCentroCusto.filter(c => c !== cc)
+                                    setFiltrosCentroCusto(novo.length === 0 ? ['__nenhum__'] : novo)
+                                  } else {
+                                    const base = filtrosCentroCusto.filter(c => c !== '__nenhum__')
+                                    const novo = [...base, cc]
+                                    if (novo.length === listaCentrosCusto.length) {
+                                      setFiltrosCentroCusto([])
+                                    } else {
+                                      setFiltrosCentroCusto(novo)
+                                    }
+                                  }
+                                }}
+                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
+                                {cc}
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Filtro por Gerência (Múltipla Seleção) */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenDropdown(openDropdown === 'gerencia' ? null : 'gerencia')}
+                  className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${filtrosGerencia.length > 0
+                      ? 'bg-indigo-50/80 border-indigo-400 text-indigo-900 shadow-2xs'
+                      : 'bg-slate-50 border-slate-200 hover:border-indigo-400 text-slate-800'
+                    }`}
+                >
+                  <Layers size={14} className={filtrosGerencia.length > 0 ? 'text-indigo-600' : 'text-slate-500'} />
+                  <div className="flex flex-col">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                      Gerência
+                    </label>
+                    <span className="text-xs font-bold truncate max-w-[140px]">
+                      {filtrosGerencia.length === 0
+                        ? 'Todas as Gerências'
+                        : filtrosGerencia.length === 1
+                          ? filtrosGerencia[0]
+                          : `${filtrosGerencia.length} selecionadas`}
+                    </span>
+                  </div>
+                  <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'gerencia' ? 'rotate-180' : ''}`} />
+                </button>
+
+                {openDropdown === 'gerencia' && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                    <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
+                        <span className="font-bold text-slate-700">Filtrar Gerências</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setFiltrosGerencia([])}
+                            className="text-[10px] text-indigo-600 hover:underline font-bold cursor-pointer"
+                          >
+                            Marcar Todas
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => setFiltrosGerencia(['__nenhum__'])}
+                            className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
+                          >
+                            Limpar
+                          </button>
+                        </div>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
+                        {listaGerencias.map((ger) => {
+                          const isChecked = filtrosGerencia.length === 0 || filtrosGerencia.includes(ger)
+                          return (
+                            <label
+                              key={ger}
+                              className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (filtrosGerencia.length === 0) {
+                                    setFiltrosGerencia(listaGerencias.filter(g => g !== ger))
+                                  } else if (filtrosGerencia.includes(ger)) {
+                                    const novo = filtrosGerencia.filter(g => g !== ger)
+                                    setFiltrosGerencia(novo.length === 0 ? ['__nenhum__'] : novo)
+                                  } else {
+                                    const base = filtrosGerencia.filter(g => g !== '__nenhum__')
+                                    const novo = [...base, ger]
+                                    if (novo.length === listaGerencias.length) {
+                                      setFiltrosGerencia([])
+                                    } else {
+                                      setFiltrosGerencia(novo)
+                                    }
+                                  }
+                                }}
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                              />
+                              <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-indigo-900' : 'text-slate-700'}`}>
+                                {ger}
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Filtro por Área (Múltipla Seleção) */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenDropdown(openDropdown === 'area' ? null : 'area')}
+                  className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${filtrosArea.length > 0
+                      ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs'
+                      : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
+                    }`}
+                >
+                  <Building2 size={14} className={filtrosArea.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
+                  <div className="flex flex-col">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                      Área
+                    </label>
+                    <span className="text-xs font-bold truncate max-w-[140px]">
+                      {filtrosArea.length === 0
+                        ? 'Todas as Áreas'
+                        : filtrosArea.length === 1
+                          ? filtrosArea[0]
+                          : `${filtrosArea.length} selecionadas`}
+                    </span>
+                  </div>
+                  <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'area' ? 'rotate-180' : ''}`} />
+                </button>
+
+                {openDropdown === 'area' && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                    <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
+                        <span className="font-bold text-slate-700">Filtrar Áreas</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setFiltrosArea([])}
+                            className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
+                          >
+                            Marcar Todas
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => setFiltrosArea(['__nenhum__'])}
+                            className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
+                          >
+                            Limpar
+                          </button>
+                        </div>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
+                        {listaAreas.map((area) => {
+                          const isChecked = filtrosArea.length === 0 || filtrosArea.includes(area)
+                          return (
+                            <label
+                              key={area}
+                              className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (filtrosArea.length === 0) {
+                                    setFiltrosArea(listaAreas.filter(a => a !== area))
+                                  } else if (filtrosArea.includes(area)) {
+                                    const novo = filtrosArea.filter(a => a !== area)
+                                    setFiltrosArea(novo.length === 0 ? ['__nenhum__'] : novo)
+                                  } else {
+                                    const base = filtrosArea.filter(a => a !== '__nenhum__')
+                                    const novo = [...base, area]
+                                    if (novo.length === listaAreas.length) {
+                                      setFiltrosArea([])
+                                    } else {
+                                      setFiltrosArea(novo)
+                                    }
+                                  }
+                                }}
+                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-blue-900' : 'text-slate-700'}`}>
+                                {area}
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Filtro por Situação Sistema (Múltipla Seleção) */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenDropdown(openDropdown === 'situacao' ? null : 'situacao')}
+                  className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${filtrosSituacao.length > 0
+                      ? 'bg-emerald-50/80 border-emerald-400 text-emerald-900 shadow-2xs'
+                      : 'bg-slate-50 border-slate-200 hover:border-emerald-400 text-slate-800'
+                    }`}
+                >
+                  <ShieldCheck size={14} className={filtrosSituacao.length > 0 ? 'text-emerald-600' : 'text-slate-500'} />
+                  <div className="flex flex-col">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                      Situação Sistema
+                    </label>
+                    <span className="text-xs font-bold truncate max-w-[140px]">
+                      {filtrosSituacao.length === 0
+                        ? 'Todas as Situações'
+                        : filtrosSituacao.length === 1
+                          ? filtrosSituacao[0]
+                          : `${filtrosSituacao.length} selecionadas`}
+                    </span>
+                  </div>
+                  <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'situacao' ? 'rotate-180' : ''}`} />
+                </button>
+
+                {openDropdown === 'situacao' && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                    <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
+                        <span className="font-bold text-slate-700">Filtrar Situação Sistema</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setFiltrosSituacao([])}
+                            className="text-[10px] text-emerald-600 hover:underline font-bold cursor-pointer"
+                          >
+                            Marcar Todas
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => setFiltrosSituacao(['__nenhum__'])}
+                            className="text-[10px] text-slate-500 hover:underline font-bold cursor-pointer"
+                          >
+                            Limpar
+                          </button>
+                        </div>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
+                        {listaSituacoes.map((situacao) => {
+                          const isChecked = filtrosSituacao.length === 0 || filtrosSituacao.includes(situacao)
+                          return (
+                            <label
+                              key={situacao}
+                              className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (filtrosSituacao.length === 0) {
+                                    setFiltrosSituacao(listaSituacoes.filter(s => s !== situacao))
+                                  } else if (filtrosSituacao.includes(situacao)) {
+                                    const novo = filtrosSituacao.filter(s => s !== situacao)
+                                    setFiltrosSituacao(novo.length === 0 ? ['__nenhum__'] : novo)
+                                  } else {
+                                    const base = filtrosSituacao.filter(s => s !== '__nenhum__')
+                                    const novo = [...base, situacao]
+                                    if (novo.length === listaSituacoes.length) {
+                                      setFiltrosSituacao([])
+                                    } else {
+                                      setFiltrosSituacao(novo)
+                                    }
+                                  }
+                                }}
+                                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                              />
+                              <span className={`truncate text-[11px] ${isChecked ? 'font-bold text-emerald-900' : 'text-slate-700'}`}>
+                                {situacao}
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Tag de Resumo do Quadro */}
+              <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50/70 border border-blue-100 text-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                <span className="text-slate-600">
+                  Efetivo Total: <strong className="text-blue-700 font-bold">{colaboradoresList.length}</strong>
+                </span>
+                <span className="text-slate-300">|</span>
+                <span className="text-slate-500 text-[11px]">
+                  Exibindo: <strong className="text-slate-800">{filteredColaboradores.length}</strong>
+                </span>
               </div>
             </div>
+          ) : (
+            /* FILTROS PADRÃO DOS DEMAIS PMTS */
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider font-mono mr-1">
+                <Filter size={16} className="text-blue-600" />
+                <span>Filtro PMT:</span>
+              </div>
 
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/10 rounded-xl px-3 py-2 transition-all">
-              <Calendar size={16} className="text-blue-600 shrink-0" />
-              <div className="flex flex-col text-left">
-                <label htmlFor="pmt-mes-select" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                  Mês
-                </label>
-                <select
-                  id="pmt-mes-select"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                  className="bg-transparent text-sm font-bold text-slate-800 outline-none cursor-pointer pr-4"
-                >
-                  {MONTHS_LIST.map(month => (
-                    <option key={month.id} value={month.id}>{month.name}</option>
-                  ))}
-                </select>
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/10 rounded-xl px-3 py-2 transition-all">
+                <Calendar size={16} className="text-blue-600 shrink-0" />
+                <div className="flex flex-col text-left">
+                  <label htmlFor="pmt-ano-select" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                    Ano
+                  </label>
+                  <select
+                    id="pmt-ano-select"
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(Number(e.target.value))}
+                    className="bg-transparent text-sm font-bold text-slate-800 outline-none cursor-pointer pr-4"
+                  >
+                    {YEARS_LIST.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/10 rounded-xl px-3 py-2 transition-all">
+                <Calendar size={16} className="text-blue-600 shrink-0" />
+                <div className="flex flex-col text-left">
+                  <label htmlFor="pmt-mes-select" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                    Mês
+                  </label>
+                  <select
+                    id="pmt-mes-select"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                    className="bg-transparent text-sm font-bold text-slate-800 outline-none cursor-pointer pr-4"
+                  >
+                    {MONTHS_LIST.map(month => (
+                      <option key={month.id} value={month.id}>{month.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50/70 border border-blue-100 text-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                <span className="text-slate-600">
+                  Base: <strong className="text-blue-700">{selectedMonthName.split(' - ')[1]}/{selectedYear}</strong>
+                </span>
+                <span className="text-slate-300">|</span>
+                <span className="text-slate-600">
+                  Versão: <strong className="text-slate-800 font-mono">{pmtData.summary?.versao || '—'}</strong>
+                </span>
+                <span className="text-slate-300">|</span>
+                <span className="text-slate-500 font-mono text-[11px]">
+                  {pmtData.summary?.total_linhas != null ? `${pmtData.summary.total_linhas.toLocaleString('pt-BR')} linhas CD 994` : 'Sem dados'}
+                </span>
               </div>
             </div>
-
-            <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50/70 border border-blue-100 text-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-              <span className="text-slate-600">
-                Base: <strong className="text-blue-700">{selectedMonthName.split(' - ')[1]}/{selectedYear}</strong>
-              </span>
-              <span className="text-slate-300">|</span>
-              <span className="text-slate-600">
-                Versão: <strong className="text-slate-800 font-mono">{pmtData.summary?.versao || '—'}</strong>
-              </span>
-              <span className="text-slate-300">|</span>
-              <span className="text-slate-500 font-mono text-[11px]">
-                {pmtData.summary?.total_linhas != null ? `${pmtData.summary.total_linhas.toLocaleString('pt-BR')} linhas CD 994` : 'Sem dados'}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* BOTÕES DE AÇÃO À DIREITA */}
-        <div className="flex items-center gap-2 shrink-0">
-          {isQuadro ? null : (
-            /* BOTÕES DOS DEMAIS PMTS */
-            <>
-              <button
-                onClick={() => fetchPmtData(selectedYear, selectedMonth)}
-                title="Recarregar dados do período selecionado"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 text-xs font-semibold transition-colors"
-              >
-                <RefreshCw size={14} className={loadingData ? 'animate-spin text-blue-600' : ''} />
-                <span>Atualizar</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setIsImportModalOpen(true)
-                  setImportFeedback(null)
-                  loadPmtFiles()
-                }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-xs font-bold shadow-sm shadow-blue-500/20 transition-all hover:translate-y-[-1px] cursor-pointer"
-              >
-                <UploadCloud size={16} />
-                <span>Importar / Atualizar PMT</span>
-              </button>
-            </>
           )}
+
+          {/* BOTÕES DE AÇÃO À DIREITA */}
+          <div className="flex items-center gap-2 shrink-0">
+            {isQuadro ? null : (
+              /* BOTÕES DOS DEMAIS PMTS */
+              <>
+                <button
+                  onClick={() => fetchPmtData(selectedYear, selectedMonth)}
+                  title="Recarregar dados do período selecionado"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 text-xs font-semibold transition-colors"
+                >
+                  <RefreshCw size={14} className={loadingData ? 'animate-spin text-blue-600' : ''} />
+                  <span>Atualizar</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsImportModalOpen(true)
+                    setImportFeedback(null)
+                    loadPmtFiles()
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-xs font-bold shadow-sm shadow-blue-500/20 transition-all hover:translate-y-[-1px] cursor-pointer"
+                >
+                  <UploadCloud size={16} />
+                  <span>Importar / Atualizar PMT</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
-      </div>
       )}
 
       {/* =========================================================================
@@ -2746,11 +2738,10 @@ export const PmtsPage: React.FC = () => {
                             }
                           }}
                           title={`Clique para ${isSelected ? 'remover' : 'adicionar'} filtro: ${item.nome}`}
-                          className={`flex items-center justify-between px-2.5 py-1 cursor-pointer transition-colors text-[10.5px] ${
-                            isSelected
+                          className={`flex items-center justify-between px-2.5 py-1 cursor-pointer transition-colors text-[10.5px] ${isSelected
                               ? 'bg-blue-100/90 font-bold text-blue-900'
                               : 'hover:bg-sky-50/70 text-slate-700'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-1.5 truncate pr-2">
                             <input
@@ -2811,11 +2802,10 @@ export const PmtsPage: React.FC = () => {
                             }
                           }}
                           title={`Clique para ${isSelected ? 'remover' : 'adicionar'} filtro: ${item.nome}`}
-                          className={`flex items-center justify-between px-2.5 py-1 cursor-pointer transition-colors text-[10.5px] ${
-                            isSelected
+                          className={`flex items-center justify-between px-2.5 py-1 cursor-pointer transition-colors text-[10.5px] ${isSelected
                               ? 'bg-blue-100/90 font-bold text-blue-900'
                               : 'hover:bg-sky-50/70 text-slate-700'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-1.5 truncate pr-2">
                             <input
@@ -2876,11 +2866,10 @@ export const PmtsPage: React.FC = () => {
                             }
                           }}
                           title={`Clique para ${isSelected ? 'remover' : 'adicionar'} filtro: ${item.nome}`}
-                          className={`flex items-center justify-between px-2.5 py-1 cursor-pointer transition-colors text-[10.5px] ${
-                            isSelected
+                          className={`flex items-center justify-between px-2.5 py-1 cursor-pointer transition-colors text-[10.5px] ${isSelected
                               ? 'bg-blue-100/90 font-bold text-blue-900'
                               : 'hover:bg-sky-50/70 text-slate-700'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-1.5 truncate pr-2">
                             <input
@@ -2953,11 +2942,10 @@ export const PmtsPage: React.FC = () => {
                     return (
                       <div
                         key={grupo.area}
-                        className={`rounded-xl border overflow-hidden transition-all shadow-2xs ${
-                          isAreaSelected
+                        className={`rounded-xl border overflow-hidden transition-all shadow-2xs ${isAreaSelected
                             ? 'border-indigo-400 ring-2 ring-indigo-500/20 bg-indigo-50/30'
                             : 'border-slate-200 bg-white hover:border-indigo-300'
-                        }`}
+                          }`}
                       >
                         {/* Cabeçalho da Área */}
                         <div
@@ -2969,20 +2957,18 @@ export const PmtsPage: React.FC = () => {
                             }
                           }}
                           title={`Clique para ${isAreaSelected ? 'remover' : 'aplicar'} filtro nesta área`}
-                          className={`px-3.5 py-2.5 flex items-center justify-between cursor-pointer border-b transition-colors ${
-                            isAreaSelected
+                          className={`px-3.5 py-2.5 flex items-center justify-between cursor-pointer border-b transition-colors ${isAreaSelected
                               ? 'bg-indigo-600 text-white border-indigo-600'
                               : 'bg-slate-50 hover:bg-indigo-50/60 text-slate-800 border-slate-200'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-2 truncate pr-2">
                             <input
                               type="checkbox"
                               checked={isAreaSelected}
                               readOnly
-                              className={`rounded border-slate-300 cursor-pointer pointer-events-none scale-90 ${
-                                isAreaSelected ? 'accent-white text-indigo-600' : 'text-indigo-600'
-                              }`}
+                              className={`rounded border-slate-300 cursor-pointer pointer-events-none scale-90 ${isAreaSelected ? 'accent-white text-indigo-600' : 'text-indigo-600'
+                                }`}
                             />
                             <span className="font-bold text-xs uppercase tracking-tight truncate" title={grupo.area}>
                               {grupo.area}
@@ -3014,11 +3000,10 @@ export const PmtsPage: React.FC = () => {
                                   }
                                 }}
                                 title={`Filtrar pelo cargo: ${cargoItem.cargo}`}
-                                className={`flex items-center justify-between px-3 py-1.5 cursor-pointer text-[11px] transition-colors ${
-                                  isCargoSelected
+                                className={`flex items-center justify-between px-3 py-1.5 cursor-pointer text-[11px] transition-colors ${isCargoSelected
                                     ? 'bg-blue-100 font-bold text-blue-900'
                                     : 'hover:bg-slate-50 text-slate-700'
-                                }`}
+                                  }`}
                               >
                                 <div className="flex items-center gap-2 truncate pr-2">
                                   <Briefcase size={12} className={isCargoSelected ? 'text-blue-700' : 'text-slate-400'} />
@@ -3098,25 +3083,25 @@ export const PmtsPage: React.FC = () => {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {filteredColaboradores.map((colab) => {
-                        const isCurrentColab = 
+                        const isCurrentColab =
                           (currentUser?.colaborador_id && String(currentUser.colaborador_id) === String(colab.id)) ||
                           (currentUser?.id && String(currentUser.id) === String(colab.id)) ||
                           (currentUser?.name && colab.contratado && currentUser.name.toLowerCase().trim() === colab.contratado.toLowerCase().trim())
-                        
+
                         let colabAvatar = isCurrentColab && currentUser?.avatar_url ? currentUser.avatar_url : ''
                         if (!colabAvatar) {
                           try {
                             const storedUsers = localStorage.getItem('magalog_users_list')
                             if (storedUsers) {
                               const list = JSON.parse(storedUsers)
-                              const found = list.find((u: any) => 
+                              const found = list.find((u: any) =>
                                 (u.colaborador_id && String(u.colaborador_id) === String(colab.id)) ||
                                 (u.id && String(u.id) === String(colab.id)) ||
                                 (u.name && colab.contratado && u.name.toLowerCase().trim() === colab.contratado.toLowerCase().trim())
                               )
                               if (found?.avatar_url) colabAvatar = found.avatar_url
                             }
-                          } catch {}
+                          } catch { }
                         }
 
                         return (
@@ -3146,8 +3131,7 @@ export const PmtsPage: React.FC = () => {
                               )}
                             </td>
                             <td className="p-3">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                                (colab.situacaoSistema || '').toLowerCase().includes('atividade normal')
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${(colab.situacaoSistema || '').toLowerCase().includes('atividade normal')
                                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
                                   : (colab.situacaoSistema || '').toLowerCase().includes('férias') || (colab.situacaoSistema || '').toLowerCase().includes('ferias')
                                     ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
@@ -3156,7 +3140,7 @@ export const PmtsPage: React.FC = () => {
                                       : (colab.situacaoSistema || '').toLowerCase().includes('auxílio') || (colab.situacaoSistema || '').toLowerCase().includes('doença')
                                         ? 'bg-rose-50 text-rose-700 border border-rose-200/60'
                                         : 'bg-slate-100 text-slate-700 border border-slate-200'
-                              }`}>
+                                }`}>
                                 {colab.situacaoSistema || 'Em Atividade Normal'}
                               </span>
                             </td>
@@ -3164,7 +3148,7 @@ export const PmtsPage: React.FC = () => {
                         )
                       })}
                     </tbody>
-                    </table>
+                  </table>
                 </div>
               )}
             </div>
@@ -3269,10 +3253,10 @@ export const PmtsPage: React.FC = () => {
         <LookerCarteiraPage />
       ) : (isExpedicao && expedicaoSubPage === 'pg2') ? (
         /* PÁGINA 2 DO PMT EXPEDIÇÃO: GRÁFICO DE BARRAS DE PROJEÇÕES (PMT, LIBERADO, FATURADO E CAPACIDADE) */
-        <PmtProjectionsChartPage 
-          ano={selectedYear} 
-          mes={selectedMonth} 
-          cd="994" 
+        <PmtProjectionsChartPage
+          ano={selectedYear}
+          mes={selectedMonth}
+          cd="994"
         />
       ) : (isExpedicao && expedicaoSubPage !== 'pg1') ? (
         /* PÁGINAS EM CONSTRUÇÃO APENAS PARA DEMAIS SUB-PÁGINAS DO PMT EXPEDIÇÃO (pg3, pg4) */
@@ -3297,11 +3281,10 @@ export const PmtsPage: React.FC = () => {
                 key={pg}
                 type="button"
                 onClick={() => setExpedicaoSubPage(pg)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                  expedicaoSubPage === pg
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${expedicaoSubPage === pg
                     ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                     : 'bg-slate-50 text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
-                }`}
+                  }`}
               >
                 {pg}
               </button>
@@ -3312,11 +3295,11 @@ export const PmtsPage: React.FC = () => {
         /* CONTEÚDO PADRÃO PARA DEMAIS SUB-PÁGINAS PMT (Recebimento, etc.) */
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
           {/* INDICADOR DIÁRIO POR MODAL COM CONTROLES ACIMA DOS CARDS */}
-          <PmtDailyMatrixTable 
-            ano={selectedYear} 
-            mes={selectedMonth} 
-            cd="994" 
-            pageTitle={activePage.label} 
+          <PmtDailyMatrixTable
+            ano={selectedYear}
+            mes={selectedMonth}
+            cd="994"
+            pageTitle={activePage.label}
             onAderenciaChange={setAderenciaState}
             onMonthChange={setSelectedMonth}
             onYearChange={setSelectedYear}
@@ -3339,9 +3322,8 @@ export const PmtsPage: React.FC = () => {
                         {totalValor ? `R$ ${(totalValor / 1_000_000).toFixed(1)}M` : 'R$ 0,00'}
                       </div>
                       {kpiStats.hasLiberado && (
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                          kpiStats.percRealizedValor >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${kpiStats.percRealizedValor >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
                           {kpiStats.percRealizedValor.toFixed(1)}% lib.
                         </span>
                       )}
@@ -3387,9 +3369,9 @@ export const PmtsPage: React.FC = () => {
 
                       {/* Barra de progresso da Liberação */}
                       <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
-                          style={{ width: `${Math.min(kpiStats.percRealizedValor, 100)}%` }} 
+                        <div
+                          className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(kpiStats.percRealizedValor, 100)}%` }}
                         />
                       </div>
 
@@ -3399,9 +3381,8 @@ export const PmtsPage: React.FC = () => {
                           <TrendingUp size={12} className={kpiStats.percProjectedValor >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
                           Projeção Lib.:
                         </span>
-                        <span className={`font-bold font-mono ${
-                          kpiStats.percProjectedValor >= 100 ? 'text-emerald-700' : 'text-amber-700'
-                        }`}>
+                        <span className={`font-bold font-mono ${kpiStats.percProjectedValor >= 100 ? 'text-emerald-700' : 'text-amber-700'
+                          }`}>
                           R$ {(kpiStats.projectedValor / 1_000_000).toFixed(1)}M ({kpiStats.percProjectedValor.toFixed(1)}%)
                         </span>
                       </div>
@@ -3425,9 +3406,8 @@ export const PmtsPage: React.FC = () => {
                         {Math.round(totalPecas).toLocaleString('pt-BR')}
                       </div>
                       {kpiStats.hasLiberado && (
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                          kpiStats.percRealizedPecas >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${kpiStats.percRealizedPecas >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
                           {kpiStats.percRealizedPecas.toFixed(1)}% lib.
                         </span>
                       )}
@@ -3472,9 +3452,9 @@ export const PmtsPage: React.FC = () => {
                       </div>
 
                       <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
-                          style={{ width: `${Math.min(kpiStats.percRealizedPecas, 100)}%` }} 
+                        <div
+                          className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(kpiStats.percRealizedPecas, 100)}%` }}
                         />
                       </div>
                       <div className="flex items-center justify-between text-[11px] pt-0.5">
@@ -3482,9 +3462,8 @@ export const PmtsPage: React.FC = () => {
                           <TrendingUp size={12} className={kpiStats.percProjectedPecas >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
                           Projeção Lib.:
                         </span>
-                        <span className={`font-bold font-mono ${
-                          kpiStats.percProjectedPecas >= 100 ? 'text-emerald-700' : 'text-amber-700'
-                        }`}>
+                        <span className={`font-bold font-mono ${kpiStats.percProjectedPecas >= 100 ? 'text-emerald-700' : 'text-amber-700'
+                          }`}>
                           {Math.round(kpiStats.projectedPecas).toLocaleString('pt-BR')} ({kpiStats.percProjectedPecas.toFixed(1)}%)
                         </span>
                       </div>
@@ -3508,9 +3487,8 @@ export const PmtsPage: React.FC = () => {
                         {Math.round(totalPedidos).toLocaleString('pt-BR')}
                       </div>
                       {kpiStats.hasLiberado && (
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                          kpiStats.percRealizedPedidos >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${kpiStats.percRealizedPedidos >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
                           {kpiStats.percRealizedPedidos.toFixed(1)}% lib.
                         </span>
                       )}
@@ -3555,9 +3533,9 @@ export const PmtsPage: React.FC = () => {
                       </div>
 
                       <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
-                          style={{ width: `${Math.min(kpiStats.percRealizedPedidos, 100)}%` }} 
+                        <div
+                          className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(kpiStats.percRealizedPedidos, 100)}%` }}
                         />
                       </div>
                       <div className="flex items-center justify-between text-[11px] pt-0.5">
@@ -3565,9 +3543,8 @@ export const PmtsPage: React.FC = () => {
                           <TrendingUp size={12} className={kpiStats.percProjectedPedidos >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
                           Projeção Lib.:
                         </span>
-                        <span className={`font-bold font-mono ${
-                          kpiStats.percProjectedPedidos >= 100 ? 'text-emerald-700' : 'text-amber-700'
-                        }`}>
+                        <span className={`font-bold font-mono ${kpiStats.percProjectedPedidos >= 100 ? 'text-emerald-700' : 'text-amber-700'
+                          }`}>
                           {Math.round(kpiStats.projectedPedidos).toLocaleString('pt-BR')} ({kpiStats.percProjectedPedidos.toFixed(1)}%)
                         </span>
                       </div>
@@ -3591,9 +3568,8 @@ export const PmtsPage: React.FC = () => {
                         {Math.round(totalCub).toLocaleString('pt-BR')} m³
                       </div>
                       {kpiStats.hasLiberado && (
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                          kpiStats.percRealizedCub >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${kpiStats.percRealizedCub >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
                           {kpiStats.percRealizedCub.toFixed(1)}% lib.
                         </span>
                       )}
@@ -3638,9 +3614,9 @@ export const PmtsPage: React.FC = () => {
                       </div>
 
                       <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
-                          style={{ width: `${Math.min(kpiStats.percRealizedCub, 100)}%` }} 
+                        <div
+                          className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(kpiStats.percRealizedCub, 100)}%` }}
                         />
                       </div>
                       <div className="flex items-center justify-between text-[11px] pt-0.5">
@@ -3648,9 +3624,8 @@ export const PmtsPage: React.FC = () => {
                           <TrendingUp size={12} className={kpiStats.percProjectedCub >= 100 ? 'text-emerald-500' : 'text-amber-500'} />
                           Projeção Lib.:
                         </span>
-                        <span className={`font-bold font-mono ${
-                          kpiStats.percProjectedCub >= 100 ? 'text-emerald-700' : 'text-amber-700'
-                        }`}>
+                        <span className={`font-bold font-mono ${kpiStats.percProjectedCub >= 100 ? 'text-emerald-700' : 'text-amber-700'
+                          }`}>
                           {Math.round(kpiStats.projectedCub).toLocaleString('pt-BR')} m³ ({kpiStats.percProjectedCub.toFixed(1)}%)
                         </span>
                       </div>
@@ -3684,7 +3659,7 @@ export const PmtsPage: React.FC = () => {
                   <p className="text-xs text-slate-500">Cadastre a equipe em massa através de arquivo Excel (.xlsx, .xls) ou CSV</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => { setIsImportColaboradoresModalOpen(false); setBulkFeedback(null); }}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
@@ -3719,14 +3694,14 @@ export const PmtsPage: React.FC = () => {
                   <FolderOpen size={14} className="text-blue-600" />
                   Selecione o arquivo no seu computador
                 </label>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileUpload} 
-                  accept=".xlsx, .xls, .csv" 
-                  className="hidden" 
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".xlsx, .xls, .csv"
+                  className="hidden"
                 />
-                <div 
+                <div
                   onClick={() => fileInputRef.current?.click()}
                   className="border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/20 rounded-xl p-6 text-center cursor-pointer transition-all space-y-2"
                 >
@@ -3748,7 +3723,7 @@ export const PmtsPage: React.FC = () => {
               {/* Opção Substituir ou Incrementar com Bloqueio de Duplicados */}
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                 <label className="flex items-start gap-2.5 cursor-pointer">
-                  <input 
+                  <input
                     type="checkbox"
                     checked={replaceExistingColab}
                     onChange={(e) => setReplaceExistingColab(e.target.checked)}
@@ -3771,11 +3746,10 @@ export const PmtsPage: React.FC = () => {
 
               {/* Feedback de Importação */}
               {bulkFeedback && (
-                <div className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${
-                  bulkFeedback.type === 'success' 
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                <div className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${bulkFeedback.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                     : 'bg-red-50 text-red-800 border border-red-200'
-                }`}>
+                  }`}>
                   {bulkFeedback.type === 'success' ? (
                     <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
                   ) : (
@@ -3861,7 +3835,7 @@ export const PmtsPage: React.FC = () => {
                   <p className="text-xs text-slate-500">Importe uma nova planilha ou atualize a base de um mês específico</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => { setIsImportModalOpen(false); setImportFeedback(null); }}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
               >
@@ -3875,7 +3849,7 @@ export const PmtsPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700">Ano de Referência</label>
-                  <select 
+                  <select
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(Number(e.target.value))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:border-blue-500"
@@ -3888,7 +3862,7 @@ export const PmtsPage: React.FC = () => {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700">Mês de Referência</label>
-                  <select 
+                  <select
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(Number(e.target.value))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:border-blue-500"
@@ -3903,8 +3877,8 @@ export const PmtsPage: React.FC = () => {
               {/* Nome / Identificador da Versão */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700">Identificador da Versão</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={importVersion}
                   onChange={(e) => setImportVersion(e.target.value)}
                   placeholder="Ex: v14, Rev_02, Comercial_Out"
@@ -3915,7 +3889,7 @@ export const PmtsPage: React.FC = () => {
               {/* Substituir base completa do mês */}
               <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-200/80 space-y-1.5">
                 <label className="flex items-start gap-2.5 cursor-pointer">
-                  <input 
+                  <input
                     type="checkbox"
                     checked={replaceExisting}
                     onChange={(e) => setReplaceExisting(e.target.checked)}
@@ -4028,22 +4002,19 @@ export const PmtsPage: React.FC = () => {
                             setSelectedFile(file.name)
                             setManualFile(null)
                           }}
-                          className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
-                            isSelected
+                          className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${isSelected
                               ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-500/10'
                               : 'border-slate-200 bg-slate-50 hover:border-blue-300 hover:bg-blue-50/40'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className={`p-1.5 rounded-lg shrink-0 ${
-                              isSelected ? 'bg-blue-100 text-blue-700' : 'bg-white border border-slate-200 text-slate-400'
-                            }`}>
+                            <div className={`p-1.5 rounded-lg shrink-0 ${isSelected ? 'bg-blue-100 text-blue-700' : 'bg-white border border-slate-200 text-slate-400'
+                              }`}>
                               <FileCheck size={14} />
                             </div>
                             <div className="min-w-0">
-                              <p className={`text-xs font-bold truncate ${
-                                isSelected ? 'text-blue-900' : 'text-slate-800'
-                              }`}>{file.name}</p>
+                              <p className={`text-xs font-bold truncate ${isSelected ? 'text-blue-900' : 'text-slate-800'
+                                }`}>{file.name}</p>
                               <p className="text-[10px] font-mono text-slate-500 flex items-center gap-1 mt-0.5">
                                 <HardDrive size={9} />
                                 {file.sizeMb} MB • Modificado: {modDate}
@@ -4072,11 +4043,10 @@ export const PmtsPage: React.FC = () => {
 
               {/* Feedback de Importação */}
               {importFeedback && (
-                <div className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${
-                  importFeedback.success 
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                <div className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${importFeedback.success
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                     : 'bg-red-50 text-red-800 border border-red-200'
-                }`}>
+                  }`}>
                   {importFeedback.success ? (
                     <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
                   ) : (
@@ -4137,7 +4107,7 @@ export const PmtsPage: React.FC = () => {
                   <p className="text-xs text-slate-500">Preencha os campos obrigatórios do Quadro ({quadroSubPage.toUpperCase()})</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setIsCadastroModalOpen(false)}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
@@ -4261,7 +4231,7 @@ export const PmtsPage: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => { setIsEditModalOpen(false); setEditingColaborador(null); }}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                 title="Fechar"
@@ -4273,7 +4243,7 @@ export const PmtsPage: React.FC = () => {
             {/* Formulário de Edição - Todas as seções em uma única página */}
             <form onSubmit={handleSalvarEdicao} className="flex flex-col flex-1 overflow-hidden pt-4">
               <div className="overflow-y-auto pr-1 md:pr-2 space-y-5 flex-1">
-                
+
                 {/* SEÇÃO 1: DADOS PRINCIPAIS & LOTAÇÃO */}
                 <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4">
                   <div className="flex items-center gap-2 pb-3 mb-3 border-b border-slate-200/60">
@@ -4461,11 +4431,10 @@ export const PmtsPage: React.FC = () => {
                       <select
                         value={editingColaborador.area || ''}
                         onChange={(e) => setEditingColaborador({ ...editingColaborador, area: e.target.value })}
-                        className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold outline-none cursor-pointer transition-all ${
-                          editingColaborador.area && editingColaborador.area.trim()
+                        className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold outline-none cursor-pointer transition-all ${editingColaborador.area && editingColaborador.area.trim()
                             ? 'bg-emerald-50 text-emerald-800 border-emerald-300 focus:border-emerald-500'
                             : 'bg-rose-50 text-rose-700 border-rose-300 focus:border-rose-500'
-                        }`}
+                          }`}
                       >
                         <option value="" className="bg-white text-slate-500 font-normal">Selecione uma Área...</option>
                         {LISTA_AREAS_OPCOES.map((areaOpcao) => (
