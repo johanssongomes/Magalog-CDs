@@ -276,17 +276,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="mt-1">
                   {(() => {
                     const displayCargo = user?.cargo || (user?.role === 'admin' ? 'Administrador' : user?.role) || 'Colaborador'
-                    const isStrictAdmin = user?.role === 'admin' || (user?.cargo || '').trim().toUpperCase() === 'ADMIN' || (user?.cargo || '').trim().toUpperCase() === 'ADMINISTRADOR'
-                    const isGerente = (user?.cargo || user?.role || '').toLowerCase().includes('gerente')
+                    const cUpper = (user?.cargo || user?.role || '').trim().toUpperCase()
+                    const isStrictAdmin = user?.role === 'admin' || cUpper === 'ADMIN' || cUpper === 'ADMINISTRADOR'
+                    const isGerente = cUpper.includes('GERENTE')
+                    const isCoordenador = cUpper.includes('COORDENADOR')
+                    const isSupervisor = cUpper.includes('SUPERVISOR')
+                    const isLider = cUpper.includes('LIDER') || cUpper.includes('LÍDER')
+
+                    let badgeStyle = 'bg-slate-800 text-slate-300 border border-slate-700'
+                    if (isStrictAdmin) {
+                      badgeStyle = 'bg-purple-900/60 text-purple-300 border border-purple-500/30'
+                    } else if (isGerente) {
+                      badgeStyle = 'bg-blue-900/60 text-blue-300 border border-blue-500/30'
+                    } else if (isCoordenador) {
+                      badgeStyle = 'bg-cyan-900/60 text-cyan-300 border border-cyan-500/30'
+                    } else if (isSupervisor) {
+                      badgeStyle = 'bg-indigo-900/60 text-indigo-300 border border-indigo-500/30'
+                    } else if (isLider) {
+                      badgeStyle = 'bg-emerald-900/60 text-emerald-300 border border-emerald-500/30'
+                    }
 
                     return (
-                      <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded leading-tight break-words max-w-full ${
-                        isStrictAdmin
-                          ? 'bg-purple-900/60 text-purple-300 border border-purple-500/30' 
-                          : isGerente
-                          ? 'bg-blue-900/60 text-blue-300 border border-blue-500/30'
-                          : 'bg-slate-800 text-slate-300 border border-slate-700'
-                      }`}>
+                      <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded leading-tight break-words max-w-full ${badgeStyle}`}>
                         {displayCargo}
                       </span>
                     )

@@ -251,13 +251,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (byId) return byId
     }
 
-    return (initialColaboradores as any[]).find(c => {
+    const byColab = (initialColaboradores as any[]).find(c => {
+      const cId = String(c.id || '').trim()
       const cLogin = (c.login || '').toLowerCase().trim()
       const cContratado = (c.contratado || '').toLowerCase().trim()
-      if (cLogin && (cleanMail.includes(cLogin) || loginPrefix === cLogin)) return true
-      if (cleanName && cContratado && (cleanName.includes(cContratado) || cContratado.includes(cleanName))) return true
+      if (id && cId === String(id).trim()) return true
+      if (cLogin && (cleanMail.includes(cLogin) || loginPrefix === cLogin || loginPrefix.includes(cLogin))) return true
+      if (cleanName && cContratado && (cleanName === cContratado || cleanName.includes(cContratado) || cContratado.includes(cleanName))) return true
       return false
     })
+    if (byColab) return byColab
+
+    // Também verifica em initialUsers e no cache de usuários locais
+    const userCandidates: any[] = []
+    try {
+      const localUsers = localStorage.getItem('magalog_users_list')
+      if (localUsers) {
+        userCandidates.push(...JSON.parse(localUsers))
+      }
+    } catch { }
+    userCandidates.push(...(initialUsers as any[]))
+
+    const byUser = userCandidates.find(u => {
+      const uEmail = (u.email || '').toLowerCase().trim()
+      const uLogin = (u.dados_colaborador?.login || uEmail.split('@')[0] || '').toLowerCase().trim()
+      const uName = (u.name || u.dados_colaborador?.contratado || '').toLowerCase().trim()
+      const uId = String(u.colaborador_id || u.id || '').trim()
+      if (id && uId === String(id).trim()) return true
+      if (uEmail && cleanMail && (uEmail === cleanMail || cleanMail.includes(uEmail) || uEmail.includes(cleanMail))) return true
+      if (uLogin && (loginPrefix === uLogin || cleanMail.includes(uLogin))) return true
+      if (cleanName && uName && (cleanName === uName || cleanName.includes(uName) || uName.includes(cleanName))) return true
+      return false
+    })
+
+    if (byUser) {
+      return {
+        id: byUser.colaborador_id || byUser.id,
+        contratado: byUser.name,
+        cargo: byUser.cargo || byUser.dados_colaborador?.cargo || byUser.role,
+        login: byUser.dados_colaborador?.login || byUser.email?.split('@')[0]
+      }
+    }
+
+    return undefined
   }
 
   // Carregar sessão e perfil do Supabase
@@ -271,8 +307,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .or(`user_id.eq.${authUserId},email.eq.${cleanEmail}`)
         .maybeSingle()
 
+      // Buscar perfil conhecido da base inicial / cache local
+      let knownUser: any = null
+      try {
+        const localUsers = localStorage.getItem('magalog_users_list')
+        if (localUsers) {
+          const parsed = JSON.parse(localUsers)
+          knownUser = parsed.find((u: any) => (u.email || '').trim().toLowerCase() === cleanEmail)
+        }
+      } catch { }
+      if (!knownUser) {
+        knownUser = (initialUsers as any[]).find(u => (u.email || '').trim().toLowerCase() === cleanEmail)
+      }
+
       if (data && !error) {
-        const colabInfo = findColaboradorMatch(data.email, data.name, data.colaborador_id)
+        const colabInfo = findColaboradorMatch(data.email, data.name || knownUser?.name, data.colaborador_id || knownUser?.colaborador_id || knownUser?.id)
 
         // Tenta buscar campos extras de perfil (foto, bio, phone)
         let extraProfile: any = null
@@ -291,9 +340,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const finalAvatar = data.avatar_url || extraProfile?.avatar_url || cachedAvatar || undefined
         if (finalAvatar) setStoredAvatar(cleanEmail, finalAvatar)
 
-        const resolvedColabId = colabInfo?.id || (cleanEmail.includes('johansson') || cleanEmail.includes('joh_gomes') ? '169959' : data.colaborador_id || data.id)
-        const resolvedCargo = colabInfo?.cargo || (cleanEmail.includes('johansson') || cleanEmail.includes('joh_gomes') ? 'COORDENADOR LOGISTICA' : data.cargo || data.role)
-        const resolvedRole = data.role || (cleanEmail.includes('johansson') || cleanEmail.includes('joh_gomes') ? 'admin' : (colabInfo?.cargo ? mapCargoToValidRole(colabInfo.cargo) : 'colaborador'))
+        const isInitialAdmin = cleanEmail.includes('admin') || cleanEmail.includes('joh_gomes') || cleanEmail === 'johansson.gomes@magazineluiza.com.br'
+
+        // Resolução sólida do Cargo: prioriza colabInfo, conhecido, e nunca substitui um cargo especializado por "colaborador"
+        let resolvedCargo = colabInfo?.cargo || knownUser?.cargo
+        if (!resolvedCargo || resolvedCargo.toLowerCase() === 'colaborador') {
+          if (data.cargo && data.cargo.toLowerCase() !== 'colaborador') {
+            resolvedCargo = data.cargo
+          } else if (data.role && data.role.toLowerCase() !== 'colaborador') {
+            resolvedCargo = data.role
+          } else if (isInitialAdmin) {
+            resolvedCargo = 'COORDENADOR LOGISTICA'
+          } else {
+            resolvedCargo = colabInfo?.cargo || knownUser?.cargo || data.cargo || 'Colaborador'
+          }
+        }
+
+        const resolvedColabId = colabInfo?.id || (isInitialAdmin ? '169959' : data.colaborador_id || knownUser?.colaborador_id || knownUser?.id || data.id)
+        
+        let resolvedRole = data.role
+        if (!resolvedRole || resolvedRole.toLowerCase() === 'colaborador') {
+          if (isInitialAdmin) {
+            resolvedRole = 'admin'
+          } else if (resolvedCargo && resolvedCargo.toLowerCase() !== 'colaborador') {
+            resolvedRole = mapCargoToValidRole(resolvedCargo)
+          } else {
+            resolvedRole = 'colaborador'
+          }
+        }
 
         const resolvedAllowedSubpages = (Array.isArray(data.allowed_subpages) && data.allowed_subpages.length > 0)
           ? data.allowed_subpages
@@ -303,6 +377,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               ? knownUser.allowed_subpages
               : undefined
 
+        const resolvedAllowedPages = (Array.isArray(data.allowed_pages) && data.allowed_pages.length > 0)
+          ? data.allowed_pages
+          : (Array.isArray(knownUser?.allowed_pages) && knownUser.allowed_pages.length > 0)
+            ? knownUser.allowed_pages
+            : getDefaultPagesForCargo(resolvedCargo)
+
         const enriched: AppUserProfile = {
           ...data,
           avatar_url: finalAvatar,
@@ -310,7 +390,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           phone: data.phone || extraProfile?.phone,
           colaborador_id: resolvedColabId,
           cargo: resolvedCargo,
-          role: resolvedRole,
+          role: resolvedRole as UserRole,
+          allowed_pages: resolvedAllowedPages,
           allowed_subpages: resolvedAllowedSubpages
         }
         localStorage.setItem('magalog_admin_session', JSON.stringify(enriched))
@@ -318,18 +399,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return
       }
 
-      // Se não existir registro no app_users, busca do cache local ou initialUsers
-      let knownUser: any = null
-      try {
-        const localUsers = localStorage.getItem('magalog_users_list')
-        if (localUsers) {
-          const parsed = JSON.parse(localUsers)
-          knownUser = parsed.find((u: any) => (u.email || '').trim().toLowerCase() === cleanEmail)
-        }
-      } catch { }
-
+      // Se não existir registro no app_users, usa dados conhecidos ou fallback
       if (!knownUser) {
-        knownUser = (initialUsers as any[]).find(u => (u.email || '').trim().toLowerCase() === cleanEmail)
+        try {
+          const localUsers = localStorage.getItem('magalog_users_list')
+          if (localUsers) {
+            const parsed = JSON.parse(localUsers)
+            knownUser = parsed.find((u: any) => (u.email || '').trim().toLowerCase() === cleanEmail)
+          }
+        } catch { }
+        if (!knownUser) {
+          knownUser = (initialUsers as any[]).find(u => (u.email || '').trim().toLowerCase() === cleanEmail)
+        }
       }
 
       const colabInfo = findColaboradorMatch(cleanEmail, knownUser?.name, knownUser?.colaborador_id)
@@ -488,15 +569,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   ? extraProfile.allowed_subpages
                   : currentObj.allowed_subpages
 
+              const resolvedCargo = colabInfo?.cargo || (row.cargo && row.cargo.toLowerCase() !== 'colaborador' ? row.cargo : (currentObj.cargo && currentObj.cargo.toLowerCase() !== 'colaborador' ? currentObj.cargo : (row.cargo || row.role || 'Colaborador')))
+              const resolvedRole = (row.role && row.role.toLowerCase() !== 'colaborador') ? row.role : (resolvedCargo && resolvedCargo.toLowerCase() !== 'colaborador' ? mapCargoToValidRole(resolvedCargo) : (row.role || 'colaborador'))
+
               const newProf: AppUserProfile = {
                 id: row.id,
                 user_id: row.user_id || currentObj.user_id,
                 colaborador_id: colabInfo?.id || row.colaborador_id || currentObj.colaborador_id,
                 email: row.email,
                 name: row.name,
-                role: row.role as UserRole,
-                cargo: colabInfo?.cargo || row.cargo || row.role,
-                allowed_pages: row.allowed_pages || [],
+                role: resolvedRole as UserRole,
+                cargo: resolvedCargo,
+                allowed_pages: row.allowed_pages || currentObj.allowed_pages || [],
                 allowed_subpages: resolvedSubpages,
                 active: row.active,
                 avatar_url: row.avatar_url || extraProfile?.avatar_url || currentObj.avatar_url,
@@ -553,15 +637,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (currentPages !== latestPages || currentSubpages !== latestSubpages || u.role !== latest.role || u.active !== latest.active) {
             // Encontrar cargo real da planilha
             const colabInfo = findColaboradorMatch(latest.email, latest.name, latest.colaborador_id)
+            const resolvedCargo = colabInfo?.cargo || (latest.cargo && latest.cargo.toLowerCase() !== 'colaborador' ? latest.cargo : (u.cargo && u.cargo.toLowerCase() !== 'colaborador' ? u.cargo : (latest.cargo || latest.role || 'Colaborador')))
+            const resolvedRole = (latest.role && latest.role.toLowerCase() !== 'colaborador') ? latest.role : (resolvedCargo && resolvedCargo.toLowerCase() !== 'colaborador' ? mapCargoToValidRole(resolvedCargo) : (latest.role || 'colaborador'))
+
             const newProf: AppUserProfile = {
               id: latest.id,
               user_id: latest.user_id || u.user_id,
               colaborador_id: colabInfo?.id || latest.colaborador_id || u.colaborador_id,
               email: latest.email,
               name: latest.name,
-              role: latest.role as UserRole,
-              cargo: colabInfo?.cargo || latest.cargo || latest.role,
-              allowed_pages: latest.allowed_pages || [],
+              role: resolvedRole as UserRole,
+              cargo: resolvedCargo,
+              allowed_pages: latest.allowed_pages || u.allowed_pages || [],
               allowed_subpages: resolvedSubpages,
               active: latest.active,
               avatar_url: latest.avatar_url || extraProfile?.avatar_url || u.avatar_url,
