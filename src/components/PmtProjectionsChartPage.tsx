@@ -127,7 +127,7 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
         capVal = Number(capTotals?.pecas?.[dayStr] || 0)
       }
 
-      const aderenciaFat = pmtVal > 0 ? (fatVal / pmtVal) * 100 : 0
+      const aderenciaFatCap = capVal > 0 ? (fatVal / capVal) * 100 : 0
       const aderenciaLib = pmtVal > 0 ? (libVal / pmtVal) * 100 : 0
 
       list.push({
@@ -141,7 +141,7 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
         libVal,
         fatVal,
         capVal,
-        aderenciaFat,
+        aderenciaFatCap,
         aderenciaLib
       })
     }
@@ -706,7 +706,7 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                   <th className="py-2.5 px-3 text-right text-sky-700">Faturado</th>
                   <th className="py-2.5 px-3 text-right text-purple-700">Capacidade</th>
                   <th className="py-2.5 px-3 text-right text-emerald-700">Aderência (Lib x PMT)</th>
-                  <th className="py-2.5 px-3 text-right">Aderência (Fat x PMT)</th>
+                  <th className="py-2.5 px-3 text-right text-purple-700">Aderência (Fat x Cap)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono text-[11.5px]">
@@ -742,15 +742,15 @@ export const PmtProjectionsChartPage: React.FC<Props> = ({
                       )}
                     </td>
                     <td className="py-2 px-3 text-right">
-                      {d.pmtVal > 0 && d.fatVal > 0 ? (
+                      {d.capVal > 0 && d.fatVal > 0 ? (
                         <span className={`px-2 py-0.5 rounded text-[10.5px] font-extrabold ${
-                          d.aderenciaFat >= 100
+                          d.aderenciaFatCap >= 100
                             ? 'bg-emerald-100 text-emerald-800'
-                            : d.aderenciaFat >= 85
+                            : d.aderenciaFatCap >= 85
                               ? 'bg-sky-100 text-sky-800'
                               : 'bg-amber-100 text-amber-800'
                         }`}>
-                          {d.aderenciaFat.toFixed(1)}%
+                          {d.aderenciaFatCap.toFixed(1)}%
                         </span>
                       ) : (
                         <span className="text-slate-400">-</span>
