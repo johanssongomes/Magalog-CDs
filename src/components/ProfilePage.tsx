@@ -31,6 +31,7 @@ import {
 import { useAuth, type ColaboradorData } from '../lib/authContext'
 import { supabase } from '../lib/supabase'
 import initialColaboradores from '../data/initialColaboradores.json'
+import { SelosBadges } from './SelosBadges'
 
 export function ProfilePage() {
   const { user, refreshProfile, updateProfile } = useAuth()
@@ -493,6 +494,13 @@ export function ProfilePage() {
                   <span className="truncate">{user.email}</span>
                 </span>
               </div>
+
+              {/* Selos Oficiais: CIPA, Conselho, Brigada */}
+              {((user.selos && user.selos.length > 0) || (colabData?.selos && colabData.selos.length > 0)) && (
+                <div className="pt-0.5">
+                  <SelosBadges selos={user.selos || colabData?.selos} size="md" />
+                </div>
+              )}
 
               {/* Medalhas de Tempo de Casa (1 a cada 5 anos) */}
               {quinquennios > 0 && (

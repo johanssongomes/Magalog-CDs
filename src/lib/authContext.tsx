@@ -40,6 +40,7 @@ export interface ColaboradorData {
   mesAdm?: string
   diaAdm?: string
   anoAdm?: string
+  selos?: string[]
 }
 
 export const LISTA_AREAS_OPCOES = [
@@ -82,6 +83,7 @@ export interface AppUserProfile {
   avatar_url?: string
   bio?: string
   phone?: string
+  selos?: string[]
   dados_colaborador?: ColaboradorData
 }
 
@@ -395,6 +397,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
+        const resolvedSelos = (Array.isArray(extraProfile?.selos) && extraProfile.selos.length > 0)
+          ? extraProfile.selos
+          : (Array.isArray(knownUser?.selos) && knownUser.selos.length > 0)
+            ? knownUser.selos
+            : (Array.isArray(data.selos) ? data.selos : [])
+
         const enriched: AppUserProfile = {
           ...data,
           name: resolvedName || data.name || cleanEmail.split('@')[0],
@@ -405,7 +413,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           cargo: resolvedCargo,
           role: resolvedRole as UserRole,
           allowed_pages: resolvedAllowedPages,
-          allowed_subpages: resolvedAllowedSubpages
+          allowed_subpages: resolvedAllowedSubpages,
+          selos: resolvedSelos
         }
         localStorage.setItem('magalog_admin_session', JSON.stringify(enriched))
         setUser(enriched)
@@ -608,6 +617,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 cargo: resolvedCargo,
                 allowed_pages: row.allowed_pages || currentObj.allowed_pages || [],
                 allowed_subpages: resolvedSubpages,
+                selos: extraProfile?.selos || row.selos || currentObj.selos || [],
                 active: row.active,
                 avatar_url: row.avatar_url || extraProfile?.avatar_url || currentObj.avatar_url,
                 bio: row.bio || extraProfile?.bio || currentObj.bio,
@@ -680,6 +690,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               cargo: resolvedCargo,
               allowed_pages: latest.allowed_pages || u.allowed_pages || [],
               allowed_subpages: resolvedSubpages,
+              selos: extraProfile?.selos || latest.selos || u.selos || [],
               active: latest.active,
               avatar_url: latest.avatar_url || extraProfile?.avatar_url || u.avatar_url,
               bio: latest.bio || extraProfile?.bio || u.bio,

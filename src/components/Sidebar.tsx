@@ -27,6 +27,7 @@ import { useAuth } from '../lib/authContext'
 import { OnlineUsersModal } from './OnlineUsersModal'
 import { UserProfileModal } from './UserProfileModal'
 import { NotificationsModal } from './NotificationsModal'
+import { SelosBadges } from './SelosBadges'
 
 export interface NavItem {
   id: string
@@ -297,9 +298,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     }
 
                     return (
-                      <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded leading-tight break-words max-w-full ${badgeStyle}`}>
-                        {displayCargo}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded leading-tight break-words max-w-full ${badgeStyle}`}>
+                          {displayCargo}
+                        </span>
+                        {user?.selos && user.selos.length > 0 && (
+                          <div className="mt-0.5">
+                            <SelosBadges selos={user.selos} size="sm" />
+                          </div>
+                        )}
+                      </div>
                     )
                   })()}
                 </div>

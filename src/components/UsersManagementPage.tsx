@@ -13,6 +13,7 @@ import {
   mapCargoToValidRole
 } from '../lib/authContext'
 import { OnlineUsersModal } from './OnlineUsersModal'
+import { SelosBadges } from './SelosBadges'
 import initialUsersData from '../data/initialUsers.json'
 import initialColaboradoresData from '../data/initialColaboradores.json'
 import * as XLSX from 'xlsx'
@@ -240,7 +241,8 @@ export const UsersManagementPage: React.FC = () => {
     tempoDeEmpresa: row.tempo_de_empresa || '',
     mesAdm: row.mes_adm || '',
     diaAdm: row.dia_adm || '',
-    anoAdm: row.ano_adm || ''
+    anoAdm: row.ano_adm || '',
+    selos: Array.isArray(row.selos) ? row.selos : (typeof row.selos === 'string' && row.selos ? JSON.parse(row.selos) : [])
   })
 
   // Carrega Usuários da Tabela app_users e colaboradores do Supabase
@@ -368,9 +370,17 @@ export const UsersManagementPage: React.FC = () => {
             ? (dbColab.area || '')
             : ((dbItem?.dados_colaborador as any)?.area || (dbItem as any)?.area || (u as any).area || u.dados_colaborador?.area || '')
 
+          const resolvedSelos = (Array.isArray(extraProf?.selos) && extraProf.selos.length > 0)
+            ? extraProf.selos
+            : (Array.isArray(dbColab?.selos) && dbColab.selos.length > 0)
+              ? dbColab.selos
+              : (Array.isArray(u.dados_colaborador?.selos) && u.dados_colaborador.selos.length > 0)
+                ? u.dados_colaborador.selos
+                : (Array.isArray(u.selos) ? u.selos : [])
+
           const finalDadosColaborador = dbColab
-            ? { ...(u.dados_colaborador || {}), ...dbColab, area: finalArea }
-            : { ...(u.dados_colaborador || {}), area: finalArea }
+            ? { ...(u.dados_colaborador || {}), ...dbColab, area: finalArea, selos: resolvedSelos }
+            : { ...(u.dados_colaborador || {}), area: finalArea, selos: resolvedSelos }
 
           const cleanEmail = (u.email || '').toLowerCase().trim()
           const extraProf = extraProfilesMap.get(cleanEmail)
@@ -390,6 +400,7 @@ export const UsersManagementPage: React.FC = () => {
               area: finalArea,
               allowed_pages: dbItem.allowed_pages || u.allowed_pages,
               allowed_subpages: resolvedSubpages,
+              selos: resolvedSelos,
               active: dbItem.active !== undefined ? dbItem.active : u.active,
               avatar_url: dbItem.avatar_url || extraProf?.avatar_url || u.avatar_url,
               dados_colaborador: finalDadosColaborador
@@ -400,6 +411,7 @@ export const UsersManagementPage: React.FC = () => {
             ...u,
             area: finalArea,
             allowed_subpages: resolvedSubpages,
+            selos: resolvedSelos,
             avatar_url: extraProf?.avatar_url || u.avatar_url,
             dados_colaborador: finalDadosColaborador
           }
@@ -432,6 +444,14 @@ export const UsersManagementPage: React.FC = () => {
                 ? extraProf.allowed_subpages
                 : getDefaultSubpagesForCargo(finalCargo)
 
+            const resolvedSelos = (Array.isArray(extraProf?.selos) && extraProf.selos.length > 0)
+              ? extraProf.selos
+              : (Array.isArray(dbColab?.selos) && dbColab.selos.length > 0)
+                ? dbColab.selos
+                : (Array.isArray(finalColab?.selos) && finalColab.selos.length > 0)
+                  ? finalColab.selos
+                  : (Array.isArray(d.selos) ? d.selos : [])
+
             mergedList.unshift({
               id: targetId,
               colaborador_id: targetId,
@@ -441,9 +461,10 @@ export const UsersManagementPage: React.FC = () => {
               cargo: finalCargo,
               allowed_pages: d.allowed_pages || getDefaultPagesForCargo(finalCargo),
               allowed_subpages: resolvedSubpages,
+              selos: resolvedSelos,
               active: d.active !== false,
               avatar_url: d.avatar_url || extraProf?.avatar_url,
-              dados_colaborador: finalColab
+              dados_colaborador: finalColab ? { ...finalColab, selos: resolvedSelos } : finalColab
             })
           }
         })
@@ -790,6 +811,7 @@ export const UsersManagementPage: React.FC = () => {
           try { parsedExtra = JSON.parse(existingExtra.value) } catch { }
         }
         parsedExtra.allowed_subpages = sanitizedAllowedSubpages || []
+        parsedExtra.selos = formColaboradorData.selos || []
         await supabase
           .from('performance_metrics')
           .upsert({
@@ -837,7 +859,8 @@ export const UsersManagementPage: React.FC = () => {
           tempo_de_empresa: updatedColaborador.tempoDeEmpresa,
           mes_adm: updatedColaborador.mesAdm,
           dia_adm: updatedColaborador.diaAdm,
-          ano_adm: updatedColaborador.anoAdm
+          ano_adm: updatedColaborador.anoAdm,
+          selos: updatedColaborador.selos || []
         }], { onConflict: 'id' })
 
         if (colabError) {
@@ -1662,6 +1685,12 @@ export const UsersManagementPage: React.FC = () => {
                                 </span>
                               )}
                             </div>
+                            {/* Selos CIPA, Conselho, Brigada */}
+                            {((u.dados_colaborador?.selos && u.dados_colaborador.selos.length > 0) || (u.selos && u.selos.length > 0)) && (
+                              <div className="mt-0.5">
+                                <SelosBadges selos={u.dados_colaborador?.selos || u.selos} size="sm" />
+                              </div>
+                            )}
                             <div className="text-[11px] text-blue-600 font-mono mt-0.5 flex items-center gap-1 truncate">
                               <span className="truncate">{u.email}</span>
                             </div>
@@ -1998,6 +2027,44 @@ export const UsersManagementPage: React.FC = () => {
                               </option>
                             )}
                           </select>
+                        </div>
+
+                        {/* Selos / Comissões Especiais (Conselho, CIPA, Brigada) */}
+                        <div className="space-y-1 sm:col-span-2 md:col-span-4 lg:col-span-4">
+                          <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            Selos & Comissões Especiais
+                          </label>
+                          <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                            {[
+                              { id: 'CIPA', label: 'CIPA', color: 'emerald', border: 'border-emerald-200', bgChecked: 'bg-emerald-500 text-white' },
+                              { id: 'CONSELHO', label: 'Conselho', color: 'blue', border: 'border-blue-200', bgChecked: 'bg-blue-600 text-white' },
+                              { id: 'BRIGADA', label: 'Brigada', color: 'amber', border: 'border-amber-200', bgChecked: 'bg-amber-500 text-white' }
+                            ].map(selo => {
+                              const currentSelos = Array.isArray(formColaboradorData.selos) ? formColaboradorData.selos : []
+                              const isChecked = currentSelos.includes(selo.id)
+                              return (
+                                <button
+                                  key={selo.id}
+                                  type="button"
+                                  onClick={() => {
+                                    const next = isChecked
+                                      ? currentSelos.filter(s => s !== selo.id)
+                                      : [...currentSelos, selo.id]
+                                    setFormColaboradorData({ ...formColaboradorData, selos: next })
+                                  }}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+                                    isChecked
+                                      ? `${selo.bgChecked} border-transparent shadow-sm scale-102`
+                                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                                  }`}
+                                >
+                                  <span className={`w-2 h-2 rounded-full ${isChecked ? 'bg-white' : 'bg-slate-300'}`}></span>
+                                  <span>{selo.label}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                       </div>
                     </div>

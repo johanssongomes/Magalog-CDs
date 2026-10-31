@@ -39,9 +39,13 @@ CREATE TABLE IF NOT EXISTS public.colaboradores (
   mes_adm VARCHAR(10),
   dia_adm VARCHAR(10),
   ano_adm VARCHAR(10),
+  selos TEXT[], -- Selos e Comissões Especiais: CIPA, CONSELHO, BRIGADA
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+-- Adicionar coluna selos caso a tabela já exista
+ALTER TABLE public.colaboradores ADD COLUMN IF NOT EXISTS selos TEXT[];
 
 -- Índices de consulta rápida por Cargo, Centro de Custo, Gerência e Situação
 CREATE INDEX IF NOT EXISTS idx_colaboradores_cargo ON public.colaboradores(cargo);

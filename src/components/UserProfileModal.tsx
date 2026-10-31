@@ -18,6 +18,7 @@ import {
 import { useAuth, type ColaboradorData } from '../lib/authContext'
 import { supabase } from '../lib/supabase'
 import initialColaboradoresData from '../data/initialColaboradores.json'
+import { SelosBadges } from './SelosBadges'
 
 interface UserProfileModalProps {
   isOpen: boolean
@@ -230,8 +231,34 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
         tempo_de_empresa: colabData.tempoDeEmpresa,
         mes_adm: colabData.mesAdm,
         dia_adm: colabData.diaAdm,
-        ano_adm: colabData.anoAdm
+        ano_adm: colabData.anoAdm,
+        selos: colabData.selos || []
       }], { onConflict: 'id' })
+
+      // Sincroniza também no extra_profile
+      try {
+        const emailClean = (user?.email || '').trim().toLowerCase()
+        if (emailClean) {
+          const profileStorageKey = `_user_extra_profile_${emailClean}`
+          const { data: existingExtra } = await supabase
+            .from('performance_metrics')
+            .select('value')
+            .eq('cell_key', profileStorageKey)
+            .maybeSingle()
+          let parsedExtra: any = {}
+          if (existingExtra?.value) {
+            try { parsedExtra = JSON.parse(existingExtra.value) } catch { }
+          }
+          parsedExtra.selos = colabData.selos || []
+          await supabase
+            .from('performance_metrics')
+            .upsert({
+              cell_key: profileStorageKey,
+              value: JSON.stringify(parsedExtra),
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'cell_key' })
+        }
+      } catch { }
 
       if (error) throw error
 
@@ -407,6 +434,43 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                       onChange={e => setColabData(prev => prev ? ({ ...prev, situacaoSistema: e.target.value }) : null)}
                       className="w-full mt-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-slate-800 font-medium focus:border-blue-500 focus:outline-none"
                     />
+                  </div>
+                </div>
+
+                {/* Selos / Comissões Especiais (Conselho, CIPA, Brigada) */}
+                <div className="pt-2 border-t border-slate-200/60">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">
+                    Selos & Comissões Especiais
+                  </label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {[
+                      { id: 'CIPA', label: 'CIPA', bgChecked: 'bg-emerald-500 text-white' },
+                      { id: 'CONSELHO', label: 'Conselho', bgChecked: 'bg-blue-600 text-white' },
+                      { id: 'BRIGADA', label: 'Brigada', bgChecked: 'bg-amber-500 text-white' }
+                    ].map(selo => {
+                      const currentSelos = Array.isArray(colabData?.selos) ? colabData.selos : []
+                      const isChecked = currentSelos.includes(selo.id)
+                      return (
+                        <button
+                          key={selo.id}
+                          type="button"
+                          onClick={() => {
+                            const next = isChecked
+                              ? currentSelos.filter(s => s !== selo.id)
+                              : [...currentSelos, selo.id]
+                            setColabData(prev => prev ? ({ ...prev, selos: next }) : null)
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+                            isChecked
+                              ? `${selo.bgChecked} border-transparent shadow-sm scale-102`
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${isChecked ? 'bg-white' : 'bg-slate-300'}`}></span>
+                          <span>{selo.label}</span>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               </div>

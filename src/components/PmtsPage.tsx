@@ -48,6 +48,7 @@ import {
 } from 'lucide-react'
 import initialColaboradoresData from '../data/initialColaboradores.json'
 import { QuadroMedioTable } from './QuadroMedioTable'
+import { SelosBadges } from './SelosBadges'
 import { ApontamentoPage } from './ApontamentoPage'
 import { PmtDailyMatrixTable } from './PmtDailyMatrixTable'
 import { BankHoursPage } from './BankHoursPage'
@@ -625,6 +626,7 @@ export const PmtsPage: React.FC = () => {
     mesAdm: row.mes_adm || '',
     diaAdm: row.dia_adm || '',
     anoAdm: row.ano_adm || '',
+    selos: Array.isArray(row.selos) ? row.selos : (typeof row.selos === 'string' && row.selos ? JSON.parse(row.selos) : []),
     createdAt: row.created_at || new Date().toISOString()
   })
 
@@ -663,6 +665,7 @@ export const PmtsPage: React.FC = () => {
     mes_adm: item.mesAdm || '',
     dia_adm: item.diaAdm || '',
     ano_adm: item.anoAdm || '',
+    selos: item.selos || [],
     updated_at: new Date().toISOString()
   })
 
@@ -3120,7 +3123,14 @@ export const PmtsPage: React.FC = () => {
                                     <span>{(colab.contratado || 'CO').slice(0, 2).toUpperCase()}</span>
                                   )}
                                 </div>
-                                <span className="truncate">{colab.contratado}</span>
+                                <div className="min-w-0">
+                                  <div className="truncate">{colab.contratado}</div>
+                                  {colab.selos && colab.selos.length > 0 && (
+                                    <div className="mt-0.5">
+                                      <SelosBadges selos={colab.selos} size="sm" />
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </td>
                             <td className="p-3 text-slate-600 uppercase text-[11px] font-semibold">{colab.cargo}</td>
@@ -4355,6 +4365,43 @@ export const PmtsPage: React.FC = () => {
                           </option>
                         )}
                       </select>
+                    </div>
+
+                    {/* Selos / Comissões Especiais (Conselho, CIPA, Brigada) */}
+                    <div className="space-y-1 sm:col-span-2 md:col-span-4 lg:col-span-4">
+                      <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        Selos & Comissões Especiais
+                      </label>
+                      <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                        {[
+                          { id: 'CIPA', label: 'CIPA', bgChecked: 'bg-emerald-500 text-white' },
+                          { id: 'CONSELHO', label: 'Conselho', bgChecked: 'bg-blue-600 text-white' },
+                          { id: 'BRIGADA', label: 'Brigada', bgChecked: 'bg-amber-500 text-white' }
+                        ].map(selo => {
+                          const currentSelos = Array.isArray(editingColaborador.selos) ? editingColaborador.selos : []
+                          const isChecked = currentSelos.includes(selo.id)
+                          return (
+                            <button
+                              key={selo.id}
+                              type="button"
+                              onClick={() => {
+                                const next = isChecked
+                                  ? currentSelos.filter(s => s !== selo.id)
+                                  : [...currentSelos, selo.id]
+                                setEditingColaborador({ ...editingColaborador, selos: next })
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-2xs ${isChecked
+                                  ? `${selo.bgChecked} border-transparent shadow-sm scale-102`
+                                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                                }`}
+                            >
+                              <span className={`w-2 h-2 rounded-full ${isChecked ? 'bg-white' : 'bg-slate-300'}`}></span>
+                              <span>{selo.label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>

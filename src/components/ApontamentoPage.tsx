@@ -36,6 +36,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth, LISTA_AREAS_OPCOES } from '../lib/authContext'
 import { getHierarchyUserIds } from '../lib/hierarchyService'
 import initialColaboradoresData from '../data/initialColaboradores.json'
+import { SelosBadges } from './SelosBadges'
 
 // Parser simples e seguro de CSV considerando aspas
 function parseCSV(text: string): string[][] {
@@ -508,10 +509,24 @@ export function ApontamentoPage() {
 
       // 2. Busca SEMPRE a lista mais recente do Supabase (tabela colaboradores e lista de deletados)
       try {
-        const [supaColabsRes, deletedMetricRes] = await Promise.all([
+        const [supaColabsRes, deletedMetricRes, extraMetricsRes] = await Promise.all([
           supabase.from('colaboradores').select('*'),
-          supabase.from('performance_metrics').select('value').eq('cell_key', 'global_deleted_user_ids').maybeSingle()
+          supabase.from('performance_metrics').select('value').eq('cell_key', 'global_deleted_user_ids').maybeSingle(),
+          supabase.from('performance_metrics').select('cell_key, value').like('cell_key', '_user_extra_profile_%')
         ])
+
+        const extraSelosMap = new Map<string, string[]>()
+        if (extraMetricsRes.data) {
+          extraMetricsRes.data.forEach((row: any) => {
+            try {
+              const emailKey = row.cell_key.replace('_user_extra_profile_', '').trim().toLowerCase()
+              const p = JSON.parse(row.value)
+              if (p?.selos && Array.isArray(p.selos)) {
+                extraSelosMap.set(emailKey, p.selos)
+              }
+            } catch { }
+          })
+        }
 
         if (deletedMetricRes.data?.value) {
           try {
@@ -537,7 +552,13 @@ export function ApontamentoPage() {
           baseList = baseList.map(item => {
             const sc = supaMap.get(String(item.id || '').trim().toLowerCase()) ||
               supaMap.get(String(item.contratado || '').trim().toUpperCase())
+
+            const itemLogin = (item.login || item.id || '').toLowerCase().trim()
+            const extraSelos = extraSelosMap.get(`${itemLogin}@magalog.com.br`) || extraSelosMap.get(itemLogin) || []
+
             if (sc) {
+              const supaSelos = Array.isArray(sc.selos) ? sc.selos : (typeof sc.selos === 'string' && sc.selos ? JSON.parse(sc.selos) : [])
+              const finalSelos = supaSelos.length > 0 ? supaSelos : (extraSelos.length > 0 ? extraSelos : (item.selos || []))
               return {
                 ...item,
                 contratado: sc.contratado || item.contratado,
@@ -546,8 +567,12 @@ export function ApontamentoPage() {
                 area: sc.area !== undefined && sc.area !== null ? sc.area : (item.area || ''),
                 turno: sc.turno || item.turno,
                 idLider: sc.id_lider !== undefined ? sc.id_lider : item.idLider,
-                nomeLider: sc.nome_lider !== undefined ? sc.nome_lider : item.nomeLider
+                nomeLider: sc.nome_lider !== undefined ? sc.nome_lider : item.nomeLider,
+                selos: finalSelos
               }
+            }
+            if (extraSelos.length > 0) {
+              return { ...item, selos: extraSelos }
             }
             return item
           })
@@ -566,7 +591,8 @@ export function ApontamentoPage() {
                 turno: sc.turno || '',
                 cd: sc.cd || '6994',
                 idLider: sc.id_lider || '',
-                nomeLider: sc.nome_lider || ''
+                nomeLider: sc.nome_lider || '',
+                selos: Array.isArray(sc.selos) ? sc.selos : (typeof sc.selos === 'string' && sc.selos ? JSON.parse(sc.selos) : [])
               })
             }
           })
@@ -1323,8 +1349,8 @@ export function ApontamentoPage() {
               type="button"
               onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${visibleFixedColumnsCount < 9
-                  ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
-                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
                 }`}
               title="Personalizar quais colunas fixas são exibidas para ganhar espaço nos dias"
             >
@@ -1434,8 +1460,8 @@ export function ApontamentoPage() {
             type="button"
             onClick={() => setIsWideView(!isWideView)}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${isWideView
-                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+              : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
               }`}
             title={isWideView ? 'Restaurar layout padrão' : 'Ativar modo tela ampla para ver o mês inteiro'}
           >
@@ -1509,8 +1535,8 @@ export function ApontamentoPage() {
               type="button"
               onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${selectedDays.length > 0 || startDateFilter || endDateFilter
-                  ? 'bg-amber-500 border-amber-600 text-white shadow-amber-500/20'
-                  : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
+                ? 'bg-amber-500 border-amber-600 text-white shadow-amber-500/20'
+                : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
                 }`}
             >
               <Calendar size={13} className={selectedDays.length > 0 || startDateFilter || endDateFilter ? 'text-white' : 'text-slate-500'} />
@@ -1524,8 +1550,8 @@ export function ApontamentoPage() {
                 )}
               </span>
               <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${selectedDays.length > 0 || startDateFilter || endDateFilter
-                  ? 'bg-white/20 text-white'
-                  : 'bg-amber-100 text-amber-800'
+                ? 'bg-white/20 text-white'
+                : 'bg-amber-100 text-amber-800'
                 }`}>
                 {activeFilteredDays.length}
               </span>
@@ -1558,8 +1584,8 @@ export function ApontamentoPage() {
                     type="button"
                     onClick={() => applyDatePreset('all')}
                     className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center border transition-all cursor-pointer ${selectedDays.length === 0 && !startDateFilter && !endDateFilter
-                        ? 'bg-amber-500 text-white border-amber-600 shadow-2xs'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200/60'
+                      ? 'bg-amber-500 text-white border-amber-600 shadow-2xs'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200/60'
                       }`}
                   >
                     Mês Todo ({daysInMonth}d)
@@ -1631,10 +1657,10 @@ export function ApontamentoPage() {
                               }}
                               title={`Dia ${d.day}`}
                               className={`h-7 rounded-lg text-[11px] font-bold flex flex-col items-center justify-center transition-all cursor-pointer ${isSelected
-                                  ? 'bg-amber-500 text-white shadow-xs shadow-amber-500/30 scale-105 z-10'
-                                  : isWeekend
-                                    ? 'bg-amber-100/50 hover:bg-amber-200/60 text-amber-900 border border-amber-200/40'
-                                    : 'bg-white hover:bg-slate-200/60 text-slate-700 border border-slate-200/50 hover:border-slate-300'
+                                ? 'bg-amber-500 text-white shadow-xs shadow-amber-500/30 scale-105 z-10'
+                                : isWeekend
+                                  ? 'bg-amber-100/50 hover:bg-amber-200/60 text-amber-900 border border-amber-200/40'
+                                  : 'bg-white hover:bg-slate-200/60 text-slate-700 border border-slate-200/50 hover:border-slate-300'
                                 }`}
                             >
                               <span>{d.day}</span>
@@ -1722,8 +1748,8 @@ export function ApontamentoPage() {
             <button
               onClick={() => setOpenFilterDropdown(openFilterDropdown === 'area' ? null : 'area')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${selectedAreas.length > 0
-                  ? 'bg-blue-50 border-blue-300 text-blue-700'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                ? 'bg-blue-50 border-blue-300 text-blue-700'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
             >
               <Building2 size={13} className="text-slate-400" />
@@ -1777,8 +1803,8 @@ export function ApontamentoPage() {
             <button
               onClick={() => setOpenFilterDropdown(openFilterDropdown === 'turno' ? null : 'turno')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${selectedTurnos.length > 0
-                  ? 'bg-blue-50 border-blue-300 text-blue-700'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                ? 'bg-blue-50 border-blue-300 text-blue-700'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
             >
               <Clock size={13} className="text-slate-400" />
@@ -1832,8 +1858,8 @@ export function ApontamentoPage() {
             <button
               onClick={() => setOpenFilterDropdown(openFilterDropdown === 'cargo' ? null : 'cargo')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${selectedCargos.length > 0
-                  ? 'bg-blue-50 border-blue-300 text-blue-700'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                ? 'bg-blue-50 border-blue-300 text-blue-700'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
             >
               <Briefcase size={13} className="text-slate-400" />
@@ -1887,8 +1913,8 @@ export function ApontamentoPage() {
             <button
               onClick={() => setOpenFilterDropdown(openFilterDropdown === 'supervisor' ? null : 'supervisor')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${selectedSupervisores.length > 0
-                  ? 'bg-purple-50 border-purple-300 text-purple-700'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                ? 'bg-purple-50 border-purple-300 text-purple-700'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
             >
               <Users size={13} className="text-slate-400" />
@@ -1946,8 +1972,8 @@ export function ApontamentoPage() {
             <button
               onClick={() => setOpenFilterDropdown(openFilterDropdown === 'lider' ? null : 'lider')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs cursor-pointer ${selectedLideres.length > 0
-                  ? 'bg-sky-50 border-sky-300 text-sky-700'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                ? 'bg-sky-50 border-sky-300 text-sky-700'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
             >
               <Users size={13} className="text-slate-400" />
@@ -2259,9 +2285,16 @@ export function ApontamentoPage() {
                         className="sticky z-20 bg-inherit px-3.5 py-2 border-r border-slate-200 min-w-[210px]"
                       >
                         <div className="flex items-center justify-between gap-1.5">
-                          <span className="font-extrabold text-slate-900 truncate" title={colab.contratado}>
-                            {colab.contratado}
-                          </span>
+                          <div className="min-w-0">
+                            <div className="font-extrabold text-slate-900 truncate" title={colab.contratado}>
+                              {colab.contratado}
+                            </div>
+                            {colab.selos && colab.selos.length > 0 && (
+                              <div className="mt-0.5">
+                                <SelosBadges selos={colab.selos} size="sm" />
+                              </div>
+                            )}
+                          </div>
                           <button
                             onClick={() => setIntervalModal({
                               isOpen: true,
@@ -2274,7 +2307,7 @@ export function ApontamentoPage() {
                               customDsrDays: []
                             })}
                             title="Lançar período de Férias ou Intervalo"
-                            className="p-1 rounded-md text-amber-600 hover:bg-amber-100 transition opacity-0 group-hover:opacity-100 cursor-pointer"
+                            className="p-1 rounded-md text-amber-600 hover:bg-amber-100 transition opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
                           >
                             <Palmtree size={13} />
                           </button>
@@ -2299,8 +2332,8 @@ export function ApontamentoPage() {
                           className="sticky z-20 bg-inherit px-3 py-2 border-r border-slate-200 text-center font-mono font-bold whitespace-nowrap"
                         >
                           <span className={`px-2 py-0.5 rounded-md text-[11px] ${isDebito
-                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                             }`}>
                             {saldoStr}
                           </span>
@@ -2359,10 +2392,10 @@ export function ApontamentoPage() {
                                 }}
                                 title={`Saldo de DSR: ${dsrBalance} (Automático: ${calculateAutoDsr(colabId)}${(manualDsrAdjustments[colabId] || 0) !== 0 ? ` | Ajuste Manual: ${manualDsrAdjustments[colabId] > 0 ? '+' : ''}${manualDsrAdjustments[colabId]}` : ''}) - Clique para digitar`}
                                 className={`px-2 py-0.5 rounded-full cursor-pointer transition-all hover:ring-2 hover:ring-blue-400 select-none ${dsrBalance > 0
-                                    ? 'bg-amber-100 text-amber-800 border border-amber-300 font-black'
-                                    : dsrBalance < 0
-                                      ? 'bg-rose-100 text-rose-800 border border-rose-300 font-black'
-                                      : 'text-slate-600 hover:bg-slate-200'
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300 font-black'
+                                  : dsrBalance < 0
+                                    ? 'bg-rose-100 text-rose-800 border border-rose-300 font-black'
+                                    : 'text-slate-600 hover:bg-slate-200'
                                   } ${(manualDsrAdjustments[colabId] || 0) !== 0 ? 'ring-1 ring-blue-500/70' : ''}`}
                               >
                                 {dsrBalance}
@@ -2404,8 +2437,8 @@ export function ApontamentoPage() {
                                 onKeyDown={(e) => handleCellKeyDown(e, idx, dayIdx, colabId, m.day)}
                                 title={`${m.weekdayName} (${m.dateStr})`}
                                 className={`w-full py-1 text-center font-black rounded-md outline-hidden border transition cursor-pointer text-[11px] appearance-none focus:ring-2 focus:ring-blue-500 focus:z-10 ${cfg
-                                    ? `${cfg.bg} ${cfg.text} ${cfg.border}`
-                                    : 'bg-transparent text-slate-300 hover:bg-slate-100 border-transparent hover:border-slate-300'
+                                  ? `${cfg.bg} ${cfg.text} ${cfg.border}`
+                                  : 'bg-transparent text-slate-300 hover:bg-slate-100 border-transparent hover:border-slate-300'
                                   }`}
                               >
                                 <option value="" className="text-slate-400 bg-white font-normal">-</option>
@@ -2524,8 +2557,8 @@ export function ApontamentoPage() {
                           type="button"
                           onClick={() => setIntervalModal({ ...intervalModal, status: st })}
                           className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-black transition-all cursor-pointer border ${isSelected
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25 scale-[1.02]'
-                              : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25 scale-[1.02]'
+                            : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
                             }`}
                         >
                           <span>{cfg.label}</span>
@@ -2636,8 +2669,8 @@ export function ApontamentoPage() {
                               dsrMode: opt.id as any
                             })}
                             className={`p-2 rounded-xl text-left border transition-all cursor-pointer flex flex-col ${isAct
-                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                : 'bg-white hover:bg-indigo-50/80 text-slate-700 border-indigo-200/80'
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                              : 'bg-white hover:bg-indigo-50/80 text-slate-700 border-indigo-200/80'
                               }`}
                           >
                             <span className="text-[11px] font-black">{opt.label}</span>
@@ -2675,10 +2708,10 @@ export function ApontamentoPage() {
                               onClick={() => toggleCustomDay(item.day)}
                               title={`Dia ${item.day} (${item.weekday}) - Clique para alternar DSR`}
                               className={`flex flex-col items-center justify-center w-9 h-11 rounded-lg text-[10px] transition cursor-pointer border ${item.isDsr
-                                  ? 'bg-indigo-600 text-white border-indigo-700 font-black shadow-xs ring-2 ring-indigo-400/30'
-                                  : item.isSun || item.isSat
-                                    ? 'bg-amber-50/80 hover:bg-indigo-100 text-amber-900 border-amber-200 font-bold'
-                                    : 'bg-slate-50 hover:bg-indigo-50 text-slate-700 border-slate-200 font-medium'
+                                ? 'bg-indigo-600 text-white border-indigo-700 font-black shadow-xs ring-2 ring-indigo-400/30'
+                                : item.isSun || item.isSat
+                                  ? 'bg-amber-50/80 hover:bg-indigo-100 text-amber-900 border-amber-200 font-bold'
+                                  : 'bg-slate-50 hover:bg-indigo-50 text-slate-700 border-slate-200 font-medium'
                                 }`}
                             >
                               <span className="text-[8px] leading-tight opacity-75">{item.weekday}</span>
