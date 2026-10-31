@@ -11,7 +11,7 @@
 
 export function getHierarchyUserIds(
   currentUserId: string | undefined | null,
-  allColaboradores: Array<{ id?: string | number; idLider?: string | number; [key: string]: any }>,
+  allColaboradores: Array<{ id?: string | number; idLider?: string | number;[key: string]: any }>,
   isAdminOrMaster: boolean = false
 ): Set<string> | null {
   // Se for Admin ou Master, retorna null indicando que NÃO deve restringir (visão total)
@@ -31,7 +31,7 @@ export function getHierarchyUserIds(
     const cId = String(c.id || '').trim().toLowerCase()
     const leaderId = String(c.idLider || '').trim().toLowerCase()
 
-    if (leaderId && cId) {
+    if (leaderId && cId && leaderId !== cId) {
       if (!subordinatesMap.has(leaderId)) {
         subordinatesMap.set(leaderId, [])
       }

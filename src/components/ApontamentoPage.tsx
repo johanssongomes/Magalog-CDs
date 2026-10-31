@@ -1127,12 +1127,16 @@ export function ApontamentoPage() {
       user?.id === 'admin-master' ||
       user?.email === 'johansson.gomes@magazineluiza.com.br' ||
       user?.email === 'joh_gomes@magalog.com.br' ||
-      user?.role === 'admin' ||
-      user?.role === 'gerente' ||
-      user?.role === 'coordenador' ||
-      (user?.cargo && (user.cargo.toUpperCase().includes('COORDENADOR') || user.cargo.toUpperCase().includes('GERENTE')))
+      user?.role === 'admin'
 
-    const currentUserId = user?.colaborador_id || user?.id
+    // Obter ID do colaborador vinculado ao usuário logado
+    const userEmail = (user?.email || '').toLowerCase().trim()
+    const matchedColab = colaboradores.find(c => 
+      (c.id && String(c.id).trim().toLowerCase() === String(user?.colaborador_id || user?.id).trim().toLowerCase()) ||
+      (c.login && userEmail.includes(c.login.toLowerCase().trim())) ||
+      (c.contratado && user?.name && c.contratado.toLowerCase().trim() === user.name.toLowerCase().trim())
+    )
+    const currentUserId = matchedColab?.id || user?.colaborador_id || user?.id
     const allowedHierarchyIds = getHierarchyUserIds(currentUserId, colaboradores, isMasterOrAdmin)
 
     const result = colaboradores.filter(c => {

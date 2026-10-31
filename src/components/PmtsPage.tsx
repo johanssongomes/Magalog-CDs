@@ -1379,12 +1379,16 @@ export const PmtsPage: React.FC = () => {
       currentUser?.id === 'admin-master' ||
       currentUser?.email === 'johansson.gomes@magazineluiza.com.br' ||
       currentUser?.email === 'joh_gomes@magalog.com.br' ||
-      currentUser?.role === 'admin' ||
-      currentUser?.role === 'gerente' ||
-      currentUser?.role === 'coordenador' ||
-      (currentUser?.cargo && (currentUser.cargo.toUpperCase().includes('COORDENADOR') || currentUser.cargo.toUpperCase().includes('GERENTE')))
+      currentUser?.role === 'admin'
 
-    const currentUserId = currentUser?.colaborador_id || currentUser?.id
+    // Obter ID do colaborador vinculado ao usuário logado
+    const userEmail = (currentUser?.email || '').toLowerCase().trim()
+    const matchedColab = colaboradoresList.find(c =>
+      (c.id && String(c.id).trim().toLowerCase() === String(currentUser?.colaborador_id || currentUser?.id).trim().toLowerCase()) ||
+      (c.login && userEmail.includes(c.login.toLowerCase().trim())) ||
+      (c.contratado && currentUser?.name && c.contratado.toLowerCase().trim() === currentUser.name.toLowerCase().trim())
+    )
+    const currentUserId = matchedColab?.id || currentUser?.colaborador_id || currentUser?.id
     const allowedHierarchyIds = getHierarchyUserIds(currentUserId, colaboradoresList, isMasterOrAdmin)
 
     return colaboradoresList.filter(colab => {
@@ -1905,8 +1909,8 @@ export const PmtsPage: React.FC = () => {
                 key={page.id}
                 onClick={() => setActivePageId(page.id)}
                 className={`relative flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer text-center min-w-[140px] flex-1 sm:flex-initial ${isActive
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25 ring-2 ring-blue-500/20'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 hover:text-blue-700'
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25 ring-2 ring-blue-500/20'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 hover:text-blue-700'
                   }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
@@ -1941,8 +1945,8 @@ export const PmtsPage: React.FC = () => {
                     key={sub.id}
                     onClick={() => setExpedicaoSubPage(sub.id as any)}
                     className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer border ${isSubActive
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                        : 'bg-slate-50 text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-slate-50 text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
                       }`}
                   >
                     {sub.label}
@@ -1974,8 +1978,8 @@ export const PmtsPage: React.FC = () => {
                     key={sub.id}
                     onClick={() => setQuadroSubPage(sub.id as any)}
                     className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer border ${isSubActive
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                        : 'bg-slate-50 text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-slate-50 text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
                       }`}
                   >
                     {sub.label}
@@ -2029,8 +2033,8 @@ export const PmtsPage: React.FC = () => {
                   type="button"
                   onClick={() => setOpenDropdown(openDropdown === 'cargo' ? null : 'cargo')}
                   className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${filtrosCargo.length > 0
-                      ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs'
-                      : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
+                    ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs'
+                    : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
                     }`}
                 >
                   <Briefcase size={14} className={filtrosCargo.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
@@ -2121,8 +2125,8 @@ export const PmtsPage: React.FC = () => {
                   type="button"
                   onClick={() => setOpenDropdown(openDropdown === 'cc' ? null : 'cc')}
                   className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${filtrosCentroCusto.length > 0
-                      ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs'
-                      : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
+                    ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs'
+                    : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
                     }`}
                 >
                   <Building2 size={14} className={filtrosCentroCusto.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
@@ -2212,8 +2216,8 @@ export const PmtsPage: React.FC = () => {
                   type="button"
                   onClick={() => setOpenDropdown(openDropdown === 'gerencia' ? null : 'gerencia')}
                   className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${filtrosGerencia.length > 0
-                      ? 'bg-indigo-50/80 border-indigo-400 text-indigo-900 shadow-2xs'
-                      : 'bg-slate-50 border-slate-200 hover:border-indigo-400 text-slate-800'
+                    ? 'bg-indigo-50/80 border-indigo-400 text-indigo-900 shadow-2xs'
+                    : 'bg-slate-50 border-slate-200 hover:border-indigo-400 text-slate-800'
                     }`}
                 >
                   <Layers size={14} className={filtrosGerencia.length > 0 ? 'text-indigo-600' : 'text-slate-500'} />
@@ -2303,8 +2307,8 @@ export const PmtsPage: React.FC = () => {
                   type="button"
                   onClick={() => setOpenDropdown(openDropdown === 'area' ? null : 'area')}
                   className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${filtrosArea.length > 0
-                      ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs'
-                      : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
+                    ? 'bg-blue-50/80 border-blue-400 text-blue-900 shadow-2xs'
+                    : 'bg-slate-50 border-slate-200 hover:border-blue-400 text-slate-800'
                     }`}
                 >
                   <Building2 size={14} className={filtrosArea.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
@@ -2394,8 +2398,8 @@ export const PmtsPage: React.FC = () => {
                   type="button"
                   onClick={() => setOpenDropdown(openDropdown === 'situacao' ? null : 'situacao')}
                   className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 transition-all cursor-pointer text-left ${filtrosSituacao.length > 0
-                      ? 'bg-emerald-50/80 border-emerald-400 text-emerald-900 shadow-2xs'
-                      : 'bg-slate-50 border-slate-200 hover:border-emerald-400 text-slate-800'
+                    ? 'bg-emerald-50/80 border-emerald-400 text-emerald-900 shadow-2xs'
+                    : 'bg-slate-50 border-slate-200 hover:border-emerald-400 text-slate-800'
                     }`}
                 >
                   <ShieldCheck size={14} className={filtrosSituacao.length > 0 ? 'text-emerald-600' : 'text-slate-500'} />
@@ -2739,8 +2743,8 @@ export const PmtsPage: React.FC = () => {
                           }}
                           title={`Clique para ${isSelected ? 'remover' : 'adicionar'} filtro: ${item.nome}`}
                           className={`flex items-center justify-between px-2.5 py-1 cursor-pointer transition-colors text-[10.5px] ${isSelected
-                              ? 'bg-blue-100/90 font-bold text-blue-900'
-                              : 'hover:bg-sky-50/70 text-slate-700'
+                            ? 'bg-blue-100/90 font-bold text-blue-900'
+                            : 'hover:bg-sky-50/70 text-slate-700'
                             }`}
                         >
                           <div className="flex items-center gap-1.5 truncate pr-2">
@@ -2803,8 +2807,8 @@ export const PmtsPage: React.FC = () => {
                           }}
                           title={`Clique para ${isSelected ? 'remover' : 'adicionar'} filtro: ${item.nome}`}
                           className={`flex items-center justify-between px-2.5 py-1 cursor-pointer transition-colors text-[10.5px] ${isSelected
-                              ? 'bg-blue-100/90 font-bold text-blue-900'
-                              : 'hover:bg-sky-50/70 text-slate-700'
+                            ? 'bg-blue-100/90 font-bold text-blue-900'
+                            : 'hover:bg-sky-50/70 text-slate-700'
                             }`}
                         >
                           <div className="flex items-center gap-1.5 truncate pr-2">
@@ -2867,8 +2871,8 @@ export const PmtsPage: React.FC = () => {
                           }}
                           title={`Clique para ${isSelected ? 'remover' : 'adicionar'} filtro: ${item.nome}`}
                           className={`flex items-center justify-between px-2.5 py-1 cursor-pointer transition-colors text-[10.5px] ${isSelected
-                              ? 'bg-blue-100/90 font-bold text-blue-900'
-                              : 'hover:bg-sky-50/70 text-slate-700'
+                            ? 'bg-blue-100/90 font-bold text-blue-900'
+                            : 'hover:bg-sky-50/70 text-slate-700'
                             }`}
                         >
                           <div className="flex items-center gap-1.5 truncate pr-2">
@@ -2943,8 +2947,8 @@ export const PmtsPage: React.FC = () => {
                       <div
                         key={grupo.area}
                         className={`rounded-xl border overflow-hidden transition-all shadow-2xs ${isAreaSelected
-                            ? 'border-indigo-400 ring-2 ring-indigo-500/20 bg-indigo-50/30'
-                            : 'border-slate-200 bg-white hover:border-indigo-300'
+                          ? 'border-indigo-400 ring-2 ring-indigo-500/20 bg-indigo-50/30'
+                          : 'border-slate-200 bg-white hover:border-indigo-300'
                           }`}
                       >
                         {/* Cabeçalho da Área */}
@@ -2958,8 +2962,8 @@ export const PmtsPage: React.FC = () => {
                           }}
                           title={`Clique para ${isAreaSelected ? 'remover' : 'aplicar'} filtro nesta área`}
                           className={`px-3.5 py-2.5 flex items-center justify-between cursor-pointer border-b transition-colors ${isAreaSelected
-                              ? 'bg-indigo-600 text-white border-indigo-600'
-                              : 'bg-slate-50 hover:bg-indigo-50/60 text-slate-800 border-slate-200'
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-slate-50 hover:bg-indigo-50/60 text-slate-800 border-slate-200'
                             }`}
                         >
                           <div className="flex items-center gap-2 truncate pr-2">
@@ -3001,8 +3005,8 @@ export const PmtsPage: React.FC = () => {
                                 }}
                                 title={`Filtrar pelo cargo: ${cargoItem.cargo}`}
                                 className={`flex items-center justify-between px-3 py-1.5 cursor-pointer text-[11px] transition-colors ${isCargoSelected
-                                    ? 'bg-blue-100 font-bold text-blue-900'
-                                    : 'hover:bg-slate-50 text-slate-700'
+                                  ? 'bg-blue-100 font-bold text-blue-900'
+                                  : 'hover:bg-slate-50 text-slate-700'
                                   }`}
                               >
                                 <div className="flex items-center gap-2 truncate pr-2">
@@ -3132,14 +3136,14 @@ export const PmtsPage: React.FC = () => {
                             </td>
                             <td className="p-3">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${(colab.situacaoSistema || '').toLowerCase().includes('atividade normal')
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
-                                  : (colab.situacaoSistema || '').toLowerCase().includes('férias') || (colab.situacaoSistema || '').toLowerCase().includes('ferias')
-                                    ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
-                                    : (colab.situacaoSistema || '').toLowerCase().includes('licença') || (colab.situacaoSistema || '').toLowerCase().includes('licenca') || (colab.situacaoSistema || '').toLowerCase().includes('maternidade')
-                                      ? 'bg-purple-50 text-purple-700 border border-purple-200/60'
-                                      : (colab.situacaoSistema || '').toLowerCase().includes('auxílio') || (colab.situacaoSistema || '').toLowerCase().includes('doença')
-                                        ? 'bg-rose-50 text-rose-700 border border-rose-200/60'
-                                        : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                : (colab.situacaoSistema || '').toLowerCase().includes('férias') || (colab.situacaoSistema || '').toLowerCase().includes('ferias')
+                                  ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                                  : (colab.situacaoSistema || '').toLowerCase().includes('licença') || (colab.situacaoSistema || '').toLowerCase().includes('licenca') || (colab.situacaoSistema || '').toLowerCase().includes('maternidade')
+                                    ? 'bg-purple-50 text-purple-700 border border-purple-200/60'
+                                    : (colab.situacaoSistema || '').toLowerCase().includes('auxílio') || (colab.situacaoSistema || '').toLowerCase().includes('doença')
+                                      ? 'bg-rose-50 text-rose-700 border border-rose-200/60'
+                                      : 'bg-slate-100 text-slate-700 border border-slate-200'
                                 }`}>
                                 {colab.situacaoSistema || 'Em Atividade Normal'}
                               </span>
@@ -3282,8 +3286,8 @@ export const PmtsPage: React.FC = () => {
                 type="button"
                 onClick={() => setExpedicaoSubPage(pg)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${expedicaoSubPage === pg
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                    : 'bg-slate-50 text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                  : 'bg-slate-50 text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
                   }`}
               >
                 {pg}
@@ -3747,8 +3751,8 @@ export const PmtsPage: React.FC = () => {
               {/* Feedback de Importação */}
               {bulkFeedback && (
                 <div className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${bulkFeedback.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : 'bg-red-50 text-red-800 border border-red-200'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  : 'bg-red-50 text-red-800 border border-red-200'
                   }`}>
                   {bulkFeedback.type === 'success' ? (
                     <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
@@ -4003,8 +4007,8 @@ export const PmtsPage: React.FC = () => {
                             setManualFile(null)
                           }}
                           className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${isSelected
-                              ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-500/10'
-                              : 'border-slate-200 bg-slate-50 hover:border-blue-300 hover:bg-blue-50/40'
+                            ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-500/10'
+                            : 'border-slate-200 bg-slate-50 hover:border-blue-300 hover:bg-blue-50/40'
                             }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -4044,8 +4048,8 @@ export const PmtsPage: React.FC = () => {
               {/* Feedback de Importação */}
               {importFeedback && (
                 <div className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${importFeedback.success
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : 'bg-red-50 text-red-800 border border-red-200'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  : 'bg-red-50 text-red-800 border border-red-200'
                   }`}>
                   {importFeedback.success ? (
                     <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
@@ -4432,8 +4436,8 @@ export const PmtsPage: React.FC = () => {
                         value={editingColaborador.area || ''}
                         onChange={(e) => setEditingColaborador({ ...editingColaborador, area: e.target.value })}
                         className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold outline-none cursor-pointer transition-all ${editingColaborador.area && editingColaborador.area.trim()
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300 focus:border-emerald-500'
-                            : 'bg-rose-50 text-rose-700 border-rose-300 focus:border-rose-500'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300 focus:border-emerald-500'
+                          : 'bg-rose-50 text-rose-700 border-rose-300 focus:border-rose-500'
                           }`}
                       >
                         <option value="" className="bg-white text-slate-500 font-normal">Selecione uma Área...</option>
