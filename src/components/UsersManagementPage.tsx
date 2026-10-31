@@ -132,8 +132,19 @@ const defaultColaboradorForm: ColaboradorData = {
 export const UsersManagementPage: React.FC = () => {
   const { user: currentUser, onlineUsers } = useAuth()
   const [isOnlineModalOpen, setIsOnlineModalOpen] = useState(false)
-  const [users, setUsers] = useState<AppUserProfile[]>([])
-  const [loading, setLoading] = useState(true)
+  
+  // Inicialização síncrona com os dados do localStorage / initialUsers (ZERO DELAY de montagem)
+  const [users, setUsers] = useState<AppUserProfile[]>(() => {
+    try {
+      const stored = localStorage.getItem('magalog_users_list')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch { }
+    return (initialUsersData as unknown as AppUserProfile[]) || []
+  })
+  const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [filterCargo, setFilterCargo] = useState('todos')
   const [filterArea, setFilterArea] = useState('todas')
