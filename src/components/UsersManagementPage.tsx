@@ -296,14 +296,25 @@ export const UsersManagementPage: React.FC = () => {
         if (storedDeleted) deletedIds = JSON.parse(storedDeleted)
       } catch {}
 
-      // 1. Tentar sincronizar em paralelo do Supabase app_users e colaboradores
-      const [appUsersRes, colabRes] = await Promise.all([
+      // 1. Tentar sincronizar em paralelo do Supabase app_users, colaboradores e perfis extras (subpáginas)
+      const [appUsersRes, colabRes, extraProfilesRes] = await Promise.all([
         supabase.from('app_users').select('*').order('created_at', { ascending: false }),
-        supabase.from('colaboradores').select('*')
+        supabase.from('colaboradores').select('*'),
+        supabase.from('performance_metrics').select('cell_key, value').like('cell_key', '_user_extra_profile_%')
       ])
 
       const dbData = appUsersRes.data
       const colabData = colabRes.data
+
+      const extraProfilesMap = new Map<string, any>()
+      if (extraProfilesRes?.data) {
+        extraProfilesRes.data.forEach((row: any) => {
+          try {
+            const emailKey = row.cell_key.replace('_user_extra_profile_', '').trim().toLowerCase()
+            extraProfilesMap.set(emailKey, JSON.parse(row.value))
+          } catch {}
+        })
+      }
 
       // Filtra da lista inicial qualquer registro que tenha sido excluído
       const deletedSet = new Set(
@@ -361,6 +372,16 @@ export const UsersManagementPage: React.FC = () => {
             ? { ...(u.dados_colaborador || {}), ...dbColab, area: finalArea }
             : { ...(u.dados_colaborador || {}), area: finalArea }
 
+          const cleanEmail = (u.email || '').toLowerCase().trim()
+          const extraProf = extraProfilesMap.get(cleanEmail)
+          const resolvedSubpages = (Array.isArray(dbItem?.allowed_subpages) && dbItem.allowed_subpages.length > 0)
+            ? dbItem.allowed_subpages
+            : (Array.isArray(extraProf?.allowed_subpages))
+              ? extraProf.allowed_subpages
+              : (Array.isArray(u.allowed_subpages))
+                ? u.allowed_subpages
+                : getDefaultSubpagesForCargo(u.cargo || 'CONFERENTE')
+
           if (dbItem) {
             return {
               ...u,
@@ -368,9 +389,9 @@ export const UsersManagementPage: React.FC = () => {
               cargo: u.cargo || dbItem.cargo || dbItem.role,
               area: finalArea,
               allowed_pages: dbItem.allowed_pages || u.allowed_pages,
-              allowed_subpages: dbItem.allowed_subpages || u.allowed_subpages || getDefaultSubpagesForCargo(u.cargo || 'CONFERENTE'),
+              allowed_subpages: resolvedSubpages,
               active: dbItem.active !== undefined ? dbItem.active : u.active,
-              avatar_url: dbItem.avatar_url || u.avatar_url,
+              avatar_url: dbItem.avatar_url || extraProf?.avatar_url || u.avatar_url,
               dados_colaborador: finalDadosColaborador
             }
           }
@@ -378,8 +399,8 @@ export const UsersManagementPage: React.FC = () => {
           return {
             ...u,
             area: finalArea,
-            allowed_subpages: u.allowed_subpages || getDefaultSubpagesForCargo(u.cargo || 'CONFERENTE'),
-            avatar_url: u.avatar_url,
+            allowed_subpages: resolvedSubpages,
+            avatar_url: extraProf?.avatar_url || u.avatar_url,
             dados_colaborador: finalDadosColaborador
           }
         })
@@ -403,6 +424,14 @@ export const UsersManagementPage: React.FC = () => {
             const finalColab = dbColab ? { ...(colab || {}), ...dbColab } : colab
             const finalCargo = finalColab?.cargo || d.cargo || d.role
 
+            const cleanEmail = (d.email || '').toLowerCase().trim()
+            const extraProf = extraProfilesMap.get(cleanEmail)
+            const resolvedSubpages = (Array.isArray(d.allowed_subpages) && d.allowed_subpages.length > 0)
+              ? d.allowed_subpages
+              : (Array.isArray(extraProf?.allowed_subpages))
+                ? extraProf.allowed_subpages
+                : getDefaultSubpagesForCargo(finalCargo)
+
             mergedList.unshift({
               id: targetId,
               colaborador_id: targetId,
@@ -411,9 +440,9 @@ export const UsersManagementPage: React.FC = () => {
               role: finalCargo,
               cargo: finalCargo,
               allowed_pages: d.allowed_pages || getDefaultPagesForCargo(finalCargo),
-              allowed_subpages: d.allowed_subpages || getDefaultSubpagesForCargo(finalCargo),
+              allowed_subpages: resolvedSubpages,
               active: d.active !== false,
-              avatar_url: d.avatar_url,
+              avatar_url: d.avatar_url || extraProf?.avatar_url,
               dados_colaborador: finalColab
             })
           }
@@ -746,6 +775,30 @@ export const UsersManagementPage: React.FC = () => {
         }
       } catch (dbErr) {
         console.warn('Aviso ao sincronizar com app_users no Supabase:', dbErr)
+      }
+
+      // Persistir allowed_subpages também no performance_metrics (garantia caso app_users não possua a coluna allowed_subpages)
+      try {
+        const profileStorageKey = `_user_extra_profile_${finalEmail}`
+        const { data: existingExtra } = await supabase
+          .from('performance_metrics')
+          .select('value')
+          .eq('cell_key', profileStorageKey)
+          .maybeSingle()
+        let parsedExtra: any = {}
+        if (existingExtra?.value) {
+          try { parsedExtra = JSON.parse(existingExtra.value) } catch {}
+        }
+        parsedExtra.allowed_subpages = sanitizedAllowedSubpages || []
+        await supabase
+          .from('performance_metrics')
+          .upsert({
+            cell_key: profileStorageKey,
+            value: JSON.stringify(parsedExtra),
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'cell_key' })
+      } catch (extraErr) {
+        console.warn('Aviso ao sincronizar extra_profile em performance_metrics:', extraErr)
       }
 
       // Sincronizar também com a tabela colaboradores do Quadro TT

@@ -295,6 +295,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const resolvedCargo = colabInfo?.cargo || (cleanEmail.includes('johansson') || cleanEmail.includes('joh_gomes') ? 'COORDENADOR LOGISTICA' : data.cargo || data.role)
         const resolvedRole = data.role || (cleanEmail.includes('johansson') || cleanEmail.includes('joh_gomes') ? 'admin' : (colabInfo?.cargo ? mapCargoToValidRole(colabInfo.cargo) : 'colaborador'))
 
+        const resolvedAllowedSubpages = (Array.isArray(data.allowed_subpages) && data.allowed_subpages.length > 0)
+          ? data.allowed_subpages
+          : (Array.isArray(extraProfile?.allowed_subpages))
+            ? extraProfile.allowed_subpages
+            : (Array.isArray(knownUser?.allowed_subpages))
+              ? knownUser.allowed_subpages
+              : undefined
+
         const enriched: AppUserProfile = {
           ...data,
           avatar_url: finalAvatar,
@@ -302,7 +310,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           phone: data.phone || extraProfile?.phone,
           colaborador_id: resolvedColabId,
           cargo: resolvedCargo,
-          role: resolvedRole
+          role: resolvedRole,
+          allowed_subpages: resolvedAllowedSubpages
         }
         localStorage.setItem('magalog_admin_session', JSON.stringify(enriched))
         setUser(enriched)
@@ -342,6 +351,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cargo: determinedCargo,
         role: determinedRole,
         allowed_pages: determinedPages,
+        allowed_subpages: knownUser?.allowed_subpages,
         avatar_url: fallbackAvatar,
         active: knownUser?.active !== undefined ? knownUser.active : true
       }
@@ -407,12 +417,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch {}
     }
 
-    // 2. Verificar sessão atual no Supabase Auth
+    // 2. Verificar sessão atual no Supabase Auth ou restaurar com loadProfile
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         loadProfile(session.user.id, session.user.email || '')
-      } else if (!localStorage.getItem('magalog_admin_session')) {
-        setUser(null)
+      } else {
+        const stored = localStorage.getItem('magalog_admin_session')
+        if (stored) {
+          try {
+            const p = JSON.parse(stored)
+            if (p?.email) {
+              loadProfile(p.user_id || p.id, p.email)
+            }
+          } catch {}
+        } else {
+          setUser(null)
+        }
       }
       setLoading(false)
     })
@@ -433,7 +453,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'app_users' },
-        (payload: any) => {
+        async (payload: any) => {
           const currentStored = localStorage.getItem('magalog_admin_session')
           if (!currentStored) return
           try {
@@ -449,7 +469,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 return
               }
 
+              // Buscar extraProfile para subpáginas se necessário
+              let extraProfile: any = null
+              try {
+                const profileStorageKey = `_user_extra_profile_${row.email?.trim().toLowerCase()}`
+                const { data: extraRow } = await supabase
+                  .from('performance_metrics')
+                  .select('value')
+                  .eq('cell_key', profileStorageKey)
+                  .maybeSingle()
+                if (extraRow?.value) extraProfile = JSON.parse(extraRow.value)
+              } catch {}
+
               const colabInfo = findColaboradorMatch(row.email, row.name, row.colaborador_id)
+              const resolvedSubpages = (Array.isArray(row.allowed_subpages) && row.allowed_subpages.length > 0)
+                ? row.allowed_subpages
+                : (Array.isArray(extraProfile?.allowed_subpages))
+                  ? extraProfile.allowed_subpages
+                  : currentObj.allowed_subpages
+
               const newProf: AppUserProfile = {
                 id: row.id,
                 user_id: row.user_id || currentObj.user_id,
@@ -459,10 +497,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 role: row.role as UserRole,
                 cargo: colabInfo?.cargo || row.cargo || row.role,
                 allowed_pages: row.allowed_pages || [],
+                allowed_subpages: resolvedSubpages,
                 active: row.active,
-                avatar_url: row.avatar_url || currentObj.avatar_url,
-                bio: row.bio || currentObj.bio,
-                phone: row.phone || currentObj.phone
+                avatar_url: row.avatar_url || extraProfile?.avatar_url || currentObj.avatar_url,
+                bio: row.bio || extraProfile?.bio || currentObj.bio,
+                phone: row.phone || extraProfile?.phone || currentObj.phone
               }
               applyProfileUpdate(newProf)
             }
@@ -471,20 +510,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       )
       .subscribe()
 
-    // 5. Polling rápido e confiável (a cada 1.5s) para garantir reflexo instantâneo independente de Realtime
+    // 5. Polling rápido e confiável (a cada 2s) para garantir reflexo instantâneo independente de Realtime
     const interval = setInterval(async () => {
       const currentStored = localStorage.getItem('magalog_admin_session')
       if (!currentStored) return
       try {
         const u = JSON.parse(currentStored)
-        const isMaster = u?.email === 'johansson.gomes@magazineluiza.com.br' || u?.email === 'joh_gomes@magalog.com.br'
-        if (!u?.email || isMaster) return
+        const cleanEmail = (u?.email || '').trim().toLowerCase()
+        const isMaster = cleanEmail === 'johansson.gomes@magazineluiza.com.br' || cleanEmail === 'joh_gomes@magalog.com.br'
+        if (!cleanEmail || isMaster) return
 
-        const { data: latest } = await supabase
-          .from('app_users')
-          .select('*')
-          .ilike('email', u.email)
-          .maybeSingle()
+        const [appUserRes, extraRes] = await Promise.all([
+          supabase.from('app_users').select('*').ilike('email', cleanEmail).maybeSingle(),
+          supabase.from('performance_metrics').select('value').eq('cell_key', `_user_extra_profile_${cleanEmail}`).maybeSingle()
+        ])
+
+        const latest = appUserRes.data
+        let extraProfile: any = null
+        if (extraRes.data?.value) {
+          try { extraProfile = JSON.parse(extraRes.data.value) } catch {}
+        }
 
         if (latest) {
           // Se foi desativado pelo administrador
@@ -493,11 +538,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return
           }
 
-          // Checa se as páginas, role ou status mudaram
+          const resolvedSubpages = (Array.isArray(latest.allowed_subpages) && latest.allowed_subpages.length > 0)
+            ? latest.allowed_subpages
+            : (Array.isArray(extraProfile?.allowed_subpages))
+              ? extraProfile.allowed_subpages
+              : u.allowed_subpages
+
+          // Checa se as páginas, subpáginas, role ou status mudaram
           const currentPages = (u.allowed_pages || []).slice().sort().join(',')
           const latestPages = (latest.allowed_pages || []).slice().sort().join(',')
+          const currentSubpages = (u.allowed_subpages || []).slice().sort().join(',')
+          const latestSubpages = (resolvedSubpages || []).slice().sort().join(',')
 
-          if (currentPages !== latestPages || u.role !== latest.role || u.active !== latest.active) {
+          if (currentPages !== latestPages || currentSubpages !== latestSubpages || u.role !== latest.role || u.active !== latest.active) {
             // Encontrar cargo real da planilha
             const colabInfo = findColaboradorMatch(latest.email, latest.name, latest.colaborador_id)
             const newProf: AppUserProfile = {
@@ -509,16 +562,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               role: latest.role as UserRole,
               cargo: colabInfo?.cargo || latest.cargo || latest.role,
               allowed_pages: latest.allowed_pages || [],
+              allowed_subpages: resolvedSubpages,
               active: latest.active,
-              avatar_url: latest.avatar_url || u.avatar_url,
-              bio: latest.bio || u.bio,
-              phone: latest.phone || u.phone
+              avatar_url: latest.avatar_url || extraProfile?.avatar_url || u.avatar_url,
+              bio: latest.bio || extraProfile?.bio || u.bio,
+              phone: latest.phone || extraProfile?.phone || u.phone
             }
             applyProfileUpdate(newProf)
           }
         }
       } catch {}
-    }, 1500)
+    }, 2000)
 
     // 6. Ouvinte de evento entre abas do mesmo navegador (storage event)
     const handleStorageChange = (e: StorageEvent) => {
@@ -724,12 +778,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Se autenticou no Auth OU a senha confere com a salva no cadastro
         const passwordMatches = dbUser.password_hash ? dbUser.password_hash === cleanPass : true
         if (authUser || passwordMatches) {
+          // Buscar extraProfile para foto e subpáginas
+          let extraProfile: any = null
+          try {
+            const profileStorageKey = `_user_extra_profile_${cleanEmail}`
+            const { data: extraRow } = await supabase
+              .from('performance_metrics')
+              .select('value')
+              .eq('cell_key', profileStorageKey)
+              .maybeSingle()
+            if (extraRow?.value) extraProfile = JSON.parse(extraRow.value)
+          } catch {}
+
           const colabInfo = (initialColaboradores as any[]).find(c => 
             (c.login && cleanEmail.includes(c.login.toLowerCase())) ||
             (c.contratado && dbUser.name && c.contratado.toLowerCase() === dbUser.name.toLowerCase())
           )
           const resolvedCargo = colabInfo?.cargo || dbUser.cargo || (dbUser.role ? String(dbUser.role) : 'Colaborador')
           const resolvedRole = mapCargoToValidRole(dbUser.role || resolvedCargo)
+
+          const resolvedAllowedSubpages = (Array.isArray(dbUser.allowed_subpages) && dbUser.allowed_subpages.length > 0)
+            ? dbUser.allowed_subpages
+            : (Array.isArray(extraProfile?.allowed_subpages))
+              ? extraProfile.allowed_subpages
+              : undefined
+
+          const finalAvatar = dbUser.avatar_url || extraProfile?.avatar_url || getStoredAvatar(cleanEmail) || undefined
 
           const profile: AppUserProfile = {
             id: dbUser.id,
@@ -740,6 +814,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             cargo: resolvedCargo,
             role: resolvedRole as UserRole,
             allowed_pages: dbUser.allowed_pages || getDefaultPagesForCargo(resolvedCargo),
+            allowed_subpages: resolvedAllowedSubpages,
+            avatar_url: finalAvatar,
             active: dbUser.active
           }
 
@@ -782,7 +858,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             cargo: resolvedCargo,
             role: resolvedRole,
             colaborador_id: colabInfo?.id || localMatched.colaborador_id || localMatched.id,
-            allowed_pages: localMatched.allowed_pages || getDefaultPagesForCargo(resolvedCargo)
+            allowed_pages: localMatched.allowed_pages || getDefaultPagesForCargo(resolvedCargo),
+            allowed_subpages: localMatched.allowed_subpages
           }
 
           localStorage.setItem('magalog_admin_session', JSON.stringify(enrichedProfile))
@@ -902,7 +979,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           value: JSON.stringify({
             avatar_url: merged.avatar_url,
             bio: merged.bio,
-            phone: merged.phone
+            phone: merged.phone,
+            allowed_subpages: merged.allowed_subpages
           }),
           updated_at: new Date().toISOString()
         }, { onConflict: 'cell_key' })

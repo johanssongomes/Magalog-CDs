@@ -43,7 +43,8 @@ import {
   Maximize2,
   Tag,
   TrendingUp,
-  Percent
+  Percent,
+  Lock
 } from 'lucide-react'
 import initialColaboradoresData from '../data/initialColaboradores.json'
 import { QuadroMedioTable } from './QuadroMedioTable'
@@ -235,6 +236,19 @@ const defaultColaboradorForm: ColaboradorItem = {
 
 export const PmtsPage: React.FC = () => {
   const { user: currentUser, hasPermission } = useAuth()
+
+  // Módulos PMT aos quais o usuário tem permissão
+  const allowedPmtPages = useMemo(() => {
+    return PMT_PAGES_CONFIG.filter(page => {
+      const subId = page.id === 1 ? 'sub-pmt-expedicao' :
+                    page.id === 2 ? 'sub-pmt-recebimento' :
+                    page.id === 3 ? 'sub-pmt-quadro' :
+                    page.id === 4 ? 'sub-pmt-promocionais' :
+                    page.id === 5 ? 'sub-pmt-tableau' : 'sub-pmt-carteira-cds'
+      return hasPermission('pmts', subId)
+    })
+  }, [hasPermission])
+
   const [activePageId, setActivePageId] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('magalog_pmt_active_page_id')
@@ -244,12 +258,23 @@ export const PmtsPage: React.FC = () => {
           return parsed
         }
       }
-      return 3
+      return 1
     } catch {
-      return 3
+      return 1
     }
   })
-  const activePage = PMT_PAGES_CONFIG.find(p => p.id === activePageId) || PMT_PAGES_CONFIG[0]
+
+  // Se o módulo ativo atual não estiver na lista de permitidos, seleciona o primeiro módulo permitido
+  useEffect(() => {
+    if (allowedPmtPages.length > 0) {
+      const isAllowed = allowedPmtPages.some(p => p.id === activePageId)
+      if (!isAllowed) {
+        setActivePageId(allowedPmtPages[0].id)
+      }
+    }
+  }, [allowedPmtPages, activePageId])
+
+  const activePage = PMT_PAGES_CONFIG.find(p => p.id === activePageId) || allowedPmtPages[0] || PMT_PAGES_CONFIG[0]
 
   // Salva o submódulo do PMT ativo no localStorage
   useEffect(() => {
@@ -1795,28 +1820,70 @@ export const PmtsPage: React.FC = () => {
   const isQuadro = activePageId === 3
   const isExpedicao = activePageId === 1
 
+  // Validação e auto-ajuste de subpáginas permitidas
+  useEffect(() => {
+    if (isExpedicao) {
+      const allowed = [
+        { id: 'pg1', subId: 'sub-pmt-expedicao-pg1' },
+        { id: 'pg2', subId: 'sub-pmt-expedicao-pg2' },
+        { id: 'pg3', subId: 'sub-pmt-expedicao-pg3' },
+        { id: 'pg4', subId: 'sub-pmt-expedicao-pg4' }
+      ].filter(sub => hasPermission('pmts', sub.subId))
+      if (allowed.length > 0 && !allowed.some(s => s.id === expedicaoSubPage)) {
+        setExpedicaoSubPage(allowed[0].id as any)
+      }
+    }
+  }, [isExpedicao, expedicaoSubPage, hasPermission])
+
+  useEffect(() => {
+    if (isQuadro) {
+      const allowed = [
+        { id: 'dashboard', subId: 'sub-quadro-dashboard' },
+        { id: 'pg1', subId: 'sub-quadro-tt' },
+        { id: 'pg2', subId: 'sub-quadro-bh' },
+        { id: 'pg3', subId: 'sub-quadro-padu' },
+        { id: 'pg4', subId: 'sub-quadro-medio' },
+        { id: 'pg5', subId: 'sub-apontamento' }
+      ].filter(sub => hasPermission('pmts', sub.subId))
+      if (allowed.length > 0 && !allowed.some(s => s.id === quadroSubPage)) {
+        setQuadroSubPage(allowed[0].id as any)
+      }
+    }
+  }, [isQuadro, quadroSubPage, hasPermission])
+
+  if (allowedPmtPages.length === 0) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-xs space-y-4">
+        <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
+          <Lock size={28} />
+        </div>
+        <div className="max-w-md mx-auto space-y-1">
+          <h3 className="text-base font-bold text-slate-900">
+            Acesso Restrito na Gestão 360°
+          </h3>
+          <p className="text-xs text-slate-500">
+            Você não possui permissão para visualizar nenhum dos módulos da Gestão 360°. Entre em contato com o administrador do sistema para solicitar acesso.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={activePageId === 6 ? 'space-y-3' : 'space-y-6'}>
       {/* =========================================================================
-          1. HEADER DA PÁGINA PMTS COM OS 6 MÓDULOS DE NAVEGAÇÃO
+          1. HEADER DA PÁGINA PMTS COM OS MÓDULOS DE NAVEGAÇÃO AUTORIZADOS
           ========================================================================= */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
         {/* Abas Superiores dos Módulos PMT */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-          {PMT_PAGES_CONFIG.filter(page => {
-            const subId = page.id === 1 ? 'sub-pmt-expedicao' :
-                          page.id === 2 ? 'sub-pmt-recebimento' :
-                          page.id === 3 ? 'sub-pmt-quadro' :
-                          page.id === 4 ? 'sub-pmt-promocionais' :
-                          page.id === 5 ? 'sub-pmt-tableau' : 'sub-pmt-carteira-cds'
-            return hasPermission('pmts', subId)
-          }).map((page) => {
+        <div className="flex flex-wrap gap-2">
+          {allowedPmtPages.map((page) => {
             const isActive = activePageId === page.id
             return (
               <button
                 key={page.id}
                 onClick={() => setActivePageId(page.id)}
-                className={`relative flex items-center justify-center gap-2 px-3 py-3 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer text-center ${
+                className={`relative flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer text-center min-w-[140px] flex-1 sm:flex-initial ${
                   isActive
                     ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25 ring-2 ring-blue-500/20'
                     : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 hover:text-blue-700'
@@ -2512,7 +2579,17 @@ export const PmtsPage: React.FC = () => {
              Distribuição por Cargos, Tabela e Ações)
           - Nos demais PMTs: Métricas padrão e Indicador Diário por Modal
           ========================================================================= */}
-      {isQuadro ? (
+      {!allowedPmtPages.some(p => p.id === activePageId) ? (
+        <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center shadow-xs space-y-3">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+            <Lock size={24} />
+          </div>
+          <h4 className="text-sm font-bold text-slate-800">Módulo Não Autorizado</h4>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            Você não possui permissão de acesso para visualizar este módulo da Gestão 360°.
+          </p>
+        </div>
+      ) : isQuadro ? (
         quadroSubPage === 'dashboard' ? (
           /* =========================================================================
              SUB-PÁGINA DASHBOARD: CARDS DE MÉTRICAS + TABELAS DINÂMICAS CONSOLIDADAS
