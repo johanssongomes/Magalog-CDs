@@ -48,21 +48,16 @@ const parseNumericValue = (val: string): number | null => {
   return isNaN(num) ? null : num
 }
 
-const getMetaStatusColor = (
+const getMetaValueColor = (
   valStr: string,
   metaTiers?: { label: string; ating: string; dotColor: string }[]
-): { text: string; bg: string; border: string; dot: string } => {
+): string => {
   const num = parseNumericValue(valStr)
   if (num === null || !metaTiers || metaTiers.length === 0) {
-    return {
-      text: 'text-emerald-700',
-      bg: 'bg-emerald-50',
-      border: 'border-emerald-100',
-      dot: 'bg-emerald-500'
-    }
+    return 'text-slate-900'
   }
 
-  // Verifica as regras do metaTiers
+  // Avalia as regras das faixas de meta (metaTiers)
   for (const t of metaTiers) {
     const tierNum = parseNumericValue(t.label)
     if (tierNum === null) continue
@@ -78,48 +73,22 @@ const getMetaStatusColor = (
     }
 
     if (matched) {
-      if (t.dotColor.includes('blue')) {
-        return {
-          text: 'text-blue-700',
-          bg: 'bg-blue-50',
-          border: 'border-blue-200',
-          dot: 'bg-blue-500'
-        }
-      }
-      if (t.dotColor.includes('emerald') || t.dotColor.includes('green')) {
-        return {
-          text: 'text-emerald-700',
-          bg: 'bg-emerald-50',
-          border: 'border-emerald-200',
-          dot: 'bg-emerald-500'
-        }
+      if (t.dotColor.includes('rose') || t.dotColor.includes('red')) {
+        return 'text-rose-600'
       }
       if (t.dotColor.includes('amber') || t.dotColor.includes('yellow')) {
-        return {
-          text: 'text-amber-700',
-          bg: 'bg-amber-50',
-          border: 'border-amber-200',
-          dot: 'bg-amber-500'
-        }
+        return 'text-amber-600'
       }
-      if (t.dotColor.includes('rose') || t.dotColor.includes('red')) {
-        return {
-          text: 'text-rose-700',
-          bg: 'bg-rose-50',
-          border: 'border-rose-200',
-          dot: 'bg-rose-500'
-        }
+      if (t.dotColor.includes('blue')) {
+        return 'text-blue-600'
+      }
+      if (t.dotColor.includes('emerald') || t.dotColor.includes('green')) {
+        return 'text-emerald-600'
       }
     }
   }
 
-  // Padrão se não casou em nada
-  return {
-    text: 'text-rose-700',
-    bg: 'bg-rose-50',
-    border: 'border-rose-200',
-    dot: 'bg-rose-500'
-  }
+  return 'text-rose-600'
 }
 
 const KpiNs: React.FC<{
@@ -131,7 +100,7 @@ const KpiNs: React.FC<{
   items: [string, string][]
   metaTiers?: { label: string; ating: string; dotColor: string }[]
 }> = ({ icon, title, value, meta, tone, items, metaTiers }) => {
-  const statusColor = getMetaStatusColor(value, metaTiers)
+  const valueColor = getMetaValueColor(value, metaTiers)
 
   return (
     <Card className="relative group p-2 h-[74px] flex items-center justify-between gap-1.5 min-w-0 transition-all hover:shadow-md">
@@ -141,13 +110,13 @@ const KpiNs: React.FC<{
         </div>
         <div className="min-w-0">
           <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">{title}</p>
-          <p className="text-lg font-black text-slate-900 leading-none my-0.5">{value}</p>
+          <p className={`text-lg font-black leading-none my-0.5 ${valueColor}`}>{value}</p>
 
-          {/* Badge da Meta colorido dinamicamente com base no atingimento atual */}
+          {/* Badge da Meta mantido no padrão suave */}
           {metaTiers && metaTiers.length > 0 ? (
             <div className="relative inline-block">
-              <span className={`inline-flex items-center gap-1 text-[8px] font-bold px-1.5 py-0.5 rounded ${statusColor.bg} ${statusColor.text} border ${statusColor.border} leading-none cursor-pointer transition-colors`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${statusColor.dot}`} />
+              <span className="inline-flex items-center gap-1 text-[8px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100 leading-none cursor-pointer transition-colors">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                 {meta}
               </span>
 
