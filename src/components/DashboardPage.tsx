@@ -61,7 +61,7 @@ const KpiNs: React.FC<{
         </span>
       </div>
     </div>
-    <div className="text-[8.5px] space-y-0.5 shrink-0 pl-1.5 border-l border-slate-100">
+    <div className={`shrink-0 pl-1.5 border-l border-slate-100 ${items.length > 3 ? 'text-[7.5px] space-y-[1px]' : 'text-[8.5px] space-y-0.5'}`}>
       {items.map(([k, v]) => (
         <div key={k} className="flex justify-between gap-1 leading-none">
           <span className="text-slate-400 font-medium">{k}</span>
@@ -254,7 +254,13 @@ export const DashboardPage: React.FC = () => {
           title="NS Saída"
           value="97,8%"
           meta="Meta: 97,0%"
-          items={[['Micro', '97,2%'], ['Courrie', '96,4%'], ['Rodo', '99,5']]}
+          items={[
+            ['Micro', '97,2%'],
+            ['Rodo', '99,5%'],
+            ['Courrie', '96,4%'],
+            ['Diário', '100%'],
+            ['Mensal', '99,8%']
+          ]}
         />
         <KpiNs
           icon={<User size={15} />}
