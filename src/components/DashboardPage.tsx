@@ -47,8 +47,9 @@ const KpiNs: React.FC<{
   meta: string
   tone: string
   items: [string, string][]
-}> = ({ icon, title, value, meta, tone, items }) => (
-  <Card className="p-2 h-[74px] flex items-center justify-between gap-1.5 min-w-0">
+  metaTiers?: { label: string; ating: string; dotColor: string }[]
+}> = ({ icon, title, value, meta, tone, items, metaTiers }) => (
+  <Card className="relative group p-2 h-[74px] flex items-center justify-between gap-1.5 min-w-0 transition-all hover:shadow-md">
     <div className="flex items-center gap-1.5 min-w-0">
       <div className={`w-7 h-7 rounded-lg ${tone} flex items-center justify-center shrink-0`}>
         {icon}
@@ -56,9 +57,42 @@ const KpiNs: React.FC<{
       <div className="min-w-0">
         <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">{title}</p>
         <p className="text-lg font-black text-slate-900 leading-none my-0.5">{value}</p>
-        <span className="inline-block text-[8px] font-bold px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 leading-none">
-          {meta}
-        </span>
+        
+        {/* Badge da Meta com Tooltip discreto ao passar o mouse */}
+        {metaTiers && metaTiers.length > 0 ? (
+          <div className="relative inline-block cursor-help">
+            <span className="inline-flex items-center gap-1 text-[8px] font-bold px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 leading-none">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+              {meta}
+            </span>
+
+            {/* Popover / Tooltip informativo sem poluir o visual do card */}
+            <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block z-50 w-44 p-2 bg-slate-900/95 backdrop-blur-xs text-white rounded-lg shadow-xl border border-slate-700 text-[10px] pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+              <div className="font-bold text-[9px] text-slate-300 uppercase tracking-wider pb-1 mb-1 border-b border-slate-700/80 flex items-center justify-between">
+                <span>Faixas de Atingimento</span>
+                <span className="text-[8px] text-slate-400">Meta</span>
+              </div>
+              <div className="space-y-1">
+                {metaTiers.map((t, idx) => (
+                  <div key={idx} className="flex items-center justify-between font-mono">
+                    <span className="flex items-center gap-1.5 text-slate-200">
+                      <span className={`w-1.5 h-1.5 rounded-full ${t.dotColor}`} />
+                      {t.label}
+                    </span>
+                    <span className="font-bold text-emerald-400">{t.ating}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="text-[8px] text-slate-400 mt-1.5 pt-1 border-t border-slate-700/60 text-right">
+                Realizado: <strong className="text-white">{value}</strong>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <span className="inline-block text-[8px] font-bold px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 leading-none">
+            {meta}
+          </span>
+        )}
       </div>
     </div>
     <div className={`shrink-0 pl-1.5 border-l border-slate-100 ${items.length > 3 ? 'text-[7.5px] space-y-[1px]' : 'text-[8.5px] space-y-0.5'}`}>
@@ -254,6 +288,11 @@ export const DashboardPage: React.FC = () => {
           title="NS Saída"
           value="97,8%"
           meta="Meta: 97,0%"
+          metaTiers={[
+            { label: '>= 99,2%', ating: '100%', dotColor: 'bg-blue-500' },
+            { label: '>= 98,7%', ating: '75%', dotColor: 'bg-amber-400' },
+            { label: '>= 98,2%', ating: '50%', dotColor: 'bg-rose-500' }
+          ]}
           items={[
             ['Micro', '97,2%'],
             ['Rodo', '99,5%'],
