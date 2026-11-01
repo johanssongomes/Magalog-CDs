@@ -224,23 +224,69 @@ const KpiSimple: React.FC<{
     </Card>
   )
 
-const KpiAtendimento: React.FC = () => (
-  <Card className="p-2 h-[74px] flex flex-col justify-between min-w-0">
-    <div className="flex items-center gap-1.5">
-      <div className="w-5 h-5 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-        <MessageSquareWarning size={12} />
+const KpiAtendimento: React.FC<{
+  data: {
+    recDiario: string
+    recMes: string
+    backlog: string
+    chamados: string
+    npsLojas: string
+  }
+}> = ({ data }) => {
+  // Lógica de cores por meta dos indicadores de Atendimento:
+  // % Reclamações (Diário): < 1,5% verde, > 1,5% vermelho
+  const recDiaNum = parseNumericValue(data.recDiario)
+  const recDiaColor = recDiaNum === null ? 'text-slate-800' : (recDiaNum < 1.5 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold')
+
+  // % Reclamações (Mês): < 1,5% verde, > 1,5% vermelho
+  const recMesNum = parseNumericValue(data.recMes)
+  const recMesColor = recMesNum === null ? 'text-slate-800' : (recMesNum < 1.5 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold')
+
+  // Backlog Zendesk: = 0 verde, > 0 vermelho
+  const backlogNum = parseNumericValue(data.backlog)
+  const backlogColor = backlogNum === null ? 'text-slate-800' : (backlogNum === 0 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold')
+
+  // Chamados de Loja: = 0 verde, > 0 vermelho
+  const chamadosNum = parseNumericValue(data.chamados)
+  const chamadosColor = chamadosNum === null ? 'text-slate-800' : (chamadosNum === 0 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold')
+
+  // NPS Lojas: >= 80% verde, < 80% vermelho
+  const npsNum = parseNumericValue(data.npsLojas)
+  const npsColor = npsNum === null ? 'text-slate-800' : (npsNum >= 80 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold')
+
+  return (
+    <Card className="p-2 h-[74px] flex flex-col justify-between min-w-0 hover:shadow-md transition-all">
+      <div className="flex items-center gap-1.5">
+        <div className="w-5 h-5 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+          <MessageSquareWarning size={12} />
+        </div>
+        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">Atendimento</p>
       </div>
-      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">Atendimento</p>
-    </div>
-    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[8.5px] leading-none pt-0.5 border-t border-slate-100">
-      <div className="flex justify-between text-slate-500"><span className="truncate">Recl. (Dia)</span><span className="font-bold text-slate-800 ml-1">-</span></div>
-      <div className="flex justify-between text-slate-500"><span className="truncate">Backlog</span><span className="font-bold text-slate-800 ml-1">-</span></div>
-      <div className="flex justify-between text-slate-500"><span className="truncate">Recl. (Mês)</span><span className="font-bold text-slate-800 ml-1">-</span></div>
-      <div className="flex justify-between text-slate-500"><span className="truncate">Chamados</span><span className="font-bold text-slate-800 ml-1">-</span></div>
-      <div className="flex justify-between text-slate-500 col-span-2 pt-0.5 border-t border-slate-50"><span className="truncate">NPS Lojas</span><span className="font-bold text-slate-800 ml-1">-</span></div>
-    </div>
-  </Card>
-)
+      <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[8.5px] leading-none pt-0.5 border-t border-slate-100">
+        <div className="flex justify-between text-slate-500">
+          <span className="truncate">Recl. (Dia)</span>
+          <span className={`ml-1 ${recDiaColor}`}>{data.recDiario}</span>
+        </div>
+        <div className="flex justify-between text-slate-500">
+          <span className="truncate">Backlog</span>
+          <span className={`ml-1 ${backlogColor}`}>{data.backlog}</span>
+        </div>
+        <div className="flex justify-between text-slate-500">
+          <span className="truncate">Recl. (Mês)</span>
+          <span className={`ml-1 ${recMesColor}`}>{data.recMes}</span>
+        </div>
+        <div className="flex justify-between text-slate-500">
+          <span className="truncate">Chamados</span>
+          <span className={`ml-1 ${chamadosColor}`}>{data.chamados}</span>
+        </div>
+        <div className="flex justify-between text-slate-500 col-span-2 pt-0.5 border-t border-slate-50">
+          <span className="truncate">NPS Lojas</span>
+          <span className={`ml-1 ${npsColor}`}>{data.npsLojas}</span>
+        </div>
+      </div>
+    </Card>
+  )
+}
 
 // ---------------- Charts (SVG puro) ----------------
 const PerformanceChart: React.FC = () => {
@@ -366,6 +412,21 @@ export const DashboardPage: React.FC = () => {
     lastDay: '30/out'
   })
 
+  // Estado integrado para dados de ATENDIMENTO (Gestão CX)
+  const [atendimentoData, setAtendimentoData] = useState<{
+    recDiario: string
+    recMes: string
+    backlog: string
+    chamados: string
+    npsLojas: string
+  }>({
+    recDiario: '1,61%',
+    recMes: '1,38%',
+    backlog: '8',
+    chamados: '83',
+    npsLojas: '81,2%'
+  })
+
   // Carrega e sincroniza dados reais de NS Saída e Fulfillment do Supabase e LocalStorage
   useEffect(() => {
     const processFullMetrics = (metricsMap: Record<string, string>) => {
@@ -461,6 +522,42 @@ export const DashboardPage: React.FC = () => {
       })
     }
 
+    const processAtendimentoMetrics = (metricsMap: Record<string, string>) => {
+      const getLastValidValue = (subId: string, fallback: string): string => {
+        const prefix = `gestao_cx_${subId}_`
+        const daysWithVal: string[] = []
+
+        Object.keys(metricsMap).forEach(k => {
+          if (k.startsWith(prefix)) {
+            const dayPart = k.replace(prefix, '')
+            const val = metricsMap[k]?.trim()
+            if (val && val !== '-' && val !== '') {
+              daysWithVal.push(dayPart)
+            }
+          }
+        })
+
+        if (daysWithVal.length === 0) return fallback
+
+        daysWithVal.sort((a, b) => {
+          const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0
+          const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0
+          return numA - numB
+        })
+
+        const lastSubDay = daysWithVal[daysWithVal.length - 1]
+        return metricsMap[`${prefix}${lastSubDay}`]?.trim() || fallback
+      }
+
+      setAtendimentoData({
+        recDiario: getLastValidValue('rec_diario', '1,61%'),
+        recMes: getLastValidValue('rec_mes', '1,38%'),
+        backlog: getLastValidValue('backlog_zendesk', '8'),
+        chamados: getLastValidValue('chamados_loja', '83'),
+        npsLojas: getLastValidValue('nps_lojas', '81,2%')
+      })
+    }
+
     // 1. Tenta carregar do LocalStorage imediatamente
     try {
       const local = localStorage.getItem('magalog_performance_data')
@@ -468,6 +565,7 @@ export const DashboardPage: React.FC = () => {
         const parsed = JSON.parse(local)
         processFullMetrics(parsed)
         processSaidaMetrics(parsed)
+        processAtendimentoMetrics(parsed)
       }
     } catch { }
 
@@ -477,7 +575,7 @@ export const DashboardPage: React.FC = () => {
         const { data: dbRows, error } = await supabase
           .from('performance_metrics')
           .select('cell_key, value')
-          .or('cell_key.like.fulfillment_%,cell_key.like.ns_saida_eclusa_%')
+          .or('cell_key.like.fulfillment_%,cell_key.like.ns_saida_eclusa_%,cell_key.like.gestao_cx_%')
 
         if (!error && dbRows && dbRows.length > 0) {
           const map: Record<string, string> = {}
@@ -486,6 +584,7 @@ export const DashboardPage: React.FC = () => {
           })
           processFullMetrics(map)
           processSaidaMetrics(map)
+          processAtendimentoMetrics(map)
         }
       } catch (err) {
         console.warn('Erro ao carregar métricas do Supabase:', err)
@@ -502,7 +601,7 @@ export const DashboardPage: React.FC = () => {
         { event: '*', schema: 'public', table: 'performance_metrics' },
         (payload: any) => {
           const key = payload.new?.cell_key
-          if (key && (key.startsWith('fulfillment_') || key.startsWith('ns_saida_eclusa_'))) {
+          if (key && (key.startsWith('fulfillment_') || key.startsWith('ns_saida_eclusa_') || key.startsWith('gestao_cx_'))) {
             loadFromSupabase()
           }
         }
@@ -595,7 +694,7 @@ export const DashboardPage: React.FC = () => {
           value="96,2%"
           badge="Meta > 95%"
         />
-        <KpiAtendimento />
+        <KpiAtendimento data={atendimentoData} />
         <KpiSimple
           icon={<Home size={15} />}
           tone="bg-amber-50 text-amber-600"
