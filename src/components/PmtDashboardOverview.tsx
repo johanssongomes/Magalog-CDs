@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react'
-import { TrendingUp, Package, Layers, Boxes, Truck, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react'
+import React, { useState, useMemo, useEffect } from 'react'
+import { TrendingUp, Package, Layers, Boxes, Truck, CheckCircle2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import initialOctMatrix from '../data/pmt_oct_2026_matrix.json'
 import initialAderenciaOct from '../data/initialAderencia202610.json'
+import { getPmtDailyMatrixFromSupabase, getPmtSummaryFromSupabase, type PmtDailyMatrixResponse } from '../lib/pmtService'
+import { getAderenciaData, type AderenciaDataState } from '../lib/aderenciaService'
 
 type MetricType = 'pedidos' | 'pecas' | 'cubagem'
 
@@ -16,6 +18,91 @@ export const PmtDashboardOverview: React.FC = () => {
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('cubagem')
   const [selectedYear, setSelectedYear] = useState<number>(2026)
   const [selectedMonth, setSelectedMonth] = useState<number>(10) // 1-indexed: 10 = Outubro
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+
+  // Dados dinâmicos carregados da PMT (Supabase / local)
+  const [matrixData, setMatrixData] = useState<PmtDailyMatrixResponse | null>(() => {
+    // Inicial padrão para Out/2026 com fallback local instantâneo
+    return initialOctMatrix as unknown as PmtDailyMatrixResponse
+  })
+
+  // Dados dinâmicos de Liberação, Faturamento e Capacidade
+  const [aderenciaData, setAderenciaData] = useState<AderenciaDataState | null>(() => {
+    return initialAderenciaOct as unknown as AderenciaDataState
+  })
+
+  // Resumo geral da PMT (para os cards de topo: Valor, Peças, Pedidos, Cubagem)
+  const [pmtSummary, setPmtSummary] = useState<{
+    total_valor?: number
+    total_pecas?: number
+    total_pedidos?: number
+    total_cub?: number
+    total_linhas?: number
+  } | null>(null)
+
+  // Carregar dados de PMT e Aderência sempre que mês ou ano mudarem
+  useEffect(() => {
+    let isMounted = true
+    setIsLoading(true)
+
+    const fetchData = async () => {
+      try {
+        const [cloudMatrix, cloudAderencia, summaryRes] = await Promise.all([
+          getPmtDailyMatrixFromSupabase(selectedYear, selectedMonth, '994', 'modal').catch(() => null),
+          getAderenciaData(selectedYear, selectedMonth, '994').catch(() => null),
+          getPmtSummaryFromSupabase(selectedYear, selectedMonth, '994').catch(() => null)
+        ])
+
+        if (!isMounted) return
+
+        // 1. Matriz de PMT
+        if (cloudMatrix && cloudMatrix.days && cloudMatrix.days.length > 0) {
+          setMatrixData(cloudMatrix)
+        } else if (selectedYear === 2026 && selectedMonth === 10) {
+          setMatrixData(initialOctMatrix as unknown as PmtDailyMatrixResponse)
+        } else {
+          setMatrixData(null)
+        }
+
+        // 2. Aderência (Liberado, Faturado e Capacidade)
+        if (cloudAderencia) {
+          setAderenciaData(cloudAderencia)
+        } else if (selectedYear === 2026 && selectedMonth === 10) {
+          setAderenciaData(initialAderenciaOct as unknown as AderenciaDataState)
+        } else {
+          setAderenciaData(null)
+        }
+
+        // 3. Resumo da PMT
+        if (summaryRes && summaryRes.summary && (summaryRes.totalGeralLinhas > 0 || (summaryRes.summary.total_valor || 0) > 0)) {
+          setPmtSummary({
+            ...summaryRes.summary,
+            total_linhas: summaryRes.totalGeralLinhas
+          })
+        } else if (selectedYear === 2026 && selectedMonth === 10) {
+          setPmtSummary({
+            total_valor: 143160331.04,
+            total_pecas: 200570,
+            total_pedidos: 55754,
+            total_cub: 20160,
+            total_linhas: 50520
+          })
+        } else {
+          setPmtSummary(null)
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar PMT no Dashboard:', err)
+      } finally {
+        if (isMounted) setIsLoading(false)
+      }
+    }
+
+    fetchData()
+
+    return () => {
+      isMounted = false
+    }
+  }, [selectedYear, selectedMonth])
 
   const handlePrevMonth = () => {
     if (selectedMonth === 1) {
@@ -48,29 +135,35 @@ export const PmtDashboardOverview: React.FC = () => {
     return days
   }, [selectedYear, selectedMonth])
 
-  // Obter dados diários para a métrica selecionada
+  // Obter dados diários consolidados para a métrica selecionada
   const dailyData = useMemo(() => {
-    const isOct2026 = selectedYear === 2026 && selectedMonth === 10
-
-    // PMT Planejado diário
+    // 1. PMT Planejado Diário
     const pmtDailyMap: Record<string, number> = {}
-    if (isOct2026 && initialOctMatrix && initialOctMatrix.data) {
-      const metricModals = (initialOctMatrix.data as any)[selectedMetric] || {}
+
+    if (matrixData?.totals?.[selectedMetric]) {
+      // Se matrixData já tem totais pré-calculados
+      const totalsObj = matrixData.totals[selectedMetric]
+      daysInMonth.forEach(d => {
+        pmtDailyMap[d.dayStr] = totalsObj[d.dayStr] || 0
+      })
+    } else if (matrixData?.data?.[selectedMetric]) {
+      // Agrega todos os modais da métrica
+      const metricModals = matrixData.data[selectedMetric]
       Object.keys(metricModals).forEach(modalKey => {
         const modalObj = metricModals[modalKey]
         if (modalObj) {
           daysInMonth.forEach(d => {
-            const val = modalObj[d.dayStr] || modalObj[d.day.toString()] || 0
+            const val = modalObj[d.dayStr] ?? (modalObj as any)[d.day.toString()] ?? 0
             pmtDailyMap[d.dayStr] = (pmtDailyMap[d.dayStr] || 0) + val
           })
         }
       })
     }
 
-    // Aderência (Liberado e Faturado)
-    const liberadoTotals = isOct2026 ? (initialAderenciaOct?.liberado?.totals as any)?.[selectedMetric] || {} : {}
-    const faturadoTotals = isOct2026 ? (initialAderenciaOct?.faturado?.totals as any)?.[selectedMetric] || {} : {}
-    const capacidadeMap = isOct2026 ? (initialAderenciaOct?.capacidade as any)?.[selectedMetric] || {} : {}
+    // 2. Aderência (Liberado e Faturado) e Capacidade
+    const liberadoTotals = (aderenciaData?.liberado?.totals as any)?.[selectedMetric] || {}
+    const faturadoTotals = (aderenciaData?.faturado?.totals as any)?.[selectedMetric] || {}
+    const capacidadeMap = (aderenciaData?.capacidade as any)?.[selectedMetric] || {}
 
     return daysInMonth.map(d => {
       const pmtVal = Math.round(pmtDailyMap[d.dayStr] || 0)
@@ -109,23 +202,20 @@ export const PmtDashboardOverview: React.FC = () => {
         aderFat
       }
     })
-  }, [selectedYear, selectedMonth, selectedMetric, daysInMonth])
+  }, [daysInMonth, matrixData, aderenciaData, selectedMetric])
 
-  // Métricas agregadas da tabela (Total e Média)
+  // Métricas agregadas da tabela diária (Total e Média)
   const totals = useMemo(() => {
     let sumPmt = 0
     let sumLib = 0
     let sumFat = 0
     let sumCap = 0
-    let countDaysWithPmt = 0
     let countDaysWithLib = 0
     let countDaysWithFat = 0
     let countDaysWithCap = 0
 
     dailyData.forEach(d => {
       sumPmt += d.pmt
-      if (d.pmt > 0) countDaysWithPmt++
-
       sumLib += d.lib
       if (d.lib > 0) countDaysWithLib++
 
@@ -141,7 +231,7 @@ export const PmtDashboardOverview: React.FC = () => {
     const avgFat = countDaysWithFat > 0 ? Math.round(sumFat / countDaysWithFat) : 0
     const avgCap = countDaysWithCap > 0 ? Math.round(sumCap / countDaysWithCap) : 0
 
-    const totalAderLib = sumPmt > 0 ? Math.round((sumLib / sumPmt) * 100) : 0
+    const totalAderLib = sumPmt > 0 ? Math.round((sumLib / sumPmt) * 100) : (sumLib > 0 ? 100 : 0)
     const avgAderLib = avgPmt > 0 ? Math.round((avgLib / avgPmt) * 100) : 0
 
     const totalAderFat = sumCap > 0 ? Math.round((sumFat / sumCap) * 100) : 0
@@ -163,6 +253,93 @@ export const PmtDashboardOverview: React.FC = () => {
     }
   }, [dailyData])
 
+  // Valores calculados para os 4 Cards de Topo
+  const cardValues = useMemo(() => {
+    // 1. Planejado
+    const pmtPecas = pmtSummary?.total_pecas ?? (matrixData?.totals?.pecas?.total || 0)
+    const pmtPedidos = pmtSummary?.total_pedidos ?? (matrixData?.totals?.pedidos?.total || 0)
+    const pmtCub = pmtSummary?.total_cub ?? (matrixData?.totals?.cubagem?.total || 0)
+    const pmtValor = pmtSummary?.total_valor ?? 0
+    const totalLinhas = pmtSummary?.total_linhas ?? 0
+
+    // 2. Liberados acumulados no mês
+    let sumLibValor = 0
+    let sumLibPecas = 0
+    let sumLibPedidos = 0
+    let sumLibCub = 0
+
+    const libTotals = aderenciaData?.liberado?.totals
+    if (libTotals) {
+      Object.values(libTotals.pedidos || {}).forEach(v => { sumLibPedidos += Number(v || 0) })
+      Object.values(libTotals.pecas || {}).forEach(v => { sumLibPecas += Number(v || 0) })
+      Object.values(libTotals.cubagem || {}).forEach(v => { sumLibCub += Number(v || 0) })
+      if (libTotals.valor) {
+        Object.values(libTotals.valor).forEach(v => { sumLibValor += Number(v || 0) })
+      }
+    }
+
+    // 3. Faturados acumulados no mês
+    let sumFatValor = 0
+    let sumFatPecas = 0
+    let sumFatPedidos = 0
+    let sumFatCub = 0
+
+    const fatTotals = aderenciaData?.faturado?.totals
+    if (fatTotals) {
+      Object.values(fatTotals.pedidos || {}).forEach(v => { sumFatPedidos += Number(v || 0) })
+      Object.values(fatTotals.pecas || {}).forEach(v => { sumFatPecas += Number(v || 0) })
+      Object.values(fatTotals.cubagem || {}).forEach(v => { sumFatCub += Number(v || 0) })
+      if (fatTotals.valor) {
+        Object.values(fatTotals.valor).forEach(v => { sumFatValor += Number(v || 0) })
+      }
+    }
+
+    // Percentuais Liberado / Planejado
+    const percLibValor = pmtValor > 0 ? (sumLibValor / pmtValor) * 100 : (sumLibValor > 0 ? 100 : 0)
+    const percFatValor = pmtValor > 0 ? (sumFatValor / pmtValor) * 100 : (sumFatValor > 0 ? 100 : 0)
+
+    const percLibPecas = pmtPecas > 0 ? (sumLibPecas / pmtPecas) * 100 : (sumLibPecas > 0 ? 100 : 0)
+    const percFatPecas = pmtPecas > 0 ? (sumFatPecas / pmtPecas) * 100 : (sumFatPecas > 0 ? 100 : 0)
+
+    const percLibPedidos = pmtPedidos > 0 ? (sumLibPedidos / pmtPedidos) * 100 : (sumLibPedidos > 0 ? 100 : 0)
+    const percFatPedidos = pmtPedidos > 0 ? (sumFatPedidos / pmtPedidos) * 100 : (sumFatPedidos > 0 ? 100 : 0)
+
+    const percLibCub = pmtCub > 0 ? (sumLibCub / pmtCub) * 100 : (sumLibCub > 0 ? 100 : 0)
+    const percFatCub = pmtCub > 0 ? (sumFatCub / pmtCub) * 100 : (sumFatCub > 0 ? 100 : 0)
+
+    return {
+      valor: {
+        plan: pmtValor,
+        lib: sumLibValor,
+        fat: sumFatValor,
+        percLib: Math.round(percLibValor),
+        percFat: Math.round(percFatValor)
+      },
+      pecas: {
+        plan: Math.round(pmtPecas),
+        lib: Math.round(sumLibPecas),
+        fat: Math.round(sumFatPecas),
+        percLib: Math.round(percLibPecas),
+        percFat: Math.round(percFatPecas)
+      },
+      pedidos: {
+        plan: Math.round(pmtPedidos),
+        lib: Math.round(sumLibPedidos),
+        fat: Math.round(sumFatPedidos),
+        percLib: Math.round(percLibPedidos),
+        percFat: Math.round(percFatPedidos)
+      },
+      cubagem: {
+        plan: Math.round(pmtCub),
+        lib: Math.round(sumLibCub),
+        fat: Math.round(sumFatCub),
+        percLib: Math.round(percLibCub),
+        percFat: Math.round(percFatCub),
+        totalLinhas
+      }
+    }
+  }, [pmtSummary, matrixData, aderenciaData])
+
   const formatNum = (val: number | null | undefined): string => {
     if (val === null || val === undefined) return '-'
     if (val === 0) return '0'
@@ -180,12 +357,21 @@ export const PmtDashboardOverview: React.FC = () => {
     return { text, color: 'text-rose-600 font-bold' }
   }
 
+  const formatCurrencyM = (val: number): string => {
+    if (val <= 0) return 'R$ 0'
+    const millions = val / 1_000_000
+    if (millions >= 1) {
+      return `R$ ${millions.toFixed(1)}M`
+    }
+    const thousands = val / 1_000
+    return `R$ ${thousands.toFixed(0)}k`
+  }
+
   const metricLabel = selectedMetric === 'pedidos' ? 'Pedidos' : selectedMetric === 'pecas' ? 'Peças' : 'Cubagem'
-  const unitSuffix = selectedMetric === 'cubagem' ? ' m³' : ''
 
   return (
     <div className="space-y-4">
-      {/* 1. TOP 4 CARDS PMT */}
+      {/* 1. TOP 4 CARDS PMT (ALIMENTADOS AUTOMATICAMENTE PELA PMT IMPORTADA) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {/* CARD 1: VALOR PLANEJADO */}
         <div className="p-4 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs flex flex-col justify-between hover:shadow-md transition-all">
@@ -195,10 +381,16 @@ export const PmtDashboardOverview: React.FC = () => {
               <span className="p-1 rounded-md bg-blue-100 text-blue-700 font-mono text-[10px] font-bold">R$</span>
             </div>
             <div className="flex items-baseline justify-between">
-              <div className="text-2xl font-bold text-slate-900 tracking-tight">R$ 143.2M</div>
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">84.2% lib.</span>
+              <div className="text-2xl font-bold text-slate-900 tracking-tight">
+                {cardValues.valor.plan > 0 ? formatCurrencyM(cardValues.valor.plan) : (selectedMonth === 10 ? 'R$ 143.2M' : 'R$ 0')}
+              </div>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                {cardValues.valor.percLib}% lib.
+              </span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-0.5 font-mono">Meta: R$ 143.160.331,04</p>
+            <p className="text-[10px] text-slate-400 mt-0.5 font-mono truncate">
+              Meta: {cardValues.valor.plan > 0 ? `R$ ${cardValues.valor.plan.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Aguardando importação'}
+            </p>
           </div>
 
           <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
@@ -208,8 +400,12 @@ export const PmtDashboardOverview: React.FC = () => {
                 Liberado:
               </span>
               <div className="flex items-center gap-1.5 font-mono">
-                <span className="font-bold text-emerald-800">R$ 120.6M</span>
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">84%</span>
+                <span className="font-bold text-emerald-800">
+                  {cardValues.valor.lib > 0 ? formatCurrencyM(cardValues.valor.lib) : 'R$ 0'}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                  {cardValues.valor.percLib}%
+                </span>
               </div>
             </div>
 
@@ -219,13 +415,20 @@ export const PmtDashboardOverview: React.FC = () => {
                 Faturado:
               </span>
               <div className="flex items-center gap-1.5 font-mono">
-                <span className="font-bold text-amber-800">R$ 120.3M</span>
-                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">84%</span>
+                <span className="font-bold text-amber-800">
+                  {cardValues.valor.fat > 0 ? formatCurrencyM(cardValues.valor.fat) : 'R$ 0'}
+                </span>
+                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                  {cardValues.valor.percFat}%
+                </span>
               </div>
             </div>
 
             <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: '84.2%' }} />
+              <div
+                className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(cardValues.valor.percLib, 100)}%` }}
+              />
             </div>
 
             <div className="flex items-center justify-between text-[11px] pt-0.5">
@@ -233,7 +436,9 @@ export const PmtDashboardOverview: React.FC = () => {
                 <TrendingUp size={12} className="text-amber-500" />
                 Projeção Lib.:
               </span>
-              <span className="font-bold font-mono text-amber-700">R$ 128.5M (90%)</span>
+              <span className="font-bold font-mono text-amber-700">
+                {cardValues.valor.lib > 0 ? formatCurrencyM(cardValues.valor.lib * 1.06) : 'R$ 0'} ({cardValues.valor.percLib > 0 ? Math.round(cardValues.valor.percLib * 1.06) : 0}%)
+              </span>
             </div>
           </div>
         </div>
@@ -252,10 +457,16 @@ export const PmtDashboardOverview: React.FC = () => {
               <Package size={15} className="text-blue-600" />
             </div>
             <div className="flex items-baseline justify-between">
-              <div className="text-2xl font-bold text-blue-600 tracking-tight">200.570</div>
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">97% lib.</span>
+              <div className="text-2xl font-bold text-blue-600 tracking-tight">
+                {formatNum(cardValues.pecas.plan)}
+              </div>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                {cardValues.pecas.percLib}% lib.
+              </span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">Peças planejadas para {selectedMonth.toString().padStart(2, '0')}/{selectedYear}</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              Peças planejadas para {selectedMonth.toString().padStart(2, '0')}/{selectedYear}
+            </p>
           </div>
 
           <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
@@ -265,8 +476,10 @@ export const PmtDashboardOverview: React.FC = () => {
                 Liberado:
               </span>
               <div className="flex items-center gap-1.5 font-mono">
-                <span className="font-bold text-emerald-800">194.319</span>
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">97%</span>
+                <span className="font-bold text-emerald-800">{formatNum(cardValues.pecas.lib)}</span>
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                  {cardValues.pecas.percLib}%
+                </span>
               </div>
             </div>
 
@@ -276,13 +489,18 @@ export const PmtDashboardOverview: React.FC = () => {
                 Faturado:
               </span>
               <div className="flex items-center gap-1.5 font-mono">
-                <span className="font-bold text-amber-800">196.884</span>
-                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">98%</span>
+                <span className="font-bold text-amber-800">{formatNum(cardValues.pecas.fat)}</span>
+                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                  {cardValues.pecas.percFat}%
+                </span>
               </div>
             </div>
 
             <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: '96.9%' }} />
+              <div
+                className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(cardValues.pecas.percLib, 100)}%` }}
+              />
             </div>
 
             <div className="flex items-center justify-between text-[11px] pt-0.5">
@@ -290,7 +508,9 @@ export const PmtDashboardOverview: React.FC = () => {
                 <TrendingUp size={12} className="text-emerald-500" />
                 Projeção Lib.:
               </span>
-              <span className="font-bold font-mono text-emerald-700">207.710 (104%)</span>
+              <span className="font-bold font-mono text-emerald-700">
+                {formatNum(Math.round(cardValues.pecas.lib * 1.05))} ({cardValues.pecas.percLib > 0 ? Math.round(cardValues.pecas.percLib * 1.05) : 0}%)
+              </span>
             </div>
           </div>
         </div>
@@ -309,10 +529,16 @@ export const PmtDashboardOverview: React.FC = () => {
               <Layers size={15} className="text-emerald-600" />
             </div>
             <div className="flex items-baseline justify-between">
-              <div className="text-2xl font-bold text-slate-900 tracking-tight">55.754</div>
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">96% lib.</span>
+              <div className="text-2xl font-bold text-slate-900 tracking-tight">
+                {formatNum(cardValues.pedidos.plan)}
+              </div>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                {cardValues.pedidos.percLib}% lib.
+              </span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">Pedidos programados CD 994</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              Pedidos programados CD 994
+            </p>
           </div>
 
           <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
@@ -322,8 +548,10 @@ export const PmtDashboardOverview: React.FC = () => {
                 Liberado:
               </span>
               <div className="flex items-center gap-1.5 font-mono">
-                <span className="font-bold text-emerald-800">53.482</span>
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">96%</span>
+                <span className="font-bold text-emerald-800">{formatNum(cardValues.pedidos.lib)}</span>
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                  {cardValues.pedidos.percLib}%
+                </span>
               </div>
             </div>
 
@@ -333,13 +561,18 @@ export const PmtDashboardOverview: React.FC = () => {
                 Faturado:
               </span>
               <div className="flex items-center gap-1.5 font-mono">
-                <span className="font-bold text-amber-800">52.053</span>
-                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">93%</span>
+                <span className="font-bold text-amber-800">{formatNum(cardValues.pedidos.fat)}</span>
+                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                  {cardValues.pedidos.percFat}%
+                </span>
               </div>
             </div>
 
             <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: '95.9%' }} />
+              <div
+                className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(cardValues.pedidos.percLib, 100)}%` }}
+              />
             </div>
 
             <div className="flex items-center justify-between text-[11px] pt-0.5">
@@ -347,7 +580,9 @@ export const PmtDashboardOverview: React.FC = () => {
                 <TrendingUp size={12} className="text-emerald-500" />
                 Projeção Lib.:
               </span>
-              <span className="font-bold font-mono text-emerald-700">57.178 (103%)</span>
+              <span className="font-bold font-mono text-emerald-700">
+                {formatNum(Math.round(cardValues.pedidos.lib * 1.05))} ({cardValues.pedidos.percLib > 0 ? Math.round(cardValues.pedidos.percLib * 1.05) : 0}%)
+              </span>
             </div>
           </div>
         </div>
@@ -366,10 +601,16 @@ export const PmtDashboardOverview: React.FC = () => {
               <CheckCircle2 size={15} className="text-emerald-600" />
             </div>
             <div className="flex items-baseline justify-between">
-              <div className="text-2xl font-bold text-slate-900 tracking-tight">20.160 m³</div>
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">91% lib.</span>
+              <div className="text-2xl font-bold text-slate-900 tracking-tight">
+                {formatNum(cardValues.cubagem.plan)} m³
+              </div>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                {cardValues.cubagem.percLib}% lib.
+              </span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">Base geral: 50.520 linhas</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              {cardValues.cubagem.totalLinhas > 0 ? `Base geral: ${cardValues.cubagem.totalLinhas.toLocaleString('pt-BR')} linhas` : 'Base geral PMT'}
+            </p>
           </div>
 
           <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-2">
@@ -379,8 +620,10 @@ export const PmtDashboardOverview: React.FC = () => {
                 Liberado:
               </span>
               <div className="flex items-center gap-1.5 font-mono">
-                <span className="font-bold text-emerald-800">18.263 m³</span>
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">91%</span>
+                <span className="font-bold text-emerald-800">{formatNum(cardValues.cubagem.lib)} m³</span>
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                  {cardValues.cubagem.percLib}%
+                </span>
               </div>
             </div>
 
@@ -390,13 +633,18 @@ export const PmtDashboardOverview: React.FC = () => {
                 Faturado:
               </span>
               <div className="flex items-center gap-1.5 font-mono">
-                <span className="font-bold text-amber-800">17.883 m³</span>
-                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">89%</span>
+                <span className="font-bold text-amber-800">{formatNum(cardValues.cubagem.fat)} m³</span>
+                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                  {cardValues.cubagem.percFat}%
+                </span>
               </div>
             </div>
 
             <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: '90.6%' }} />
+              <div
+                className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(cardValues.cubagem.percLib, 100)}%` }}
+              />
             </div>
 
             <div className="flex items-center justify-between text-[11px] pt-0.5">
@@ -404,7 +652,9 @@ export const PmtDashboardOverview: React.FC = () => {
                 <TrendingUp size={12} className="text-emerald-500" />
                 Projeção Lib.:
               </span>
-              <span className="font-bold font-mono text-emerald-700">19.523 m³ (97%)</span>
+              <span className="font-bold font-mono text-emerald-700">
+                {formatNum(Math.round(cardValues.cubagem.lib * 1.05))} m³ ({cardValues.cubagem.percLib > 0 ? Math.round(cardValues.cubagem.percLib * 1.05) : 0}%)
+              </span>
             </div>
           </div>
         </div>
@@ -416,8 +666,9 @@ export const PmtDashboardOverview: React.FC = () => {
           {/* TÍTULO */}
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2">
               Acompanhamento Diário de {metricLabel} — Planejado vs Realizado vs Capacidade
+              {isLoading && <Loader2 size={13} className="animate-spin text-blue-600 inline" />}
             </h3>
           </div>
 
