@@ -154,12 +154,36 @@ const KpiNs: React.FC<{
         </div>
       </div>
       <div className={`shrink-0 pl-1.5 border-l border-slate-100 ${items.length > 3 ? 'text-[7.5px] space-y-[1px]' : 'text-[8.5px] space-y-0.5'}`}>
-        {items.map(([k, v]) => (
-          <div key={k} className="flex justify-between gap-1 leading-none">
-            <span className="text-slate-400 font-medium">{k}</span>
-            <span className="font-bold text-emerald-600">{v}</span>
-          </div>
-        ))}
+        {items.map(([k, v]) => {
+          const itemNum = parseNumericValue(v)
+          // Se houver faixas de meta (metaTiers), avalia a cor de cada subindicador
+          let itemColor = 'text-emerald-600'
+          if (metaTiers && metaTiers.length > 0 && itemNum !== null) {
+            for (const t of metaTiers) {
+              const tierNum = parseNumericValue(t.label)
+              if (tierNum === null) continue
+              const isGte = t.label.includes('>=') || t.label.includes('>')
+              const isLte = t.label.includes('<=') || t.label.includes('<')
+              let matched = false
+              if (isGte) matched = itemNum >= tierNum
+              else if (isLte) matched = itemNum <= tierNum
+              if (matched) {
+                if (t.dotColor.includes('rose') || t.dotColor.includes('red')) itemColor = 'text-rose-600 font-bold'
+                else if (t.dotColor.includes('amber') || t.dotColor.includes('yellow')) itemColor = 'text-amber-600 font-bold'
+                else if (t.dotColor.includes('blue')) itemColor = 'text-blue-600 font-bold'
+                else itemColor = 'text-emerald-600 font-bold'
+                break
+              }
+            }
+          }
+
+          return (
+            <div key={k} className="flex justify-between gap-1 leading-none">
+              <span className="text-slate-400 font-medium">{k}</span>
+              <span className={itemColor}>{v}</span>
+            </div>
+          )
+        })}
       </div>
     </Card>
   )
