@@ -192,33 +192,6 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-4 w-full">
-      {/* Banner */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-lg relative overflow-hidden">
-        <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none">
-          <LayoutDashboard size={200} />
-        </div>
-        <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-2xl space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-200 border border-blue-400/30">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Painel Geral Unificado de CDs
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight">Gerenciamento Diário CD 994</h1>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Visão consolidada da frota de equipamentos, métricas de performance, status dos centros de distribuição e SLAs operacionais.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-xs font-semibold">
-              <CalendarDays size={13} /> 30/10/2026 – Sex
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" /> Operação Ativa
-            </span>
-          </div>
-        </div>
-      </div>
-
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-9 gap-3">
         <div className="2xl:col-span-2">
