@@ -41,6 +41,87 @@ const CardTitle: React.FC<{ icon: React.ReactNode; title: string; right?: React.
 )
 
 // ---------------- KPI Cards (Compactos) ----------------
+const parseNumericValue = (val: string): number | null => {
+  if (!val) return null
+  const cleaned = val.replace(/[^0-9,.-]/g, '').replace(',', '.')
+  const num = parseFloat(cleaned)
+  return isNaN(num) ? null : num
+}
+
+const getMetaStatusColor = (
+  valStr: string,
+  metaTiers?: { label: string; ating: string; dotColor: string }[]
+): { text: string; bg: string; border: string; dot: string } => {
+  const num = parseNumericValue(valStr)
+  if (num === null || !metaTiers || metaTiers.length === 0) {
+    return {
+      text: 'text-emerald-700',
+      bg: 'bg-emerald-50',
+      border: 'border-emerald-100',
+      dot: 'bg-emerald-500'
+    }
+  }
+
+  // Verifica as regras do metaTiers
+  for (const t of metaTiers) {
+    const tierNum = parseNumericValue(t.label)
+    if (tierNum === null) continue
+
+    const isGte = t.label.includes('>=') || t.label.includes('>')
+    const isLte = t.label.includes('<=') || t.label.includes('<')
+
+    let matched = false
+    if (isGte) {
+      matched = num >= tierNum
+    } else if (isLte) {
+      matched = num <= tierNum
+    }
+
+    if (matched) {
+      if (t.dotColor.includes('blue')) {
+        return {
+          text: 'text-blue-700',
+          bg: 'bg-blue-50',
+          border: 'border-blue-200',
+          dot: 'bg-blue-500'
+        }
+      }
+      if (t.dotColor.includes('emerald') || t.dotColor.includes('green')) {
+        return {
+          text: 'text-emerald-700',
+          bg: 'bg-emerald-50',
+          border: 'border-emerald-200',
+          dot: 'bg-emerald-500'
+        }
+      }
+      if (t.dotColor.includes('amber') || t.dotColor.includes('yellow')) {
+        return {
+          text: 'text-amber-700',
+          bg: 'bg-amber-50',
+          border: 'border-amber-200',
+          dot: 'bg-amber-500'
+        }
+      }
+      if (t.dotColor.includes('rose') || t.dotColor.includes('red')) {
+        return {
+          text: 'text-rose-700',
+          bg: 'bg-rose-50',
+          border: 'border-rose-200',
+          dot: 'bg-rose-500'
+        }
+      }
+    }
+  }
+
+  // Padrão se não casou em nada
+  return {
+    text: 'text-rose-700',
+    bg: 'bg-rose-50',
+    border: 'border-rose-200',
+    dot: 'bg-rose-500'
+  }
+}
+
 const KpiNs: React.FC<{
   icon: React.ReactNode
   title: string
@@ -49,67 +130,71 @@ const KpiNs: React.FC<{
   tone: string
   items: [string, string][]
   metaTiers?: { label: string; ating: string; dotColor: string }[]
-}> = ({ icon, title, value, meta, tone, items, metaTiers }) => (
-  <Card className="relative group p-2 h-[74px] flex items-center justify-between gap-1.5 min-w-0 transition-all hover:shadow-md">
-    <div className="flex items-center gap-1.5 min-w-0">
-      <div className={`w-7 h-7 rounded-lg ${tone} flex items-center justify-center shrink-0`}>
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">{title}</p>
-        <p className="text-lg font-black text-slate-900 leading-none my-0.5">{value}</p>
+}> = ({ icon, title, value, meta, tone, items, metaTiers }) => {
+  const statusColor = getMetaStatusColor(value, metaTiers)
 
-        {/* Badge da Meta com Tooltip discreto posicionado abaixo do card */}
-        {metaTiers && metaTiers.length > 0 ? (
-          <div className="relative inline-block">
-            <span className="inline-flex items-center gap-1 text-[8px] font-bold px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 leading-none cursor-pointer">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-              {meta}
-            </span>
+  return (
+    <Card className="relative group p-2 h-[74px] flex items-center justify-between gap-1.5 min-w-0 transition-all hover:shadow-md">
+      <div className="flex items-center gap-1.5 min-w-0">
+        <div className={`w-7 h-7 rounded-lg ${tone} flex items-center justify-center shrink-0`}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">{title}</p>
+          <p className="text-lg font-black text-slate-900 leading-none my-0.5">{value}</p>
 
-            {/* Popover posicionado abaixo do card (top-full mt-2) com seta para não ser cortado no topo da tela */}
-            <div className="absolute left-0 top-full mt-2 hidden group-hover:block z-50 w-48 p-2.5 bg-slate-900/95 backdrop-blur-md text-white rounded-xl shadow-2xl border border-slate-700/80 text-[10px] pointer-events-none animate-in fade-in zoom-in-95 duration-150">
-              {/* Triângulo indicador / Seta apontando para o badge */}
-              <div className="absolute -top-1.5 left-4 w-3 h-3 bg-slate-900 border-l border-t border-slate-700/80 rotate-45" />
+          {/* Badge da Meta colorido dinamicamente com base no atingimento atual */}
+          {metaTiers && metaTiers.length > 0 ? (
+            <div className="relative inline-block">
+              <span className={`inline-flex items-center gap-1 text-[8px] font-bold px-1.5 py-0.5 rounded ${statusColor.bg} ${statusColor.text} border ${statusColor.border} leading-none cursor-pointer transition-colors`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${statusColor.dot}`} />
+                {meta}
+              </span>
 
-              <div className="font-bold text-[9px] text-slate-300 uppercase tracking-wider pb-1.5 mb-1.5 border-b border-slate-700/80 flex items-center justify-between relative z-10">
-                <span>Faixas de Atingimento</span>
-                <span className="text-[8px] text-slate-400">Meta</span>
-              </div>
-              <div className="space-y-1.5 relative z-10">
-                {metaTiers.map((t, idx) => (
-                  <div key={idx} className="flex items-center justify-between font-mono">
-                    <span className="flex items-center gap-1.5 text-slate-200 text-[10px]">
-                      <span className={`w-2 h-2 rounded-full ${t.dotColor} shrink-0`} />
-                      {t.label}
-                    </span>
-                    <span className="font-extrabold text-emerald-400 text-[10px]">{t.ating}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="text-[8.5px] text-slate-400 mt-2 pt-1.5 border-t border-slate-700/60 flex items-center justify-between relative z-10">
-                <span>Realizado atual:</span>
-                <strong className="text-white font-mono">{value}</strong>
+              {/* Popover posicionado abaixo do card (top-full mt-2) com seta para não ser cortado no topo da tela */}
+              <div className="absolute left-0 top-full mt-2 hidden group-hover:block z-50 w-48 p-2.5 bg-slate-900/95 backdrop-blur-md text-white rounded-xl shadow-2xl border border-slate-700/80 text-[10px] pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+                {/* Triângulo indicador / Seta apontando para o badge */}
+                <div className="absolute -top-1.5 left-4 w-3 h-3 bg-slate-900 border-l border-t border-slate-700/80 rotate-45" />
+
+                <div className="font-bold text-[9px] text-slate-300 uppercase tracking-wider pb-1.5 mb-1.5 border-b border-slate-700/80 flex items-center justify-between relative z-10">
+                  <span>Faixas de Atingimento</span>
+                  <span className="text-[8px] text-slate-400">Meta</span>
+                </div>
+                <div className="space-y-1.5 relative z-10">
+                  {metaTiers.map((t, idx) => (
+                    <div key={idx} className="flex items-center justify-between font-mono">
+                      <span className="flex items-center gap-1.5 text-slate-200 text-[10px]">
+                        <span className={`w-2 h-2 rounded-full ${t.dotColor} shrink-0`} />
+                        {t.label}
+                      </span>
+                      <span className="font-extrabold text-emerald-400 text-[10px]">{t.ating}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-[8.5px] text-slate-400 mt-2 pt-1.5 border-t border-slate-700/60 flex items-center justify-between relative z-10">
+                  <span>Realizado atual:</span>
+                  <strong className="text-white font-mono">{value}</strong>
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <span className="inline-block text-[8px] font-bold px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 leading-none">
-            {meta}
-          </span>
-        )}
-      </div>
-    </div>
-    <div className={`shrink-0 pl-1.5 border-l border-slate-100 ${items.length > 3 ? 'text-[7.5px] space-y-[1px]' : 'text-[8.5px] space-y-0.5'}`}>
-      {items.map(([k, v]) => (
-        <div key={k} className="flex justify-between gap-1 leading-none">
-          <span className="text-slate-400 font-medium">{k}</span>
-          <span className="font-bold text-emerald-600">{v}</span>
+          ) : (
+            <span className="inline-block text-[8px] font-bold px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 leading-none">
+              {meta}
+            </span>
+          )}
         </div>
-      ))}
-    </div>
-  </Card>
-)
+      </div>
+      <div className={`shrink-0 pl-1.5 border-l border-slate-100 ${items.length > 3 ? 'text-[7.5px] space-y-[1px]' : 'text-[8.5px] space-y-0.5'}`}>
+        {items.map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-1 leading-none">
+            <span className="text-slate-400 font-medium">{k}</span>
+            <span className="font-bold text-emerald-600">{v}</span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
 
 const KpiSimple: React.FC<{
   icon?: React.ReactNode
