@@ -310,6 +310,25 @@ const Donut: React.FC<{ value: number }> = ({ value }) => {
 }
 
 export const DashboardPage: React.FC = () => {
+  // Estado integrado para dados do NS SAÍDA
+  const [saidaData, setSaidaData] = useState<{
+    value: string
+    micro: string
+    rodo: string
+    courrie: string
+    diario: string
+    mensal: string
+    lastDay: string
+  }>({
+    value: '99,8%',
+    micro: '100%',
+    rodo: '100%',
+    courrie: '100%',
+    diario: '100%',
+    mensal: '99,8%',
+    lastDay: '30/out'
+  })
+
   // Estado integrado para dados do NS FULL (Fulfillment)
   const [fullData, setFullData] = useState<{
     value: string
@@ -323,11 +342,10 @@ export const DashboardPage: React.FC = () => {
     lastDay: '30/out'
   })
 
-  // Carrega e sincroniza dados reais de Fulfillment do Supabase e LocalStorage
+  // Carrega e sincroniza dados reais de NS Saída e Fulfillment do Supabase e LocalStorage
   useEffect(() => {
-    const processMetrics = (metricsMap: Record<string, string>) => {
+    const processFullMetrics = (metricsMap: Record<string, string>) => {
       // Procura chaves com prefixo fulfillment_full_diario_ e fulfillment_full_mensal_
-      // Formato típico: fulfillment_full_diario_30/out ou fulfillment_full_diario_30-out
       const daysFound = new Set<string>()
 
       Object.keys(metricsMap).forEach(k => {
@@ -349,8 +367,6 @@ export const DashboardPage: React.FC = () => {
 
       if (daysFound.size === 0) return
 
-      // Ordenar os dias para achar o último dia preenchido
-      // Extrai número do dia (ex: "30/out" -> 30)
       const sortedDays = Array.from(daysFound).sort((a, b) => {
         const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0
         const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0
@@ -372,11 +388,63 @@ export const DashboardPage: React.FC = () => {
       })
     }
 
+    const processSaidaMetrics = (metricsMap: Record<string, string>) => {
+      // Procura chaves da categoria ns_saida_eclusa (ex: ns_saida_eclusa_eclusa_mensal_30/out)
+      const subRows = ['micro', 'rodo', 'courrie', 'eclusa_diario', 'eclusa_mensal']
+      const daysFound = new Set<string>()
+
+      Object.keys(metricsMap).forEach(k => {
+        if (k.startsWith('ns_saida_eclusa_')) {
+          for (const sub of subRows) {
+            const prefix = `ns_saida_eclusa_${sub}_`
+            if (k.startsWith(prefix)) {
+              const dayPart = k.replace(prefix, '')
+              const val = metricsMap[k]?.trim()
+              if (val && val !== '-' && val !== '') {
+                daysFound.add(dayPart)
+              }
+              break
+            }
+          }
+        }
+      })
+
+      if (daysFound.size === 0) return
+
+      const sortedDays = Array.from(daysFound).sort((a, b) => {
+        const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0
+        const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0
+        return numA - numB
+      })
+
+      const lastDay = sortedDays[sortedDays.length - 1]
+      const microVal = metricsMap[`ns_saida_eclusa_micro_${lastDay}`]?.trim() || '97,2%'
+      const rodoVal = metricsMap[`ns_saida_eclusa_rodo_${lastDay}`]?.trim() || '99,5%'
+      const courrieVal = metricsMap[`ns_saida_eclusa_courrie_${lastDay}`]?.trim() || '96,4%'
+      const diarioVal = metricsMap[`ns_saida_eclusa_eclusa_diario_${lastDay}`]?.trim() || '100%'
+      const mensalVal = metricsMap[`ns_saida_eclusa_eclusa_mensal_${lastDay}`]?.trim() || '99,8%'
+
+      // O valor geral principal é sempre o Mensal
+      const mainVal = mensalVal !== '-' ? mensalVal : (diarioVal !== '-' ? diarioVal : '99,8%')
+
+      setSaidaData({
+        value: mainVal,
+        micro: microVal,
+        rodo: rodoVal,
+        courrie: courrieVal,
+        diario: diarioVal,
+        mensal: mensalVal,
+        lastDay
+      })
+    }
+
     // 1. Tenta carregar do LocalStorage imediatamente
     try {
       const local = localStorage.getItem('magalog_performance_data')
       if (local) {
-        processMetrics(JSON.parse(local))
+        const parsed = JSON.parse(local)
+        processFullMetrics(parsed)
+        processSaidaMetrics(parsed)
       }
     } catch { }
 
@@ -386,30 +454,32 @@ export const DashboardPage: React.FC = () => {
         const { data: dbRows, error } = await supabase
           .from('performance_metrics')
           .select('cell_key, value')
-          .like('cell_key', 'fulfillment_%')
+          .or('cell_key.like.fulfillment_%,cell_key.like.ns_saida_eclusa_%')
 
         if (!error && dbRows && dbRows.length > 0) {
           const map: Record<string, string> = {}
           dbRows.forEach(r => {
             map[r.cell_key] = r.value
           })
-          processMetrics(map)
+          processFullMetrics(map)
+          processSaidaMetrics(map)
         }
       } catch (err) {
-        console.warn('Erro ao carregar fulfillment do Supabase:', err)
+        console.warn('Erro ao carregar métricas do Supabase:', err)
       }
     }
 
     loadFromSupabase()
 
-    // 3. Inscrição em tempo real para refletir lançamentos na hora
+    // 3. Inscrição em tempo real para refletir lançamentos instantaneamente
     const channel = supabase
-      .channel('dashboard_full_changes')
+      .channel('dashboard_metrics_changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'performance_metrics' },
         (payload: any) => {
-          if (payload.new && payload.new.cell_key?.startsWith('fulfillment_')) {
+          const key = payload.new?.cell_key
+          if (key && (key.startsWith('fulfillment_') || key.startsWith('ns_saida_eclusa_'))) {
             loadFromSupabase()
           }
         }
@@ -456,7 +526,7 @@ export const DashboardPage: React.FC = () => {
           icon={<Boxes size={15} />}
           tone="bg-blue-50 text-blue-600"
           title="NS Saída"
-          value="97,8%"
+          value={saidaData.value}
           meta="Meta: 99,2%"
           metaTiers={[
             { label: '>= 99,2%', ating: '100%', dotColor: 'bg-blue-500' },
@@ -464,11 +534,11 @@ export const DashboardPage: React.FC = () => {
             { label: '>= 98,2%', ating: '50%', dotColor: 'bg-rose-500' }
           ]}
           items={[
-            ['Micro', '97,2%'],
-            ['Rodo', '99,5%'],
-            ['Courrie', '96,4%'],
-            ['Diário', '100%'],
-            ['Mensal', '99,8%']
+            ['Micro', saidaData.micro],
+            ['Rodo', saidaData.rodo],
+            ['Courrie', saidaData.courrie],
+            ['Diário', saidaData.diario],
+            ['Mensal', saidaData.mensal]
           ]}
         />
         <KpiNs
