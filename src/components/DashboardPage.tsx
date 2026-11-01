@@ -25,7 +25,7 @@ const turnoData = [
 ]
 
 const Card: React.FC<{ className?: string; children: React.ReactNode }> = ({ className = '', children }) => (
-  <div className={`rounded-2xl bg-white border border-slate-200 shadow-xs ${className}`}>{children}</div>
+  <div className={`rounded-xl bg-white border border-slate-200/90 shadow-2xs ${className}`}>{children}</div>
 )
 
 const CardTitle: React.FC<{ icon: React.ReactNode; title: string; right?: React.ReactNode }> = ({ icon, title, right }) => (
@@ -38,19 +38,32 @@ const CardTitle: React.FC<{ icon: React.ReactNode; title: string; right?: React.
   </div>
 )
 
-// ---------------- KPI Cards ----------------
-const KpiNs: React.FC<{ icon: React.ReactNode; title: string; value: string; meta: string; tone: string; items: [string, string][] }> = ({ icon, title, value, meta, tone, items }) => (
-  <Card className="p-3 flex items-center gap-3 min-w-0">
-    <div className={`p-2.5 rounded-xl ${tone} shrink-0`}>{icon}</div>
-    <div className="min-w-0">
-      <p className="text-[10px] font-bold text-slate-500 uppercase">{title}</p>
-      <p className="text-2xl font-black text-slate-900 leading-tight">{value}</p>
-      <span className="inline-block mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100">{meta}</span>
+// ---------------- KPI Cards (Compactos) ----------------
+const KpiNs: React.FC<{
+  icon: React.ReactNode
+  title: string
+  value: string
+  meta: string
+  tone: string
+  items: [string, string][]
+}> = ({ icon, title, value, meta, tone, items }) => (
+  <Card className="p-2 h-[74px] flex items-center justify-between gap-1.5 min-w-0">
+    <div className="flex items-center gap-1.5 min-w-0">
+      <div className={`w-7 h-7 rounded-lg ${tone} flex items-center justify-center shrink-0`}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">{title}</p>
+        <p className="text-lg font-black text-slate-900 leading-none my-0.5">{value}</p>
+        <span className="inline-block text-[8px] font-bold px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 leading-none">
+          {meta}
+        </span>
+      </div>
     </div>
-    <div className="ml-auto text-[10px] space-y-0.5 shrink-0">
+    <div className="text-[8.5px] space-y-0.5 shrink-0 pl-1.5 border-l border-slate-100">
       {items.map(([k, v]) => (
-        <div key={k} className="flex justify-between gap-2">
-          <span className="text-slate-500">{k}</span>
+        <div key={k} className="flex justify-between gap-1 leading-none">
+          <span className="text-slate-400 font-medium">{k}</span>
           <span className="font-bold text-emerald-600">{v}</span>
         </div>
       ))}
@@ -58,15 +71,55 @@ const KpiNs: React.FC<{ icon: React.ReactNode; title: string; value: string; met
   </Card>
 )
 
-const KpiSimple: React.FC<{ icon?: React.ReactNode; title: string; value: string; badge?: string; badgeTone?: string; tone?: string }> = ({ icon, title, value, badge, badgeTone = 'bg-emerald-50 text-emerald-700 border-emerald-100', tone = 'bg-slate-50 text-slate-500' }) => (
-  <Card className="p-3 flex items-center gap-3 min-w-0">
-    {icon && <div className={`p-2.5 rounded-xl ${tone} shrink-0`}>{icon}</div>}
-    <div className="min-w-0">
-      <p className="text-[10px] font-bold text-slate-500 uppercase truncate">{title}</p>
-      <div className="flex items-baseline gap-2 flex-wrap">
-        <p className="text-2xl font-black text-slate-900 leading-tight">{value}</p>
-        {badge && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${badgeTone}`}>{badge}</span>}
+const KpiSimple: React.FC<{
+  icon?: React.ReactNode
+  title: string
+  value: string
+  badge?: string
+  badgeTone?: string
+  tone?: string
+}> = ({
+  icon,
+  title,
+  value,
+  badge,
+  badgeTone = 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  tone = 'bg-slate-50 text-slate-500'
+}) => (
+  <Card className="p-2 h-[74px] flex items-center gap-2 min-w-0">
+    {icon && (
+      <div className={`w-7 h-7 rounded-lg ${tone} flex items-center justify-center shrink-0`}>
+        {icon}
       </div>
+    )}
+    <div className="min-w-0 flex-1">
+      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">{title}</p>
+      <div className="flex items-baseline gap-1.5 my-0.5 flex-wrap">
+        <p className="text-lg font-black text-slate-900 leading-none">{value}</p>
+      </div>
+      {badge && (
+        <span className={`inline-block text-[8px] font-bold px-1 py-0.2 rounded border ${badgeTone} leading-none`}>
+          {badge}
+        </span>
+      )}
+    </div>
+  </Card>
+)
+
+const KpiAtendimento: React.FC = () => (
+  <Card className="p-2 h-[74px] flex flex-col justify-between min-w-0">
+    <div className="flex items-center gap-1.5">
+      <div className="w-5 h-5 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+        <MessageSquareWarning size={12} />
+      </div>
+      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">Atendimento</p>
+    </div>
+    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[8.5px] leading-none pt-0.5 border-t border-slate-100">
+      <div className="flex justify-between text-slate-500"><span className="truncate">Recl. (Dia)</span><span className="font-bold text-slate-800 ml-1">-</span></div>
+      <div className="flex justify-between text-slate-500"><span className="truncate">Backlog</span><span className="font-bold text-slate-800 ml-1">-</span></div>
+      <div className="flex justify-between text-slate-500"><span className="truncate">Recl. (Mês)</span><span className="font-bold text-slate-800 ml-1">-</span></div>
+      <div className="flex justify-between text-slate-500"><span className="truncate">Chamados</span><span className="font-bold text-slate-800 ml-1">-</span></div>
+      <div className="flex justify-between text-slate-500 col-span-2 pt-0.5 border-t border-slate-50"><span className="truncate">NPS Lojas</span><span className="font-bold text-slate-800 ml-1">-</span></div>
     </div>
   </Card>
 )
@@ -192,41 +245,62 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-4 w-full">
-      {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-11 gap-3">
-        <div className="2xl:col-span-2">
-          <KpiNs icon={<Boxes size={22} />} tone="bg-blue-50 text-blue-600" title="NS Saída" value="97,8%" meta="Meta: 97,0%"
-            items={[['Micro', '97,2%'], ['Courrie', '96,4%'], ['Rodo', '99,5']]} />
-        </div>
-        <div className="2xl:col-span-2">
-          <KpiNs icon={<User size={22} />} tone="bg-purple-50 text-purple-600" title="NS Cliente" value="97,8%" meta="Meta: 97,0%"
-            items={[['Micro', '96,2%'], ['Courrie', '96,4%'], ['Rodo', '99,5']]} />
-        </div>
-        <KpiSimple title="NS Full" value="98,7%" />
-        <KpiSimple icon={<Settings size={20} />} tone="bg-emerald-50 text-emerald-600" title="NS RLE" value="96,2%" badge="Meta > 95%" />
-        <div className="2xl:col-span-2">
-          <Card className="p-3 h-full flex items-center gap-3 min-w-0">
-            <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 shrink-0"><MessageSquareWarning size={22} /></div>
-            <div className="flex-1 min-w-0 text-[10px] space-y-0.5">
-              <p className="text-[10px] font-bold text-slate-500 uppercase mb-0.5">Atendimento</p>
-              {[
-                ['% Reclamações (Diário)', '-'],
-                ['% Reclamações (Mês)', '-'],
-                ['Backlog Zendesk (Diário)', '-'],
-                ['Chamados de Loja (Diário)', '-'],
-                ['NPS Lojas (Diário)', '-']
-              ].map(([k, v]) => (
-                <div key={k} className="flex justify-between gap-2">
-                  <span className="text-slate-500 truncate">{k}</span>
-                  <span className="font-bold text-slate-800">{v}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-        <KpiSimple icon={<Home size={20} />} tone="bg-amber-50 text-amber-600" title="Aderência de Quadro" value="94%" badge="+1,2 p.p." badgeTone="bg-slate-50 text-slate-500 border-slate-200" />
-        <KpiSimple icon={<Clock size={20} />} tone="bg-amber-50 text-amber-600" title="Horas Extras" value="1,8%" badge="Dentro da meta" />
-        <KpiSimple icon={<AlertTriangle size={20} />} tone="bg-rose-50 text-rose-600" title="Pendências Críticas" value="12" badge="Acompanhar" badgeTone="bg-rose-50 text-rose-700 border-rose-200" />
+      {/* KPIs Compactos */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2">
+        <KpiNs
+          icon={<Boxes size={15} />}
+          tone="bg-blue-50 text-blue-600"
+          title="NS Saída"
+          value="97,8%"
+          meta="Meta: 97,0%"
+          items={[['Micro', '97,2%'], ['Courrie', '96,4%'], ['Rodo', '99,5']]}
+        />
+        <KpiNs
+          icon={<User size={15} />}
+          tone="bg-purple-50 text-purple-600"
+          title="NS Cliente"
+          value="97,8%"
+          meta="Meta: 97,0%"
+          items={[['Micro', '96,2%'], ['Courrie', '96,4%'], ['Rodo', '99,5']]}
+        />
+        <KpiSimple
+          icon={<Package size={15} />}
+          tone="bg-sky-50 text-sky-600"
+          title="NS Full"
+          value="98,7%"
+          badge="Meta > 98%"
+        />
+        <KpiSimple
+          icon={<Settings size={15} />}
+          tone="bg-emerald-50 text-emerald-600"
+          title="NS RLE"
+          value="96,2%"
+          badge="Meta > 95%"
+        />
+        <KpiAtendimento />
+        <KpiSimple
+          icon={<Home size={15} />}
+          tone="bg-amber-50 text-amber-600"
+          title="Aderência Quadro"
+          value="94%"
+          badge="+1,2 p.p."
+          badgeTone="bg-slate-50 text-slate-500 border-slate-200"
+        />
+        <KpiSimple
+          icon={<Clock size={15} />}
+          tone="bg-amber-50 text-amber-600"
+          title="Horas Extras"
+          value="1,8%"
+          badge="Dentro da meta"
+        />
+        <KpiSimple
+          icon={<AlertTriangle size={15} />}
+          tone="bg-rose-50 text-rose-600"
+          title="Pendências Críticas"
+          value="12"
+          badge="Acompanhar"
+          badgeTone="bg-rose-50 text-rose-700 border-rose-200"
+        />
       </div>
 
       {/* Linha de gráficos e alertas */}
