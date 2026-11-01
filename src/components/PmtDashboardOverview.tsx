@@ -45,11 +45,12 @@ export const PmtDashboardOverview: React.FC = () => {
 
   const formatPerc = (val: number | null | undefined): { text: string; color: string } => {
     if (val === null || val === undefined) return { text: '-', color: 'text-slate-400' }
-    if (val === 0) return { text: '0.0%', color: 'text-amber-700' }
-    const text = `${val.toFixed(1)}%`
-    if (val >= 100) return { text, color: 'text-emerald-700 font-extrabold' }
-    if (val >= 90) return { text, color: 'text-emerald-600 font-bold' }
-    if (val >= 80) return { text, color: 'text-amber-700 font-bold' }
+    if (val === 0) return { text: '0%', color: 'text-amber-700' }
+    const rounded = Math.round(val)
+    const text = `${rounded}%`
+    if (rounded >= 100) return { text, color: 'text-emerald-700 font-extrabold' }
+    if (rounded >= 90) return { text, color: 'text-emerald-600 font-bold' }
+    if (rounded >= 80) return { text, color: 'text-amber-700 font-bold' }
     return { text, color: 'text-rose-600 font-bold' }
   }
 
@@ -352,10 +353,10 @@ export const PmtDashboardOverview: React.FC = () => {
                   )
                 })}
                 <td className="px-2 py-1.5 text-center font-bold text-emerald-700 bg-slate-50/60 border-r border-slate-200 text-[10.5px]">
-                  96.8%
+                  97%
                 </td>
                 <td className="px-2 py-1.5 text-center font-extrabold text-emerald-700 bg-slate-50/60 text-[10.5px]">
-                  90.6%
+                  91%
                 </td>
               </tr>
 
@@ -411,10 +412,10 @@ export const PmtDashboardOverview: React.FC = () => {
                   )
                 })}
                 <td className="px-2 py-1.5 text-center font-bold text-amber-700 bg-slate-50/60 border-r border-slate-200 text-[10.5px]">
-                  66.2%
+                  66%
                 </td>
                 <td className="px-2 py-1.5 text-center font-extrabold text-amber-700 bg-slate-50/60 text-[10.5px]">
-                  66.2%
+                  66%
                 </td>
               </tr>
             </tbody>
@@ -424,3 +425,4 @@ export const PmtDashboardOverview: React.FC = () => {
     </div>
   )
 }
+
