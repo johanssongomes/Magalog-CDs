@@ -2081,8 +2081,8 @@ export const UsersManagementPage: React.FC = () => {
                                     setFormColaboradorData({ ...formColaboradorData, selos: next })
                                   }}
                                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-2xs ${isChecked
-                                      ? `${selo.bgChecked} border-transparent shadow-sm scale-102`
-                                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                                    ? `${selo.bgChecked} border-transparent shadow-sm scale-102`
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
                                     }`}
                                 >
                                   <span className={`w-2 h-2 rounded-full ${isChecked ? 'bg-white' : 'bg-slate-300'}`}></span>
