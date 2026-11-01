@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   Calendar,
   ChevronLeft,
@@ -235,8 +235,10 @@ export function ApontamentoPage() {
 
   // Apontamentos Diários: Record<colabId, Record<dia, ApontamentoStatus>>
   const [apontamentos, setApontamentos] = useState<Record<string, Record<number, ApontamentoStatus>>>({})
-  // Saldo de DSR por Colaborador: Record<colabId, number> (Independente do Mês)
-  const [dsrBalances, setDsrBalances] = useState<Record<string, number>>({})
+  // Histórico de Apontamentos de todos os meses: Record<"YYYY_M", Record<colabId, Record<dia, ApontamentoStatus>>>
+  const [allMonthsApontamentos, setAllMonthsApontamentos] = useState<Record<string, Record<string, Record<number, ApontamentoStatus>>>>({})
+  // Ajustes Manuais de DSR por Mês: Record<"YYYY_M", Record<colabId, number>>
+  const [allMonthsManualDsr, setAllMonthsManualDsr] = useState<Record<string, Record<string, number>>>({})
   const [editingDsrColabId, setEditingDsrColabId] = useState<string | null>(null)
   const [tempDsrInput, setTempDsrInput] = useState<string>('')
   const [isSaving, setIsSaving] = useState(false)
@@ -725,150 +727,124 @@ export function ApontamentoPage() {
     loadBh()
   }, [])
 
-  // 3. Carregar Apontamentos do Mês/Ano atual (Supabase + localStorage fallback)
+  // 3. Carregar Apontamentos e Ajustes de DSR de todos os meses (Supabase + localStorage fallback)
   useEffect(() => {
-    const storageKey = `magalog_apontamentos_${selectedYear}_${selectedMonth + 1}`
-
-    // Tenta carregar do localStorage primeiro para exibição imediata
+    // 1. Carregar do localStorage imediatamente
     try {
-      const local = localStorage.getItem(storageKey)
-      if (local) {
-        setApontamentos(JSON.parse(local))
-      } else {
-        setApontamentos({})
-      }
-    } catch {
-      setApontamentos({})
-    }
+      const localAllApont: Record<string, Record<string, Record<number, ApontamentoStatus>>> = {}
+      const localAllManual: Record<string, Record<string, number>> = {}
 
-    // Busca do Supabase
-    const fetchFromSupabase = async () => {
-      try {
-        const apontRes = await supabase
-          .from('performance_metrics')
-          .select('value')
-          .eq('cell_key', `_apontamentos_${selectedYear}_${selectedMonth + 1}`)
-          .maybeSingle()
-
-        if (apontRes.data?.value) {
-          const parsed = JSON.parse(apontRes.data.value)
-          setApontamentos(parsed)
-          localStorage.setItem(storageKey, apontRes.data.value)
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (!key) continue
+        if (key.startsWith('magalog_apontamentos_')) {
+          const mKey = key.replace('magalog_apontamentos_', '')
+          const raw = localStorage.getItem(key)
+          if (raw) {
+            try { localAllApont[mKey] = JSON.parse(raw) } catch { }
+          }
+        } else if (key.startsWith('magalog_dsr_manual_')) {
+          const mKey = key.replace('magalog_dsr_manual_', '')
+          const raw = localStorage.getItem(key)
+          if (raw) {
+            try { localAllManual[mKey] = JSON.parse(raw) } catch { }
+          }
         }
-      } catch (e) {
-        console.warn('Aviso ao carregar apontamentos do banco:', e)
       }
-    }
 
-    fetchFromSupabase()
-  }, [selectedYear, selectedMonth])
+      if (Object.keys(localAllApont).length > 0) setAllMonthsApontamentos(localAllApont)
+      if (Object.keys(localAllManual).length > 0) setAllMonthsManualDsr(localAllManual)
 
-  // 3.1 Carregar Saldos de DSR (Independente do Mês - Global por Colaborador)
-  useEffect(() => {
-    const globalStorageKey = 'magalog_dsr_balances_global'
-
-    // Tenta carregar do cache local global primeiro
-    let initialLocal: Record<string, number> = {}
-    try {
-      const cached = localStorage.getItem(globalStorageKey)
-      if (cached) {
-        initialLocal = JSON.parse(cached)
-        setDsrBalances(initialLocal)
+      const currentMKey = `${selectedYear}_${selectedMonth + 1}`
+      if (localAllApont[currentMKey]) {
+        setApontamentos(localAllApont[currentMKey])
       }
     } catch { }
 
-    // Se estiver vazio no local global, tenta varrer chaves de meses anteriores locais (fallback para preservar dados já digitados)
-    if (Object.keys(initialLocal).length === 0) {
+    // 2. Buscar do Supabase todos os apontamentos e ajustes de DSR existentes
+    const fetchAllFromSupabase = async () => {
       try {
-        let fallbackLocal: Record<string, number> = {}
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i)
-          if (key && key.startsWith('magalog_dsr_manual_')) {
-            const raw = localStorage.getItem(key)
-            if (raw) {
-              const p = JSON.parse(raw)
-              if (p && typeof p === 'object') {
-                fallbackLocal = { ...fallbackLocal, ...p }
-              }
-            }
-          }
-        }
-        if (Object.keys(fallbackLocal).length > 0) {
-          initialLocal = fallbackLocal
-          setDsrBalances(fallbackLocal)
-          localStorage.setItem(globalStorageKey, JSON.stringify(fallbackLocal))
-        }
-      } catch { }
-    }
+        const { data: metrics } = await supabase
+          .from('performance_metrics')
+          .select('cell_key, value')
+          .or('cell_key.like._apontamentos_%,cell_key.like._dsr_manual_%')
 
-    // Busca do Supabase: chave global e migração de registros legados de meses passados
-    const fetchDsrFromSupabase = async () => {
-      try {
-        const [globalRes, legacyRes] = await Promise.all([
-          supabase
-            .from('performance_metrics')
-            .select('value')
-            .eq('cell_key', '_dsr_balances_global')
-            .maybeSingle(),
-          supabase
-            .from('performance_metrics')
-            .select('cell_key, value')
-            .like('cell_key', '_dsr_manual_%')
-        ])
+        if (metrics && metrics.length > 0) {
+          const supaAllApont: Record<string, Record<string, Record<number, ApontamentoStatus>>> = {}
+          const supaAllManual: Record<string, Record<string, number>> = {}
 
-        let consolidated: Record<string, number> = { ...initialLocal }
-
-        // Se encontrou dados em meses anteriores salvos no Supabase, consolida
-        if (legacyRes.data && legacyRes.data.length > 0) {
-          legacyRes.data.forEach((row: any) => {
+          metrics.forEach(row => {
+            if (!row.value) return
             try {
-              if (row.value) {
-                const parsed = JSON.parse(row.value)
-                if (parsed && typeof parsed === 'object') {
-                  consolidated = { ...consolidated, ...parsed }
-                }
+              if (row.cell_key.startsWith('_apontamentos_')) {
+                const mKey = row.cell_key.replace('_apontamentos_', '')
+                supaAllApont[mKey] = JSON.parse(row.value)
+                localStorage.setItem(`magalog_apontamentos_${mKey}`, row.value)
+              } else if (row.cell_key.startsWith('_dsr_manual_')) {
+                const mKey = row.cell_key.replace('_dsr_manual_', '')
+                supaAllManual[mKey] = JSON.parse(row.value)
+                localStorage.setItem(`magalog_dsr_manual_${mKey}`, row.value)
               }
             } catch { }
           })
-        }
 
-        // Se existe a chave global salva no Supabase, ela tem prioridade
-        if (globalRes.data?.value) {
-          try {
-            const parsedGlobal = JSON.parse(globalRes.data.value)
-            if (parsedGlobal && typeof parsedGlobal === 'object') {
-              consolidated = { ...consolidated, ...parsedGlobal }
-            }
-          } catch { }
-        }
+          setAllMonthsApontamentos(prev => ({ ...prev, ...supaAllApont }))
+          setAllMonthsManualDsr(prev => ({ ...prev, ...supaAllManual }))
 
-        if (Object.keys(consolidated).length > 0) {
-          setDsrBalances(consolidated)
-          localStorage.setItem(globalStorageKey, JSON.stringify(consolidated))
-
-          // Se a chave global ainda não existia ou foi atualizada com legados, salva no Supabase
-          if (!globalRes.data?.value) {
-            await supabase
-              .from('performance_metrics')
-              .upsert({
-                cell_key: '_dsr_balances_global',
-                value: JSON.stringify(consolidated),
-                updated_at: new Date().toISOString()
-              }, { onConflict: 'cell_key' })
+          const currentMKey = `${selectedYear}_${selectedMonth + 1}`
+          if (supaAllApont[currentMKey]) {
+            setApontamentos(supaAllApont[currentMKey])
           }
         }
       } catch (err) {
-        console.warn('Aviso ao carregar saldos de DSR do Supabase:', err)
+        console.warn('Aviso ao sincronizar apontamentos e DSRs do Supabase:', err)
       }
     }
 
-    fetchDsrFromSupabase()
+    fetchAllFromSupabase()
   }, [])
+
+  // Sincronizar apontamentos exibidos quando o mês/ano selecionado mudar
+  useEffect(() => {
+    const currentMKey = `${selectedYear}_${selectedMonth + 1}`
+    if (allMonthsApontamentos[currentMKey]) {
+      setApontamentos(allMonthsApontamentos[currentMKey])
+    } else {
+      const local = localStorage.getItem(`magalog_apontamentos_${currentMKey}`)
+      if (local) {
+        try {
+          const parsed = JSON.parse(local)
+          setApontamentos(parsed)
+          setAllMonthsApontamentos(prev => ({ ...prev, [currentMKey]: parsed }))
+          return
+        } catch { }
+      }
+      setApontamentos({})
+
+      supabase
+        .from('performance_metrics')
+        .select('value')
+        .eq('cell_key', `_apontamentos_${currentMKey}`)
+        .maybeSingle()
+        .then(res => {
+          if (res.data?.value) {
+            try {
+              const p = JSON.parse(res.data.value)
+              setApontamentos(p)
+              setAllMonthsApontamentos(prev => ({ ...prev, [currentMKey]: p }))
+            } catch { }
+          }
+        })
+    }
+  }, [selectedYear, selectedMonth])
 
   // Salvar apontamentos no Supabase e LocalStorage
   const persistApontamentos = async (newApontamentos: Record<string, Record<number, ApontamentoStatus>>) => {
+    const currentMKey = `${selectedYear}_${selectedMonth + 1}`
     setApontamentos(newApontamentos)
-    const storageKey = `magalog_apontamentos_${selectedYear}_${selectedMonth + 1}`
+    setAllMonthsApontamentos(prev => ({ ...prev, [currentMKey]: newApontamentos }))
+
+    const storageKey = `magalog_apontamentos_${currentMKey}`
     const jsonStr = JSON.stringify(newApontamentos)
 
     try {
@@ -882,7 +858,7 @@ export function ApontamentoPage() {
       await supabase
         .from('performance_metrics')
         .upsert({
-          cell_key: `_apontamentos_${selectedYear}_${selectedMonth + 1}`,
+          cell_key: `_apontamentos_${currentMKey}`,
           value: jsonStr,
           updated_at: new Date().toISOString()
         }, { onConflict: 'cell_key' })
@@ -894,16 +870,17 @@ export function ApontamentoPage() {
     }
   }
 
-  // Salvar saldos de DSR (Independente do mês) no Supabase e LocalStorage
-  const persistDsrBalances = async (newBalances: Record<string, number>) => {
-    setDsrBalances(newBalances)
-    const globalStorageKey = 'magalog_dsr_balances_global'
-    const jsonStr = JSON.stringify(newBalances)
+  // Salvar ajustes manuais de DSR no Supabase e LocalStorage
+  const persistMonthManualDsr = async (monthKey: string, newManual: Record<string, number>) => {
+    setAllMonthsManualDsr(prev => ({ ...prev, [monthKey]: newManual }))
+
+    const storageKey = `magalog_dsr_manual_${monthKey}`
+    const jsonStr = JSON.stringify(newManual)
 
     try {
-      localStorage.setItem(globalStorageKey, jsonStr)
+      localStorage.setItem(storageKey, jsonStr)
     } catch (e) {
-      console.warn('Erro ao salvar local de DSR:', e)
+      console.warn('Erro ao salvar DSR local:', e)
     }
 
     setIsSaving(true)
@@ -911,13 +888,13 @@ export function ApontamentoPage() {
       await supabase
         .from('performance_metrics')
         .upsert({
-          cell_key: '_dsr_balances_global',
+          cell_key: `_dsr_manual_${monthKey}`,
           value: jsonStr,
           updated_at: new Date().toISOString()
         }, { onConflict: 'cell_key' })
       setLastSaved(new Date().toLocaleTimeString())
     } catch (err) {
-      console.warn('Erro ao salvar saldo de DSR no Supabase:', err)
+      console.warn('Erro ao salvar DSR no Supabase:', err)
     } finally {
       setIsSaving(false)
     }
@@ -972,29 +949,89 @@ export function ApontamentoPage() {
     }
   }
 
-  // Ajuste rápido de DSR (+1 ou -1) - Independente do mês
-  const handleStepDsr = (colabId: string, delta: number) => {
-    const currentVal = dsrBalances[colabId] || 0
-    const nextVal = currentVal + delta
-    const updated = { ...dsrBalances }
-    if (nextVal === 0) {
-      delete updated[colabId]
-    } else {
-      updated[colabId] = nextVal
+  // Cálculo do Saldo Total de DSR acumulado até o mês selecionado (considerando histórico, domingos trabalhados e baixas de DSR)
+  const calculateDsr = useCallback((colabId: string): number => {
+    const monthKeySet = new Set<string>([
+      ...Object.keys(allMonthsApontamentos),
+      ...Object.keys(allMonthsManualDsr),
+      `${selectedYear}_${selectedMonth + 1}`
+    ])
+
+    const targetYear = selectedYear
+    const targetMonth = selectedMonth + 1
+
+    const sortedMonths = Array.from(monthKeySet)
+      .map(k => {
+        const parts = k.split('_')
+        return { key: k, year: Number(parts[0]), month: Number(parts[1]) }
+      })
+      .filter(m => !isNaN(m.year) && !isNaN(m.month))
+      .filter(m => {
+        if (m.year < targetYear) return true
+        if (m.year === targetYear && m.month <= targetMonth) return true
+        return false
+      })
+      .sort((a, b) => (a.year * 100 + a.month) - (b.year * 100 + b.month))
+
+    let balance = 0
+    for (const m of sortedMonths) {
+      // 1. Ajuste manual registrado para este mês
+      const manual = allMonthsManualDsr[m.key]?.[colabId] || 0
+      balance += manual
+
+      // 2. Apontamentos do mês (domingo trabalhado 'T' = +1 DSR, baixa usufruída 'DSR' = -1 DSR)
+      const isCurrentMonth = m.year === selectedYear && m.month === selectedMonth + 1
+      const colabRecords = isCurrentMonth
+        ? (apontamentos[colabId] || {})
+        : (allMonthsApontamentos[m.key]?.[colabId] || {})
+
+      const daysInM = new Date(m.year, m.month, 0).getDate()
+      for (let d = 1; d <= daysInM; d++) {
+        const dt = new Date(m.year, m.month - 1, d)
+        const isSunday = dt.getDay() === 0
+        const st = colabRecords[d]
+        if (isSunday && st === 'T') balance += 1
+        if (st === 'DSR') balance -= 1
+      }
     }
-    persistDsrBalances(updated)
+
+    return balance
+  }, [allMonthsApontamentos, allMonthsManualDsr, apontamentos, selectedYear, selectedMonth])
+
+  // Ajuste rápido de DSR (+1 ou -1) no mês selecionado
+  const handleStepDsr = (colabId: string, delta: number) => {
+    const currentMKey = `${selectedYear}_${selectedMonth + 1}`
+    const currentMonthManual = { ...(allMonthsManualDsr[currentMKey] || {}) }
+    const currentVal = currentMonthManual[colabId] || 0
+    const nextVal = currentVal + delta
+    if (nextVal === 0) {
+      delete currentMonthManual[colabId]
+    } else {
+      currentMonthManual[colabId] = nextVal
+    }
+    persistMonthManualDsr(currentMKey, currentMonthManual)
   }
 
-  // Definir DSR manual digitado - Independente do mês
+  // Definir DSR manual digitado no mês selecionado
   const handleSaveManualDsrInput = (colabId: string) => {
     const parsed = parseInt(tempDsrInput, 10)
-    const updated = { ...dsrBalances }
-    if (isNaN(parsed) || parsed === 0) {
-      delete updated[colabId]
-    } else {
-      updated[colabId] = parsed
+    if (isNaN(parsed)) {
+      setEditingDsrColabId(null)
+      return
     }
-    persistDsrBalances(updated)
+    const currentMKey = `${selectedYear}_${selectedMonth + 1}`
+    const currentBalance = calculateDsr(colabId)
+    const currentManual = allMonthsManualDsr[currentMKey]?.[colabId] || 0
+    const baseWithoutCurrentManual = currentBalance - currentManual
+    const diff = parsed - baseWithoutCurrentManual
+
+    const currentMonthManual = { ...(allMonthsManualDsr[currentMKey] || {}) }
+    if (diff === 0) {
+      delete currentMonthManual[colabId]
+    } else {
+      currentMonthManual[colabId] = diff
+    }
+    persistMonthManualDsr(currentMKey, currentMonthManual)
     setEditingDsrColabId(null)
   }
 
@@ -1085,11 +1122,6 @@ export function ApontamentoPage() {
 
     persistApontamentos(updated)
     setIntervalModal({ ...intervalModal, isOpen: false })
-  }
-
-  // Saldo Total de DSR (Independente do mês)
-  const calculateDsr = (colabId: string): number => {
-    return dsrBalances[colabId] || 0
   }
 
   // Opções para os filtros de múltipla escolha
