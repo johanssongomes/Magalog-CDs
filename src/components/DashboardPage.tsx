@@ -413,42 +413,41 @@ export const DashboardPage: React.FC = () => {
     }
 
     const processSaidaMetrics = (metricsMap: Record<string, string>) => {
-      // Procura chaves da categoria ns_saida_eclusa (ex: ns_saida_eclusa_eclusa_mensal_30/out)
-      const subRows = ['micro', 'rodo', 'courrie', 'eclusa_diario', 'eclusa_mensal']
-      const daysFound = new Set<string>()
+      // Função auxiliar para encontrar o último valor válido preenchido de um subindicador
+      const getLastValidValue = (subId: string, fallback: string): string => {
+        const prefix = `ns_saida_eclusa_${subId}_`
+        const daysWithVal: string[] = []
 
-      Object.keys(metricsMap).forEach(k => {
-        if (k.startsWith('ns_saida_eclusa_')) {
-          for (const sub of subRows) {
-            const prefix = `ns_saida_eclusa_${sub}_`
-            if (k.startsWith(prefix)) {
-              const dayPart = k.replace(prefix, '')
-              const val = metricsMap[k]?.trim()
-              if (val && val !== '-' && val !== '') {
-                daysFound.add(dayPart)
-              }
-              break
+        Object.keys(metricsMap).forEach(k => {
+          if (k.startsWith(prefix)) {
+            const dayPart = k.replace(prefix, '')
+            const val = metricsMap[k]?.trim()
+            if (val && val !== '-' && val !== '') {
+              daysWithVal.push(dayPart)
             }
           }
-        }
-      })
+        })
 
-      if (daysFound.size === 0) return
+        if (daysWithVal.length === 0) return fallback
 
-      const sortedDays = Array.from(daysFound).sort((a, b) => {
-        const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0
-        const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0
-        return numA - numB
-      })
+        // Ordena para pegar o último dia com lançamento daquele subitem específico
+        daysWithVal.sort((a, b) => {
+          const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0
+          const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0
+          return numA - numB
+        })
 
-      const lastDay = sortedDays[sortedDays.length - 1]
-      const microVal = metricsMap[`ns_saida_eclusa_micro_${lastDay}`]?.trim() || '97,2%'
-      const rodoVal = metricsMap[`ns_saida_eclusa_rodo_${lastDay}`]?.trim() || '99,5%'
-      const courrieVal = metricsMap[`ns_saida_eclusa_courrie_${lastDay}`]?.trim() || '96,4%'
-      const diarioVal = metricsMap[`ns_saida_eclusa_eclusa_diario_${lastDay}`]?.trim() || '100%'
-      const mensalVal = metricsMap[`ns_saida_eclusa_eclusa_mensal_${lastDay}`]?.trim() || '99,8%'
+        const lastSubDay = daysWithVal[daysWithVal.length - 1]
+        return metricsMap[`${prefix}${lastSubDay}`]?.trim() || fallback
+      }
 
-      // O valor geral principal é sempre o Mensal
+      const microVal = getLastValidValue('micro', '100%')
+      const rodoVal = getLastValidValue('rodo', '100%')
+      const courrieVal = getLastValidValue('courrie', '100%')
+      const diarioVal = getLastValidValue('eclusa_diario', '100%')
+      const mensalVal = getLastValidValue('eclusa_mensal', '99,8%')
+
+      // O valor geral principal é sempre o Mensal do último preenchimento
       const mainVal = mensalVal !== '-' ? mensalVal : (diarioVal !== '-' ? diarioVal : '99,8%')
 
       setSaidaData({
@@ -458,7 +457,7 @@ export const DashboardPage: React.FC = () => {
         courrie: courrieVal,
         diario: diarioVal,
         mensal: mensalVal,
-        lastDay
+        lastDay: '30/out'
       })
     }
 
