@@ -427,6 +427,19 @@ export const DashboardPage: React.FC = () => {
     npsLojas: '81,2%'
   })
 
+  // Estado integrado para dados do NS RLE
+  const [rleData, setRleData] = useState<{
+    value: string
+    diario: string
+    mensal: string
+    lastDay: string
+  }>({
+    value: '96,2%',
+    diario: '100%',
+    mensal: '96,2%',
+    lastDay: '30/out'
+  })
+
   // Carrega e sincroniza dados reais de NS Saída e Fulfillment do Supabase e LocalStorage
   useEffect(() => {
     const processFullMetrics = (metricsMap: Record<string, string>) => {
@@ -558,6 +571,45 @@ export const DashboardPage: React.FC = () => {
       })
     }
 
+    const processRleMetrics = (metricsMap: Record<string, string>) => {
+      const getLastValidValue = (subId: string, fallback: string): string => {
+        const prefix = `ns_rle_${subId}_`
+        const daysWithVal: string[] = []
+
+        Object.keys(metricsMap).forEach(k => {
+          if (k.startsWith(prefix)) {
+            const dayPart = k.replace(prefix, '')
+            const val = metricsMap[k]?.trim()
+            if (val && val !== '-' && val !== '') {
+              daysWithVal.push(dayPart)
+            }
+          }
+        })
+
+        if (daysWithVal.length === 0) return fallback
+
+        daysWithVal.sort((a, b) => {
+          const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0
+          const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0
+          return numA - numB
+        })
+
+        const lastSubDay = daysWithVal[daysWithVal.length - 1]
+        return metricsMap[`${prefix}${lastSubDay}`]?.trim() || fallback
+      }
+
+      const diarioVal = getLastValidValue('rle_diario', '100%')
+      const mensalVal = getLastValidValue('rle_mensal', '96,2%')
+      const mainVal = mensalVal !== '-' ? mensalVal : (diarioVal !== '-' ? diarioVal : '96,2%')
+
+      setRleData({
+        value: mainVal,
+        diario: diarioVal,
+        mensal: mensalVal,
+        lastDay: '30/out'
+      })
+    }
+
     // 1. Tenta carregar do LocalStorage imediatamente
     try {
       const local = localStorage.getItem('magalog_performance_data')
@@ -566,6 +618,7 @@ export const DashboardPage: React.FC = () => {
         processFullMetrics(parsed)
         processSaidaMetrics(parsed)
         processAtendimentoMetrics(parsed)
+        processRleMetrics(parsed)
       }
     } catch { }
 
@@ -575,7 +628,7 @@ export const DashboardPage: React.FC = () => {
         const { data: dbRows, error } = await supabase
           .from('performance_metrics')
           .select('cell_key, value')
-          .or('cell_key.like.fulfillment_%,cell_key.like.ns_saida_eclusa_%,cell_key.like.gestao_cx_%')
+          .or('cell_key.like.fulfillment_%,cell_key.like.ns_saida_eclusa_%,cell_key.like.gestao_cx_%,cell_key.like.ns_rle_%')
 
         if (!error && dbRows && dbRows.length > 0) {
           const map: Record<string, string> = {}
@@ -585,6 +638,7 @@ export const DashboardPage: React.FC = () => {
           processFullMetrics(map)
           processSaidaMetrics(map)
           processAtendimentoMetrics(map)
+          processRleMetrics(map)
         }
       } catch (err) {
         console.warn('Erro ao carregar métricas do Supabase:', err)
@@ -601,7 +655,7 @@ export const DashboardPage: React.FC = () => {
         { event: '*', schema: 'public', table: 'performance_metrics' },
         (payload: any) => {
           const key = payload.new?.cell_key
-          if (key && (key.startsWith('fulfillment_') || key.startsWith('ns_saida_eclusa_') || key.startsWith('gestao_cx_'))) {
+          if (key && (key.startsWith('fulfillment_') || key.startsWith('ns_saida_eclusa_') || key.startsWith('gestao_cx_') || key.startsWith('ns_rle_'))) {
             loadFromSupabase()
           }
         }
@@ -687,12 +741,20 @@ export const DashboardPage: React.FC = () => {
             ['Mensal', fullData.mensal]
           ]}
         />
-        <KpiSimple
+        <KpiNs
           icon={<Settings size={15} />}
           tone="bg-emerald-50 text-emerald-600"
           title="NS RLE"
-          value="96,2%"
-          badge="Meta > 95%"
+          value={rleData.value}
+          meta="Meta > 95%"
+          metaTiers={[
+            { label: '>= 95,0%', ating: '100%', dotColor: 'bg-emerald-500' },
+            { label: '< 95,0%', ating: '50%', dotColor: 'bg-rose-500' }
+          ]}
+          items={[
+            ['Diário', rleData.diario],
+            ['Mensal', rleData.mensal]
+          ]}
         />
         <KpiAtendimento data={atendimentoData} />
         <KpiSimple
