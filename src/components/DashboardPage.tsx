@@ -1,9 +1,10 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   LayoutDashboard, Package, User, Settings, Home, Clock, AlertTriangle, BarChart3, Timer,
   Bell, CheckCircle2, Info, Boxes, Truck, Warehouse, Wrench, Users, DollarSign, CalendarDays,
   TrendingUp, MessageSquareWarning
 } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 import { PmtDashboardOverview } from './PmtDashboardOverview'
 
 // =====================================================================
@@ -57,7 +58,7 @@ const KpiNs: React.FC<{
       <div className="min-w-0">
         <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">{title}</p>
         <p className="text-lg font-black text-slate-900 leading-none my-0.5">{value}</p>
-        
+
         {/* Badge da Meta com Tooltip discreto posicionado abaixo do card */}
         {metaTiers && metaTiers.length > 0 ? (
           <div className="relative inline-block">
@@ -125,25 +126,25 @@ const KpiSimple: React.FC<{
   badgeTone = 'bg-emerald-50 text-emerald-700 border-emerald-100',
   tone = 'bg-slate-50 text-slate-500'
 }) => (
-  <Card className="p-2 h-[74px] flex items-center gap-2 min-w-0">
-    {icon && (
-      <div className={`w-7 h-7 rounded-lg ${tone} flex items-center justify-center shrink-0`}>
-        {icon}
-      </div>
-    )}
-    <div className="min-w-0 flex-1">
-      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">{title}</p>
-      <div className="flex items-baseline gap-1.5 my-0.5 flex-wrap">
-        <p className="text-lg font-black text-slate-900 leading-none">{value}</p>
-      </div>
-      {badge && (
-        <span className={`inline-block text-[8px] font-bold px-1 py-0.2 rounded border ${badgeTone} leading-none`}>
-          {badge}
-        </span>
+    <Card className="p-2 h-[74px] flex items-center gap-2 min-w-0">
+      {icon && (
+        <div className={`w-7 h-7 rounded-lg ${tone} flex items-center justify-center shrink-0`}>
+          {icon}
+        </div>
       )}
-    </div>
-  </Card>
-)
+      <div className="min-w-0 flex-1">
+        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">{title}</p>
+        <div className="flex items-baseline gap-1.5 my-0.5 flex-wrap">
+          <p className="text-lg font-black text-slate-900 leading-none">{value}</p>
+        </div>
+        {badge && (
+          <span className={`inline-block text-[8px] font-bold px-1 py-0.2 rounded border ${badgeTone} leading-none`}>
+            {badge}
+          </span>
+        )}
+      </div>
+    </Card>
+  )
 
 const KpiAtendimento: React.FC = () => (
   <Card className="p-2 h-[74px] flex flex-col justify-between min-w-0">
@@ -255,6 +256,117 @@ const Donut: React.FC<{ value: number }> = ({ value }) => {
 }
 
 export const DashboardPage: React.FC = () => {
+  // Estado integrado para dados do NS FULL (Fulfillment)
+  const [fullData, setFullData] = useState<{
+    value: string
+    diario: string
+    mensal: string
+    lastDay: string
+  }>({
+    value: '98,7%',
+    diario: '90,91%',
+    mensal: '94,75%',
+    lastDay: '30/out'
+  })
+
+  // Carrega e sincroniza dados reais de Fulfillment do Supabase e LocalStorage
+  useEffect(() => {
+    const processMetrics = (metricsMap: Record<string, string>) => {
+      // Procura chaves com prefixo fulfillment_full_diario_ e fulfillment_full_mensal_
+      // Formato típico: fulfillment_full_diario_30/out ou fulfillment_full_diario_30-out
+      const daysFound = new Set<string>()
+
+      Object.keys(metricsMap).forEach(k => {
+        if (k.startsWith('fulfillment_full_diario_')) {
+          const dayPart = k.replace('fulfillment_full_diario_', '')
+          const val = metricsMap[k]?.trim()
+          if (val && val !== '-' && val !== '') {
+            daysFound.add(dayPart)
+          }
+        }
+        if (k.startsWith('fulfillment_full_mensal_')) {
+          const dayPart = k.replace('fulfillment_full_mensal_', '')
+          const val = metricsMap[k]?.trim()
+          if (val && val !== '-' && val !== '') {
+            daysFound.add(dayPart)
+          }
+        }
+      })
+
+      if (daysFound.size === 0) return
+
+      // Ordenar os dias para achar o último dia preenchido
+      // Extrai número do dia (ex: "30/out" -> 30)
+      const sortedDays = Array.from(daysFound).sort((a, b) => {
+        const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0
+        const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0
+        return numA - numB
+      })
+
+      const lastDay = sortedDays[sortedDays.length - 1]
+      const diarioVal = metricsMap[`fulfillment_full_diario_${lastDay}`]?.trim() || '-'
+      const mensalVal = metricsMap[`fulfillment_full_mensal_${lastDay}`]?.trim() || '-'
+
+      // O valor principal do card utiliza o último diário (ou mensal se não houver diário)
+      const mainVal = diarioVal !== '-' ? diarioVal : (mensalVal !== '-' ? mensalVal : '98,7%')
+
+      setFullData({
+        value: mainVal,
+        diario: diarioVal !== '-' ? diarioVal : '90,91%',
+        mensal: mensalVal !== '-' ? mensalVal : '94,75%',
+        lastDay
+      })
+    }
+
+    // 1. Tenta carregar do LocalStorage imediatamente
+    try {
+      const local = localStorage.getItem('magalog_performance_data')
+      if (local) {
+        processMetrics(JSON.parse(local))
+      }
+    } catch { }
+
+    // 2. Busca do Supabase
+    const loadFromSupabase = async () => {
+      try {
+        const { data: dbRows, error } = await supabase
+          .from('performance_metrics')
+          .select('cell_key, value')
+          .like('cell_key', 'fulfillment_%')
+
+        if (!error && dbRows && dbRows.length > 0) {
+          const map: Record<string, string> = {}
+          dbRows.forEach(r => {
+            map[r.cell_key] = r.value
+          })
+          processMetrics(map)
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar fulfillment do Supabase:', err)
+      }
+    }
+
+    loadFromSupabase()
+
+    // 3. Inscrição em tempo real para refletir lançamentos na hora
+    const channel = supabase
+      .channel('dashboard_full_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'performance_metrics' },
+        (payload: any) => {
+          if (payload.new && payload.new.cell_key?.startsWith('fulfillment_')) {
+            loadFromSupabase()
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
   const alerts = [
     { icon: <CheckCircle2 size={15} />, tone: 'bg-emerald-50 border-emerald-200 text-emerald-700', title: 'NS de Saída acima da meta', desc: '97,8% | Meta > 97%', time: 'Hoje 15:45' },
     { icon: <AlertTriangle size={15} />, tone: 'bg-amber-50 border-amber-200 text-amber-700', title: 'Ocupação do CD em atenção', desc: '97% | Monitorar capacidade', time: 'Hoje 14:50' },
@@ -313,12 +425,21 @@ export const DashboardPage: React.FC = () => {
           meta="Meta: 97,0%"
           items={[['Micro', '96,2%'], ['Courrie', '96,4%'], ['Rodo', '99,5']]}
         />
-        <KpiSimple
+        <KpiNs
           icon={<Package size={15} />}
           tone="bg-sky-50 text-sky-600"
           title="NS Full"
-          value="98,7%"
-          badge="Meta > 98%"
+          value={fullData.value}
+          meta="Meta: 97,0%"
+          metaTiers={[
+            { label: '>= 97,0%', ating: '100%', dotColor: 'bg-blue-500' },
+            { label: '>= 95,0%', ating: '75%', dotColor: 'bg-emerald-500' },
+            { label: '>= 94,1%', ating: '50%', dotColor: 'bg-rose-500' }
+          ]}
+          items={[
+            ['Diário', fullData.diario],
+            ['Mensal', fullData.mensal]
+          ]}
         />
         <KpiSimple
           icon={<Settings size={15} />}
