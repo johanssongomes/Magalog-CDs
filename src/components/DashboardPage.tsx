@@ -291,7 +291,7 @@ export const DashboardPage: React.FC = () => {
           tone="bg-blue-50 text-blue-600"
           title="NS Saída"
           value="97,8%"
-          meta="Meta: 97,0%"
+          meta="Meta: 99,2%"
           metaTiers={[
             { label: '>= 99,2%', ating: '100%', dotColor: 'bg-blue-500' },
             { label: '>= 98,7%', ating: '75%', dotColor: 'bg-amber-400' },
