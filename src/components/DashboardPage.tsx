@@ -58,33 +58,37 @@ const KpiNs: React.FC<{
         <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">{title}</p>
         <p className="text-lg font-black text-slate-900 leading-none my-0.5">{value}</p>
         
-        {/* Badge da Meta com Tooltip discreto ao passar o mouse */}
+        {/* Badge da Meta com Tooltip discreto posicionado abaixo do card */}
         {metaTiers && metaTiers.length > 0 ? (
-          <div className="relative inline-block cursor-help">
-            <span className="inline-flex items-center gap-1 text-[8px] font-bold px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 leading-none">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+          <div className="relative inline-block">
+            <span className="inline-flex items-center gap-1 text-[8px] font-bold px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 leading-none cursor-pointer">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
               {meta}
             </span>
 
-            {/* Popover / Tooltip informativo sem poluir o visual do card */}
-            <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block z-50 w-44 p-2 bg-slate-900/95 backdrop-blur-xs text-white rounded-lg shadow-xl border border-slate-700 text-[10px] pointer-events-none animate-in fade-in zoom-in-95 duration-150">
-              <div className="font-bold text-[9px] text-slate-300 uppercase tracking-wider pb-1 mb-1 border-b border-slate-700/80 flex items-center justify-between">
+            {/* Popover posicionado abaixo do card (top-full mt-2) com seta para não ser cortado no topo da tela */}
+            <div className="absolute left-0 top-full mt-2 hidden group-hover:block z-50 w-48 p-2.5 bg-slate-900/95 backdrop-blur-md text-white rounded-xl shadow-2xl border border-slate-700/80 text-[10px] pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+              {/* Triângulo indicador / Seta apontando para o badge */}
+              <div className="absolute -top-1.5 left-4 w-3 h-3 bg-slate-900 border-l border-t border-slate-700/80 rotate-45" />
+
+              <div className="font-bold text-[9px] text-slate-300 uppercase tracking-wider pb-1.5 mb-1.5 border-b border-slate-700/80 flex items-center justify-between relative z-10">
                 <span>Faixas de Atingimento</span>
                 <span className="text-[8px] text-slate-400">Meta</span>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1.5 relative z-10">
                 {metaTiers.map((t, idx) => (
                   <div key={idx} className="flex items-center justify-between font-mono">
-                    <span className="flex items-center gap-1.5 text-slate-200">
-                      <span className={`w-1.5 h-1.5 rounded-full ${t.dotColor}`} />
+                    <span className="flex items-center gap-1.5 text-slate-200 text-[10px]">
+                      <span className={`w-2 h-2 rounded-full ${t.dotColor} shrink-0`} />
                       {t.label}
                     </span>
-                    <span className="font-bold text-emerald-400">{t.ating}</span>
+                    <span className="font-extrabold text-emerald-400 text-[10px]">{t.ating}</span>
                   </div>
                 ))}
               </div>
-              <div className="text-[8px] text-slate-400 mt-1.5 pt-1 border-t border-slate-700/60 text-right">
-                Realizado: <strong className="text-white">{value}</strong>
+              <div className="text-[8.5px] text-slate-400 mt-2 pt-1.5 border-t border-slate-700/60 flex items-center justify-between relative z-10">
+                <span>Realizado atual:</span>
+                <strong className="text-white font-mono">{value}</strong>
               </div>
             </div>
           </div>
