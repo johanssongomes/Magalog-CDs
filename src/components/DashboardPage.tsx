@@ -4,6 +4,7 @@ import {
   Bell, CheckCircle2, Info, Boxes, Truck, Warehouse, Wrench, Users, DollarSign, CalendarDays,
   TrendingUp, MessageSquareWarning
 } from 'lucide-react'
+import { PmtDashboardOverview } from './PmtDashboardOverview'
 
 // =====================================================================
 // Painel visual (dados estáticos / mock) — integração de números futura
@@ -410,6 +411,9 @@ export const DashboardPage: React.FC = () => {
           </div>
         </Card>
       </div>
+
+      {/* Visão Consolidada PMT (Planejado, Liberado, Faturado e Acompanhamento Diário) */}
+      <PmtDashboardOverview />
     </div>
   )
 }
