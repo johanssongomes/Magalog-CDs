@@ -263,7 +263,7 @@ export const DashboardPage: React.FC = () => {
     mensal: string
     lastDay: string
   }>({
-    value: '98,7%',
+    value: '94,75%',
     diario: '90,91%',
     mensal: '94,75%',
     lastDay: '30/out'
@@ -307,8 +307,8 @@ export const DashboardPage: React.FC = () => {
       const diarioVal = metricsMap[`fulfillment_full_diario_${lastDay}`]?.trim() || '-'
       const mensalVal = metricsMap[`fulfillment_full_mensal_${lastDay}`]?.trim() || '-'
 
-      // O valor principal do card utiliza o último diário (ou mensal se não houver diário)
-      const mainVal = diarioVal !== '-' ? diarioVal : (mensalVal !== '-' ? mensalVal : '98,7%')
+      // O valor principal do card geral é sempre o valor do MENSAL
+      const mainVal = mensalVal !== '-' ? mensalVal : (diarioVal !== '-' ? diarioVal : '94,75%')
 
       setFullData({
         value: mainVal,
@@ -433,8 +433,8 @@ export const DashboardPage: React.FC = () => {
           meta="Meta: 97,0%"
           metaTiers={[
             { label: '>= 97,0%', ating: '100%', dotColor: 'bg-blue-500' },
-            { label: '>= 95,0%', ating: '75%', dotColor: 'bg-emerald-500' },
-            { label: '>= 94,1%', ating: '50%', dotColor: 'bg-rose-500' }
+            { label: '>= 96,0%', ating: '75%', dotColor: 'bg-emerald-500' },
+            { label: '<= 95,9%', ating: '50%', dotColor: 'bg-rose-500' }
           ]}
           items={[
             ['Diário', fullData.diario],
