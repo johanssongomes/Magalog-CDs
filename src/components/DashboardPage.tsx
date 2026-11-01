@@ -2,7 +2,7 @@ import React from 'react'
 import {
   LayoutDashboard, Package, User, Settings, Home, Clock, AlertTriangle, BarChart3, Timer,
   Bell, CheckCircle2, Info, Boxes, Truck, Warehouse, Wrench, Users, DollarSign, CalendarDays,
-  TrendingUp
+  TrendingUp, MessageSquareWarning
 } from 'lucide-react'
 
 // =====================================================================
@@ -193,7 +193,7 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="space-y-4 w-full">
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-9 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-11 gap-3">
         <div className="2xl:col-span-2">
           <KpiNs icon={<Boxes size={22} />} tone="bg-blue-50 text-blue-600" title="NS Saída" value="97,8%" meta="Meta: 97,0%"
             items={[['Micro', '97,2%'], ['Courrie', '96,4%'], ['Rodo', '99,5']]} />
@@ -204,6 +204,26 @@ export const DashboardPage: React.FC = () => {
         </div>
         <KpiSimple title="NS Full" value="98,7%" />
         <KpiSimple icon={<Settings size={20} />} tone="bg-emerald-50 text-emerald-600" title="NS RLE" value="96,2%" badge="Meta > 95%" />
+        <div className="2xl:col-span-2">
+          <Card className="p-3 h-full flex items-center gap-3 min-w-0">
+            <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 shrink-0"><MessageSquareWarning size={22} /></div>
+            <div className="flex-1 min-w-0 text-[10px] space-y-0.5">
+              <p className="text-[10px] font-bold text-slate-500 uppercase mb-0.5">Atendimento</p>
+              {[
+                ['% Reclamações (Diário)', '-'],
+                ['% Reclamações (Mês)', '-'],
+                ['Backlog Zendesk (Diário)', '-'],
+                ['Chamados de Loja (Diário)', '-'],
+                ['NPS Lojas (Diário)', '-']
+              ].map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-2">
+                  <span className="text-slate-500 truncate">{k}</span>
+                  <span className="font-bold text-slate-800">{v}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
         <KpiSimple icon={<Home size={20} />} tone="bg-amber-50 text-amber-600" title="Aderência de Quadro" value="94%" badge="+1,2 p.p." badgeTone="bg-slate-50 text-slate-500 border-slate-200" />
         <KpiSimple icon={<Clock size={20} />} tone="bg-amber-50 text-amber-600" title="Horas Extras" value="1,8%" badge="Dentro da meta" />
         <KpiSimple icon={<AlertTriangle size={20} />} tone="bg-rose-50 text-rose-600" title="Pendências Críticas" value="12" badge="Acompanhar" badgeTone="bg-rose-50 text-rose-700 border-rose-200" />
