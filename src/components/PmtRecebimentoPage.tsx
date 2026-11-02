@@ -550,8 +550,19 @@ export const PmtRecebimentoPage: React.FC = () => {
         const ag = String(r[colAgenda] || '').trim()
         const sku = String(r[colSku] || '').trim()
         const desc = String(r[colDesc] || '').trim()
-        const rawQt = String(r[colQt] || '').replace(/\./g, '').replace(',', '.')
-        const qt = Math.round(parseFloat(rawQt)) || 0
+        
+        // Trata número decimal com ponto ou vírgula (ex: "30.0" -> 30, "108.0" -> 108)
+        const rawQt = String(r[colQt] || '').trim()
+        let qt = 0
+        if (rawQt) {
+          // Se contiver vírgula como decimal (ex: 30,5 ou 1.000,00)
+          if (rawQt.includes(',')) {
+            qt = Math.round(parseFloat(rawQt.replace(/\./g, '').replace(',', '.'))) || 0
+          } else {
+            // Se contiver ponto decimal direto do Sheets (ex: "30.0", "108.0")
+            qt = Math.round(parseFloat(rawQt)) || 0
+          }
+        }
 
         if (!ag || (!sku && !desc)) continue
 
