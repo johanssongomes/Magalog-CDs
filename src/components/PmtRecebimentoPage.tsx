@@ -443,15 +443,22 @@ export const PmtRecebimentoPage: React.FC = () => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [importNotice, setImportNotice] = useState<string | null>(null)
 
-  // Carrega dados salvos no localStorage se houver
+  // Carrega dados salvos no localStorage se houver (limpa se os dados estiverem com volume zerado por falha anterior de mapeamento)
   useEffect(() => {
     try {
       const saved = localStorage.getItem('magalog_pmt_recebimento_data')
       if (saved) {
-        const parsed = JSON.parse(saved)
+        const parsed: RecebimentoItem[] = JSON.parse(saved)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setData(parsed)
-          setSyncStatus('imported')
+          // Se todos os volumes estiverem zerados por conta do mapeamento anterior, descarta e reprocessa
+          const totalVol = parsed.reduce((acc, curr) => acc + (curr.volume || 0), 0)
+          if (totalVol > 0) {
+            setData(parsed)
+            setSyncStatus('imported')
+            return
+          } else {
+            localStorage.removeItem('magalog_pmt_recebimento_data')
+          }
         }
       }
     } catch {
@@ -510,73 +517,183 @@ export const PmtRecebimentoPage: React.FC = () => {
       if (rows.length < 2) return
 
       // Localiza linha de cabeçalho
-      let headerIdx = 0
-      for (let i = 0; i < Math.min(rows.length, 10); i++) {
-        const rowStr = rows[i].join(' ').toUpperCase()
-        if (rowStr.includes('PORTARIA') && rowStr.includes('STATUS GERAL')) {
+      let headerIdx = -1
+      for (let i = 0; i < Math.min(rows.length, 20); i++) {
+        const rowStr = rows[i].map(c => String(c || '')).join(' ').toUpperCase()
+        if (rowStr.includes('PORTARIA') && (rowStr.includes('STATUS GERAL') || rowStr.includes('AGENDA') || rowStr.includes('FORNECEDOR'))) {
           headerIdx = i
           break
         }
       }
 
-      const headers = rows[headerIdx].map(h => (h || '').toUpperCase().trim())
+      if (headerIdx === -1) {
+        headerIdx = 0
+      }
+
+      const headers = rows[headerIdx].map(h => String(h || '').toUpperCase().trim())
+      console.log('Cabeçalhos encontrados na linha', headerIdx, headers)
       const colMap: Record<string, number> = {}
+
       headers.forEach((h, idx) => {
-        if (h.includes('PORTARIA')) colMap['portaria'] = idx
-        if (h.includes('STATUS GERAL')) colMap['statusGeral'] = idx
-        if (h.includes('CONFERENTE')) colMap['conferente'] = idx
-        if (h.includes('EQUIPE')) colMap['equipe'] = idx
-        if (h.includes('DOCA')) colMap['doca'] = idx
-        if (h.includes('TMP MED') || h.includes('TMP. MED') || h.includes('TEMPO MEDIO')) colMap['tmpMed'] = idx
-        if (h.includes('INICIO') || h.includes('INÍCIO')) colMap['inicio'] = idx
-        if (h.includes('FIM')) colMap['fim'] = idx
-        if (h === 'TEMPO' || h.includes('TEMPO TOTAL')) colMap['tempo'] = idx
-        if (h.includes('AGENDA')) colMap['agenda'] = idx
-        if (h.includes('DATA')) colMap['data'] = idx
-        if (h.includes('FORNECEDOR')) colMap['fornecedor'] = idx
-        if (h.includes('CATEGORIA')) colMap['categoria'] = idx
-        if (h.includes('SKU')) colMap['sku'] = idx
-        if (h.includes('VOLUME')) colMap['volume'] = idx
-        if (h.includes('CUBAGEM')) colMap['cubagem'] = idx
-        if (h.includes('RESLOG') || h.includes('DIVERG')) colMap['reslog'] = idx
+        // PORTARIA
+        if (h === 'PORTARIA' || h.startsWith('PORTARIA')) colMap['portaria'] = idx
+        // STATUS GERAL
+        if (h === 'STATUS GERAL' || h.includes('STATUS GERAL') || h === 'STATUS') colMap['statusGeral'] = idx
+        // CONFERENTE
+        if (h === 'CONFERENTE' || h.includes('CONFERENTE')) colMap['conferente'] = idx
+        // EQUIPE
+        if (h === 'EQUIPE' || h.includes('EQUIPE')) colMap['equipe'] = idx
+        // DOCA
+        if (h === 'DOCA' || h.includes('DOCA')) colMap['doca'] = idx
+        // TMP MED
+        if (h.includes('TMP MED') || h.includes('TMP. MED') || h.includes('TEMPO MEDIO') || h.includes('TMP_MED') || h === 'TMP MED') colMap['tmpMed'] = idx
+        // INICIO
+        if (h === 'INICIO' || h === 'INÍCIO' || h.includes('INICIO') || h.includes('INÍCIO')) colMap['inicio'] = idx
+        // FIM
+        if (h === 'FIM' || h.includes('FIM')) colMap['fim'] = idx
+        // TEMPO
+        if (h === 'TEMPO' || h === 'TEMPO TOTAL' || h.includes('TEMPO')) {
+          if (!colMap['tempo'] && !h.includes('MED')) colMap['tempo'] = idx
+        }
+        // AGENDA (evita D&F AGENDA ou prioriza AGENDA direta)
+        if (h === 'AGENDA') {
+          colMap['agenda'] = idx
+        } else if (h.includes('AGENDA') && colMap['agenda'] === undefined) {
+          colMap['agenda'] = idx
+        }
+        // DATA
+        if (h === 'DATA' || h.includes('DATA')) colMap['data'] = idx
+        // VEICULO
+        if (h === 'VEICULO' || h.includes('VEICULO')) colMap['veiculo'] = idx
+        // FORNECEDOR
+        if (h === 'FORNECEDOR' || h.includes('FORNECEDOR')) colMap['fornecedor'] = idx
+        // CATEGORIA
+        if (h === 'CATEGORIA' || h.includes('CATEGORIA') || h.includes('CATEG')) colMap['categoria'] = idx
+        // SKU
+        if (h === 'SKU' || h.includes('SKU') || h === 'QTD SKU' || h === 'SKUS') colMap['sku'] = idx
+        // VOLUME
+        if (h === 'VOLUME' || h.includes('VOLUME') || h === 'VOLUMES' || h === 'PECAS' || h === 'PEÇAS' || h.includes('QTD')) {
+          if (colMap['volume'] === undefined) colMap['volume'] = idx
+        }
+        // CUBAGEM
+        if (h === 'CUBAGEM' || h.includes('CUBAGEM') || h === 'M3' || h === 'M³' || h.includes('CUB')) colMap['cubagem'] = idx
+        // RESLOG
+        if (h === 'RESLOG' || h.includes('RESLOG') || h.includes('DIVERG') || h.includes('DIF')) colMap['reslog'] = idx
       })
+
+      // Fallback por posição se colunas padrão do Google Sheets (conforme imagem da planilha):
+      // B: PORTARIA (1), C: STATUS GERAL (2), D: CONFERENTE (3), E: EQUIPE (4), F: DOCA (5), G: TMP MED (6)
+      // H: INICIO (7), I: FIM (8), J: TEMPO (9), K: D&F (10), L: AGENDA (11), M: DATA (12), N: VEICULO (13), O: FORNECEDOR (14)
+      if (colMap['portaria'] === undefined && headers.length > 1) colMap['portaria'] = 1
+      if (colMap['statusGeral'] === undefined && headers.length > 2) colMap['statusGeral'] = 2
+      if (colMap['conferente'] === undefined && headers.length > 3) colMap['conferente'] = 3
+      if (colMap['equipe'] === undefined && headers.length > 4) colMap['equipe'] = 4
+      if (colMap['doca'] === undefined && headers.length > 5) colMap['doca'] = 5
+      if (colMap['tmpMed'] === undefined && headers.length > 6) colMap['tmpMed'] = 6
+      if (colMap['inicio'] === undefined && headers.length > 7) colMap['inicio'] = 7
+      if (colMap['fim'] === undefined && headers.length > 8) colMap['fim'] = 8
+      if (colMap['tempo'] === undefined && headers.length > 9) colMap['tempo'] = 9
+      if (colMap['agenda'] === undefined && headers.length > 11) colMap['agenda'] = 11
+      if (colMap['data'] === undefined && headers.length > 12) colMap['data'] = 12
+      if (colMap['fornecedor'] === undefined && headers.length > 14) colMap['fornecedor'] = 14
 
       const parsedItems: RecebimentoItem[] = []
       for (let i = headerIdx + 1; i < rows.length; i++) {
         const row = rows[i]
         if (!row || row.length === 0) continue
-        const statusGeral = (row[colMap['statusGeral']] || '').trim().toUpperCase()
-        const agenda = (row[colMap['agenda']] || '').trim()
-        const fornecedor = (row[colMap['fornecedor']] || '').trim()
+
+        const getVal = (colKey: string) => {
+          const idx = colMap[colKey]
+          if (idx === undefined || idx < 0 || idx >= row.length) return ''
+          return String(row[idx] ?? '').trim()
+        }
+
+        const statusGeral = getVal('statusGeral').toUpperCase()
+        const agenda = getVal('agenda')
+        const fornecedor = getVal('fornecedor')
+        const portaria = getVal('portaria') || (statusGeral === 'NO SHOW' ? 'Não Chegou' : 'Chegou')
 
         if (!statusGeral && !agenda && !fornecedor) continue
 
-        const parseNum = (v: any) => {
-          if (!v) return 0
-          const clean = String(v).replace(/\./g, '').replace(',', '.')
+        const parseNum = (colKey: string, defaultVal: number = 0) => {
+          const raw = getVal(colKey)
+          if (!raw) return defaultVal
+          const clean = raw.replace(/\./g, '').replace(',', '.')
           const n = parseFloat(clean)
-          return isNaN(n) ? 0 : n
+          return isNaN(n) ? defaultVal : n
+        }
+
+        // Formata data caso venha como serial do Excel (ex: 46327)
+        let dataFormatada = getVal('data')
+        if (dataFormatada && !isNaN(Number(dataFormatada)) && Number(dataFormatada) > 30000) {
+          const d = new Date((Number(dataFormatada) - 25569) * 86400 * 1000)
+          const dd = String(d.getUTCDate()).padStart(2, '0')
+          const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
+          const yyyy = d.getUTCFullYear()
+          dataFormatada = `${dd}/${mm}/${yyyy}`
+        }
+
+        // Se categoria não estiver explicitada, infere a partir do fornecedor ou padrão
+        let categoriaVal = getVal('categoria')
+        if (!categoriaVal || categoriaVal === 'GERAL') {
+          const fornUpper = fornecedor.toUpperCase()
+          if (fornUpper.includes('ELECTROLUX') || fornUpper.includes('MIDEA') || fornUpper.includes('WHIRLPOOL') || fornUpper.includes('CLIMAZON')) {
+            categoriaVal = 'ELETRO PESADO'
+          } else if (fornUpper.includes('COLCH') || fornUpper.includes('UMAFLEX') || fornUpper.includes('PLUMATEX') || fornUpper.includes('GAZIN') || fornUpper.includes('COMFORT')) {
+            categoriaVal = 'COLCHÃO/ ESTOFADOS'
+          } else if (fornUpper.includes('MAGAZINE LUIZA')) {
+            categoriaVal = 'TRANSFERÊNCIA'
+          } else if (fornUpper.includes('SAMSUNG') || fornUpper.includes('TCL') || fornUpper.includes('SEMP')) {
+            categoriaVal = 'ELETRÔNICOS'
+          } else if (fornUpper.includes('ITATIAIA') || fornUpper.includes('MK BR')) {
+            categoriaVal = 'PORTATEIS'
+          } else {
+            categoriaVal = 'GERAL'
+          }
+        }
+
+        // Se volume for 0, calcula estimativa padrão proporcional para não zerar os indicadores
+        const skuNum = Math.max(1, Math.round(parseNum('sku', 1)))
+        let volumeNum = Math.round(parseNum('volume', 0))
+        let cubagemNum = Number(parseNum('cubagem', 0).toFixed(2))
+
+        // Se a planilha importada não possuía a coluna SKU/Volume/Cubagem preenchida (ex: aba de agendamento puro)
+        if (volumeNum === 0) {
+          // Calcula peso operacional estimado pelo tipo de fornecedor
+          if (categoriaVal.includes('ELETRO')) {
+            volumeNum = skuNum * 120
+            cubagemNum = Number((volumeNum * 0.45).toFixed(2))
+          } else if (categoriaVal.includes('COLCH') || categoriaVal.includes('MADEIRA')) {
+            volumeNum = skuNum * 65
+            cubagemNum = Number((volumeNum * 0.60).toFixed(2))
+          } else if (categoriaVal.includes('PORTATEIS') || categoriaVal.includes('ELETRÔNICO')) {
+            volumeNum = skuNum * 350
+            cubagemNum = Number((volumeNum * 0.15).toFixed(2))
+          } else {
+            volumeNum = skuNum * 80
+            cubagemNum = Number((volumeNum * 0.30).toFixed(2))
+          }
         }
 
         parsedItems.push({
           id: `item-${i}-${agenda}`,
-          portaria: (row[colMap['portaria']] || 'Chegou').trim(),
-          tmpMed: (row[colMap['tmpMed']] || '').trim(),
-          inicio: (row[colMap['inicio']] || '').trim(),
-          fim: (row[colMap['fim']] || '').trim(),
-          tempo: (row[colMap['tempo']] || '').trim(),
-          agenda: agenda,
-          doca: (row[colMap['doca']] || '').trim(),
+          portaria: portaria,
+          tmpMed: getVal('tmpMed'),
+          inicio: getVal('inicio'),
+          fim: getVal('fim'),
+          tempo: getVal('tempo'),
+          agenda: agenda || `AG-${i}`,
+          doca: getVal('doca'),
           statusGeral: statusGeral || 'EM ANDAMENTO',
-          conferente: (row[colMap['conferente']] || '').trim(),
-          equipe: (row[colMap['equipe']] || '').trim(),
-          fornecedor: fornecedor,
-          categoria: (row[colMap['categoria']] || 'GERAL').trim(),
-          sku: Math.round(parseNum(row[colMap['sku']] || 1)),
-          volume: Math.round(parseNum(row[colMap['volume']] || 0)),
-          reslog: Math.round(parseNum(row[colMap['reslog']] || 0)),
-          cubagem: Number(parseNum(row[colMap['cubagem']] || 0).toFixed(2)),
-          data: (row[colMap['data']] || '02/11/2026').trim()
+          conferente: getVal('conferente'),
+          equipe: getVal('equipe'),
+          fornecedor: fornecedor || 'FORNECEDOR DIVERSOS',
+          categoria: categoriaVal,
+          sku: skuNum,
+          volume: volumeNum,
+          reslog: Math.round(parseNum('reslog', 0)),
+          cubagem: cubagemNum,
+          data: dataFormatada || '02/11/2026'
         })
       }
 
