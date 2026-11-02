@@ -28,7 +28,6 @@ import { OnlineUsersModal } from './OnlineUsersModal'
 import { UserProfileModal } from './UserProfileModal'
 import { NotificationsModal } from './NotificationsModal'
 import { SelosBadges } from './SelosBadges'
-import { MarketIntelligenceWidget } from './MarketIntelligenceWidget'
 
 export interface NavItem {
   id: string
@@ -244,9 +243,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )
         })}
       </nav>
-
-      {/* Widget de Informações Externas em Tempo Real (Mercado, Logística & Varejo) */}
-      <MarketIntelligenceWidget isCollapsed={isCollapsed} />
 
       {/* Perfil Conectado & Logout Footer */}
       <div className="p-3 border-t border-slate-800/80 bg-slate-950/70">
