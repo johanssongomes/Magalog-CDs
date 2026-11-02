@@ -269,7 +269,12 @@ export function getDaysForMonth(monthId: string) {
   })
 }
 
-const DAYS_HEADER = getDaysForMonth('2026-10')
+const getCurrentMonthKey = () => {
+  const now = new Date()
+  return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`
+}
+
+const DAYS_HEADER = getDaysForMonth(getCurrentMonthKey())
 
 import { supabase } from '../lib/supabase'
 
@@ -477,10 +482,10 @@ export const PerformancePage: React.FC = () => {
     return DEFAULT_CATEGORIES
   })
 
-  // Mês Selecionado para Visualização e Lançamento de Metas (Padrão: Outubro 2026)
-  const [selectedMonth, setSelectedMonth] = useState<string>('2026-10')
+  // Mês Selecionado para Visualização e Lançamento de Metas (Padrão: Mês Vigente)
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => getCurrentMonthKey())
   const [isMetasModalOpen, setIsMetasModalOpen] = useState(false)
-  const [metasModalMonth, setMetasModalMonth] = useState<string>('2026-10')
+  const [metasModalMonth, setMetasModalMonth] = useState<string>(() => getCurrentMonthKey())
 
   // Filtro Nível 1: Agrupamentos Selecionados ([] = Todos)
   const [selectedGroupFilters, setSelectedGroupFilters] = useState<GroupType[]>([])
