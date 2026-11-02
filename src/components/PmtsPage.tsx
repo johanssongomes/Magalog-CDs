@@ -1531,9 +1531,9 @@ export const PmtsPage: React.FC = () => {
       .sort((a, b) => b.totalArea - a.totalArea || a.area.localeCompare(b.area))
   }, [colaboradoresList, totalGeral])
 
-  // Estado dos Filtros de Ano e Mês (para PMT Expedição/Recebimento)
-  const [selectedYear, setSelectedYear] = useState<number>(2026)
-  const [selectedMonth, setSelectedMonth] = useState<number>(10)
+  // Estado dos Filtros de Ano e Mês (para PMT Expedição/Recebimento - padrão: Mês Vigente)
+  const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear())
+  const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1)
 
   // Estado do Modal de Importação / Atualização PMT
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
@@ -4392,8 +4392,8 @@ export const PmtsPage: React.FC = () => {
                                 setEditingColaborador({ ...editingColaborador, selos: next })
                               }}
                               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-2xs ${isChecked
-                                  ? `${selo.bgChecked} border-transparent shadow-sm scale-102`
-                                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                                ? `${selo.bgChecked} border-transparent shadow-sm scale-102`
+                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
                                 }`}
                             >
                               <span className={`w-2 h-2 rounded-full ${isChecked ? 'bg-white' : 'bg-slate-300'}`}></span>

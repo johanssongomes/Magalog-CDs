@@ -16,8 +16,8 @@ const WEEKDAY_INITIALS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
 
 export const PmtDashboardOverview: React.FC = () => {
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('cubagem')
-  const [selectedYear, setSelectedYear] = useState<number>(2026)
-  const [selectedMonth, setSelectedMonth] = useState<number>(10) // 1-indexed: 10 = Outubro
+  const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear())
+  const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1) // 1-indexed: Mês Vigente
   const [isLoading, setIsLoading] = useState<boolean>(false)
 
   // Dados dinâmicos carregados da PMT (Supabase / local)
