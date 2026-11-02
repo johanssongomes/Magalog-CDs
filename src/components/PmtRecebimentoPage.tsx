@@ -430,6 +430,7 @@ const SHEET_SPREADSHEET_ID = '1s2cnuSCOFFnyFLc7s80eFH1oiGm1LHfGaJxO2dsioRI'
 const SHEET_GID = '585841890'
 const GOOGLE_SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`
+const ITENS_AG_JSON_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent('Itens Ag')}`
 const ITENS_AG_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('Itens Ag')}`
 
 export const PmtRecebimentoPage: React.FC = () => {
@@ -475,17 +476,46 @@ export const PmtRecebimentoPage: React.FC = () => {
       }
       parseAndSetData(csvText)
 
-      // 2. Busca dados da aba Itens Ag
+      // 2. Busca dados da aba Itens Ag (tenta primeiro via JSON gviz que é 100% estruturado)
       try {
-        const resItens = await fetch(ITENS_AG_CSV_URL)
+        const resItens = await fetch(ITENS_AG_JSON_URL)
         if (resItens.ok) {
-          const itensCsvText = await resItens.text()
-          if (!itensCsvText.includes('<!DOCTYPE html>') && !itensCsvText.includes('accounts.google.com')) {
-            parseAndSetItensAg(itensCsvText)
+          const jsonText = await resItens.text()
+          if (!jsonText.includes('<!DOCTYPE html>') && jsonText.includes('google.visualization.Query.setResponse')) {
+            const rawJson = jsonText.replace(/^[^{]*\(/, '').replace(/\);?\s*$/, '')
+            const parsed = JSON.parse(rawJson)
+            if (parsed?.table?.rows) {
+              const map: Record<string, ItemAgendamento[]> = {}
+              parsed.table.rows.forEach((r: any) => {
+                const ag = String(r.c?.[0]?.v ?? '').trim()
+                const sku = String(r.c?.[15]?.v ?? '').trim()
+                const desc = String(r.c?.[17]?.v ?? '').trim()
+                const rawQt = String(r.c?.[22]?.v ?? '').trim()
+                const qt = Math.round(parseFloat(rawQt.replace(',', '.'))) || 0
+                if (!ag || (!sku && !desc)) return
+                if (!map[ag]) map[ag] = []
+                map[ag].push({
+                  agenda: ag,
+                  sku: sku || '—',
+                  descricao: desc || 'Item sem descrição',
+                  qtAgenda: qt
+                })
+              })
+              setItensAgMap(map)
+            }
           }
         }
       } catch {
-        // Se falhar aba Itens Ag, não quebra a tela principal
+        // Fallback para CSV se JSON falhar
+        try {
+          const resItensCsv = await fetch(ITENS_AG_CSV_URL)
+          if (resItensCsv.ok) {
+            const itensCsvText = await resItensCsv.text()
+            if (!itensCsvText.includes('<!DOCTYPE html>')) {
+              parseAndSetItensAg(itensCsvText)
+            }
+          }
+        } catch { }
       }
 
       setSyncStatus('live')
