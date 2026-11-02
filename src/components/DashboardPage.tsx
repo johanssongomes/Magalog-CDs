@@ -98,7 +98,7 @@ const KpiNs: React.FC<{
   value: string
   meta: string
   tone: string
-  items: [string, string][]
+  items: [string, string, string?][]
   metaTiers?: { label: string; ating: string; dotColor: string }[]
 }> = ({ icon, title, value, meta, tone, items, metaTiers }) => {
   const valueColor = getMetaValueColor(value, metaTiers)
@@ -155,7 +155,7 @@ const KpiNs: React.FC<{
         </div>
       </div>
       <div className={`shrink-0 pl-1.5 border-l border-slate-100 ${items.length > 3 ? 'text-[7.5px] space-y-[1px]' : 'text-[8.5px] space-y-0.5'}`}>
-        {items.map(([k, v]) => {
+        {items.map(([k, v, dt]) => {
           const itemNum = parseNumericValue(v)
           // Se houver faixas de meta (metaTiers), avalia a cor de cada subindicador
           let itemColor = 'text-emerald-600'
@@ -179,9 +179,16 @@ const KpiNs: React.FC<{
           }
 
           return (
-            <div key={k} className="flex justify-between gap-1 leading-none">
+            <div key={k} className="flex items-center justify-between gap-1 leading-none">
               <span className="text-slate-400 font-medium">{k}</span>
-              <span className={itemColor}>{v}</span>
+              <div className="flex items-center gap-1">
+                {dt && (
+                  <span className="text-[6.5px] text-slate-400 font-mono scale-90 -mr-0.5" title={`Atualizado em ${dt}`}>
+                    {dt}
+                  </span>
+                )}
+                <span className={itemColor}>{v}</span>
+              </div>
             </div>
           )
         })}
@@ -389,6 +396,13 @@ export const DashboardPage: React.FC = () => {
     courrie: string
     diario: string
     mensal: string
+    dates: {
+      micro: string
+      rodo: string
+      courrie: string
+      diario: string
+      mensal: string
+    }
     lastDay: string
   }>({
     value: '99,8%',
@@ -397,6 +411,13 @@ export const DashboardPage: React.FC = () => {
     courrie: '100%',
     diario: '100%',
     mensal: '99,8%',
+    dates: {
+      micro: '30/out',
+      rodo: '30/out',
+      courrie: '29/out',
+      diario: '30/out',
+      mensal: '30/out'
+    },
     lastDay: '30/out'
   })
 
@@ -405,11 +426,19 @@ export const DashboardPage: React.FC = () => {
     value: string
     diario: string
     mensal: string
+    dates: {
+      diario: string
+      mensal: string
+    }
     lastDay: string
   }>({
     value: '94,75%',
     diario: '90,91%',
     mensal: '94,75%',
+    dates: {
+      diario: '30/out',
+      mensal: '30/out'
+    },
     lastDay: '30/out'
   })
 
@@ -436,6 +465,13 @@ export const DashboardPage: React.FC = () => {
     courrie: string
     diario: string
     mensal: string
+    dates: {
+      micro: string
+      rodo: string
+      courrie: string
+      diario: string
+      mensal: string
+    }
     lastDay: string
   }>({
     value: '95,92%',
@@ -444,6 +480,13 @@ export const DashboardPage: React.FC = () => {
     courrie: '97,67%',
     diario: '96,50%',
     mensal: '95,92%',
+    dates: {
+      micro: '30/out',
+      rodo: '08/out',
+      courrie: '08/out',
+      diario: '30/out',
+      mensal: '30/out'
+    },
     lastDay: '30/out'
   })
 
@@ -452,11 +495,19 @@ export const DashboardPage: React.FC = () => {
     value: string
     diario: string
     mensal: string
+    dates: {
+      diario: string
+      mensal: string
+    }
     lastDay: string
   }>({
     value: '98,29%',
     diario: '100%',
     mensal: '98,29%',
+    dates: {
+      diario: '30/out',
+      mensal: '30/out'
+    },
     lastDay: '30/out'
   })
 
@@ -507,46 +558,64 @@ export const DashboardPage: React.FC = () => {
         value: mainVal,
         diario: diarioObj.val,
         mensal: mensalObj.val,
+        dates: {
+          diario: diarioObj.dayPart || '30/out',
+          mensal: mensalObj.dayPart || '30/out'
+        },
         lastDay: mensalObj.dayPart || diarioObj.dayPart || '30/out'
       })
     }
 
     const processSaidaMetrics = (metricsMap: Record<string, string>) => {
-      const microVal = getLastValidValueChronological('ns_saida_eclusa_micro_', '100%', metricsMap).val
-      const rodoVal = getLastValidValueChronological('ns_saida_eclusa_rodo_', '100%', metricsMap).val
-      const courrieVal = getLastValidValueChronological('ns_saida_eclusa_courrie_', '100%', metricsMap).val
-      const diarioVal = getLastValidValueChronological('ns_saida_eclusa_eclusa_diario_', '100%', metricsMap).val
+      const microObj = getLastValidValueChronological('ns_saida_eclusa_micro_', '100%', metricsMap)
+      const rodoObj = getLastValidValueChronological('ns_saida_eclusa_rodo_', '100%', metricsMap)
+      const courrieObj = getLastValidValueChronological('ns_saida_eclusa_courrie_', '100%', metricsMap)
+      const diarioObj = getLastValidValueChronological('ns_saida_eclusa_eclusa_diario_', '100%', metricsMap)
       const mensalObj = getLastValidValueChronological('ns_saida_eclusa_eclusa_mensal_', '99,8%', metricsMap)
 
-      const mainVal = mensalObj.val !== '-' ? mensalObj.val : (diarioVal !== '-' ? diarioVal : '99,8%')
+      const mainVal = mensalObj.val !== '-' ? mensalObj.val : (diarioObj.val !== '-' ? diarioObj.val : '99,8%')
 
       setSaidaData({
         value: mainVal,
-        micro: microVal,
-        rodo: rodoVal,
-        courrie: courrieVal,
-        diario: diarioVal,
+        micro: microObj.val,
+        rodo: rodoObj.val,
+        courrie: courrieObj.val,
+        diario: diarioObj.val,
         mensal: mensalObj.val,
+        dates: {
+          micro: microObj.dayPart || '30/out',
+          rodo: rodoObj.dayPart || '30/out',
+          courrie: courrieObj.dayPart || '29/out',
+          diario: diarioObj.dayPart || '30/out',
+          mensal: mensalObj.dayPart || '30/out'
+        },
         lastDay: mensalObj.dayPart || '30/out'
       })
     }
 
     const processClienteMetrics = (metricsMap: Record<string, string>) => {
-      const microVal = getLastValidValueChronological('ns_cliente_micro_', '96,77%', metricsMap).val
-      const rodoVal = getLastValidValueChronological('ns_cliente_rodo_', '89,47%', metricsMap).val
-      const courrieVal = getLastValidValueChronological('ns_cliente_courrie_', '97,67%', metricsMap).val
-      const diarioVal = getLastValidValueChronological('ns_cliente_ns_diario_', '96,50%', metricsMap).val
+      const microObj = getLastValidValueChronological('ns_cliente_micro_', '96,77%', metricsMap)
+      const rodoObj = getLastValidValueChronological('ns_cliente_rodo_', '89,47%', metricsMap)
+      const courrieObj = getLastValidValueChronological('ns_cliente_courrie_', '97,67%', metricsMap)
+      const diarioObj = getLastValidValueChronological('ns_cliente_ns_diario_', '96,50%', metricsMap)
       const mensalObj = getLastValidValueChronological('ns_cliente_ns_mensal_', '95,92%', metricsMap)
 
-      const mainVal = mensalObj.val !== '-' ? mensalObj.val : (diarioVal !== '-' ? diarioVal : '95,92%')
+      const mainVal = mensalObj.val !== '-' ? mensalObj.val : (diarioObj.val !== '-' ? diarioObj.val : '95,92%')
 
       setClienteData({
         value: mainVal,
-        micro: microVal,
-        rodo: rodoVal,
-        courrie: courrieVal,
-        diario: diarioVal,
+        micro: microObj.val,
+        rodo: rodoObj.val,
+        courrie: courrieObj.val,
+        diario: diarioObj.val,
         mensal: mensalObj.val,
+        dates: {
+          micro: microObj.dayPart || '30/out',
+          rodo: rodoObj.dayPart || '08/out',
+          courrie: courrieObj.dayPart || '08/out',
+          diario: diarioObj.dayPart || '30/out',
+          mensal: mensalObj.dayPart || '30/out'
+        },
         lastDay: mensalObj.dayPart || '30/out'
       })
     }
@@ -562,14 +631,18 @@ export const DashboardPage: React.FC = () => {
     }
 
     const processRleMetrics = (metricsMap: Record<string, string>) => {
-      const diarioVal = getLastValidValueChronological('ns_rle_rle_diario_', '100%', metricsMap).val
+      const diarioObj = getLastValidValueChronological('ns_rle_rle_diario_', '100%', metricsMap)
       const mensalObj = getLastValidValueChronological('ns_rle_rle_mensal_', '98,29%', metricsMap)
-      const mainVal = mensalObj.val !== '-' ? mensalObj.val : (diarioVal !== '-' ? diarioVal : '98,29%')
+      const mainVal = mensalObj.val !== '-' ? mensalObj.val : (diarioObj.val !== '-' ? diarioObj.val : '98,29%')
 
       setRleData({
         value: mainVal,
-        diario: diarioVal,
+        diario: diarioObj.val,
         mensal: mensalObj.val,
+        dates: {
+          diario: diarioObj.dayPart || '30/out',
+          mensal: mensalObj.dayPart || '30/out'
+        },
         lastDay: mensalObj.dayPart || '30/out'
       })
     }
@@ -676,11 +749,11 @@ export const DashboardPage: React.FC = () => {
             { label: '>= 98,2%', ating: '50%', dotColor: 'bg-rose-500' }
           ]}
           items={[
-            ['Micro', saidaData.micro],
-            ['Rodo', saidaData.rodo],
-            ['Courrie', saidaData.courrie],
-            ['Diário', saidaData.diario],
-            ['Mensal', saidaData.mensal]
+            ['Micro', saidaData.micro, saidaData.dates.micro],
+            ['Rodo', saidaData.rodo, saidaData.dates.rodo],
+            ['Courrie', saidaData.courrie, saidaData.dates.courrie],
+            ['Diário', saidaData.diario, saidaData.dates.diario],
+            ['Mensal', saidaData.mensal, saidaData.dates.mensal]
           ]}
         />
         <KpiNs
@@ -695,11 +768,11 @@ export const DashboardPage: React.FC = () => {
             { label: '<= 94,5%', ating: '50%', dotColor: 'bg-rose-500' }
           ]}
           items={[
-            ['Micro', clienteData.micro],
-            ['Courrie', clienteData.courrie],
-            ['Rodo', clienteData.rodo],
-            ['Diário', clienteData.diario],
-            ['Mensal', clienteData.mensal]
+            ['Micro', clienteData.micro, clienteData.dates.micro],
+            ['Courrie', clienteData.courrie, clienteData.dates.courrie],
+            ['Rodo', clienteData.rodo, clienteData.dates.rodo],
+            ['Diário', clienteData.diario, clienteData.dates.diario],
+            ['Mensal', clienteData.mensal, clienteData.dates.mensal]
           ]}
         />
         <KpiNs
@@ -714,8 +787,8 @@ export const DashboardPage: React.FC = () => {
             { label: '<= 95,9%', ating: '50%', dotColor: 'bg-rose-500' }
           ]}
           items={[
-            ['Diário', fullData.diario],
-            ['Mensal', fullData.mensal]
+            ['Diário', fullData.diario, fullData.dates.diario],
+            ['Mensal', fullData.mensal, fullData.dates.mensal]
           ]}
         />
         <KpiNs
@@ -729,8 +802,8 @@ export const DashboardPage: React.FC = () => {
             { label: '< 95,0%', ating: '50%', dotColor: 'bg-rose-500' }
           ]}
           items={[
-            ['Diário', rleData.diario],
-            ['Mensal', rleData.mensal]
+            ['Diário', rleData.diario, rleData.dates.diario],
+            ['Mensal', rleData.mensal, rleData.dates.mensal]
           ]}
         />
         <KpiAtendimento data={atendimentoData} />
