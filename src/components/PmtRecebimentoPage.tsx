@@ -580,7 +580,7 @@ export const PmtRecebimentoPage: React.FC = () => {
         const ag = String(r[colAgenda] || '').trim()
         const sku = String(r[colSku] || '').trim()
         const desc = String(r[colDesc] || '').trim()
-        
+
         // Trata número decimal com ponto ou vírgula (ex: "30.0" -> 30, "108.0" -> 108)
         const rawQt = String(r[colQt] || '').trim()
         let qt = 0
@@ -1207,10 +1207,10 @@ export const PmtRecebimentoPage: React.FC = () => {
                 Recebimento CD 6994 &bull; Acompanhamento de Fornecedor
               </h2>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${syncStatus === 'live'
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                  : syncStatus === 'imported'
-                    ? 'bg-blue-100 text-blue-800 border border-blue-300'
-                    : 'bg-amber-100 text-amber-800 border border-amber-300'
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                : syncStatus === 'imported'
+                  ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                  : 'bg-amber-100 text-amber-800 border border-amber-300'
                 }`}>
                 {syncStatus === 'live' ? 'Online (Google Sheets)' : syncStatus === 'imported' ? 'Base Carregada' : 'Modo Demonstração'}
               </span>
@@ -1309,8 +1309,8 @@ export const PmtRecebimentoPage: React.FC = () => {
             <div
               onClick={() => setSelectedPortaria(selectedPortaria === 'Chegou' ? 'TODOS' : 'Chegou')}
               className={`p-3 rounded-xl border transition-all cursor-pointer ${selectedPortaria === 'Chegou'
-                  ? 'bg-amber-100 border-amber-400 text-amber-950 shadow-xs'
-                  : 'bg-amber-50/70 hover:bg-amber-100/70 border-amber-200/80 text-amber-900'
+                ? 'bg-amber-100 border-amber-400 text-amber-950 shadow-xs'
+                : 'bg-amber-50/70 hover:bg-amber-100/70 border-amber-200/80 text-amber-900'
                 }`}
             >
               <span className="text-[10px] font-bold uppercase tracking-wider block text-amber-800">
@@ -1324,8 +1324,8 @@ export const PmtRecebimentoPage: React.FC = () => {
             <div
               onClick={() => setSelectedPortaria(selectedPortaria === 'Não Chegou' ? 'TODOS' : 'Não Chegou')}
               className={`p-3 rounded-xl border transition-all cursor-pointer ${selectedPortaria === 'Não Chegou'
-                  ? 'bg-slate-200 border-slate-400 text-slate-900 shadow-xs'
-                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                ? 'bg-slate-200 border-slate-400 text-slate-900 shadow-xs'
+                : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
                 }`}
             >
               <span className="text-[10px] font-bold uppercase tracking-wider block text-slate-500">
@@ -1467,6 +1467,7 @@ export const PmtRecebimentoPage: React.FC = () => {
             <thead>
               <tr className="bg-slate-900 text-white font-bold text-[11px] tracking-wide uppercase">
                 <th className="py-2.5 px-3">Portaria</th>
+                <th className="py-2.5 px-2.5 text-center">Data Agenda</th>
                 <th className="py-2.5 px-2">Tmp Med</th>
                 <th className="py-2.5 px-2">Início</th>
                 <th className="py-2.5 px-2">Fim</th>
@@ -1486,7 +1487,7 @@ export const PmtRecebimentoPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="py-12 text-center text-slate-400">
+                  <td colSpan={16} className="py-12 text-center text-slate-400">
                     Nenhum registro encontrado para os filtros selecionados.
                   </td>
                 </tr>
@@ -1502,6 +1503,11 @@ export const PmtRecebimentoPage: React.FC = () => {
                         {/* Portaria (amarelo claro quando Chegou, como no print) */}
                         <td className={`py-2 px-3 font-semibold ${isChegou ? 'bg-amber-100 text-amber-950 font-bold' : 'text-slate-500'}`}>
                           {item.portaria}
+                        </td>
+
+                        {/* Data da Agenda */}
+                        <td className="py-2 px-2.5 text-center font-mono font-semibold text-slate-700 bg-slate-50/80 text-[11px] whitespace-nowrap">
+                          {item.data || '-'}
                         </td>
 
                         {/* Tmp Med */}
@@ -1535,9 +1541,8 @@ export const PmtRecebimentoPage: React.FC = () => {
                             <span>{item.agenda}</span>
                             <ChevronDown
                               size={13}
-                              className={`text-blue-500 group-hover:text-blue-800 transition-transform duration-200 ${
-                                isExpanded ? 'rotate-180 text-blue-800' : ''
-                              }`}
+                              className={`text-blue-500 group-hover:text-blue-800 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-800' : ''
+                                }`}
                             />
                           </button>
                         </td>
@@ -1593,7 +1598,7 @@ export const PmtRecebimentoPage: React.FC = () => {
                       {/* LINHA EXPANSÍVEL: ITENS DA AGENDA (ABA ITENS AG) */}
                       {isExpanded && (
                         <tr className="bg-gradient-to-r from-blue-50/60 via-slate-50 to-blue-50/60 animate-in fade-in duration-200 border-y border-blue-200/80">
-                          <td colSpan={15} className="p-3 pl-8 pr-6">
+                          <td colSpan={16} className="p-3 pl-8 pr-6">
                             <div className="bg-white rounded-xl p-3 border border-blue-200 shadow-xs space-y-2">
                               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                                 <div className="flex items-center gap-2">
