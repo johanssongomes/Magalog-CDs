@@ -429,12 +429,14 @@ export const PmtRecebimentoPage: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<'sample' | 'live' | 'imported' | 'error'>('sample')
   const [errorMessage, setErrorMessage] = useState<string>('')
 
-  // Filtros
-  const [selectedCategoria, setSelectedCategoria] = useState<string>('TODAS')
-  const [selectedAgenda, setSelectedAgenda] = useState<string>('TODAS')
+  // Filtros operacionais baseados nos campos da planilha
+  const [selectedData, setSelectedData] = useState<string>('TODAS')
   const [selectedStatus, setSelectedStatus] = useState<string>('TODOS')
   const [selectedPortaria, setSelectedPortaria] = useState<string>('TODOS')
-  const [selectedData, setSelectedData] = useState<string>('02/11/2026')
+  const [selectedConferente, setSelectedConferente] = useState<string>('TODOS')
+  const [selectedDoca, setSelectedDoca] = useState<string>('TODAS')
+  const [selectedCategoria, setSelectedCategoria] = useState<string>('TODAS')
+  const [selectedAgenda, setSelectedAgenda] = useState<string>('TODAS')
   const [searchTerm, setSearchTerm] = useState<string>('')
 
   // Modal de importação manual
@@ -611,45 +613,66 @@ export const PmtRecebimentoPage: React.FC = () => {
     reader.readAsBinaryString(file)
   }
 
-  // Listas distintas para os filtros
+  // Listas distintas para os filtros baseados nos campos da planilha
+  const conferentesList = useMemo(() => {
+    const set = new Set<string>()
+    data.forEach(d => { if (d.conferente && d.conferente.trim()) set.add(d.conferente.trim()) })
+    return Array.from(set).sort()
+  }, [data])
+
+  const docasList = useMemo(() => {
+    const set = new Set<string>()
+    data.forEach(d => { if (d.doca && d.doca.trim()) set.add(d.doca.trim()) })
+    return Array.from(set).sort((a, b) => Number(a) - Number(b))
+  }, [data])
+
+  const statusList = useMemo(() => {
+    const set = new Set<string>()
+    data.forEach(d => { if (d.statusGeral && d.statusGeral.trim()) set.add(d.statusGeral.trim()) })
+    return Array.from(set).sort()
+  }, [data])
+
   const categoriasList = useMemo(() => {
     const set = new Set<string>()
-    data.forEach(d => { if (d.categoria) set.add(d.categoria) })
+    data.forEach(d => { if (d.categoria && d.categoria.trim()) set.add(d.categoria.trim()) })
     return Array.from(set).sort()
   }, [data])
 
   const agendasList = useMemo(() => {
     const set = new Set<string>()
-    data.forEach(d => { if (d.agenda) set.add(d.agenda) })
+    data.forEach(d => { if (d.agenda && d.agenda.trim()) set.add(d.agenda.trim()) })
     return Array.from(set).sort()
   }, [data])
 
   const datesList = useMemo(() => {
     const set = new Set<string>()
-    data.forEach(d => { if (d.data) set.add(d.data) })
-    return Array.from(set)
+    data.forEach(d => { if (d.data && d.data.trim()) set.add(d.data.trim()) })
+    return Array.from(set).sort().reverse()
   }, [data])
 
   // Filtragem dos dados
   const filteredData = useMemo(() => {
     return data.filter(item => {
       if (selectedData !== 'TODAS' && item.data !== selectedData) return false
-      if (selectedCategoria !== 'TODAS' && item.categoria !== selectedCategoria) return false
-      if (selectedAgenda !== 'TODAS' && item.agenda !== selectedAgenda) return false
       if (selectedStatus !== 'TODOS' && item.statusGeral !== selectedStatus) return false
       if (selectedPortaria !== 'TODOS' && item.portaria !== selectedPortaria) return false
+      if (selectedConferente !== 'TODOS' && item.conferente !== selectedConferente) return false
+      if (selectedDoca !== 'TODAS' && item.doca !== selectedDoca) return false
+      if (selectedCategoria !== 'TODAS' && item.categoria !== selectedCategoria) return false
+      if (selectedAgenda !== 'TODAS' && item.agenda !== selectedAgenda) return false
       if (searchTerm) {
         const term = searchTerm.toLowerCase()
         const match =
           item.fornecedor.toLowerCase().includes(term) ||
           item.agenda.toLowerCase().includes(term) ||
           item.conferente.toLowerCase().includes(term) ||
-          item.categoria.toLowerCase().includes(term)
+          item.categoria.toLowerCase().includes(term) ||
+          item.doca.toLowerCase().includes(term)
         if (!match) return false
       }
       return true
     })
-  }, [data, selectedData, selectedCategoria, selectedAgenda, selectedStatus, selectedPortaria, searchTerm])
+  }, [data, selectedData, selectedStatus, selectedPortaria, selectedConferente, selectedDoca, selectedCategoria, selectedAgenda, searchTerm])
 
   // Resumo de Portaria
   const portariaResumo = useMemo(() => {
@@ -721,6 +744,144 @@ export const PmtRecebimentoPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* =========================================================================
+          FILTROS OPERACIONAIS DE CABEÇALHO (CAMPOS DA PLANILHA RECEBIMENTO)
+          ========================================================================= */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider font-mono mr-1">
+            <Filter size={15} className="text-blue-600" />
+            <span>Filtros Recebimento:</span>
+          </div>
+
+          {/* Filtro por Data (da Planilha) */}
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
+            <Calendar size={14} className="text-blue-600 shrink-0" />
+            <div className="flex flex-col text-left">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                Data
+              </span>
+              <select
+                value={selectedData}
+                onChange={(e) => setSelectedData(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
+              >
+                <option value="TODAS">Todas as Datas</option>
+                {datesList.map(dt => (
+                  <option key={dt} value={dt}>{dt}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Filtro por Status Geral */}
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
+            <Activity size={14} className="text-emerald-600 shrink-0" />
+            <div className="flex flex-col text-left">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                Status Geral
+              </span>
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
+              >
+                <option value="TODOS">Todos os Status ({statusList.length})</option>
+                {statusList.map(st => (
+                  <option key={st} value={st}>{st}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Filtro por Conferente */}
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
+            <Users size={14} className="text-indigo-600 shrink-0" />
+            <div className="flex flex-col text-left">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                Conferente
+              </span>
+              <select
+                value={selectedConferente}
+                onChange={(e) => setSelectedConferente(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
+              >
+                <option value="TODOS">Todos ({conferentesList.length})</option>
+                {conferentesList.map(conf => (
+                  <option key={conf} value={conf}>{conf}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Filtro por Doca */}
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
+            <Box size={14} className="text-amber-600 shrink-0" />
+            <div className="flex flex-col text-left">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                Doca
+              </span>
+              <select
+                value={selectedDoca}
+                onChange={(e) => setSelectedDoca(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
+              >
+                <option value="TODAS">Todas ({docasList.length})</option>
+                {docasList.map(doca => (
+                  <option key={doca} value={doca}>Doca {doca}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Filtro por Portaria */}
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
+            <Truck size={14} className="text-amber-600 shrink-0" />
+            <div className="flex flex-col text-left">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                Portaria
+              </span>
+              <select
+                value={selectedPortaria}
+                onChange={(e) => setSelectedPortaria(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
+              >
+                <option value="TODOS">Todos</option>
+                <option value="Chegou">Chegou</option>
+                <option value="Não Chegou">Não Chegou</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Resumo de linhas filtradas e botão de reset */}
+        <div className="flex items-center gap-2">
+          <span className="px-2.5 py-1 rounded-xl bg-blue-50 text-blue-800 text-xs font-mono font-bold border border-blue-100">
+            {filteredData.length} registros
+          </span>
+
+          {(selectedData !== 'TODAS' || selectedStatus !== 'TODOS' || selectedPortaria !== 'TODOS' || selectedConferente !== 'TODOS' || selectedDoca !== 'TODAS' || selectedCategoria !== 'TODAS' || selectedAgenda !== 'TODAS' || searchTerm) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedData('TODAS')
+                setSelectedStatus('TODOS')
+                setSelectedPortaria('TODOS')
+                setSelectedConferente('TODOS')
+                setSelectedDoca('TODAS')
+                setSelectedCategoria('TODAS')
+                setSelectedAgenda('TODAS')
+                setSearchTerm('')
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
+            >
+              <X size={12} />
+              <span>Limpar Filtros</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* =========================================================================
           BARRA DE FERRAMENTAS E STATUS DE CONEXÃO COM O GOOGLE SHEETS
           ========================================================================= */}

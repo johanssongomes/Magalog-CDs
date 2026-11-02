@@ -2067,10 +2067,10 @@ export const PmtsPage: React.FC = () => {
       {/* =========================================================================
           2. FILTROS E AÇÕES DE CABEÇALHO
           - Se Dashboard ou Quadro TT: Filtros com sentido de RH/Quadro (Busca, Cargo, Centro de Custo, Status do Headcount)
-          - Botões no Quadro: "Cadastrar" e "Importar Planilha (Cadastro em Massa)", SEM o botão "Atualizar"
-          - Se Outros PMTs: Filtro Ano + Mês, Atualizar e Importar PMT
+          - Se Recebimento: Cada sub-página gerencia seus próprios filtros operacionais específicos
+          - Se Outros PMTs (Expedição): Filtro Ano + Mês, Atualizar e Importar PMT
           ========================================================================= */}
-      {activePageId !== 1 && activePageId !== 4 && activePageId !== 5 && activePageId !== 6 && (!isQuadro || quadroSubPage === 'pg1' || quadroSubPage === 'dashboard') && (
+      {activePageId !== 1 && activePageId !== 2 && activePageId !== 4 && activePageId !== 5 && activePageId !== 6 && (!isQuadro || quadroSubPage === 'pg1' || quadroSubPage === 'dashboard') && (
         <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
           {isQuadro ? (
             /* FILTROS ESPECÍFICOS DO QUADRO */
