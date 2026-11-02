@@ -426,6 +426,17 @@ const TEMPO_MEDIO_CATEGORIAS: { categoria: string; tempoMedio: string }[] = [
   { categoria: 'BB/BR/BKF', tempoMedio: '03:26:13' }
 ]
 
+// Ordem de prioridade operacional para classificação por Status Geral
+const STATUS_PRIORITY: Record<string, number> = {
+  'EM ANDAMENTO': 1,
+  'AGUARDANDO DESCARGA': 2,
+  'AGENDA ANTECIPADA': 3,
+  'FINALIZADA': 4,
+  'PARA O DIA SEGUINTE': 5,
+  'DEVOLVIDA': 6,
+  'NO SHOW': 7
+}
+
 const SHEET_SPREADSHEET_ID = '1s2cnuSCOFFnyFLc7s80eFH1oiGm1LHfGaJxO2dsioRI'
 const SHEET_GID = '585841890'
 const GOOGLE_SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`
@@ -450,6 +461,7 @@ export const PmtRecebimentoPage: React.FC = () => {
   const [selectedCategoria, setSelectedCategoria] = useState<string>('TODAS')
   const [selectedAgenda, setSelectedAgenda] = useState<string>('TODAS')
   const [searchTerm, setSearchTerm] = useState<string>('')
+  const [statusSortOrder, setStatusSortOrder] = useState<'asc' | 'desc'>('asc')
 
   // Modal de importação manual
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
@@ -921,9 +933,9 @@ export const PmtRecebimentoPage: React.FC = () => {
     return Array.from(set).sort().reverse()
   }, [data])
 
-  // Filtragem dos dados
+  // Filtragem e ordenação dos dados por Status Geral
   const filteredData = useMemo(() => {
-    return data.filter(item => {
+    const list = data.filter(item => {
       if (selectedData !== 'TODAS' && item.data !== selectedData) return false
       if (selectedStatus !== 'TODOS' && item.statusGeral !== selectedStatus) return false
       if (selectedPortaria !== 'TODOS' && item.portaria !== selectedPortaria) return false
@@ -943,7 +955,18 @@ export const PmtRecebimentoPage: React.FC = () => {
       }
       return true
     })
-  }, [data, selectedData, selectedStatus, selectedPortaria, selectedConferente, selectedDoca, selectedCategoria, selectedAgenda, searchTerm])
+
+    // Classificação por Status Geral (Ordem operacional: Em Andamento -> Aguardando -> Antecipada -> Finalizada -> Dia Seguinte -> Devolvida -> No Show)
+    return list.sort((a, b) => {
+      const pA = STATUS_PRIORITY[a.statusGeral] ?? 99
+      const pB = STATUS_PRIORITY[b.statusGeral] ?? 99
+      if (pA !== pB) {
+        return statusSortOrder === 'asc' ? pA - pB : pB - pA
+      }
+      // Critério secundário: se mesmo status, ordena alfabeticamente ou por fornecedor
+      return a.fornecedor.localeCompare(b.fornecedor)
+    })
+  }, [data, selectedData, selectedStatus, selectedPortaria, selectedConferente, selectedDoca, selectedCategoria, selectedAgenda, searchTerm, statusSortOrder])
 
   // Resumo de Portaria
   const portariaResumo = useMemo(() => {
@@ -1474,7 +1497,16 @@ export const PmtRecebimentoPage: React.FC = () => {
                 <th className="py-2.5 px-2">Tempo</th>
                 <th className="py-2.5 px-2.5">Agenda</th>
                 <th className="py-2.5 px-2 text-center">Doca</th>
-                <th className="py-2.5 px-3 text-center">Status Geral</th>
+                <th
+                  onClick={() => setStatusSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                  className="py-2.5 px-3 text-center cursor-pointer select-none hover:bg-slate-800 transition-colors"
+                  title="Clique para alternar ordenação por Status Geral"
+                >
+                  <div className="inline-flex items-center gap-1">
+                    <span>Status Geral</span>
+                    <ArrowUpDown size={11} className="text-slate-400" />
+                  </div>
+                </th>
                 <th className="py-2.5 px-3">Conferente</th>
                 <th className="py-2.5 px-2 text-center">Equipe</th>
                 <th className="py-2.5 px-3">Fornecedor</th>
