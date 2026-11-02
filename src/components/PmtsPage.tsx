@@ -59,6 +59,7 @@ import { PromocionaisTable } from './PromocionaisTable'
 import { PmtProjectionsChartPage } from './PmtProjectionsChartPage'
 import { TableauIndicadoresPage } from './TableauIndicadoresPage'
 import { LookerCarteiraPage } from './LookerCarteiraPage'
+import { PmtRecebimentoPage } from './PmtRecebimentoPage'
 import { supabase } from '../lib/supabase'
 import { getPmtSummaryFromSupabase, parseAndUploadPmtExcel } from '../lib/pmtService'
 import { useAuth, LISTA_SITUACAO_SISTEMA_OPCOES } from '../lib/authContext'
@@ -3375,69 +3376,72 @@ export const PmtsPage: React.FC = () => {
           </div>
         </div>
       ) : isRecebimento ? (
-        /* PÁGINAS DE PMT RECEBIMENTO (pg1, pg2, pg3, pg4) PRONTAS PARA RECEBER OS DADOS */
-        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 shadow-2xs">
-                <DownloadCloud size={24} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-mono text-[11px] font-bold">
-                    PMT Recebimento &bull; {recebimentoSubPage.toUpperCase()}
-                  </span>
-                  <span className="text-xs text-slate-400 font-medium">CD 994</span>
+        /* PÁGINAS DE PMT RECEBIMENTO (pg1: FORNECEDOR / ABA 99•, pg2, pg3, pg4) */
+        recebimentoSubPage === 'pg1' ? (
+          <PmtRecebimentoPage />
+        ) : (
+          <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 shadow-2xs">
+                  <DownloadCloud size={24} />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 tracking-tight mt-0.5">
-                  {recebimentoSubPage === 'pg1' && 'Página 1 — Indicadores e Fluxo de Recebimento'}
-                  {recebimentoSubPage === 'pg2' && 'Página 2 — Acompanhamento e Metas de Recebimento'}
-                  {recebimentoSubPage === 'pg3' && 'Página 3 — Produtividade e Capacidade Recebimento'}
-                  {recebimentoSubPage === 'pg4' && 'Página 4 — Relatórios e Análises de Recebimento'}
-                </h3>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-mono text-[11px] font-bold">
+                      PMT Recebimento &bull; {recebimentoSubPage.toUpperCase()}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">CD 994</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 tracking-tight mt-0.5">
+                    {recebimentoSubPage === 'pg2' && 'Página 2 — Acompanhamento e Metas de Recebimento'}
+                    {recebimentoSubPage === 'pg3' && 'Página 3 — Produtividade e Capacidade Recebimento'}
+                    {recebimentoSubPage === 'pg4' && 'Página 4 — Relatórios e Análises de Recebimento'}
+                  </h3>
+                </div>
+              </div>
+
+              {/* Sub-páginas internas no topo do container */}
+              <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono px-2">
+                  Páginas:
+                </span>
+                {(['pg1', 'pg2', 'pg3', 'pg4'] as const).map(pg => (
+                  <button
+                    key={pg}
+                    type="button"
+                    onClick={() => setRecebimentoSubPage(pg)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${recebimentoSubPage === pg
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-white text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
+                      }`}
+                  >
+                    {pg}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Sub-páginas internas no topo do container */}
-            <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono px-2">
-                Páginas:
-              </span>
-              {(['pg1', 'pg2', 'pg3', 'pg4'] as const).map(pg => (
-                <button
-                  key={pg}
-                  type="button"
-                  onClick={() => setRecebimentoSubPage(pg)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${recebimentoSubPage === pg
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                    : 'bg-white text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
-                    }`}
-                >
-                  {pg}
-                </button>
-              ))}
+            {/* Área de conteúdo dedicada para a subpágina ativa do Recebimento */}
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-12 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+                <DownloadCloud size={28} />
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h4 className="text-base font-bold text-slate-900">
+                  Pronto para receber os dados de {recebimentoSubPage.toUpperCase()}
+                </h4>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  A estrutura da sub-página <strong className="text-slate-700">PMT Recebimento ({recebimentoSubPage.toUpperCase()})</strong> está pronta. Me envie as planilhas, tabelas ou colunas desejadas para montarmos esta visão.
+                </p>
+              </div>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-100 text-xs font-semibold">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                Aguardando envio dos dados da página {recebimentoSubPage.toUpperCase()}
+              </div>
             </div>
           </div>
-
-          {/* Área de conteúdo dedicada para a subpágina ativa do Recebimento */}
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-12 text-center space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
-              <DownloadCloud size={28} />
-            </div>
-            <div className="max-w-md mx-auto space-y-2">
-              <h4 className="text-base font-bold text-slate-900">
-                Pronto para receber os dados de {recebimentoSubPage.toUpperCase()}
-              </h4>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                A estrutura da aba <strong className="text-slate-700">PMT Recebimento ({recebimentoSubPage.toUpperCase()})</strong> foi montada com sucesso. Você pode me enviar as planilhas, tabelas, métricas ou colunas desejadas para esta página.
-              </p>
-            </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-100 text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-              Aguardando envio dos dados de cada página
-            </div>
-          </div>
-        </div>
+        )
       ) : (
         /* CONTEÚDO PADRÃO PARA DEMAIS SUB-PÁGINAS PMT (Recebimento, etc.) */
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
