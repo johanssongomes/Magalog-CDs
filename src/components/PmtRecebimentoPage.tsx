@@ -12,6 +12,7 @@ import {
   Clock,
   CheckCircle2,
   ChevronDown,
+  Check,
   Layers,
   ArrowUpDown,
   Truck,
@@ -446,6 +447,179 @@ const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/
 const ITENS_AG_JSON_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent('Itens Ag')}`
 const ITENS_AG_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('Itens Ag')}`
 
+// Componente Dropdown com Suporte a Múltipla Seleção e Busca
+interface MultiSelectDropdownProps {
+  label: string
+  icon: React.ReactNode
+  options: string[]
+  selectedValues: string[]
+  onChange: (values: string[]) => void
+  placeholderAll?: string
+  colorClass?: string
+  widthClass?: string
+}
+
+const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
+  label,
+  icon,
+  options,
+  selectedValues,
+  onChange,
+  placeholderAll = 'Todos',
+  colorClass = 'text-blue-600',
+  widthClass = 'min-w-[150px]'
+}) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const [filterSearch, setFilterSearch] = useState('')
+  const dropdownRef = React.useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
+
+  const toggleOption = (opt: string) => {
+    if (selectedValues.includes(opt)) {
+      onChange(selectedValues.filter(v => v !== opt))
+    } else {
+      onChange([...selectedValues, opt])
+    }
+  }
+
+  const selectAll = () => {
+    onChange([])
+  }
+
+  const filteredOptions = options.filter(opt =>
+    opt.toLowerCase().includes(filterSearch.toLowerCase())
+  )
+
+  const isAll = selectedValues.length === 0
+
+  let displayText = placeholderAll
+  if (selectedValues.length === 1) {
+    displayText = selectedValues[0]
+  } else if (selectedValues.length > 1) {
+    displayText = `${selectedValues.length} selecionados`
+  }
+
+  return (
+    <div className={`relative ${widthClass}`} ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full flex items-center justify-between gap-2 bg-slate-50 border rounded-xl px-3 py-1.5 transition-all text-left cursor-pointer ${
+          selectedValues.length > 0
+            ? 'border-blue-500 bg-blue-50/50 ring-1 ring-blue-400'
+            : 'border-slate-200 hover:border-blue-400'
+        }`}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="shrink-0">{icon}</div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+              {label}
+            </span>
+            <span className="text-xs font-bold text-slate-800 truncate block mt-0.5 max-w-[130px]">
+              {displayText}
+            </span>
+          </div>
+        </div>
+        <ChevronDown
+          size={13}
+          className={`text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180 text-blue-600' : ''}`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 top-full mt-1.5 w-60 max-w-[90vw] bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-2 text-xs animate-in fade-in zoom-in-95">
+          {options.length > 5 && (
+            <div className="relative mb-2">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder={`Buscar ${label.toLowerCase()}...`}
+                value={filterSearch}
+                onChange={(e) => setFilterSearch(e.target.value)}
+                className="w-full pl-7 pr-2.5 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-blue-500"
+                autoFocus
+              />
+            </div>
+          )}
+
+          <div className="flex items-center justify-between px-1 pb-1.5 mb-1.5 border-b border-slate-100 text-[10px] font-bold">
+            <button
+              type="button"
+              onClick={selectAll}
+              className={`hover:underline cursor-pointer ${isAll ? 'text-blue-600' : 'text-slate-500'}`}
+            >
+              Marcar Todos
+            </button>
+            {selectedValues.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                className="text-rose-600 hover:underline cursor-pointer"
+              >
+                Limpar ({selectedValues.length})
+              </button>
+            )}
+          </div>
+
+          <div className="max-h-52 overflow-y-auto space-y-0.5">
+            <div
+              onClick={selectAll}
+              className={`flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
+                isAll ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
+              }`}
+            >
+              <span>{placeholderAll} ({options.length})</span>
+              {isAll && <Check size={13} className="text-blue-600" />}
+            </div>
+
+            {filteredOptions.map((opt) => {
+              const isChecked = selectedValues.includes(opt)
+              return (
+                <div
+                  key={opt}
+                  onClick={() => toggleOption(opt)}
+                  className={`flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
+                    isChecked ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                  }`}
+                >
+                  <span className="truncate pr-2">{opt}</span>
+                  <div
+                    className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all ${
+                      isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
+                    }`}
+                  >
+                    {isChecked && <Check size={11} strokeWidth={3} />}
+                  </div>
+                </div>
+              )
+            })}
+
+            {filteredOptions.length === 0 && (
+              <div className="py-3 text-center text-slate-400 text-[11px]">
+                Nenhum resultado
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export const PmtRecebimentoPage: React.FC = () => {
   const [data, setData] = useState<RecebimentoItem[]>(SAMPLE_RECEBIMENTO_DATA)
   const [itensAgMap, setItensAgMap] = useState<Record<string, ItemAgendamento[]>>({})
@@ -454,14 +628,14 @@ export const PmtRecebimentoPage: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<'sample' | 'live' | 'imported' | 'error'>('sample')
   const [errorMessage, setErrorMessage] = useState<string>('')
 
-  // Filtros operacionais baseados nos campos da planilha
-  const [selectedData, setSelectedData] = useState<string>('TODAS')
-  const [selectedStatus, setSelectedStatus] = useState<string>('TODOS')
-  const [selectedPortaria, setSelectedPortaria] = useState<string>('TODOS')
-  const [selectedConferente, setSelectedConferente] = useState<string>('TODOS')
-  const [selectedDoca, setSelectedDoca] = useState<string>('TODAS')
-  const [selectedCategoria, setSelectedCategoria] = useState<string>('TODAS')
-  const [selectedAgenda, setSelectedAgenda] = useState<string>('TODAS')
+  // Filtros operacionais baseados nos campos da planilha (múltipla seleção)
+  const [selectedDates, setSelectedDates] = useState<string[]>([])
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
+  const [selectedPortarias, setSelectedPortarias] = useState<string[]>([])
+  const [selectedConferentes, setSelectedConferentes] = useState<string[]>([])
+  const [selectedDocas, setSelectedDocas] = useState<string[]>([])
+  const [selectedCategorias, setSelectedCategorias] = useState<string[]>([])
+  const [selectedAgendas, setSelectedAgendas] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [statusSortOrder, setStatusSortOrder] = useState<'asc' | 'desc'>('asc')
   const [summaryViewMode, setSummaryViewMode] = useState<'status' | 'categoria' | 'grafico'>('status')
@@ -939,13 +1113,13 @@ export const PmtRecebimentoPage: React.FC = () => {
   // Filtragem e ordenação dos dados por Status Geral
   const filteredData = useMemo(() => {
     const list = data.filter(item => {
-      if (selectedData !== 'TODAS' && item.data !== selectedData) return false
-      if (selectedStatus !== 'TODOS' && item.statusGeral !== selectedStatus) return false
-      if (selectedPortaria !== 'TODOS' && item.portaria !== selectedPortaria) return false
-      if (selectedConferente !== 'TODOS' && item.conferente !== selectedConferente) return false
-      if (selectedDoca !== 'TODAS' && item.doca !== selectedDoca) return false
-      if (selectedCategoria !== 'TODAS' && item.categoria !== selectedCategoria) return false
-      if (selectedAgenda !== 'TODAS' && item.agenda !== selectedAgenda) return false
+      if (selectedDates.length > 0 && !selectedDates.includes(item.data)) return false
+      if (selectedStatuses.length > 0 && !selectedStatuses.includes(item.statusGeral)) return false
+      if (selectedPortarias.length > 0 && !selectedPortarias.includes(item.portaria)) return false
+      if (selectedConferentes.length > 0 && !selectedConferentes.includes(item.conferente)) return false
+      if (selectedDocas.length > 0 && !selectedDocas.includes(item.doca)) return false
+      if (selectedCategorias.length > 0 && !selectedCategorias.includes(item.categoria)) return false
+      if (selectedAgendas.length > 0 && !selectedAgendas.includes(item.agenda)) return false
       if (searchTerm) {
         const term = searchTerm.toLowerCase()
         const match =
@@ -969,7 +1143,7 @@ export const PmtRecebimentoPage: React.FC = () => {
       // Critério secundário: se mesmo status, ordena alfabeticamente ou por fornecedor
       return a.fornecedor.localeCompare(b.fornecedor)
     })
-  }, [data, selectedData, selectedStatus, selectedPortaria, selectedConferente, selectedDoca, selectedCategoria, selectedAgenda, searchTerm, statusSortOrder])
+  }, [data, selectedDates, selectedStatuses, selectedPortarias, selectedConferentes, selectedDocas, selectedCategorias, selectedAgendas, searchTerm, statusSortOrder])
 
   // Resumo de Portaria
   const portariaResumo = useMemo(() => {
@@ -1065,144 +1239,82 @@ export const PmtRecebimentoPage: React.FC = () => {
             <span>Filtros Recebimento:</span>
           </div>
 
-          {/* Filtro por Data (da Planilha) */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
-            <Calendar size={14} className="text-blue-600 shrink-0" />
-            <div className="flex flex-col text-left">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                Data
-              </span>
-              <select
-                value={selectedData}
-                onChange={(e) => setSelectedData(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
-              >
-                <option value="TODAS">Todas as Datas</option>
-                {datesList.map(dt => (
-                  <option key={dt} value={dt}>{dt}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {/* Filtro por Data (Múltipla Seleção) */}
+          <MultiSelectDropdown
+            label="Data"
+            icon={<Calendar size={14} className="text-blue-600 shrink-0" />}
+            options={datesList}
+            selectedValues={selectedDates}
+            onChange={setSelectedDates}
+            placeholderAll={`Todas (${datesList.length})`}
+            widthClass="min-w-[150px]"
+          />
 
-          {/* Filtro por Status Geral */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
-            <Activity size={14} className="text-emerald-600 shrink-0" />
-            <div className="flex flex-col text-left">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                Status Geral
-              </span>
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
-              >
-                <option value="TODOS">Todos os Status ({statusList.length})</option>
-                {statusList.map(st => (
-                  <option key={st} value={st}>{st}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {/* Filtro por Status Geral (Múltipla Seleção) */}
+          <MultiSelectDropdown
+            label="Status Geral"
+            icon={<Activity size={14} className="text-emerald-600 shrink-0" />}
+            options={statusList}
+            selectedValues={selectedStatuses}
+            onChange={setSelectedStatuses}
+            placeholderAll={`Todos (${statusList.length})`}
+            widthClass="min-w-[160px]"
+          />
 
-          {/* Filtro por Conferente */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
-            <Users size={14} className="text-indigo-600 shrink-0" />
-            <div className="flex flex-col text-left">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                Conferente
-              </span>
-              <select
-                value={selectedConferente}
-                onChange={(e) => setSelectedConferente(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
-              >
-                <option value="TODOS">Todos ({conferentesList.length})</option>
-                {conferentesList.map(conf => (
-                  <option key={conf} value={conf}>{conf}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {/* Filtro por Conferente (Múltipla Seleção) */}
+          <MultiSelectDropdown
+            label="Conferente"
+            icon={<Users size={14} className="text-indigo-600 shrink-0" />}
+            options={conferentesList}
+            selectedValues={selectedConferentes}
+            onChange={setSelectedConferentes}
+            placeholderAll={`Todos (${conferentesList.length})`}
+            widthClass="min-w-[150px]"
+          />
 
-          {/* Filtro por Doca */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
-            <Box size={14} className="text-amber-600 shrink-0" />
-            <div className="flex flex-col text-left">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                Doca
-              </span>
-              <select
-                value={selectedDoca}
-                onChange={(e) => setSelectedDoca(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
-              >
-                <option value="TODAS">Todas ({docasList.length})</option>
-                {docasList.map(doca => (
-                  <option key={doca} value={doca}>Doca {doca}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {/* Filtro por Doca (Múltipla Seleção) */}
+          <MultiSelectDropdown
+            label="Doca"
+            icon={<Box size={14} className="text-amber-600 shrink-0" />}
+            options={docasList}
+            selectedValues={selectedDocas}
+            onChange={setSelectedDocas}
+            placeholderAll={`Todas (${docasList.length})`}
+            widthClass="min-w-[140px]"
+          />
 
-          {/* Filtro por Categoria */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
-            <Layers size={14} className="text-indigo-600 shrink-0" />
-            <div className="flex flex-col text-left">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                Categoria
-              </span>
-              <select
-                value={selectedCategoria}
-                onChange={(e) => setSelectedCategoria(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer max-w-[130px] truncate"
-              >
-                <option value="TODAS">Todas ({categoriasList.length})</option>
-                {categoriasList.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {/* Filtro por Categoria (Múltipla Seleção) */}
+          <MultiSelectDropdown
+            label="Categoria"
+            icon={<Layers size={14} className="text-indigo-600 shrink-0" />}
+            options={categoriasList}
+            selectedValues={selectedCategorias}
+            onChange={setSelectedCategorias}
+            placeholderAll={`Todas (${categoriasList.length})`}
+            widthClass="min-w-[160px]"
+          />
 
-          {/* Filtro por Agenda */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
-            <Hash size={14} className="text-blue-600 shrink-0" />
-            <div className="flex flex-col text-left">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                Agenda
-              </span>
-              <select
-                value={selectedAgenda}
-                onChange={(e) => setSelectedAgenda(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer max-w-[120px] truncate"
-              >
-                <option value="TODAS">Todas ({agendasList.length})</option>
-                {agendasList.map(ag => (
-                  <option key={ag} value={ag}>Agenda {ag}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {/* Filtro por Agenda (Múltipla Seleção) */}
+          <MultiSelectDropdown
+            label="Agenda"
+            icon={<Hash size={14} className="text-blue-600 shrink-0" />}
+            options={agendasList}
+            selectedValues={selectedAgendas}
+            onChange={setSelectedAgendas}
+            placeholderAll={`Todas (${agendasList.length})`}
+            widthClass="min-w-[140px]"
+          />
 
-          {/* Filtro por Portaria */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
-            <Truck size={14} className="text-amber-600 shrink-0" />
-            <div className="flex flex-col text-left">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
-                Portaria
-              </span>
-              <select
-                value={selectedPortaria}
-                onChange={(e) => setSelectedPortaria(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
-              >
-                <option value="TODOS">Todos</option>
-                <option value="Chegou">Chegou</option>
-                <option value="Não Chegou">Não Chegou</option>
-              </select>
-            </div>
-          </div>
+          {/* Filtro por Portaria (Múltipla Seleção) */}
+          <MultiSelectDropdown
+            label="Portaria"
+            icon={<Truck size={14} className="text-amber-600 shrink-0" />}
+            options={['Chegou', 'Não Chegou']}
+            selectedValues={selectedPortarias}
+            onChange={setSelectedPortarias}
+            placeholderAll="Todos"
+            widthClass="min-w-[130px]"
+          />
         </div>
 
         {/* Resumo de linhas filtradas e botão de reset */}
@@ -1211,17 +1323,17 @@ export const PmtRecebimentoPage: React.FC = () => {
             {filteredData.length} registros
           </span>
 
-          {(selectedData !== 'TODAS' || selectedStatus !== 'TODOS' || selectedPortaria !== 'TODOS' || selectedConferente !== 'TODOS' || selectedDoca !== 'TODAS' || selectedCategoria !== 'TODAS' || selectedAgenda !== 'TODAS' || searchTerm) && (
+          {(selectedDates.length > 0 || selectedStatuses.length > 0 || selectedPortarias.length > 0 || selectedConferentes.length > 0 || selectedDocas.length > 0 || selectedCategorias.length > 0 || selectedAgendas.length > 0 || searchTerm) && (
             <button
               type="button"
               onClick={() => {
-                setSelectedData('TODAS')
-                setSelectedStatus('TODOS')
-                setSelectedPortaria('TODOS')
-                setSelectedConferente('TODOS')
-                setSelectedDoca('TODAS')
-                setSelectedCategoria('TODAS')
-                setSelectedAgenda('TODAS')
+                setSelectedDates([])
+                setSelectedStatuses([])
+                setSelectedPortarias([])
+                setSelectedConferentes([])
+                setSelectedDocas([])
+                setSelectedCategorias([])
+                setSelectedAgendas([])
                 setSearchTerm('')
               }}
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
@@ -1347,9 +1459,15 @@ export const PmtRecebimentoPage: React.FC = () => {
           {/* CARD DE PORTARIA (CHEGOU X NÃO CHEGOU) */}
           <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-3">
             <div
-              onClick={() => setSelectedPortaria(selectedPortaria === 'Chegou' ? 'TODOS' : 'Chegou')}
-              className={`p-3 rounded-xl border transition-all cursor-pointer ${selectedPortaria === 'Chegou'
-                ? 'bg-amber-100 border-amber-400 text-amber-950 shadow-xs'
+              onClick={() => {
+                if (selectedPortarias.includes('Chegou')) {
+                  setSelectedPortarias(selectedPortarias.filter(p => p !== 'Chegou'))
+                } else {
+                  setSelectedPortarias([...selectedPortarias, 'Chegou'])
+                }
+              }}
+              className={`p-3 rounded-xl border transition-all cursor-pointer ${selectedPortarias.includes('Chegou')
+                ? 'bg-amber-100 border-amber-400 text-amber-950 shadow-xs ring-1 ring-amber-400'
                 : 'bg-amber-50/70 hover:bg-amber-100/70 border-amber-200/80 text-amber-900'
                 }`}
             >
@@ -1362,9 +1480,15 @@ export const PmtRecebimentoPage: React.FC = () => {
             </div>
 
             <div
-              onClick={() => setSelectedPortaria(selectedPortaria === 'Não Chegou' ? 'TODOS' : 'Não Chegou')}
-              className={`p-3 rounded-xl border transition-all cursor-pointer ${selectedPortaria === 'Não Chegou'
-                ? 'bg-slate-200 border-slate-400 text-slate-900 shadow-xs'
+              onClick={() => {
+                if (selectedPortarias.includes('Não Chegou')) {
+                  setSelectedPortarias(selectedPortarias.filter(p => p !== 'Não Chegou'))
+                } else {
+                  setSelectedPortarias([...selectedPortarias, 'Não Chegou'])
+                }
+              }}
+              className={`p-3 rounded-xl border transition-all cursor-pointer ${selectedPortarias.includes('Não Chegou')
+                ? 'bg-slate-200 border-slate-400 text-slate-900 shadow-xs ring-1 ring-slate-400'
                 : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
                 }`}
             >
@@ -1386,7 +1510,11 @@ export const PmtRecebimentoPage: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 <Calendar size={14} className="text-blue-600" />
                 <span className="text-xs font-bold text-slate-800">
-                  {selectedData === 'TODAS' ? 'Período Completo' : `${selectedData} - ${selectedData}`}
+                  {selectedDates.length === 0
+                    ? 'Período Completo'
+                    : selectedDates.length === 1
+                      ? `${selectedDates[0]} - ${selectedDates[0]}`
+                      : `${selectedDates.length} datas selecionadas`}
                 </span>
               </div>
 
@@ -1430,14 +1558,24 @@ export const PmtRecebimentoPage: React.FC = () => {
                 </div>
 
                 <select
-                  value={selectedData}
-                  onChange={(e) => setSelectedData(e.target.value)}
+                  value={selectedDates.length === 1 ? selectedDates[0] : (selectedDates.length === 0 ? 'TODAS' : 'MULTI')}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    if (val === 'TODAS') {
+                      setSelectedDates([])
+                    } else if (val !== 'MULTI') {
+                      setSelectedDates([val])
+                    }
+                  }}
                   className="text-[11px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-2 py-1 outline-none cursor-pointer"
                 >
-                  <option value="02/11/2026">02/11/2026</option>
-                  <option value="01/11/2026">01/11/2026</option>
-                  <option value="31/10/2026">31/10/2026</option>
                   <option value="TODAS">Todos os Dias</option>
+                  {selectedDates.length > 1 && (
+                    <option value="MULTI">({selectedDates.length} selecionados)</option>
+                  )}
+                  {datesList.map(dt => (
+                    <option key={dt} value={dt}>{dt}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -1469,11 +1607,17 @@ export const PmtRecebimentoPage: React.FC = () => {
                       const maxVal = Math.max(...statusResumo.list.map(s => s.agendaCount), 1)
                       return statusResumo.list.map((item, idx) => {
                         const pct = Math.max(4, Math.round((item.agendaCount / maxVal) * 100))
-                        const isSelected = selectedCategoria === item.label
+                        const isSelected = selectedCategorias.includes(item.label)
                         return (
                           <div
                             key={idx}
-                            onClick={() => setSelectedCategoria(selectedCategoria === item.label ? 'TODAS' : item.label)}
+                            onClick={() => {
+                              if (selectedCategorias.includes(item.label)) {
+                                setSelectedCategorias(selectedCategorias.filter(c => c !== item.label))
+                              } else {
+                                setSelectedCategorias([...selectedCategorias, item.label])
+                              }
+                            }}
                             title={`Filtrar por ${item.label}: ${item.agendaCount} agendas`}
                             className={`group cursor-pointer p-1.5 rounded-lg transition-all ${
                               isSelected ? 'bg-blue-50 ring-1 ring-blue-400' : 'hover:bg-slate-50'
@@ -1527,14 +1671,22 @@ export const PmtRecebimentoPage: React.FC = () => {
                   <tbody className="divide-y divide-slate-100">
                     {statusResumo.list.map((st, idx) => {
                       const isSelected = summaryViewMode === 'status' 
-                        ? selectedStatus === st.label 
-                        : selectedCategoria === st.label
+                        ? selectedStatuses.includes(st.label) 
+                        : selectedCategorias.includes(st.label)
 
                       const handleRowClick = () => {
                         if (summaryViewMode === 'status') {
-                          setSelectedStatus(selectedStatus === st.label ? 'TODOS' : st.label)
+                          if (selectedStatuses.includes(st.label)) {
+                            setSelectedStatuses(selectedStatuses.filter(s => s !== st.label))
+                          } else {
+                            setSelectedStatuses([...selectedStatuses, st.label])
+                          }
                         } else {
-                          setSelectedCategoria(selectedCategoria === st.label ? 'TODAS' : st.label)
+                          if (selectedCategorias.includes(st.label)) {
+                            setSelectedCategorias(selectedCategorias.filter(c => c !== st.label))
+                          } else {
+                            setSelectedCategorias([...selectedCategorias, st.label])
+                          }
                         }
                       }
 
@@ -1611,14 +1763,17 @@ export const PmtRecebimentoPage: React.FC = () => {
               />
             </div>
 
-            {(selectedCategoria !== 'TODAS' || selectedAgenda !== 'TODAS' || selectedStatus !== 'TODOS' || selectedPortaria !== 'TODOS' || searchTerm) && (
+            {(selectedCategorias.length > 0 || selectedAgendas.length > 0 || selectedStatuses.length > 0 || selectedPortarias.length > 0 || selectedDates.length > 0 || selectedConferentes.length > 0 || selectedDocas.length > 0 || searchTerm) && (
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedCategoria('TODAS')
-                  setSelectedAgenda('TODAS')
-                  setSelectedStatus('TODOS')
-                  setSelectedPortaria('TODOS')
+                  setSelectedCategorias([])
+                  setSelectedAgendas([])
+                  setSelectedStatuses([])
+                  setSelectedPortarias([])
+                  setSelectedDates([])
+                  setSelectedConferentes([])
+                  setSelectedDocas([])
                   setSearchTerm('')
                 }}
                 className="text-xs font-bold text-rose-600 hover:text-rose-700 px-2 py-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
