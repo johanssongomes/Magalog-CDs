@@ -305,7 +305,7 @@ export const QuadroOverview: React.FC = () => {
               </div>
               <div>
                 <h4 className="text-xs font-black text-slate-800 tracking-tight uppercase">Quadro C&D</h4>
-                <p className="text-[10px] text-slate-400 font-medium">Comum e Diferenciado</p>
+                <p className="text-[10px] text-slate-400 font-medium">Carga e Descarga</p>
               </div>
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
@@ -332,34 +332,34 @@ export const QuadroOverview: React.FC = () => {
         </div>
 
         {/* CARD CONSOLIDADO TOTAL */}
-        <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-3.5 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 shadow-xs hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-white/10 text-white flex items-center justify-center">
+              <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
                 <Users size={16} />
               </div>
               <div>
-                <h4 className="text-xs font-black tracking-tight uppercase">Quadro Total (OP + C&D)</h4>
+                <h4 className="text-xs font-black text-slate-800 tracking-tight uppercase">Quadro Total (OP + C&D)</h4>
                 <p className="text-[10px] text-slate-400 font-medium">Visão Geral Consolidada</p>
               </div>
             </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-slate-200 border border-white/10">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
               {MONTH_NAMES[selectedMonth].substring(0, 3)} / {selectedYear}
             </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/10 text-center">
-            <div className="bg-white/5 p-2 rounded-xl">
-              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-tight block">Orçado Total</span>
-              <span className="text-base font-black text-white">{totalOrcadoMedia}</span>
+          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 text-center">
+            <div className="bg-slate-50/70 p-2 rounded-xl">
+              <span className="text-[9.5px] font-bold text-slate-500 uppercase tracking-tight block">Orçado Total</span>
+              <span className="text-base font-black text-slate-800">{totalOrcadoMedia}</span>
             </div>
-            <div className="bg-white/5 p-2 rounded-xl">
-              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-tight block">Atual Médio</span>
-              <span className="text-base font-black text-emerald-400">{totalAtualMedia}</span>
+            <div className="bg-slate-50/70 p-2 rounded-xl">
+              <span className="text-[9.5px] font-bold text-slate-500 uppercase tracking-tight block">Atual Médio</span>
+              <span className="text-base font-black text-slate-900">{totalAtualMedia}</span>
             </div>
-            <div className={`p-2 rounded-xl ${totalGapMedia < 0 ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+            <div className={`p-2 rounded-xl ${totalGapMedia < 0 ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>
               <span className="text-[9.5px] font-bold uppercase tracking-tight block">Gap Total</span>
-              <span className="text-base font-black">
+              <span className="text-base font-black flex items-center justify-center gap-0.5">
                 {totalGapMedia > 0 ? `+${totalGapMedia}` : totalGapMedia}
               </span>
             </div>
@@ -552,7 +552,7 @@ export const QuadroOverview: React.FC = () => {
                 <>
                   <tr className="bg-[#4a1525] text-white font-black text-xs">
                     <td colSpan={daysList.length + 2} className="px-3 py-1.5 tracking-wider uppercase">
-                      NOVEMBRO — C&D (Comum e Diferenciado)
+                      NOVEMBRO — C&D (Carga e Descarga)
                     </td>
                   </tr>
 
