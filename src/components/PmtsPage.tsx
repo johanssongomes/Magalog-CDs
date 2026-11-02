@@ -366,6 +366,28 @@ export const PmtsPage: React.FC = () => {
     }
   }, [expedicaoSubPage])
 
+  // Sub-página ativa do menu PMT Recebimento (pg1, pg2, pg3, pg4)
+  const [recebimentoSubPage, setRecebimentoSubPage] = useState<'pg1' | 'pg2' | 'pg3' | 'pg4'>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_recebimento_subpage') as any
+      if (['pg1', 'pg2', 'pg3', 'pg4'].includes(saved)) {
+        return saved
+      }
+      return 'pg1'
+    } catch {
+      return 'pg1'
+    }
+  })
+
+  // Salva recebimentoSubPage no localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('magalog_recebimento_subpage', recebimentoSubPage)
+    } catch {
+      // Ignora
+    }
+  }, [recebimentoSubPage])
+
   // Escuta troca de sub-aba do Quadro disparada pelo Command Palette (Ctrl + L)
   useEffect(() => {
     const handleQuadroSubPageChange = (e: Event) => {
@@ -1847,6 +1869,7 @@ export const PmtsPage: React.FC = () => {
 
   const isQuadro = activePageId === 3
   const isExpedicao = activePageId === 1
+  const isRecebimento = activePageId === 2
 
   // Validação e auto-ajuste de subpáginas permitidas
   useEffect(() => {
@@ -1862,6 +1885,20 @@ export const PmtsPage: React.FC = () => {
       }
     }
   }, [isExpedicao, expedicaoSubPage, hasPermission])
+
+  useEffect(() => {
+    if (isRecebimento) {
+      const allowed = [
+        { id: 'pg1', subId: 'sub-pmt-recebimento-pg1' },
+        { id: 'pg2', subId: 'sub-pmt-recebimento-pg2' },
+        { id: 'pg3', subId: 'sub-pmt-recebimento-pg3' },
+        { id: 'pg4', subId: 'sub-pmt-recebimento-pg4' }
+      ].filter(sub => hasPermission('pmts', sub.subId) || hasPermission('pmts', 'sub-pmt-recebimento'))
+      if (allowed.length > 0 && !allowed.some(s => s.id === recebimentoSubPage)) {
+        setRecebimentoSubPage(allowed[0].id as any)
+      }
+    }
+  }, [isRecebimento, recebimentoSubPage, hasPermission])
 
   useEffect(() => {
     if (isQuadro) {
@@ -1947,6 +1984,37 @@ export const PmtsPage: React.FC = () => {
                   <button
                     key={sub.id}
                     onClick={() => setExpedicaoSubPage(sub.id as any)}
+                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer border ${isSubActive
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-slate-50 text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
+                      }`}
+                  >
+                    {sub.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Sub-páginas do menu PMT Recebimento (pg1, pg2, pg3, pg4) */}
+        {isRecebimento && (
+          <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-2 px-1">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono mr-1">
+              Sub-páginas:
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[
+                { id: 'pg1', label: 'pg1', subId: 'sub-pmt-recebimento-pg1' },
+                { id: 'pg2', label: 'pg2', subId: 'sub-pmt-recebimento-pg2' },
+                { id: 'pg3', label: 'pg3', subId: 'sub-pmt-recebimento-pg3' },
+                { id: 'pg4', label: 'pg4', subId: 'sub-pmt-recebimento-pg4' }
+              ].filter(sub => hasPermission('pmts', sub.subId) || hasPermission('pmts', 'sub-pmt-recebimento')).map((sub) => {
+                const isSubActive = recebimentoSubPage === sub.id
+                return (
+                  <button
+                    key={sub.id}
+                    onClick={() => setRecebimentoSubPage(sub.id as any)}
                     className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer border ${isSubActive
                       ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                       : 'bg-slate-50 text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
@@ -3303,6 +3371,70 @@ export const PmtsPage: React.FC = () => {
                 {pg}
               </button>
             ))}
+          </div>
+        </div>
+      ) : isRecebimento ? (
+        /* PÁGINAS DE PMT RECEBIMENTO (pg1, pg2, pg3, pg4) PRONTAS PARA RECEBER OS DADOS */
+        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 shadow-2xs">
+                <DownloadCloud size={24} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-mono text-[11px] font-bold">
+                    PMT Recebimento &bull; {recebimentoSubPage.toUpperCase()}
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium">CD 994</span>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 tracking-tight mt-0.5">
+                  {recebimentoSubPage === 'pg1' && 'Página 1 — Indicadores e Fluxo de Recebimento'}
+                  {recebimentoSubPage === 'pg2' && 'Página 2 — Acompanhamento e Metas de Recebimento'}
+                  {recebimentoSubPage === 'pg3' && 'Página 3 — Produtividade e Capacidade Recebimento'}
+                  {recebimentoSubPage === 'pg4' && 'Página 4 — Relatórios e Análises de Recebimento'}
+                </h3>
+              </div>
+            </div>
+
+            {/* Sub-páginas internas no topo do container */}
+            <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono px-2">
+                Páginas:
+              </span>
+              {(['pg1', 'pg2', 'pg3', 'pg4'] as const).map(pg => (
+                <button
+                  key={pg}
+                  type="button"
+                  onClick={() => setRecebimentoSubPage(pg)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${recebimentoSubPage === pg
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-blue-50/60 hover:text-blue-700 border-slate-200'
+                    }`}
+                >
+                  {pg}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Área de conteúdo dedicada para a subpágina ativa do Recebimento */}
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-12 text-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+              <DownloadCloud size={28} />
+            </div>
+            <div className="max-w-md mx-auto space-y-2">
+              <h4 className="text-base font-bold text-slate-900">
+                Pronto para receber os dados de {recebimentoSubPage.toUpperCase()}
+              </h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                A estrutura da aba <strong className="text-slate-700">PMT Recebimento ({recebimentoSubPage.toUpperCase()})</strong> foi montada com sucesso. Você pode me enviar as planilhas, tabelas, métricas ou colunas desejadas para esta página.
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-100 text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              Aguardando envio dos dados de cada página
+            </div>
           </div>
         </div>
       ) : (
