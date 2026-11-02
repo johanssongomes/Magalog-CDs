@@ -428,6 +428,25 @@ export const DashboardPage: React.FC = () => {
     npsLojas: '81,2%'
   })
 
+  // Estado integrado para dados do NS CLIENTE
+  const [clienteData, setClienteData] = useState<{
+    value: string
+    micro: string
+    rodo: string
+    courrie: string
+    diario: string
+    mensal: string
+    lastDay: string
+  }>({
+    value: '95,92%',
+    micro: '96,77%',
+    rodo: '89,47%',
+    courrie: '97,67%',
+    diario: '96,50%',
+    mensal: '95,92%',
+    lastDay: '30/out'
+  })
+
   // Estado integrado para dados do NS RLE
   const [rleData, setRleData] = useState<{
     value: string
@@ -435,95 +454,71 @@ export const DashboardPage: React.FC = () => {
     mensal: string
     lastDay: string
   }>({
-    value: '96,2%',
+    value: '98,29%',
     diario: '100%',
-    mensal: '96,2%',
+    mensal: '98,29%',
     lastDay: '30/out'
   })
 
   // Carrega e sincroniza dados reais de NS Saída e Fulfillment do Supabase e LocalStorage
   useEffect(() => {
-    const processFullMetrics = (metricsMap: Record<string, string>) => {
-      // Procura chaves com prefixo fulfillment_full_diario_ e fulfillment_full_mensal_
-      const daysFound = new Set<string>()
+    const MONTH_ORDER: Record<string, number> = {
+      jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6,
+      jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12
+    }
+
+    // Função universal para encontrar o último valor cronológico lançado
+    const getLastValidValueChronological = (prefix: string, fallback: string, metricsMap: Record<string, string>): { val: string; dayPart: string } => {
+      const items: { dayPart: string; val: string; score: number }[] = []
 
       Object.keys(metricsMap).forEach(k => {
-        if (k.startsWith('fulfillment_full_diario_')) {
-          const dayPart = k.replace('fulfillment_full_diario_', '')
+        if (k.startsWith(prefix)) {
           const val = metricsMap[k]?.trim()
           if (val && val !== '-' && val !== '') {
-            daysFound.add(dayPart)
-          }
-        }
-        if (k.startsWith('fulfillment_full_mensal_')) {
-          const dayPart = k.replace('fulfillment_full_mensal_', '')
-          const val = metricsMap[k]?.trim()
-          if (val && val !== '-' && val !== '') {
-            daysFound.add(dayPart)
+            const dayPart = k.replace(prefix, '')
+            const m = dayPart.match(/^(\d+)\/([a-z]{3})$/i)
+            if (m) {
+              const day = parseInt(m[1], 10)
+              const mon = m[2].toLowerCase()
+              const score = (MONTH_ORDER[mon] || 0) * 100 + day
+              items.push({ dayPart, val, score })
+            } else {
+              const num = parseInt(dayPart.replace(/[^0-9]/g, ''), 10) || 0
+              items.push({ dayPart, val, score: num })
+            }
           }
         }
       })
 
-      if (daysFound.size === 0) return
+      if (items.length === 0) return { val: fallback, dayPart: '' }
 
-      const sortedDays = Array.from(daysFound).sort((a, b) => {
-        const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0
-        const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0
-        return numA - numB
-      })
+      items.sort((a, b) => a.score - b.score)
+      const last = items[items.length - 1]
+      return { val: last.val, dayPart: last.dayPart }
+    }
 
-      const lastDay = sortedDays[sortedDays.length - 1]
-      const diarioVal = metricsMap[`fulfillment_full_diario_${lastDay}`]?.trim() || '-'
-      const mensalVal = metricsMap[`fulfillment_full_mensal_${lastDay}`]?.trim() || '-'
+    const processFullMetrics = (metricsMap: Record<string, string>) => {
+      const diarioObj = getLastValidValueChronological('fulfillment_full_diario_', '90,91%', metricsMap)
+      const mensalObj = getLastValidValueChronological('fulfillment_full_mensal_', '94,75%', metricsMap)
 
-      // O valor principal do card geral é sempre o valor do MENSAL
-      const mainVal = mensalVal !== '-' ? mensalVal : (diarioVal !== '-' ? diarioVal : '94,75%')
+      const mainVal = mensalObj.val !== '-' ? mensalObj.val : (diarioObj.val !== '-' ? diarioObj.val : '94,75%')
 
       setFullData({
         value: mainVal,
-        diario: diarioVal !== '-' ? diarioVal : '90,91%',
-        mensal: mensalVal !== '-' ? mensalVal : '94,75%',
-        lastDay
+        diario: diarioObj.val,
+        mensal: mensalObj.val,
+        lastDay: mensalObj.dayPart || diarioObj.dayPart || '30/out'
       })
     }
 
     const processSaidaMetrics = (metricsMap: Record<string, string>) => {
-      // Função auxiliar para encontrar o último valor válido preenchido de um subindicador
-      const getLastValidValue = (subId: string, fallback: string): string => {
-        const prefix = `ns_saida_eclusa_${subId}_`
-        const daysWithVal: string[] = []
+      const microVal = getLastValidValueChronological('ns_saida_eclusa_micro_', '100%', metricsMap).val
+      const rodoVal = getLastValidValueChronological('ns_saida_eclusa_rodo_', '100%', metricsMap).val
+      const courrieVal = getLastValidValueChronological('ns_saida_eclusa_courrie_', '100%', metricsMap).val
+      const diarioVal = getLastValidValueChronological('ns_saida_eclusa_eclusa_diario_', '100%', metricsMap).val
+      const mensalObj = getLastValidValueChronological('ns_saida_eclusa_eclusa_mensal_', '99,8%', metricsMap)
 
-        Object.keys(metricsMap).forEach(k => {
-          if (k.startsWith(prefix)) {
-            const dayPart = k.replace(prefix, '')
-            const val = metricsMap[k]?.trim()
-            if (val && val !== '-' && val !== '') {
-              daysWithVal.push(dayPart)
-            }
-          }
-        })
-
-        if (daysWithVal.length === 0) return fallback
-
-        // Ordena para pegar o último dia com lançamento daquele subitem específico
-        daysWithVal.sort((a, b) => {
-          const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0
-          const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0
-          return numA - numB
-        })
-
-        const lastSubDay = daysWithVal[daysWithVal.length - 1]
-        return metricsMap[`${prefix}${lastSubDay}`]?.trim() || fallback
-      }
-
-      const microVal = getLastValidValue('micro', '100%')
-      const rodoVal = getLastValidValue('rodo', '100%')
-      const courrieVal = getLastValidValue('courrie', '100%')
-      const diarioVal = getLastValidValue('eclusa_diario', '100%')
-      const mensalVal = getLastValidValue('eclusa_mensal', '99,8%')
-
-      // O valor geral principal é sempre o Mensal do último preenchimento
-      const mainVal = mensalVal !== '-' ? mensalVal : (diarioVal !== '-' ? diarioVal : '99,8%')
+      const mainVal = mensalObj.val !== '-' ? mensalObj.val : (diarioVal !== '-' ? diarioVal : '99,8%')
 
       setSaidaData({
         value: mainVal,
@@ -531,83 +526,51 @@ export const DashboardPage: React.FC = () => {
         rodo: rodoVal,
         courrie: courrieVal,
         diario: diarioVal,
-        mensal: mensalVal,
-        lastDay: '30/out'
+        mensal: mensalObj.val,
+        lastDay: mensalObj.dayPart || '30/out'
+      })
+    }
+
+    const processClienteMetrics = (metricsMap: Record<string, string>) => {
+      const microVal = getLastValidValueChronological('ns_cliente_micro_', '96,77%', metricsMap).val
+      const rodoVal = getLastValidValueChronological('ns_cliente_rodo_', '89,47%', metricsMap).val
+      const courrieVal = getLastValidValueChronological('ns_cliente_courrie_', '97,67%', metricsMap).val
+      const diarioVal = getLastValidValueChronological('ns_cliente_ns_diario_', '96,50%', metricsMap).val
+      const mensalObj = getLastValidValueChronological('ns_cliente_ns_mensal_', '95,92%', metricsMap)
+
+      const mainVal = mensalObj.val !== '-' ? mensalObj.val : (diarioVal !== '-' ? diarioVal : '95,92%')
+
+      setClienteData({
+        value: mainVal,
+        micro: microVal,
+        rodo: rodoVal,
+        courrie: courrieVal,
+        diario: diarioVal,
+        mensal: mensalObj.val,
+        lastDay: mensalObj.dayPart || '30/out'
       })
     }
 
     const processAtendimentoMetrics = (metricsMap: Record<string, string>) => {
-      const getLastValidValue = (subId: string, fallback: string): string => {
-        const prefix = `gestao_cx_${subId}_`
-        const daysWithVal: string[] = []
-
-        Object.keys(metricsMap).forEach(k => {
-          if (k.startsWith(prefix)) {
-            const dayPart = k.replace(prefix, '')
-            const val = metricsMap[k]?.trim()
-            if (val && val !== '-' && val !== '') {
-              daysWithVal.push(dayPart)
-            }
-          }
-        })
-
-        if (daysWithVal.length === 0) return fallback
-
-        daysWithVal.sort((a, b) => {
-          const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0
-          const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0
-          return numA - numB
-        })
-
-        const lastSubDay = daysWithVal[daysWithVal.length - 1]
-        return metricsMap[`${prefix}${lastSubDay}`]?.trim() || fallback
-      }
-
       setAtendimentoData({
-        recDiario: getLastValidValue('rec_diario', '1,61%'),
-        recMes: getLastValidValue('rec_mes', '1,38%'),
-        backlog: getLastValidValue('backlog_zendesk', '8'),
-        chamados: getLastValidValue('chamados_loja', '83'),
-        npsLojas: getLastValidValue('nps_lojas', '81,2%')
+        recDiario: getLastValidValueChronological('gestao_cx_rec_diario_', '1,61%', metricsMap).val,
+        recMes: getLastValidValueChronological('gestao_cx_rec_mes_', '1,38%', metricsMap).val,
+        backlog: getLastValidValueChronological('gestao_cx_backlog_zendesk_', '8', metricsMap).val,
+        chamados: getLastValidValueChronological('gestao_cx_chamados_loja_', '83', metricsMap).val,
+        npsLojas: getLastValidValueChronological('gestao_cx_nps_lojas_', '81,2%', metricsMap).val
       })
     }
 
     const processRleMetrics = (metricsMap: Record<string, string>) => {
-      const getLastValidValue = (subId: string, fallback: string): string => {
-        const prefix = `ns_rle_${subId}_`
-        const daysWithVal: string[] = []
-
-        Object.keys(metricsMap).forEach(k => {
-          if (k.startsWith(prefix)) {
-            const dayPart = k.replace(prefix, '')
-            const val = metricsMap[k]?.trim()
-            if (val && val !== '-' && val !== '') {
-              daysWithVal.push(dayPart)
-            }
-          }
-        })
-
-        if (daysWithVal.length === 0) return fallback
-
-        daysWithVal.sort((a, b) => {
-          const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0
-          const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0
-          return numA - numB
-        })
-
-        const lastSubDay = daysWithVal[daysWithVal.length - 1]
-        return metricsMap[`${prefix}${lastSubDay}`]?.trim() || fallback
-      }
-
-      const diarioVal = getLastValidValue('rle_diario', '100%')
-      const mensalVal = getLastValidValue('rle_mensal', '96,2%')
-      const mainVal = mensalVal !== '-' ? mensalVal : (diarioVal !== '-' ? diarioVal : '96,2%')
+      const diarioVal = getLastValidValueChronological('ns_rle_rle_diario_', '100%', metricsMap).val
+      const mensalObj = getLastValidValueChronological('ns_rle_rle_mensal_', '98,29%', metricsMap)
+      const mainVal = mensalObj.val !== '-' ? mensalObj.val : (diarioVal !== '-' ? diarioVal : '98,29%')
 
       setRleData({
         value: mainVal,
         diario: diarioVal,
-        mensal: mensalVal,
-        lastDay: '30/out'
+        mensal: mensalObj.val,
+        lastDay: mensalObj.dayPart || '30/out'
       })
     }
 
@@ -618,6 +581,7 @@ export const DashboardPage: React.FC = () => {
         const parsed = JSON.parse(local)
         processFullMetrics(parsed)
         processSaidaMetrics(parsed)
+        processClienteMetrics(parsed)
         processAtendimentoMetrics(parsed)
         processRleMetrics(parsed)
       }
@@ -629,7 +593,7 @@ export const DashboardPage: React.FC = () => {
         const { data: dbRows, error } = await supabase
           .from('performance_metrics')
           .select('cell_key, value')
-          .or('cell_key.like.fulfillment_%,cell_key.like.ns_saida_eclusa_%,cell_key.like.gestao_cx_%,cell_key.like.ns_rle_%')
+          .or('cell_key.like.fulfillment_%,cell_key.like.ns_saida_eclusa_%,cell_key.like.ns_cliente_%,cell_key.like.gestao_cx_%,cell_key.like.ns_rle_%')
 
         if (!error && dbRows && dbRows.length > 0) {
           const map: Record<string, string> = {}
@@ -638,6 +602,7 @@ export const DashboardPage: React.FC = () => {
           })
           processFullMetrics(map)
           processSaidaMetrics(map)
+          processClienteMetrics(map)
           processAtendimentoMetrics(map)
           processRleMetrics(map)
         }
@@ -656,7 +621,7 @@ export const DashboardPage: React.FC = () => {
         { event: '*', schema: 'public', table: 'performance_metrics' },
         (payload: any) => {
           const key = payload.new?.cell_key
-          if (key && (key.startsWith('fulfillment_') || key.startsWith('ns_saida_eclusa_') || key.startsWith('gestao_cx_') || key.startsWith('ns_rle_'))) {
+          if (key && (key.startsWith('fulfillment_') || key.startsWith('ns_saida_eclusa_') || key.startsWith('ns_cliente_') || key.startsWith('gestao_cx_') || key.startsWith('ns_rle_'))) {
             loadFromSupabase()
           }
         }
@@ -722,9 +687,20 @@ export const DashboardPage: React.FC = () => {
           icon={<User size={15} />}
           tone="bg-purple-50 text-purple-600"
           title="NS Cliente"
-          value="97,8%"
+          value={clienteData.value}
           meta="Meta: 97,0%"
-          items={[['Micro', '96,2%'], ['Courrie', '96,4%'], ['Rodo', '99,5']]}
+          metaTiers={[
+            { label: '>= 97,0%', ating: '100%', dotColor: 'bg-blue-500' },
+            { label: '>= 96,0%', ating: '75%', dotColor: 'bg-emerald-500' },
+            { label: '<= 94,5%', ating: '50%', dotColor: 'bg-rose-500' }
+          ]}
+          items={[
+            ['Micro', clienteData.micro],
+            ['Courrie', clienteData.courrie],
+            ['Rodo', clienteData.rodo],
+            ['Diário', clienteData.diario],
+            ['Mensal', clienteData.mensal]
+          ]}
         />
         <KpiNs
           icon={<Package size={15} />}
