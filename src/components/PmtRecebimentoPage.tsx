@@ -462,6 +462,7 @@ export const PmtRecebimentoPage: React.FC = () => {
   const [selectedAgenda, setSelectedAgenda] = useState<string>('TODAS')
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [statusSortOrder, setStatusSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [summaryViewMode, setSummaryViewMode] = useState<'status' | 'categoria'>('status')
 
   // Modal de importação manual
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
@@ -982,28 +983,42 @@ export const PmtRecebimentoPage: React.FC = () => {
     return { chegou, naoChegou }
   }, [filteredData])
 
-  // Resumo por Status Geral (Tabela Superior Direita)
+  // Resumo por Status Geral ou Categoria (Tabela Superior Direita)
   const statusResumo = useMemo(() => {
-    const groups: Record<string, { status: string; agendaCount: number; skuSum: number; volumeSum: number; cubagemSum: number }> = {}
+    const groups: Record<string, { label: string; status: string; agendaCount: number; skuSum: number; volumeSum: number; cubagemSum: number }> = {}
 
     filteredData.forEach(d => {
-      const st = d.statusGeral || 'OUTROS'
-      if (!groups[st]) {
-        groups[st] = {
-          status: st,
+      const key = summaryViewMode === 'categoria' 
+        ? (d.categoria || 'SEM CATEGORIA') 
+        : (d.statusGeral || 'OUTROS')
+
+      if (!groups[key]) {
+        groups[key] = {
+          label: key,
+          status: key,
           agendaCount: 0,
           skuSum: 0,
           volumeSum: 0,
           cubagemSum: 0
         }
       }
-      groups[st].agendaCount += 1
-      groups[st].skuSum += d.sku || 0
-      groups[st].volumeSum += d.volume || 0
-      groups[st].cubagemSum += d.cubagem || 0
+      groups[key].agendaCount += 1
+      groups[key].skuSum += d.sku || 0
+      groups[key].volumeSum += d.volume || 0
+      groups[key].cubagemSum += d.cubagem || 0
     })
 
-    const list = Object.values(groups)
+    let list = Object.values(groups)
+
+    if (summaryViewMode === 'status') {
+      list.sort((a, b) => {
+        const pA = STATUS_PRIORITY[a.label] ?? 99
+        const pB = STATUS_PRIORITY[b.label] ?? 99
+        return pA - pB
+      })
+    } else {
+      list.sort((a, b) => b.agendaCount - a.agendaCount || a.label.localeCompare(b.label))
+    }
 
     const total = {
       agendaCount: list.reduce((acc, curr) => acc + curr.agendaCount, 0),
@@ -1013,7 +1028,7 @@ export const PmtRecebimentoPage: React.FC = () => {
     }
 
     return { list, total }
-  }, [filteredData])
+  }, [filteredData, summaryViewMode])
 
   // Cores de Status no visual do print
   const getStatusBadge = (status: string) => {
@@ -1361,35 +1376,66 @@ export const PmtRecebimentoPage: React.FC = () => {
           </div>
         </div>
 
-        {/* LADO DIREITO: RESUMO STATUS GERAL (AGENDA, SKU, VOLUME, CUBAGEM) (Lg: col-span-7) */}
+        {/* LADO DIREITO: RESUMO STATUS GERAL OU CATEGORIA (AGENDA, SKU, VOLUME, CUBAGEM) (Lg: col-span-7) */}
         <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col justify-between">
           <div>
-            {/* Seletor de Período de Datas idêntico ao modelo */}
-            <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+            {/* Seletor de Período de Datas e Segmentação (Status Geral vs Categoria) */}
+            <div className="flex flex-wrap items-center justify-between pb-3 mb-3 border-b border-slate-100 gap-2">
               <div className="flex items-center gap-1.5">
                 <Calendar size={14} className="text-blue-600" />
                 <span className="text-xs font-bold text-slate-800">
                   {selectedData === 'TODAS' ? 'Período Completo' : `${selectedData} - ${selectedData}`}
                 </span>
               </div>
-              <select
-                value={selectedData}
-                onChange={(e) => setSelectedData(e.target.value)}
-                className="text-[11px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-2 py-1 outline-none cursor-pointer"
-              >
-                <option value="02/11/2026">02/11/2026</option>
-                <option value="01/11/2026">01/11/2026</option>
-                <option value="31/10/2026">31/10/2026</option>
-                <option value="TODAS">Todos os Dias</option>
-              </select>
+
+              {/* Segmentação: Status Geral / Categoria e Seletor de Data */}
+              <div className="flex items-center gap-2">
+                <div className="inline-flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setSummaryViewMode('status')}
+                    className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                      summaryViewMode === 'status'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Status Geral
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSummaryViewMode('categoria')}
+                    className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                      summaryViewMode === 'categoria'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Categoria
+                  </button>
+                </div>
+
+                <select
+                  value={selectedData}
+                  onChange={(e) => setSelectedData(e.target.value)}
+                  className="text-[11px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-2 py-1 outline-none cursor-pointer"
+                >
+                  <option value="02/11/2026">02/11/2026</option>
+                  <option value="01/11/2026">01/11/2026</option>
+                  <option value="31/10/2026">31/10/2026</option>
+                  <option value="TODAS">Todos os Dias</option>
+                </select>
+              </div>
             </div>
 
-            {/* Tabela de Resumo por Status */}
+            {/* Tabela de Resumo por Status ou Categoria */}
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
-                    <th className="py-1.5 px-2 text-left">Status Geral</th>
+                    <th className="py-1.5 px-2 text-left">
+                      {summaryViewMode === 'status' ? 'Status Geral' : 'Categoria'}
+                    </th>
                     <th className="py-1.5 px-2 text-right">Agenda</th>
                     <th className="py-1.5 px-2 text-right">SKU</th>
                     <th className="py-1.5 px-2 text-right">Volume</th>
@@ -1397,30 +1443,46 @@ export const PmtRecebimentoPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {statusResumo.list.map((st, idx) => (
-                    <tr
-                      key={idx}
-                      onClick={() => setSelectedStatus(selectedStatus === st.status ? 'TODOS' : st.status)}
-                      className={`hover:bg-blue-50/50 cursor-pointer transition-colors ${selectedStatus === st.status ? 'bg-blue-50 font-bold' : ''
+                  {statusResumo.list.map((st, idx) => {
+                    const isSelected = summaryViewMode === 'status' 
+                      ? selectedStatus === st.label 
+                      : selectedCategoria === st.label
+
+                    const handleRowClick = () => {
+                      if (summaryViewMode === 'status') {
+                        setSelectedStatus(selectedStatus === st.label ? 'TODOS' : st.label)
+                      } else {
+                        setSelectedCategoria(selectedCategoria === st.label ? 'TODAS' : st.label)
+                      }
+                    }
+
+                    return (
+                      <tr
+                        key={idx}
+                        onClick={handleRowClick}
+                        title={`Clique para filtrar por ${summaryViewMode === 'status' ? 'status' : 'categoria'}: ${st.label}`}
+                        className={`hover:bg-blue-50/50 cursor-pointer transition-colors ${
+                          isSelected ? 'bg-blue-50 font-bold' : ''
                         }`}
-                    >
-                      <td className="py-1.5 px-2 font-medium text-slate-800 truncate max-w-[120px]">
-                        {st.status}
-                      </td>
-                      <td className="py-1.5 px-2 text-right font-mono text-blue-700 bg-blue-50/50">
-                        {st.agendaCount}
-                      </td>
-                      <td className="py-1.5 px-2 text-right font-mono text-emerald-700 bg-emerald-50/40">
-                        {st.skuSum}
-                      </td>
-                      <td className="py-1.5 px-2 text-right font-mono text-rose-700 bg-rose-50/40 font-bold">
-                        {st.volumeSum.toLocaleString('pt-BR')}
-                      </td>
-                      <td className="py-1.5 px-2 text-right font-mono text-amber-700 bg-amber-50/40">
-                        {st.cubagemSum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  ))}
+                      >
+                        <td className="py-1.5 px-2 font-medium text-slate-800 truncate max-w-[140px]">
+                          {st.label}
+                        </td>
+                        <td className="py-1.5 px-2 text-right font-mono text-blue-700 bg-blue-50/50">
+                          {st.agendaCount}
+                        </td>
+                        <td className="py-1.5 px-2 text-right font-mono text-emerald-700 bg-emerald-50/40">
+                          {st.skuSum}
+                        </td>
+                        <td className="py-1.5 px-2 text-right font-mono text-rose-700 bg-rose-50/40 font-bold">
+                          {st.volumeSum.toLocaleString('pt-BR')}
+                        </td>
+                        <td className="py-1.5 px-2 text-right font-mono text-amber-700 bg-amber-50/40">
+                          {st.cubagemSum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-slate-300 font-bold bg-slate-100 text-slate-900">
