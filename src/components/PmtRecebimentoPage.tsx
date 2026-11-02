@@ -1105,6 +1105,46 @@ export const PmtRecebimentoPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Filtro por Categoria */}
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
+            <Layers size={14} className="text-indigo-600 shrink-0" />
+            <div className="flex flex-col text-left">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                Categoria
+              </span>
+              <select
+                value={selectedCategoria}
+                onChange={(e) => setSelectedCategoria(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer max-w-[130px] truncate"
+              >
+                <option value="TODAS">Todas ({categoriasList.length})</option>
+                {categoriasList.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Filtro por Agenda */}
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
+            <Hash size={14} className="text-blue-600 shrink-0" />
+            <div className="flex flex-col text-left">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-mono leading-none">
+                Agenda
+              </span>
+              <select
+                value={selectedAgenda}
+                onChange={(e) => setSelectedAgenda(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer max-w-[120px] truncate"
+              >
+                <option value="TODAS">Todas ({agendasList.length})</option>
+                {agendasList.map(ag => (
+                  <option key={ag} value={ag}>Agenda {ag}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Filtro por Portaria */}
           <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl px-3 py-1.5 transition-all">
             <Truck size={14} className="text-amber-600 shrink-0" />
@@ -1236,8 +1276,8 @@ export const PmtRecebimentoPage: React.FC = () => {
           BLOCO SUPERIOR — CARDS & RESUMOS IDÊNTICOS AO MODELO
           ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* LADO ESQUERDO: TEMPO MÉDIO POR CATEGORIA (Lg: col-span-4) */}
-        <div className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col justify-between">
+        {/* LADO ESQUERDO: TEMPO MÉDIO POR CATEGORIA & PORTARIA (Lg: col-span-5) */}
+        <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -1298,56 +1338,8 @@ export const PmtRecebimentoPage: React.FC = () => {
           </div>
         </div>
 
-        {/* CENTRO: FILTROS DINÂMICOS DE CATEGORIA & AGENDA (Lg: col-span-3) */}
-        <div className="lg:col-span-3 bg-gradient-to-br from-indigo-900 to-blue-900 text-white rounded-2xl p-5 shadow-xs flex flex-col justify-between">
-          <div className="space-y-4">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-200 block mb-1">
-                Filtro por Categoria
-              </span>
-              <div className="relative">
-                <select
-                  value={selectedCategoria}
-                  onChange={(e) => setSelectedCategoria(e.target.value)}
-                  className="w-full bg-white/10 hover:bg-white/15 border border-white/20 rounded-xl px-3 py-2 text-xs font-semibold text-white outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer transition-all"
-                >
-                  <option value="TODAS" className="text-slate-900">Todas as Categorias ({categoriasList.length})</option>
-                  {categoriasList.map(cat => (
-                    <option key={cat} value={cat} className="text-slate-900">{cat}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-200 block mb-1">
-                Filtro por Agenda
-              </span>
-              <div className="relative">
-                <select
-                  value={selectedAgenda}
-                  onChange={(e) => setSelectedAgenda(e.target.value)}
-                  className="w-full bg-white/10 hover:bg-white/15 border border-white/20 rounded-xl px-3 py-2 text-xs font-semibold text-white outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer transition-all"
-                >
-                  <option value="TODAS" className="text-slate-900">Todas as Agendas ({agendasList.length})</option>
-                  {agendasList.map(ag => (
-                    <option key={ag} value={ag} className="text-slate-900">Agenda {ag}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-white/15 flex items-center justify-between text-xs text-blue-100">
-            <span>Registros exibidos:</span>
-            <span className="font-mono font-bold text-white text-sm">
-              {filteredData.length} de {data.length}
-            </span>
-          </div>
-        </div>
-
-        {/* LADO DIREITO: RESUMO STATUS GERAL (AGENDA, SKU, VOLUME, CUBAGEM) (Lg: col-span-5) */}
-        <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col justify-between">
+        {/* LADO DIREITO: RESUMO STATUS GERAL (AGENDA, SKU, VOLUME, CUBAGEM) (Lg: col-span-7) */}
+        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col justify-between">
           <div>
             {/* Seletor de Período de Datas idêntico ao modelo */}
             <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
