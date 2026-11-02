@@ -44,6 +44,14 @@ export interface RecebimentoItem {
   data: string            // "31/10/2026", "01/11/2026", "02/11/2026"
 }
 
+// Estrutura de cada item de produto da aba "Itens Ag"
+export interface ItemAgendamento {
+  agenda: string
+  sku: string
+  descricao: string
+  qtAgenda: number
+}
+
 // Dados iniciais e de fallback (extraídos do print do sistema real)
 const SAMPLE_RECEBIMENTO_DATA: RecebimentoItem[] = [
   {
@@ -422,9 +430,12 @@ const SHEET_SPREADSHEET_ID = '1s2cnuSCOFFnyFLc7s80eFH1oiGm1LHfGaJxO2dsioRI'
 const SHEET_GID = '585841890'
 const GOOGLE_SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`
+const ITENS_AG_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('Itens Ag')}`
 
 export const PmtRecebimentoPage: React.FC = () => {
   const [data, setData] = useState<RecebimentoItem[]>(SAMPLE_RECEBIMENTO_DATA)
+  const [itensAgMap, setItensAgMap] = useState<Record<string, ItemAgendamento[]>>({})
+  const [expandedAgendas, setExpandedAgendas] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState<boolean>(false)
   const [syncStatus, setSyncStatus] = useState<'sample' | 'live' | 'imported' | 'error'>('sample')
   const [errorMessage, setErrorMessage] = useState<string>('')
@@ -448,11 +459,12 @@ export const PmtRecebimentoPage: React.FC = () => {
     fetchFromGoogleSheets()
   }, [])
 
-  // Tenta sincronizar com o Google Sheets via CSV
+  // Tenta sincronizar com o Google Sheets via CSV (99• FORNECEDOR e Itens Ag)
   const fetchFromGoogleSheets = async () => {
     setLoading(true)
     setErrorMessage('')
     try {
+      // 1. Busca dados da aba 99• FORNECEDOR
       const res = await fetch(CSV_URL)
       if (!res.ok) {
         throw new Error(`Planilha restrita ou indisponível (HTTP ${res.status}).`)
@@ -462,6 +474,20 @@ export const PmtRecebimentoPage: React.FC = () => {
         throw new Error('Acesso restrito: libere no Google Sheets para "Qualquer pessoa com o link".')
       }
       parseAndSetData(csvText)
+
+      // 2. Busca dados da aba Itens Ag
+      try {
+        const resItens = await fetch(ITENS_AG_CSV_URL)
+        if (resItens.ok) {
+          const itensCsvText = await resItens.text()
+          if (!itensCsvText.includes('<!DOCTYPE html>') && !itensCsvText.includes('accounts.google.com')) {
+            parseAndSetItensAg(itensCsvText)
+          }
+        }
+      } catch {
+        // Se falhar aba Itens Ag, não quebra a tela principal
+      }
+
       setSyncStatus('live')
     } catch (err: any) {
       setSyncStatus('error')
@@ -469,6 +495,92 @@ export const PmtRecebimentoPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Parse da aba "Itens Ag"
+  const parseAndSetItensAg = (csvOrRows: string | any[][]) => {
+    try {
+      let rows: string[][] = []
+      if (typeof csvOrRows === 'string') {
+        const lines = csvOrRows.split('\n')
+        rows = lines.map(line => {
+          const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g
+          const matches: string[] = []
+          let m: RegExpExecArray | null
+          while ((m = regex.exec(line)) !== null) {
+            let val = m[1] || ''
+            if (val.startsWith('"') && val.endsWith('"')) {
+              val = val.substring(1, val.length - 1).replace(/""/g, '"')
+            }
+            matches.push(val.trim())
+            if (m.index === regex.lastIndex) regex.lastIndex++
+          }
+          return matches
+        })
+      } else {
+        rows = csvOrRows as string[][]
+      }
+
+      if (rows.length < 2) return
+
+      let headerIdx = 0
+      for (let i = 0; i < Math.min(rows.length, 10); i++) {
+        const rowStr = rows[i].map(c => String(c || '')).join(' ').toUpperCase()
+        if (rowStr.includes('AGENDA') && (rowStr.includes('SKU') || rowStr.includes('DESCRI'))) {
+          headerIdx = i
+          break
+        }
+      }
+
+      const headers = rows[headerIdx].map(h => String(h || '').toUpperCase().trim())
+      let colAgenda = headers.indexOf('AGENDA')
+      let colSku = headers.findIndex(h => h === 'SKU' || h.includes('SKU'))
+      let colDesc = headers.findIndex(h => h.includes('DESCRI') || h.includes('PRODUTO'))
+      let colQt = headers.findIndex(h => h.includes('QT. AGENDA') || h.includes('QT AGENDA') || h.includes('QUANTIDADE'))
+
+      if (colAgenda === -1) colAgenda = 0
+      if (colSku === -1) colSku = 15
+      if (colDesc === -1) colDesc = 17
+      if (colQt === -1) colQt = 22
+
+      const map: Record<string, ItemAgendamento[]> = {}
+      for (let i = headerIdx + 1; i < rows.length; i++) {
+        const r = rows[i]
+        if (!r || r.length === 0) continue
+        const ag = String(r[colAgenda] || '').trim()
+        const sku = String(r[colSku] || '').trim()
+        const desc = String(r[colDesc] || '').trim()
+        const rawQt = String(r[colQt] || '').replace(/\./g, '').replace(',', '.')
+        const qt = Math.round(parseFloat(rawQt)) || 0
+
+        if (!ag || (!sku && !desc)) continue
+
+        if (!map[ag]) map[ag] = []
+        map[ag].push({
+          agenda: ag,
+          sku: sku || '—',
+          descricao: desc || 'Item sem descrição',
+          qtAgenda: qt
+        })
+      }
+
+      setItensAgMap(map)
+    } catch {
+      // Ignora erro
+    }
+  }
+
+  // Toggle de expansão de uma agenda
+  const toggleAgendaExpand = (agenda: string) => {
+    setExpandedAgendas(prev => {
+      const next = new Set(prev)
+      if (next.has(agenda)) {
+        next.delete(agenda)
+      } else {
+        next.add(agenda)
+      }
+      return next
+    })
   }
 
   // Parse CSV ou Planilha Excel
@@ -709,6 +821,15 @@ export const PmtRecebimentoPage: React.FC = () => {
         const ws = wb.Sheets[sheetName]
         const jsonData: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 })
         parseAndSetData(jsonData)
+
+        // Tenta carregar também aba Itens Ag do arquivo se presente
+        const itensAgSheetName = wb.SheetNames.find(s => s.toLowerCase().includes('itens ag') || s.toLowerCase().includes('itens'))
+        if (itensAgSheetName) {
+          const wsItens = wb.Sheets[itensAgSheetName]
+          const jsonItens: any[][] = XLSX.utils.sheet_to_json(wsItens, { header: 1 })
+          parseAndSetItensAg(jsonItens)
+        }
+
         setSyncStatus('imported')
       } catch (err: any) {
         setImportNotice(`Erro ao ler arquivo Excel: ${err.message}`)
@@ -1334,85 +1455,172 @@ export const PmtRecebimentoPage: React.FC = () => {
               ) : (
                 filteredData.map((item, index) => {
                   const isChegou = item.portaria.toLowerCase().includes('chegou') && !item.portaria.toLowerCase().includes('não') && !item.portaria.toLowerCase().includes('nao')
+                  const isExpanded = expandedAgendas.has(item.agenda)
+                  const itensDaAgenda = itensAgMap[item.agenda] || []
+
                   return (
-                    <tr key={item.id || index} className="hover:bg-slate-50/80 transition-colors">
-                      {/* Portaria (amarelo claro quando Chegou, como no print) */}
-                      <td className={`py-2 px-3 font-semibold ${isChegou ? 'bg-amber-100 text-amber-950 font-bold' : 'text-slate-500'}`}>
-                        {item.portaria}
-                      </td>
+                    <React.Fragment key={item.id || index}>
+                      <tr className={`hover:bg-slate-50/80 transition-colors ${isExpanded ? 'bg-blue-50/30' : ''}`}>
+                        {/* Portaria (amarelo claro quando Chegou, como no print) */}
+                        <td className={`py-2 px-3 font-semibold ${isChegou ? 'bg-amber-100 text-amber-950 font-bold' : 'text-slate-500'}`}>
+                          {item.portaria}
+                        </td>
 
-                      {/* Tmp Med */}
-                      <td className="py-2 px-2 font-mono text-slate-700 bg-amber-50/30 text-[11px]">
-                        {item.tmpMed || '-'}
-                      </td>
+                        {/* Tmp Med */}
+                        <td className="py-2 px-2 font-mono text-slate-700 bg-amber-50/30 text-[11px]">
+                          {item.tmpMed || '-'}
+                        </td>
 
-                      {/* Início */}
-                      <td className="py-2 px-2 font-mono text-slate-600 text-[11px]">
-                        {item.inicio || '-'}
-                      </td>
+                        {/* Início */}
+                        <td className="py-2 px-2 font-mono text-slate-600 text-[11px]">
+                          {item.inicio || '-'}
+                        </td>
 
-                      {/* Fim */}
-                      <td className="py-2 px-2 font-mono text-slate-600 text-[11px]">
-                        {item.fim || '-'}
-                      </td>
+                        {/* Fim */}
+                        <td className="py-2 px-2 font-mono text-slate-600 text-[11px]">
+                          {item.fim || '-'}
+                        </td>
 
-                      {/* Tempo */}
-                      <td className="py-2 px-2 font-mono font-bold text-slate-800 text-[11px]">
-                        {item.tempo || '-'}
-                      </td>
+                        {/* Tempo */}
+                        <td className="py-2 px-2 font-mono font-bold text-slate-800 text-[11px]">
+                          {item.tempo || '-'}
+                        </td>
 
-                      {/* Agenda */}
-                      <td className="py-2 px-2.5 font-mono font-bold text-blue-600">
-                        {item.agenda}
-                      </td>
+                        {/* Agenda com Ação Dropdown / Expandir */}
+                        <td className="py-2 px-2.5 font-mono">
+                          <button
+                            type="button"
+                            onClick={() => toggleAgendaExpand(item.agenda)}
+                            title="Clique para ver os itens/SKUs desta agenda"
+                            className="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-100/60 px-2 py-0.5 rounded-lg transition-colors cursor-pointer group"
+                          >
+                            <span>{item.agenda}</span>
+                            <ChevronDown
+                              size={13}
+                              className={`text-blue-500 group-hover:text-blue-800 transition-transform duration-200 ${
+                                isExpanded ? 'rotate-180 text-blue-800' : ''
+                              }`}
+                            />
+                          </button>
+                        </td>
 
-                      {/* Doca */}
-                      <td className="py-2 px-2 text-center font-mono font-bold text-slate-800 bg-slate-50">
-                        {item.doca || '-'}
-                      </td>
+                        {/* Doca */}
+                        <td className="py-2 px-2 text-center font-mono font-bold text-slate-800 bg-slate-50">
+                          {item.doca || '-'}
+                        </td>
 
-                      {/* Status Geral */}
-                      <td className="py-2 px-3 text-center">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] tracking-wide ${getStatusBadge(item.statusGeral)}`}>
-                          {item.statusGeral}
-                        </span>
-                      </td>
+                        {/* Status Geral */}
+                        <td className="py-2 px-3 text-center">
+                          <span className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] tracking-wide ${getStatusBadge(item.statusGeral)}`}>
+                            {item.statusGeral}
+                          </span>
+                        </td>
 
-                      {/* Conferente */}
-                      <td className="py-2 px-3 font-semibold text-slate-800 uppercase text-[11px]">
-                        {item.conferente || '-'}
-                      </td>
+                        {/* Conferente */}
+                        <td className="py-2 px-3 font-semibold text-slate-800 uppercase text-[11px]">
+                          {item.conferente || '-'}
+                        </td>
 
-                      {/* Equipe */}
-                      <td className="py-2 px-2 text-center font-mono font-bold text-slate-700">
-                        {item.equipe || '-'}
-                      </td>
+                        {/* Equipe */}
+                        <td className="py-2 px-2 text-center font-mono font-bold text-slate-700">
+                          {item.equipe || '-'}
+                        </td>
 
-                      {/* Fornecedor */}
-                      <td className="py-2 px-3 font-medium text-slate-800 truncate max-w-[220px]" title={item.fornecedor}>
-                        {item.fornecedor}
-                      </td>
+                        {/* Fornecedor */}
+                        <td className="py-2 px-3 font-medium text-slate-800 truncate max-w-[220px]" title={item.fornecedor}>
+                          {item.fornecedor}
+                        </td>
 
-                      {/* Categoria */}
-                      <td className="py-2 px-3 font-semibold text-slate-600 text-[11px] truncate max-w-[130px]">
-                        {item.categoria}
-                      </td>
+                        {/* Categoria */}
+                        <td className="py-2 px-3 font-semibold text-slate-600 text-[11px] truncate max-w-[130px]">
+                          {item.categoria}
+                        </td>
 
-                      {/* SKU */}
-                      <td className="py-2 px-2 text-center font-mono font-bold text-blue-700 bg-blue-50/50">
-                        {item.sku}
-                      </td>
+                        {/* SKU */}
+                        <td className="py-2 px-2 text-center font-mono font-bold text-blue-700 bg-blue-50/50">
+                          {item.sku}
+                        </td>
 
-                      {/* Volume (destacado em azul como no print para grandes volumes) */}
-                      <td className={`py-2 px-3 text-right font-mono font-bold ${item.volume > 1000 ? 'bg-cyan-500 text-white rounded' : 'text-slate-900 bg-slate-50/70'}`}>
-                        {item.volume.toLocaleString('pt-BR')}
-                      </td>
+                        {/* Volume (destacado em azul como no print para grandes volumes) */}
+                        <td className={`py-2 px-3 text-right font-mono font-bold ${item.volume > 1000 ? 'bg-cyan-500 text-white rounded' : 'text-slate-900 bg-slate-50/70'}`}>
+                          {item.volume.toLocaleString('pt-BR')}
+                        </td>
 
-                      {/* Reslog (destaque rosa/magenta quando > 0) */}
-                      <td className={`py-2 px-2 text-center font-mono font-bold ${item.reslog > 0 ? 'bg-pink-500 text-white rounded' : 'text-slate-400'}`}>
-                        {item.reslog}
-                      </td>
-                    </tr>
+                        {/* Reslog (destaque rosa/magenta quando > 0) */}
+                        <td className={`py-2 px-2 text-center font-mono font-bold ${item.reslog > 0 ? 'bg-pink-500 text-white rounded' : 'text-slate-400'}`}>
+                          {item.reslog}
+                        </td>
+                      </tr>
+
+                      {/* LINHA EXPANSÍVEL: ITENS DA AGENDA (ABA ITENS AG) */}
+                      {isExpanded && (
+                        <tr className="bg-gradient-to-r from-blue-50/60 via-slate-50 to-blue-50/60 animate-in fade-in duration-200 border-y border-blue-200/80">
+                          <td colSpan={15} className="p-3 pl-8 pr-6">
+                            <div className="bg-white rounded-xl p-3 border border-blue-200 shadow-xs space-y-2">
+                              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                                <div className="flex items-center gap-2">
+                                  <Box size={14} className="text-blue-600" />
+                                  <span className="text-xs font-bold text-slate-800">
+                                    Itens do Agendamento &bull; Agenda <span className="text-blue-600 font-mono">#{item.agenda}</span>
+                                  </span>
+                                  <span className="text-[11px] text-slate-500">
+                                    ({itensDaAgenda.length > 0 ? `${itensDaAgenda.length} produto(s) vinculado(s)` : 'Nenhum detalhe adicional na aba Itens Ag'})
+                                  </span>
+                                </div>
+                                <span className="text-[11px] font-bold text-slate-500">
+                                  Fornecedor: <strong className="text-slate-800">{item.fornecedor}</strong>
+                                </span>
+                              </div>
+
+                              {itensDaAgenda.length === 0 ? (
+                                <div className="py-3 text-center text-xs text-slate-400">
+                                  Nenhum item com a Agenda <strong>{item.agenda}</strong> foi encontrado na aba <em>Itens Ag</em> da planilha.
+                                </div>
+                              ) : (
+                                <div className="overflow-x-auto max-h-56 overflow-y-auto">
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="bg-slate-100 text-slate-700 font-bold text-[10px] uppercase tracking-wider">
+                                        <th className="py-1.5 px-3 text-left w-36">SKU</th>
+                                        <th className="py-1.5 px-3 text-left">Descrição do Produto</th>
+                                        <th className="py-1.5 px-3 text-right w-36">Qt. Agenda</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                      {itensDaAgenda.map((it, idx) => (
+                                        <tr key={idx} className="hover:bg-blue-50/40">
+                                          <td className="py-1.5 px-3 font-mono font-bold text-blue-700">
+                                            <span className="bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                              {it.sku}
+                                            </span>
+                                          </td>
+                                          <td className="py-1.5 px-3 font-medium text-slate-800">
+                                            {it.descricao}
+                                          </td>
+                                          <td className="py-1.5 px-3 text-right font-mono font-bold text-emerald-700">
+                                            {it.qtAgenda.toLocaleString('pt-BR')}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                    <tfoot>
+                                      <tr className="border-t border-slate-200 font-bold bg-slate-50 text-slate-900">
+                                        <td colSpan={2} className="py-1.5 px-3 text-right uppercase text-[10px] text-slate-600">
+                                          Total de Peças na Agenda:
+                                        </td>
+                                        <td className="py-1.5 px-3 text-right font-mono text-emerald-800 font-bold">
+                                          {itensDaAgenda.reduce((acc, curr) => acc + curr.qtAgenda, 0).toLocaleString('pt-BR')}
+                                        </td>
+                                      </tr>
+                                    </tfoot>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   )
                 })
               )}
