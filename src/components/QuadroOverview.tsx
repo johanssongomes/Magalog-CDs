@@ -446,20 +446,23 @@ export const QuadroOverview: React.FC = () => {
 
         {/* Grade de dias com scroll horizontal */}
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-[11px]">
+          <table className="w-full border-collapse text-[11px] table-fixed">
             <thead>
               <tr className="bg-slate-50/90 text-slate-700 border-b border-slate-200 font-bold">
-                <th className="sticky left-0 z-30 bg-slate-50 px-3 py-2 text-left font-extrabold border-r border-slate-200 min-w-[210px] shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
+                <th className="sticky left-0 z-30 bg-slate-50 px-3 py-2 text-left font-extrabold border-r border-slate-200 w-[210px] min-w-[210px] max-w-[210px] shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
                   Estrutura / Indicador
                 </th>
                 {daysList.map((d) => (
-                  <th key={`hd-${d.day}`} className="px-1.5 py-1 text-center border-r border-slate-200 min-w-[38px]">
+                  <th key={`hd-${d.day}`} className="px-1 py-1 text-center border-r border-slate-200 w-[38px] min-w-[38px]">
                     <div className="text-[9px] text-slate-400 font-mono leading-none">{d.weekday}</div>
                     <div className="text-xs font-extrabold text-slate-800">{d.day}</div>
                   </th>
                 ))}
-                <th className="px-3 py-2 text-center border-r border-slate-200 min-w-[65px] bg-slate-100/80 text-slate-800 font-extrabold">
+                <th className="px-2 py-2 text-center border-r border-slate-200 w-[55px] min-w-[55px] bg-slate-100/80 text-slate-800 font-extrabold">
                   Média
+                </th>
+                <th className="px-2 py-2 text-center w-[70px] min-w-[70px] bg-slate-100/80 text-slate-800 font-extrabold">
+                  -
                 </th>
               </tr>
             </thead>
@@ -468,53 +471,59 @@ export const QuadroOverview: React.FC = () => {
               {(selectedFilter === 'todos' || selectedFilter === 'op') && (
                 <>
                   <tr className="bg-blue-900 text-white font-black text-xs">
-                    <td colSpan={daysList.length + 2} className="px-3 py-1.5 tracking-wider uppercase">
+                    <td colSpan={daysList.length + 3} className="px-3 py-1.5 tracking-wider uppercase">
                       NOVEMBRO — OP (Operacional)
                     </td>
                   </tr>
 
                   {/* Orçado OP */}
                   <tr className="border-b border-slate-200/80 hover:bg-slate-50/50">
-                    <td className="sticky left-0 z-20 bg-white px-3 py-1.5 font-bold text-slate-700 border-r border-slate-200 flex items-center gap-1.5 shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
-                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                    <td className="sticky left-0 z-20 bg-white px-3 py-1.5 font-bold text-slate-700 border-r border-slate-200 flex items-center gap-1.5 shadow-[2px_0_4px_rgba(0,0,0,0.02)] whitespace-nowrap">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
                       Quadro Orçado
                     </td>
                     {daysList.map((d) => {
                       const val = data.op.orcado[d.day]
                       return (
-                        <td key={`op-orc-${d.day}`} className="px-1.5 py-1 text-center border-r border-slate-100 font-mono text-slate-700">
+                        <td key={`op-orc-${d.day}`} className="px-1 py-1.5 text-center border-r border-slate-100 font-mono text-slate-700">
                           {val ?? '-'}
                         </td>
                       )
                     })}
-                    <td className="px-2 py-1 text-center border-r border-slate-200 font-mono font-bold text-slate-900 bg-slate-50">
+                    <td className="px-2 py-1.5 text-center border-r border-slate-200 font-mono font-bold text-slate-900 bg-slate-50">
                       {opCalc.mediaOrcado}
+                    </td>
+                    <td className="px-2 py-1.5 text-center font-mono text-slate-400 bg-slate-50">
+                      -
                     </td>
                   </tr>
 
                   {/* Atual OP */}
                   <tr className="border-b border-slate-200/80 bg-blue-50/20 hover:bg-blue-50/40">
-                    <td className="sticky left-0 z-20 bg-blue-50/30 px-3 py-1.5 font-bold text-blue-950 border-r border-slate-200 flex items-center gap-1.5 shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <td className="sticky left-0 z-20 bg-blue-50/30 px-3 py-1.5 font-bold text-blue-950 border-r border-slate-200 flex items-center gap-1.5 shadow-[2px_0_4px_rgba(0,0,0,0.02)] whitespace-nowrap">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                       Quadro Atual
                     </td>
                     {daysList.map((d) => {
                       const val = opCalc.quadroAtualByDay[d.day]
                       return (
-                        <td key={`op-at-${d.day}`} className="px-1.5 py-1 text-center border-r border-slate-100 font-mono font-semibold text-slate-900">
+                        <td key={`op-at-${d.day}`} className="px-1 py-1.5 text-center border-r border-slate-100 font-mono font-semibold text-slate-900">
                           {val !== undefined ? val.toFixed(1).replace('.0', '') : '-'}
                         </td>
                       )
                     })}
-                    <td className="px-2 py-1 text-center border-r border-slate-200 font-mono font-bold text-blue-900 bg-blue-50/60">
+                    <td className="px-2 py-1.5 text-center border-r border-slate-200 font-mono font-bold text-blue-900 bg-blue-50/60">
                       {opCalc.mediaAtual}
+                    </td>
+                    <td className="px-2 py-1.5 text-center font-mono text-slate-400 bg-blue-50/60">
+                      -
                     </td>
                   </tr>
 
                   {/* Gap OP */}
                   <tr className="border-b-2 border-slate-300 bg-slate-50/50">
-                    <td className="sticky left-0 z-20 bg-slate-50 px-3 py-1.5 font-bold text-slate-800 border-r border-slate-200 flex items-center gap-1.5 shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
-                      <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    <td className="sticky left-0 z-20 bg-slate-50 px-3 py-1.5 font-bold text-slate-800 border-r border-slate-200 flex items-center gap-1.5 shadow-[2px_0_4px_rgba(0,0,0,0.02)] whitespace-nowrap">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
                       Gap (Atual - Orçado)
                     </td>
                     {daysList.map((d) => {
@@ -524,7 +533,7 @@ export const QuadroOverview: React.FC = () => {
                       return (
                         <td
                           key={`op-gap-${d.day}`}
-                          className={`px-1.5 py-1 text-center border-r border-slate-100 font-mono font-bold ${
+                          className={`px-1 py-1.5 text-center border-r border-slate-100 font-mono font-bold ${
                             isNegative
                               ? 'bg-rose-100/70 text-rose-700'
                               : isPositive
@@ -537,11 +546,14 @@ export const QuadroOverview: React.FC = () => {
                       )
                     })}
                     <td
-                      className={`px-2 py-1 text-center border-r border-slate-200 font-mono font-bold ${
+                      className={`px-2 py-1.5 text-center border-r border-slate-200 font-mono font-bold ${
                         opCalc.mediaGap < 0 ? 'bg-rose-200/60 text-rose-800' : 'bg-emerald-200/60 text-emerald-800'
                       }`}
                     >
                       {opCalc.mediaGap > 0 ? `+${opCalc.mediaGap}` : opCalc.mediaGap}
+                    </td>
+                    <td className="px-2 py-1.5 text-center font-mono text-slate-400 bg-slate-50">
+                      -
                     </td>
                   </tr>
                 </>
@@ -551,53 +563,59 @@ export const QuadroOverview: React.FC = () => {
               {(selectedFilter === 'todos' || selectedFilter === 'cd') && (
                 <>
                   <tr className="bg-[#4a1525] text-white font-black text-xs">
-                    <td colSpan={daysList.length + 2} className="px-3 py-1.5 tracking-wider uppercase">
+                    <td colSpan={daysList.length + 3} className="px-3 py-1.5 tracking-wider uppercase">
                       NOVEMBRO — C&D (Carga e Descarga)
                     </td>
                   </tr>
 
                   {/* Orçado C&D */}
                   <tr className="border-b border-slate-200/80 hover:bg-slate-50/50">
-                    <td className="sticky left-0 z-20 bg-white px-3 py-1.5 font-bold text-slate-700 border-r border-slate-200 flex items-center gap-1.5 shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
-                      <span className="w-2 h-2 rounded-full bg-purple-500" />
+                    <td className="sticky left-0 z-20 bg-white px-3 py-1.5 font-bold text-slate-700 border-r border-slate-200 flex items-center gap-1.5 shadow-[2px_0_4px_rgba(0,0,0,0.02)] whitespace-nowrap">
+                      <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" />
                       Quadro Orçado
                     </td>
                     {daysList.map((d) => {
                       const val = data.cd.orcado[d.day]
                       return (
-                        <td key={`cd-orc-${d.day}`} className="px-1.5 py-1 text-center border-r border-slate-100 font-mono text-slate-700">
+                        <td key={`cd-orc-${d.day}`} className="px-1 py-1.5 text-center border-r border-slate-100 font-mono text-slate-700">
                           {val ?? '-'}
                         </td>
                       )
                     })}
-                    <td className="px-2 py-1 text-center border-r border-slate-200 font-mono font-bold text-slate-900 bg-slate-50">
+                    <td className="px-2 py-1.5 text-center border-r border-slate-200 font-mono font-bold text-slate-900 bg-slate-50">
                       {cdCalc.mediaOrcado}
+                    </td>
+                    <td className="px-2 py-1.5 text-center font-mono text-slate-400 bg-slate-50">
+                      -
                     </td>
                   </tr>
 
                   {/* Atual C&D */}
                   <tr className="border-b border-slate-200/80 bg-purple-50/20 hover:bg-purple-50/40">
-                    <td className="sticky left-0 z-20 bg-purple-50/30 px-3 py-1.5 font-bold text-purple-950 border-r border-slate-200 flex items-center gap-1.5 shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <td className="sticky left-0 z-20 bg-purple-50/30 px-3 py-1.5 font-bold text-purple-950 border-r border-slate-200 flex items-center gap-1.5 shadow-[2px_0_4px_rgba(0,0,0,0.02)] whitespace-nowrap">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                       Quadro Atual
                     </td>
                     {daysList.map((d) => {
                       const val = cdCalc.quadroAtualByDay[d.day]
                       return (
-                        <td key={`cd-at-${d.day}`} className="px-1.5 py-1 text-center border-r border-slate-100 font-mono font-semibold text-slate-900">
+                        <td key={`cd-at-${d.day}`} className="px-1 py-1.5 text-center border-r border-slate-100 font-mono font-semibold text-slate-900">
                           {val !== undefined ? val.toFixed(1).replace('.0', '') : '-'}
                         </td>
                       )
                     })}
-                    <td className="px-2 py-1 text-center border-r border-slate-200 font-mono font-bold text-purple-900 bg-purple-50/60">
+                    <td className="px-2 py-1.5 text-center border-r border-slate-200 font-mono font-bold text-purple-900 bg-purple-50/60">
                       {cdCalc.mediaAtual}
+                    </td>
+                    <td className="px-2 py-1.5 text-center font-mono text-slate-400 bg-purple-50/60">
+                      -
                     </td>
                   </tr>
 
                   {/* Gap C&D */}
                   <tr className="border-b border-slate-200 bg-slate-50/50">
-                    <td className="sticky left-0 z-20 bg-slate-50 px-3 py-1.5 font-bold text-slate-800 border-r border-slate-200 flex items-center gap-1.5 shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
-                      <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    <td className="sticky left-0 z-20 bg-slate-50 px-3 py-1.5 font-bold text-slate-800 border-r border-slate-200 flex items-center gap-1.5 shadow-[2px_0_4px_rgba(0,0,0,0.02)] whitespace-nowrap">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
                       Gap (Atual - Orçado)
                     </td>
                     {daysList.map((d) => {
@@ -607,7 +625,7 @@ export const QuadroOverview: React.FC = () => {
                       return (
                         <td
                           key={`cd-gap-${d.day}`}
-                          className={`px-1.5 py-1 text-center border-r border-slate-100 font-mono font-bold ${
+                          className={`px-1 py-1.5 text-center border-r border-slate-100 font-mono font-bold ${
                             isNegative
                               ? 'bg-rose-100/70 text-rose-700'
                               : isPositive
@@ -620,11 +638,14 @@ export const QuadroOverview: React.FC = () => {
                       )
                     })}
                     <td
-                      className={`px-2 py-1 text-center border-r border-slate-200 font-mono font-bold ${
+                      className={`px-2 py-1.5 text-center border-r border-slate-200 font-mono font-bold ${
                         cdCalc.mediaGap < 0 ? 'bg-rose-200/60 text-rose-800' : 'bg-emerald-200/60 text-emerald-800'
                       }`}
                     >
                       {cdCalc.mediaGap > 0 ? `+${cdCalc.mediaGap}` : cdCalc.mediaGap}
+                    </td>
+                    <td className="px-2 py-1.5 text-center font-mono text-slate-400 bg-slate-50">
+                      -
                     </td>
                   </tr>
                 </>

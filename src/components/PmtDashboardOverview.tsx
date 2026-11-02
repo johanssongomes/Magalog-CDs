@@ -734,23 +734,23 @@ export const PmtDashboardOverview: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-[11px]">
+          <table className="w-full border-collapse text-[11px] table-fixed">
             {/* CABEÇALHO */}
             <thead>
               <tr className="bg-sky-50/90 text-slate-700 border-b border-slate-200 font-bold">
-                <th className="sticky left-0 z-30 bg-sky-50 px-3 py-2 text-left font-extrabold border-r border-slate-200 min-w-[210px] shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
+                <th className="sticky left-0 z-30 bg-sky-50 px-3 py-2 text-left font-extrabold border-r border-slate-200 w-[210px] min-w-[210px] max-w-[210px] shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
                   Data / Indicador
                 </th>
                 {dailyData.map((d) => (
-                  <th key={`h-${d.day}`} className="px-1.5 py-1 text-center border-r border-slate-200 min-w-[38px]">
+                  <th key={`h-${d.day}`} className="px-1 py-1 text-center border-r border-slate-200 w-[38px] min-w-[38px]">
                     <div className="text-[9px] text-slate-400 font-mono leading-none">{d.w}</div>
                     <div className="text-xs font-extrabold text-slate-800">{d.day}</div>
                   </th>
                 ))}
-                <th className="px-3 py-2 text-center border-r border-slate-200 min-w-[55px] bg-slate-100/80 text-slate-800 font-extrabold">
+                <th className="px-2 py-2 text-center border-r border-slate-200 w-[55px] min-w-[55px] bg-slate-100/80 text-slate-800 font-extrabold">
                   Média
                 </th>
-                <th className="px-3 py-2 text-center min-w-[70px] bg-slate-100/80 text-slate-800 font-extrabold">
+                <th className="px-2 py-2 text-center w-[70px] min-w-[70px] bg-slate-100/80 text-slate-800 font-extrabold">
                   Total Geral
                 </th>
               </tr>
