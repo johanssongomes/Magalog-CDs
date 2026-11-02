@@ -772,7 +772,12 @@ export const PmtRecebimentoPage: React.FC = () => {
         const fornecedor = getVal('fornecedor')
         const portaria = getVal('portaria') || (statusGeral === 'NO SHOW' ? 'Não Chegou' : 'Chegou')
 
-        if (!statusGeral && !agenda && !fornecedor) continue
+        // Se não tiver número de agenda preenchido na planilha, ignora a linha (não exibe no painel)
+        if (!agenda || agenda === '-' || agenda === '#N/D' || agenda.toLowerCase() === 'null') {
+          continue
+        }
+
+        if (!statusGeral && !fornecedor) continue
 
         const parseNum = (colKey: string, defaultVal: number = 0) => {
           const raw = getVal(colKey)
@@ -822,7 +827,7 @@ export const PmtRecebimentoPage: React.FC = () => {
           inicio: getVal('inicio'),
           fim: getVal('fim'),
           tempo: getVal('tempo'),
-          agenda: agenda || `AG-${i}`,
+          agenda: agenda,
           doca: getVal('doca'),
           statusGeral: statusGeral || 'EM ANDAMENTO',
           conferente: getVal('conferente'),
