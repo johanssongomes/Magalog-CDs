@@ -443,27 +443,9 @@ export const PmtRecebimentoPage: React.FC = () => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [importNotice, setImportNotice] = useState<string | null>(null)
 
-  // Carrega dados salvos no localStorage se houver (limpa se os dados estiverem com volume zerado por falha anterior de mapeamento)
+  // Auto-sincroniza com o Google Sheets no carregamento inicial
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('magalog_pmt_recebimento_data')
-      if (saved) {
-        const parsed: RecebimentoItem[] = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Se todos os volumes estiverem zerados por conta do mapeamento anterior, descarta e reprocessa
-          const totalVol = parsed.reduce((acc, curr) => acc + (curr.volume || 0), 0)
-          if (totalVol > 0) {
-            setData(parsed)
-            setSyncStatus('imported')
-            return
-          } else {
-            localStorage.removeItem('magalog_pmt_recebimento_data')
-          }
-        }
-      }
-    } catch {
-      // Ignora
-    }
+    fetchFromGoogleSheets()
   }, [])
 
   // Tenta sincronizar com o Google Sheets via CSV
@@ -581,21 +563,45 @@ export const PmtRecebimentoPage: React.FC = () => {
         if (h === 'RESLOG' || h.includes('RESLOG') || h.includes('DIVERG') || h.includes('DIF')) colMap['reslog'] = idx
       })
 
-      // Fallback por posição se colunas padrão do Google Sheets (conforme imagem da planilha):
-      // B: PORTARIA (1), C: STATUS GERAL (2), D: CONFERENTE (3), E: EQUIPE (4), F: DOCA (5), G: TMP MED (6)
-      // H: INICIO (7), I: FIM (8), J: TEMPO (9), K: D&F (10), L: AGENDA (11), M: DATA (12), N: VEICULO (13), O: FORNECEDOR (14)
-      if (colMap['portaria'] === undefined && headers.length > 1) colMap['portaria'] = 1
-      if (colMap['statusGeral'] === undefined && headers.length > 2) colMap['statusGeral'] = 2
-      if (colMap['conferente'] === undefined && headers.length > 3) colMap['conferente'] = 3
-      if (colMap['equipe'] === undefined && headers.length > 4) colMap['equipe'] = 4
-      if (colMap['doca'] === undefined && headers.length > 5) colMap['doca'] = 5
-      if (colMap['tmpMed'] === undefined && headers.length > 6) colMap['tmpMed'] = 6
-      if (colMap['inicio'] === undefined && headers.length > 7) colMap['inicio'] = 7
-      if (colMap['fim'] === undefined && headers.length > 8) colMap['fim'] = 8
-      if (colMap['tempo'] === undefined && headers.length > 9) colMap['tempo'] = 9
-      if (colMap['agenda'] === undefined && headers.length > 11) colMap['agenda'] = 11
-      if (colMap['data'] === undefined && headers.length > 12) colMap['data'] = 12
-      if (colMap['fornecedor'] === undefined && headers.length > 14) colMap['fornecedor'] = 14
+      // Fallback e mapeamento exato das posições reais da aba 99• FORNECEDOR:
+      // B: PORTARIA (col 1)
+      // C: STATUS GERAL (col 2)
+      // D: CONFERENTE (col 3)
+      // E: EQUIPE (col 4)
+      // F: DOCA (col 5)
+      // G: TMP MED (col 6)
+      // H: INICIO (col 7)
+      // I: FIM (col 8)
+      // J: TEMPO (col 9)
+      // K: D&F (col 10)
+      // L: AGENDA (col 11)
+      // M: DATA (col 12)
+      // N: VEICULO (col 13)
+      // O: FORNECEDOR (col 14)
+      // P: TRANSP (col 15)
+      // Q: STATUS_LUIZA GOL (col 16)
+      // R: RESLOG (col 17)
+      // S: VOLUME (col 18)
+      // T: SKU (col 19)
+      // W: CATEGORIA (col 22)
+      // Y: CUBAGEM (col 24)
+      colMap['portaria'] = colMap['portaria'] ?? 1
+      colMap['statusGeral'] = colMap['statusGeral'] ?? 2
+      colMap['conferente'] = colMap['conferente'] ?? 3
+      colMap['equipe'] = colMap['equipe'] ?? 4
+      colMap['doca'] = colMap['doca'] ?? 5
+      colMap['tmpMed'] = colMap['tmpMed'] ?? 6
+      colMap['inicio'] = colMap['inicio'] ?? 7
+      colMap['fim'] = colMap['fim'] ?? 8
+      colMap['tempo'] = colMap['tempo'] ?? 9
+      colMap['agenda'] = colMap['agenda'] ?? 11
+      colMap['data'] = colMap['data'] ?? 12
+      colMap['fornecedor'] = colMap['fornecedor'] ?? 14
+      colMap['reslog'] = colMap['reslog'] ?? 17
+      colMap['volume'] = colMap['volume'] ?? 18
+      colMap['sku'] = colMap['sku'] ?? 19
+      colMap['categoria'] = colMap['categoria'] ?? 22
+      colMap['cubagem'] = colMap['cubagem'] ?? 24
 
       const parsedItems: RecebimentoItem[] = []
       for (let i = headerIdx + 1; i < rows.length; i++) {
@@ -633,7 +639,6 @@ export const PmtRecebimentoPage: React.FC = () => {
           dataFormatada = `${dd}/${mm}/${yyyy}`
         }
 
-        // Se categoria não estiver explicitada, infere a partir do fornecedor ou padrão
         let categoriaVal = getVal('categoria')
         if (!categoriaVal || categoriaVal === 'GERAL') {
           const fornUpper = fornecedor.toUpperCase()
@@ -652,28 +657,10 @@ export const PmtRecebimentoPage: React.FC = () => {
           }
         }
 
-        // Se volume for 0, calcula estimativa padrão proporcional para não zerar os indicadores
-        const skuNum = Math.max(1, Math.round(parseNum('sku', 1)))
-        let volumeNum = Math.round(parseNum('volume', 0))
-        let cubagemNum = Number(parseNum('cubagem', 0).toFixed(2))
-
-        // Se a planilha importada não possuía a coluna SKU/Volume/Cubagem preenchida (ex: aba de agendamento puro)
-        if (volumeNum === 0) {
-          // Calcula peso operacional estimado pelo tipo de fornecedor
-          if (categoriaVal.includes('ELETRO')) {
-            volumeNum = skuNum * 120
-            cubagemNum = Number((volumeNum * 0.45).toFixed(2))
-          } else if (categoriaVal.includes('COLCH') || categoriaVal.includes('MADEIRA')) {
-            volumeNum = skuNum * 65
-            cubagemNum = Number((volumeNum * 0.60).toFixed(2))
-          } else if (categoriaVal.includes('PORTATEIS') || categoriaVal.includes('ELETRÔNICO')) {
-            volumeNum = skuNum * 350
-            cubagemNum = Number((volumeNum * 0.15).toFixed(2))
-          } else {
-            volumeNum = skuNum * 80
-            cubagemNum = Number((volumeNum * 0.30).toFixed(2))
-          }
-        }
+        const skuNum = Math.max(0, Math.round(parseNum('sku', 1)))
+        const volumeNum = Math.max(0, Math.round(parseNum('volume', 0)))
+        const cubagemNum = Number(parseNum('cubagem', 0).toFixed(2))
+        const reslogNum = Math.round(parseNum('reslog', 0))
 
         parsedItems.push({
           id: `item-${i}-${agenda}`,
@@ -691,7 +678,7 @@ export const PmtRecebimentoPage: React.FC = () => {
           categoria: categoriaVal,
           sku: skuNum,
           volume: volumeNum,
-          reslog: Math.round(parseNum('reslog', 0)),
+          reslog: reslogNum,
           cubagem: cubagemNum,
           data: dataFormatada || '02/11/2026'
         })
@@ -1012,13 +999,12 @@ export const PmtRecebimentoPage: React.FC = () => {
               <h2 className="text-base font-bold text-slate-900 tracking-tight">
                 Recebimento CD 6994 &bull; Acompanhamento de Fornecedor
               </h2>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                syncStatus === 'live'
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${syncStatus === 'live'
                   ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                   : syncStatus === 'imported'
-                  ? 'bg-blue-100 text-blue-800 border border-blue-300'
-                  : 'bg-amber-100 text-amber-800 border border-amber-300'
-              }`}>
+                    ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                    : 'bg-amber-100 text-amber-800 border border-amber-300'
+                }`}>
                 {syncStatus === 'live' ? 'Online (Google Sheets)' : syncStatus === 'imported' ? 'Base Carregada' : 'Modo Demonstração'}
               </span>
             </div>
@@ -1115,11 +1101,10 @@ export const PmtRecebimentoPage: React.FC = () => {
           <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-3">
             <div
               onClick={() => setSelectedPortaria(selectedPortaria === 'Chegou' ? 'TODOS' : 'Chegou')}
-              className={`p-3 rounded-xl border transition-all cursor-pointer ${
-                selectedPortaria === 'Chegou'
+              className={`p-3 rounded-xl border transition-all cursor-pointer ${selectedPortaria === 'Chegou'
                   ? 'bg-amber-100 border-amber-400 text-amber-950 shadow-xs'
                   : 'bg-amber-50/70 hover:bg-amber-100/70 border-amber-200/80 text-amber-900'
-              }`}
+                }`}
             >
               <span className="text-[10px] font-bold uppercase tracking-wider block text-amber-800">
                 Portaria &bull; Chegou
@@ -1131,11 +1116,10 @@ export const PmtRecebimentoPage: React.FC = () => {
 
             <div
               onClick={() => setSelectedPortaria(selectedPortaria === 'Não Chegou' ? 'TODOS' : 'Não Chegou')}
-              className={`p-3 rounded-xl border transition-all cursor-pointer ${
-                selectedPortaria === 'Não Chegou'
+              className={`p-3 rounded-xl border transition-all cursor-pointer ${selectedPortaria === 'Não Chegou'
                   ? 'bg-slate-200 border-slate-400 text-slate-900 shadow-xs'
                   : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
-              }`}
+                }`}
             >
               <span className="text-[10px] font-bold uppercase tracking-wider block text-slate-500">
                 Portaria &bull; Não Chegou
@@ -1235,9 +1219,8 @@ export const PmtRecebimentoPage: React.FC = () => {
                     <tr
                       key={idx}
                       onClick={() => setSelectedStatus(selectedStatus === st.status ? 'TODOS' : st.status)}
-                      className={`hover:bg-blue-50/50 cursor-pointer transition-colors ${
-                        selectedStatus === st.status ? 'bg-blue-50 font-bold' : ''
-                      }`}
+                      className={`hover:bg-blue-50/50 cursor-pointer transition-colors ${selectedStatus === st.status ? 'bg-blue-50 font-bold' : ''
+                        }`}
                     >
                       <td className="py-1.5 px-2 font-medium text-slate-800 truncate max-w-[120px]">
                         {st.status}
