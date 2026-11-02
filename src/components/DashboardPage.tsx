@@ -769,8 +769,6 @@ export const DashboardPage: React.FC = () => {
           ]}
           items={[
             ['Micro', clienteData.micro, clienteData.dates.micro],
-            ['Courrie', clienteData.courrie, clienteData.dates.courrie],
-            ['Rodo', clienteData.rodo, clienteData.dates.rodo],
             ['Diário', clienteData.diario, clienteData.dates.diario],
             ['Mensal', clienteData.mensal, clienteData.dates.mensal]
           ]}
