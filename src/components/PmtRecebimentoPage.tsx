@@ -19,6 +19,8 @@ import {
   Box,
   Hash,
   Activity,
+  BarChart2,
+  Table as TableIcon,
   X
 } from 'lucide-react'
 
@@ -462,7 +464,7 @@ export const PmtRecebimentoPage: React.FC = () => {
   const [selectedAgenda, setSelectedAgenda] = useState<string>('TODAS')
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [statusSortOrder, setStatusSortOrder] = useState<'asc' | 'desc'>('asc')
-  const [summaryViewMode, setSummaryViewMode] = useState<'status' | 'categoria'>('status')
+  const [summaryViewMode, setSummaryViewMode] = useState<'status' | 'categoria' | 'grafico'>('status')
 
   // Modal de importação manual
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
@@ -988,7 +990,7 @@ export const PmtRecebimentoPage: React.FC = () => {
     const groups: Record<string, { label: string; status: string; agendaCount: number; skuSum: number; volumeSum: number; cubagemSum: number }> = {}
 
     filteredData.forEach(d => {
-      const key = summaryViewMode === 'categoria' 
+      const key = (summaryViewMode === 'categoria' || summaryViewMode === 'grafico')
         ? (d.categoria || 'SEM CATEGORIA') 
         : (d.statusGeral || 'OUTROS')
 
@@ -1388,7 +1390,7 @@ export const PmtRecebimentoPage: React.FC = () => {
                 </span>
               </div>
 
-              {/* Segmentação: Status Geral / Categoria e Seletor de Data */}
+              {/* Segmentação: Status Geral / Categoria / Gráfico e Seletor de Data */}
               <div className="flex items-center gap-2">
                 <div className="inline-flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-bold">
                   <button
@@ -1413,6 +1415,18 @@ export const PmtRecebimentoPage: React.FC = () => {
                   >
                     Categoria
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setSummaryViewMode('grafico')}
+                    className={`px-2.5 py-1 rounded-md transition-all cursor-pointer inline-flex items-center gap-1 ${
+                      summaryViewMode === 'grafico'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <BarChart2 size={12} />
+                    <span>Gráfico</span>
+                  </button>
                 </div>
 
                 <select
@@ -1428,75 +1442,144 @@ export const PmtRecebimentoPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Tabela de Resumo por Status ou Categoria */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
-                    <th className="py-1.5 px-2 text-left">
-                      {summaryViewMode === 'status' ? 'Status Geral' : 'Categoria'}
-                    </th>
-                    <th className="py-1.5 px-2 text-right">Agenda</th>
-                    <th className="py-1.5 px-2 text-right">SKU</th>
-                    <th className="py-1.5 px-2 text-right">Volume</th>
-                    <th className="py-1.5 px-2 text-right">Cubagem</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {statusResumo.list.map((st, idx) => {
-                    const isSelected = summaryViewMode === 'status' 
-                      ? selectedStatus === st.label 
-                      : selectedCategoria === st.label
+            {/* Visualização: Gráfico de Barras por Categoria ou Tabela Resumo */}
+            {summaryViewMode === 'grafico' ? (
+              <div className="py-2">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Quantidade de Agendas por Categoria
+                    </span>
+                    <span className="text-[11px] font-mono text-slate-400">
+                      (Total: {statusResumo.total.agendaCount} agendas)
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    Clique na barra para filtrar a tabela operacional
+                  </span>
+                </div>
 
-                    const handleRowClick = () => {
-                      if (summaryViewMode === 'status') {
-                        setSelectedStatus(selectedStatus === st.label ? 'TODOS' : st.label)
-                      } else {
-                        setSelectedCategoria(selectedCategoria === st.label ? 'TODAS' : st.label)
+                {statusResumo.list.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-400">
+                    Nenhuma categoria encontrada para o período selecionado.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[290px] overflow-y-auto pr-1">
+                    {(() => {
+                      const maxVal = Math.max(...statusResumo.list.map(s => s.agendaCount), 1)
+                      return statusResumo.list.map((item, idx) => {
+                        const pct = Math.max(4, Math.round((item.agendaCount / maxVal) * 100))
+                        const isSelected = selectedCategoria === item.label
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => setSelectedCategoria(selectedCategoria === item.label ? 'TODAS' : item.label)}
+                            title={`Filtrar por ${item.label}: ${item.agendaCount} agendas`}
+                            className={`group cursor-pointer p-1.5 rounded-lg transition-all ${
+                              isSelected ? 'bg-blue-50 ring-1 ring-blue-400' : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="font-semibold text-slate-800 truncate max-w-[240px]">
+                                {item.label}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-slate-500 text-[11px]">
+                                  {item.volumeSum > 0 ? `${item.volumeSum.toLocaleString('pt-BR')} vol` : ''}
+                                </span>
+                                <span className="font-mono font-bold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded text-[11px]">
+                                  {item.agendaCount} {item.agendaCount === 1 ? 'agenda' : 'agendas'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  isSelected
+                                    ? 'bg-blue-600'
+                                    : 'bg-gradient-to-r from-blue-500 to-indigo-600 group-hover:from-blue-600 group-hover:to-indigo-700'
+                                }`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })
+                    })()}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Tabela de Resumo por Status ou Categoria */
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                      <th className="py-1.5 px-2 text-left">
+                        {summaryViewMode === 'status' ? 'Status Geral' : 'Categoria'}
+                      </th>
+                      <th className="py-1.5 px-2 text-right">Agenda</th>
+                      <th className="py-1.5 px-2 text-right">SKU</th>
+                      <th className="py-1.5 px-2 text-right">Volume</th>
+                      <th className="py-1.5 px-2 text-right">Cubagem</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {statusResumo.list.map((st, idx) => {
+                      const isSelected = summaryViewMode === 'status' 
+                        ? selectedStatus === st.label 
+                        : selectedCategoria === st.label
+
+                      const handleRowClick = () => {
+                        if (summaryViewMode === 'status') {
+                          setSelectedStatus(selectedStatus === st.label ? 'TODOS' : st.label)
+                        } else {
+                          setSelectedCategoria(selectedCategoria === st.label ? 'TODAS' : st.label)
+                        }
                       }
-                    }
 
-                    return (
-                      <tr
-                        key={idx}
-                        onClick={handleRowClick}
-                        title={`Clique para filtrar por ${summaryViewMode === 'status' ? 'status' : 'categoria'}: ${st.label}`}
-                        className={`hover:bg-blue-50/50 cursor-pointer transition-colors ${
-                          isSelected ? 'bg-blue-50 font-bold' : ''
-                        }`}
-                      >
-                        <td className="py-1.5 px-2 font-medium text-slate-800 truncate max-w-[140px]">
-                          {st.label}
-                        </td>
-                        <td className="py-1.5 px-2 text-right font-mono text-blue-700 bg-blue-50/50">
-                          {st.agendaCount}
-                        </td>
-                        <td className="py-1.5 px-2 text-right font-mono text-emerald-700 bg-emerald-50/40">
-                          {st.skuSum}
-                        </td>
-                        <td className="py-1.5 px-2 text-right font-mono text-rose-700 bg-rose-50/40 font-bold">
-                          {st.volumeSum.toLocaleString('pt-BR')}
-                        </td>
-                        <td className="py-1.5 px-2 text-right font-mono text-amber-700 bg-amber-50/40">
-                          {st.cubagemSum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-slate-300 font-bold bg-slate-100 text-slate-900">
-                    <td className="py-2 px-2 uppercase text-[11px]">Total Geral</td>
-                    <td className="py-2 px-2 text-right font-mono text-blue-800">{statusResumo.total.agendaCount}</td>
-                    <td className="py-2 px-2 text-right font-mono text-emerald-800">{statusResumo.total.skuSum}</td>
-                    <td className="py-2 px-2 text-right font-mono text-rose-800">{statusResumo.total.volumeSum.toLocaleString('pt-BR')}</td>
-                    <td className="py-2 px-2 text-right font-mono text-amber-800">
-                      {statusResumo.total.cubagemSum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                      return (
+                        <tr
+                          key={idx}
+                          onClick={handleRowClick}
+                          title={`Clique para filtrar por ${summaryViewMode === 'status' ? 'status' : 'categoria'}: ${st.label}`}
+                          className={`hover:bg-blue-50/50 cursor-pointer transition-colors ${
+                            isSelected ? 'bg-blue-50 font-bold' : ''
+                          }`}
+                        >
+                          <td className="py-1.5 px-2 font-medium text-slate-800 truncate max-w-[140px]">
+                            {st.label}
+                          </td>
+                          <td className="py-1.5 px-2 text-right font-mono text-blue-700 bg-blue-50/50">
+                            {st.agendaCount}
+                          </td>
+                          <td className="py-1.5 px-2 text-right font-mono text-emerald-700 bg-emerald-50/40">
+                            {st.skuSum}
+                          </td>
+                          <td className="py-1.5 px-2 text-right font-mono text-rose-700 bg-rose-50/40 font-bold">
+                            {st.volumeSum.toLocaleString('pt-BR')}
+                          </td>
+                          <td className="py-1.5 px-2 text-right font-mono text-amber-700 bg-amber-50/40">
+                            {st.cubagemSum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-300 font-bold bg-slate-100 text-slate-900">
+                      <td className="py-2 px-2 uppercase text-[11px]">Total Geral</td>
+                      <td className="py-2 px-2 text-right font-mono text-blue-800">{statusResumo.total.agendaCount}</td>
+                      <td className="py-2 px-2 text-right font-mono text-emerald-800">{statusResumo.total.skuSum}</td>
+                      <td className="py-2 px-2 text-right font-mono text-rose-800">{statusResumo.total.volumeSum.toLocaleString('pt-BR')}</td>
+                      <td className="py-2 px-2 text-right font-mono text-amber-800">
+                        {statusResumo.total.cubagemSum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>
