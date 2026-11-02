@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { PmtDashboardOverview } from './PmtDashboardOverview'
+import { QuadroOverview } from './QuadroOverview'
 
 // =====================================================================
 // Painel visual (dados estáticos / mock) — integração de números futura
@@ -892,6 +893,9 @@ export const DashboardPage: React.FC = () => {
 
       {/* Visão Consolidada PMT (Planejado, Liberado, Faturado e Acompanhamento Diário) */}
       <PmtDashboardOverview />
+
+      {/* Acompanhamento do Quadro Médio OP e C&D */}
+      <QuadroOverview />
     </div>
   )
 }
