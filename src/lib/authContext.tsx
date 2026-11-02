@@ -462,7 +462,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // Salva no Supabase app_users se possível
-      await supabase.from('app_users').insert([fallbackUser]).catch(() => { })
+      try {
+        await supabase.from('app_users').insert([fallbackUser])
+      } catch {
+        // Fallback local caso tabela ou permissão no Supabase falhe
+      }
       setUser(fallbackUser)
     } catch (err) {
       console.warn('Erro ao carregar perfil:', err)
