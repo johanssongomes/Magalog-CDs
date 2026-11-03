@@ -1027,7 +1027,7 @@ export const PmtRecebimentoPage: React.FC = () => {
           volume: volumeNum,
           reslog: reslogNum,
           cubagem: cubagemNum,
-          data: dataFormatada || '02/11/2026'
+          data: dataFormatada || (datesList[0] || 'SEM DATA')
         })
       }
 
