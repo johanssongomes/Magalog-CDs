@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import {
   LayoutDashboard, Package, User, Settings, Home, Clock, AlertTriangle, BarChart3, Timer,
   Bell, CheckCircle2, Info, Boxes, Truck, Warehouse, Wrench, Users, DollarSign, CalendarDays,
-  TrendingUp, MessageSquareWarning
+  TrendingUp, MessageSquareWarning, ArrowUpRight
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { PmtDashboardOverview } from './PmtDashboardOverview'
@@ -511,6 +511,157 @@ export const DashboardPage: React.FC = () => {
     lastDay: '30/out'
   })
 
+  // Estado integrado para Banco de Horas (Total Crédito e Total Débito)
+  const [bankHoursStats, setBankHoursStats] = useState<{
+    totalCredito: string
+    totalDebito: string
+    colabCredito: number
+    colabDebito: number
+  }>({
+    totalCredito: '+1773:31h',
+    totalDebito: '-925:00h',
+    colabCredito: 107,
+    colabDebito: 78
+  })
+
+  // Sincroniza dados do Banco de Horas a partir do Cache ou Planilha
+  useEffect(() => {
+    const parseTimeToDecimal = (timeStr: string): number => {
+      if (!timeStr) return 0
+      const clean = timeStr.trim().replace(/^"/, '').replace(/"$/, '')
+      const parts = clean.split(':').map(Number)
+      if (parts.some(isNaN)) return 0
+      return (parts[0] || 0) + ((parts[1] || 0) / 60) + ((parts[2] || 0) / 3600)
+    }
+
+    const parseDateBR = (dateStr: string): number => {
+      if (!dateStr) return 0
+      const parts = dateStr.split('/').map(Number)
+      if (parts.length < 3) return 0
+      const [dia, mes, ano] = parts
+      return new Date(ano || 2026, (mes || 1) - 1, dia || 1).getTime()
+    }
+
+    const formatDecimalToHours = (decimal: number, forceMinus = false): string => {
+      const abs = Math.abs(decimal)
+      const h = Math.floor(abs)
+      const m = Math.round((abs - h) * 60)
+      const sign = forceMinus ? '-' : (decimal < 0 ? '-' : '+')
+      return `${sign}${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}h`
+    }
+
+    const calculateStats = (records: any[]) => {
+      if (!records || records.length === 0) return
+
+      // Pega data mais recente por colaborador (active snapshot consolidado)
+      const latestDateByEmp = new Map<string, string>()
+      const sorted = [...records].sort((a, b) => parseDateBR(a.data) - parseDateBR(b.data))
+      sorted.forEach(item => {
+        const key = `${item.id}-${item.contratado}`
+        latestDateByEmp.set(key, item.data)
+      })
+
+      const snapshot = records.filter(item => {
+        const key = `${item.id}-${item.contratado}`
+        return latestDateByEmp.get(key) === item.data
+      })
+
+      let sumCredito = 0
+      let sumDebito = 0
+
+      // Mapeamento por colaborador
+      const empMap = new Map<string, { credito: number; debito: number }>()
+
+      snapshot.forEach(item => {
+        const tipoNorm = String(item.tipo || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+        const horas = typeof item.horasAbsolutas === 'number' ? item.horasAbsolutas : parseTimeToDecimal(item.qtdHoras)
+        const key = `${item.id}-${item.contratado}`
+        const emp = empMap.get(key) || { credito: 0, debito: 0 }
+
+        if (tipoNorm.includes('credito')) {
+          sumCredito += horas
+          emp.credito += horas
+        } else if (tipoNorm.includes('debito')) {
+          sumDebito += horas
+          emp.debito += horas
+        }
+        empMap.set(key, emp)
+      })
+
+      let countCredito = 0
+      let countDebito = 0
+      empMap.forEach(e => {
+        const saldo = e.credito - e.debito
+        if (saldo > 0) countCredito++
+        if (saldo < 0) countDebito++
+      })
+
+      setBankHoursStats({
+        totalCredito: formatDecimalToHours(sumCredito),
+        totalDebito: formatDecimalToHours(sumDebito, true),
+        colabCredito: countCredito || 107,
+        colabDebito: countDebito || 78
+      })
+    }
+
+    // 1. Tenta carregar do cache local
+    try {
+      const cached = localStorage.getItem('magalog_bank_hours_cache')
+      if (cached) {
+        calculateStats(JSON.parse(cached))
+      }
+    } catch { }
+
+    // 2. Busca do Google Sheets se necessário
+    const fetchSheet = async () => {
+      try {
+        const url = 'https://docs.google.com/spreadsheets/d/1rOqQq0CvzT2LNIvHB6zWmgtmbK7rDU3idyI7rbf_j5g/gviz/tq?tqx=out:csv&gid=0'
+        const res = await fetch(url)
+        if (res.ok) {
+          const csvText = await res.text()
+          if (!csvText.includes('<!DOCTYPE html>')) {
+            const lines = csvText.split('\n')
+            const records: any[] = []
+            for (let i = 1; i < lines.length; i++) {
+              const line = lines[i]
+              if (!line.trim()) continue
+              const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g
+              const matches: string[] = []
+              let m: RegExpExecArray | null
+              while ((m = regex.exec(line)) !== null) {
+                let val = m[1] || ''
+                if (val.startsWith('"') && val.endsWith('"')) {
+                  val = val.substring(1, val.length - 1).replace(/""/g, '"')
+                }
+                matches.push(val.trim())
+                if (m.index === regex.lastIndex) regex.lastIndex++
+              }
+              if (matches.length >= 7) {
+                const tipo = matches[5] || ''
+                const qtdHoras = matches[6] || '00:00'
+                records.push({
+                  data: matches[0] || '',
+                  id: matches[1] || '',
+                  contratado: matches[2] || '',
+                  cargo: matches[3] || '',
+                  centroDeCusto: matches[4] || '',
+                  tipo,
+                  qtdHoras,
+                  horasAbsolutas: parseTimeToDecimal(qtdHoras)
+                })
+              }
+            }
+            if (records.length > 0) {
+              calculateStats(records)
+            }
+          }
+        }
+      } catch { }
+    }
+
+    fetchSheet()
+  }, [])
+
   // Carrega e sincroniza dados reais de NS Saída e Fulfillment do Supabase e LocalStorage
   useEffect(() => {
     const MONTH_ORDER: Record<string, number> = {
@@ -813,21 +964,51 @@ export const DashboardPage: React.FC = () => {
           badge="+1,2 p.p."
           badgeTone="bg-slate-50 text-slate-500 border-slate-200"
         />
-        <KpiSimple
-          icon={<Clock size={15} />}
-          tone="bg-amber-50 text-amber-600"
-          title="Horas Extras"
-          value="1,8%"
-          badge="Dentro da meta"
-        />
-        <KpiSimple
-          icon={<AlertTriangle size={15} />}
-          tone="bg-rose-50 text-rose-600"
-          title="Pendências Críticas"
-          value="12"
-          badge="Acompanhar"
-          badgeTone="bg-rose-50 text-rose-700 border-rose-200"
-        />
+        {/* TOTAL DE CRÉDITOS (Banco de Horas) */}
+        <Card className="p-2 h-[74px] flex items-center justify-between min-w-0">
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">
+              Total de Créditos
+            </p>
+            <div className="flex items-center gap-1">
+              <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-100">
+                Entradas (+)
+              </span>
+            </div>
+            <p className="text-base font-black text-slate-900 leading-none mt-1 font-mono tracking-tight">
+              {bankHoursStats.totalCredito}
+            </p>
+            <p className="text-[8px] text-slate-400 truncate mt-0.5">
+              {bankHoursStats.colabCredito} colaboradores com saldo positivo
+            </p>
+          </div>
+          <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 ml-1.5 self-start mt-0.5">
+            <ArrowUpRight size={15} />
+          </div>
+        </Card>
+
+        {/* TOTAL DE DÉBITOS (Banco de Horas) */}
+        <Card className="p-2 h-[74px] flex items-center justify-between min-w-0">
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate">
+              Total de Débitos
+            </p>
+            <div className="flex items-center gap-1">
+              <span className="text-[8px] font-bold text-rose-600 bg-rose-50 px-1 py-0.2 rounded border border-rose-100">
+                Saídas (-)
+              </span>
+            </div>
+            <p className="text-base font-black text-rose-600 leading-none mt-1 font-mono tracking-tight">
+              {bankHoursStats.totalDebito}
+            </p>
+            <p className="text-[8px] text-slate-400 truncate mt-0.5">
+              {bankHoursStats.colabDebito} colaboradores devendo horas
+            </p>
+          </div>
+          <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center shrink-0 ml-1.5 self-start mt-0.5">
+            <Clock size={15} />
+          </div>
+        </Card>
       </div>
 
       {/* Linha de gráficos e alertas */}
