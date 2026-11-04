@@ -511,7 +511,7 @@ export const DashboardPage: React.FC = () => {
     lastDay: '30/out'
   })
 
-  // Estado integrado para Banco de Horas (Total Crédito e Total Débito com indicador de evolução)
+  // Estado integrado para Banco de Horas (Total Crédito e Total Débito com indicador de evolução vs. dia anterior)
   const [bankHoursStats, setBankHoursStats] = useState<{
     totalCredito: string
     totalDebito: string
@@ -521,6 +521,7 @@ export const DashboardPage: React.FC = () => {
     debitoTrend: 'up' | 'down' | 'neutral'
     creditoDiff: string
     debitoDiff: string
+    dataAnteriorComparada: string
   }>({
     totalCredito: '+1773:31h',
     totalDebito: '-925:00h',
@@ -529,7 +530,8 @@ export const DashboardPage: React.FC = () => {
     creditoTrend: 'up',
     debitoTrend: 'down',
     creditoDiff: '+12:45h',
-    debitoDiff: '-08:30h'
+    debitoDiff: '-08:30h',
+    dataAnteriorComparada: 'vs. dia anterior'
   })
 
   // Sincroniza dados do Banco de Horas a partir do Cache ou Planilha
@@ -611,9 +613,11 @@ export const DashboardPage: React.FC = () => {
       let creditoDiff = ''
       let debitoDiff = ''
 
+      let dataAnteriorComparada = 'vs. dia anterior'
       if (uniqueDates.length >= 2) {
         const latestDate = uniqueDates[0]
         const previousDate = uniqueDates[1]
+        dataAnteriorComparada = `vs. ${previousDate}`
 
         const latestRecords = records.filter(r => r.data === latestDate)
         const prevRecords = records.filter(r => r.data === previousDate)
@@ -667,7 +671,8 @@ export const DashboardPage: React.FC = () => {
         creditoTrend,
         debitoTrend,
         creditoDiff: creditoDiff || '+12:45h',
-        debitoDiff: debitoDiff || '-08:30h'
+        debitoDiff: debitoDiff || '-08:30h',
+        dataAnteriorComparada
       })
     }
 
@@ -1065,7 +1070,7 @@ export const DashboardPage: React.FC = () => {
               ) : null}
             </div>
             <p className="text-[8px] text-slate-400 truncate mt-0.5">
-              {bankHoursStats.colabCredito} colaboradores com saldo positivo
+              {bankHoursStats.colabCredito} colaboradores com saldo positivo &bull; <span className="font-semibold text-slate-500">{bankHoursStats.dataAnteriorComparada}</span>
             </p>
           </div>
           <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 ml-1.5 self-start mt-0.5">
@@ -1107,7 +1112,7 @@ export const DashboardPage: React.FC = () => {
               ) : null}
             </div>
             <p className="text-[8px] text-slate-400 truncate mt-0.5">
-              {bankHoursStats.colabDebito} colaboradores devendo horas
+              {bankHoursStats.colabDebito} colaboradores devendo horas &bull; <span className="font-semibold text-slate-500">{bankHoursStats.dataAnteriorComparada}</span>
             </p>
           </div>
           <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center shrink-0 ml-1.5 self-start mt-0.5">
