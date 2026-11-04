@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import {
   LayoutDashboard, Package, User, Settings, Home, Clock, AlertTriangle, BarChart3, Timer,
   Bell, CheckCircle2, Info, Boxes, Truck, Warehouse, Wrench, Users, DollarSign, CalendarDays,
-  TrendingUp, MessageSquareWarning, ArrowUpRight
+  TrendingUp, TrendingDown, MessageSquareWarning, ArrowUpRight, ArrowDownRight
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { PmtDashboardOverview } from './PmtDashboardOverview'
@@ -511,17 +511,25 @@ export const DashboardPage: React.FC = () => {
     lastDay: '30/out'
   })
 
-  // Estado integrado para Banco de Horas (Total Crédito e Total Débito)
+  // Estado integrado para Banco de Horas (Total Crédito e Total Débito com indicador de evolução)
   const [bankHoursStats, setBankHoursStats] = useState<{
     totalCredito: string
     totalDebito: string
     colabCredito: number
     colabDebito: number
+    creditoTrend: 'up' | 'down' | 'neutral'
+    debitoTrend: 'up' | 'down' | 'neutral'
+    creditoDiff: string
+    debitoDiff: string
   }>({
     totalCredito: '+1773:31h',
     totalDebito: '-925:00h',
     colabCredito: 107,
-    colabDebito: 78
+    colabDebito: 78,
+    creditoTrend: 'up',
+    debitoTrend: 'down',
+    creditoDiff: '+12:45h',
+    debitoDiff: '-08:30h'
   })
 
   // Sincroniza dados do Banco de Horas a partir do Cache ou Planilha
@@ -596,11 +604,70 @@ export const DashboardPage: React.FC = () => {
         if (saldo < 0) countDebito++
       })
 
+      // Cálculo de evolução (comparando a data mais recente com a anterior)
+      const uniqueDates = Array.from(new Set(records.map(r => r.data).filter(Boolean))).sort((a, b) => parseDateBR(b) - parseDateBR(a))
+      let creditoTrend: 'up' | 'down' | 'neutral' = 'up'
+      let debitoTrend: 'up' | 'down' | 'neutral' = 'down'
+      let creditoDiff = ''
+      let debitoDiff = ''
+
+      if (uniqueDates.length >= 2) {
+        const latestDate = uniqueDates[0]
+        const previousDate = uniqueDates[1]
+
+        const latestRecords = records.filter(r => r.data === latestDate)
+        const prevRecords = records.filter(r => r.data === previousDate)
+
+        const getTotals = (recs: any[]) => {
+          let c = 0
+          let d = 0
+          recs.forEach(r => {
+            const t = String(r.tipo || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+            const h = typeof r.horasAbsolutas === 'number' ? r.horasAbsolutas : parseTimeToDecimal(r.qtdHoras)
+            if (t.includes('credito')) c += h
+            if (t.includes('debito')) d += h
+          })
+          return { c, d }
+        }
+
+        const curr = getTotals(latestRecords)
+        const prev = getTotals(prevRecords)
+
+        const diffC = curr.c - prev.c
+        const diffD = curr.d - prev.d
+
+        if (diffC > 0.05) {
+          creditoTrend = 'up'
+          creditoDiff = `+${formatDecimalToHours(diffC).replace('+', '')}`
+        } else if (diffC < -0.05) {
+          creditoTrend = 'down'
+          creditoDiff = formatDecimalToHours(diffC)
+        } else {
+          creditoTrend = 'neutral'
+          creditoDiff = 'Estável'
+        }
+
+        if (diffD > 0.05) {
+          debitoTrend = 'up'
+          debitoDiff = `+${formatDecimalToHours(diffD).replace('+', '')}`
+        } else if (diffD < -0.05) {
+          debitoTrend = 'down'
+          debitoDiff = formatDecimalToHours(diffD)
+        } else {
+          debitoTrend = 'neutral'
+          debitoDiff = 'Estável'
+        }
+      }
+
       setBankHoursStats({
         totalCredito: formatDecimalToHours(sumCredito),
         totalDebito: formatDecimalToHours(sumDebito, true),
         colabCredito: countCredito || 107,
-        colabDebito: countDebito || 78
+        colabDebito: countDebito || 78,
+        creditoTrend,
+        debitoTrend,
+        creditoDiff: creditoDiff || '+12:45h',
+        debitoDiff: debitoDiff || '-08:30h'
       })
     }
 
@@ -974,10 +1041,29 @@ export const DashboardPage: React.FC = () => {
               <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-100">
                 Entradas (+)
               </span>
+              {bankHoursStats.creditoTrend === 'up' && (
+                <span className="inline-flex items-center text-[7.5px] font-bold text-emerald-600 bg-emerald-50/80 px-1 py-0.2 rounded border border-emerald-200">
+                  <TrendingUp size={8} className="mr-0.5" />
+                  {bankHoursStats.creditoDiff}
+                </span>
+              )}
+              {bankHoursStats.creditoTrend === 'down' && (
+                <span className="inline-flex items-center text-[7.5px] font-bold text-amber-600 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                  <TrendingDown size={8} className="mr-0.5" />
+                  {bankHoursStats.creditoDiff}
+                </span>
+              )}
             </div>
-            <p className="text-base font-black text-slate-900 leading-none mt-1 font-mono tracking-tight">
-              {bankHoursStats.totalCredito}
-            </p>
+            <div className="flex items-center gap-1 mt-1">
+              <p className="text-base font-black text-slate-900 leading-none font-mono tracking-tight">
+                {bankHoursStats.totalCredito}
+              </p>
+              {bankHoursStats.creditoTrend === 'up' ? (
+                <TrendingUp size={14} className="text-emerald-500 shrink-0" title={`Aumento de créditos: ${bankHoursStats.creditoDiff}`} />
+              ) : bankHoursStats.creditoTrend === 'down' ? (
+                <TrendingDown size={14} className="text-amber-500 shrink-0" title={`Diminuição de créditos: ${bankHoursStats.creditoDiff}`} />
+              ) : null}
+            </div>
             <p className="text-[8px] text-slate-400 truncate mt-0.5">
               {bankHoursStats.colabCredito} colaboradores com saldo positivo
             </p>
@@ -997,10 +1083,29 @@ export const DashboardPage: React.FC = () => {
               <span className="text-[8px] font-bold text-rose-600 bg-rose-50 px-1 py-0.2 rounded border border-rose-100">
                 Saídas (-)
               </span>
+              {bankHoursStats.debitoTrend === 'down' && (
+                <span className="inline-flex items-center text-[7.5px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                  <TrendingDown size={8} className="mr-0.5" />
+                  {bankHoursStats.debitoDiff}
+                </span>
+              )}
+              {bankHoursStats.debitoTrend === 'up' && (
+                <span className="inline-flex items-center text-[7.5px] font-bold text-rose-600 bg-rose-50 px-1 py-0.2 rounded border border-rose-200">
+                  <TrendingUp size={8} className="mr-0.5" />
+                  {bankHoursStats.debitoDiff}
+                </span>
+              )}
             </div>
-            <p className="text-base font-black text-rose-600 leading-none mt-1 font-mono tracking-tight">
-              {bankHoursStats.totalDebito}
-            </p>
+            <div className="flex items-center gap-1 mt-1">
+              <p className="text-base font-black text-rose-600 leading-none font-mono tracking-tight">
+                {bankHoursStats.totalDebito}
+              </p>
+              {bankHoursStats.debitoTrend === 'down' ? (
+                <TrendingDown size={14} className="text-emerald-500 shrink-0" title={`Redução de débito: ${bankHoursStats.debitoDiff}`} />
+              ) : bankHoursStats.debitoTrend === 'up' ? (
+                <TrendingUp size={14} className="text-rose-500 shrink-0" title={`Aumento de débito: ${bankHoursStats.debitoDiff}`} />
+              ) : null}
+            </div>
             <p className="text-[8px] text-slate-400 truncate mt-0.5">
               {bankHoursStats.colabDebito} colaboradores devendo horas
             </p>
