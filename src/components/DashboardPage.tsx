@@ -314,16 +314,16 @@ interface PerformanceChartProps {
 }
 
 const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => {
-  const W = 520, H = 200, padL = 46, padB = 34, padT = 16
+  const W = 520, H = 200, padL = 46, padB = 34, padT = 20
   const innerW = W - padL - 12
   const innerH = H - padB - padT
 
-  // Encontrar valor máximo para escala Y com folga de 15%
+  // Encontrar valor máximo para escala Y com folga de 20% para caber os valores acima das barras
   const maxVal = Math.max(
     ...data.map(d => Math.max(d.faturado, d.liberado, d.capacidade)),
     10
   )
-  const maxY = Math.ceil((maxVal * 1.15) / 100) * 100 || 1000
+  const maxY = Math.ceil((maxVal * 1.25) / 100) * 100 || 1000
 
   const y = (v: number) => padT + innerH - (Math.min(Math.max(v, 0), maxY) / maxY) * innerH
   const step = innerW / Math.max(data.length, 1)
@@ -334,6 +334,16 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
   // Formatação de valores para legenda Y
   const formatY = (v: number) => {
     if (v >= 1000) return `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k`
+    return `${v}`
+  }
+
+  // Formatação compacta para os valores acima das barras
+  const formatBarVal = (v: number) => {
+    if (v === 0) return ''
+    if (v >= 1000) {
+      const k = v / 1000
+      return k % 1 === 0 ? `${k}k` : `${k.toFixed(1)}k`
+    }
     return `${v}`
   }
 
@@ -367,10 +377,16 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
         const hFat = Math.max(0, yZero - yFat)
         const hLib = Math.max(0, yZero - yLib)
 
+        const textFat = formatBarVal(d.faturado)
+        const textLib = formatBarVal(d.liberado)
+
         return (
           <g key={d.date} className="cursor-pointer">
             {/* Ponto na linha de capacidade */}
             <circle cx={cx} cy={yCap} r="3" fill="#3b82f6" stroke="#ffffff" strokeWidth="1.5" />
+            {d.capacidade > 0 && (
+              <title>{`Capacidade: ${d.capacidade.toLocaleString('pt-BR')} (${d.date})`}</title>
+            )}
 
             {/* Barra Faturado (Azul) */}
             <rect
@@ -384,6 +400,20 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
               <title>{`Faturado: ${d.faturado.toLocaleString('pt-BR')} ${metric === 'cubagem' ? 'm³' : metric} (${d.date})`}</title>
             </rect>
 
+            {/* Valor acima da barra Faturado */}
+            {d.faturado > 0 && (
+              <text
+                x={cx - bw / 2 - 1}
+                y={yFat - 3}
+                fontSize="7.5"
+                textAnchor="middle"
+                fill="#1d4ed8"
+                fontWeight="700"
+              >
+                {textFat}
+              </text>
+            )}
+
             {/* Barra Liberado (Verde) */}
             <rect
               x={cx + 1}
@@ -395,6 +425,20 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
             >
               <title>{`Liberado: ${d.liberado.toLocaleString('pt-BR')} ${metric === 'cubagem' ? 'm³' : metric} (${d.date})`}</title>
             </rect>
+
+            {/* Valor acima da barra Liberado */}
+            {d.liberado > 0 && (
+              <text
+                x={cx + bw / 2 + 1}
+                y={yLib - 3}
+                fontSize="7.5"
+                textAnchor="middle"
+                fill="#15803d"
+                fontWeight="700"
+              >
+                {textLib}
+              </text>
+            )}
 
             {/* Labels de Eixo X */}
             <text x={cx} y={H - 20} fontSize="9.5" textAnchor="middle" fill="#334155" fontWeight="700">
