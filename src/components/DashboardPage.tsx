@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   LayoutDashboard, Package, User, Settings, Home, Clock, AlertTriangle, BarChart3, Timer,
   Bell, CheckCircle2, Info, Boxes, Truck, Warehouse, Wrench, Users, DollarSign, CalendarDays,
-  TrendingUp, TrendingDown, MessageSquareWarning, ArrowUpRight, ArrowDownRight
+  TrendingUp, TrendingDown, MessageSquareWarning, ArrowUpRight, ArrowDownRight, Layers
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { PmtDashboardOverview } from './PmtDashboardOverview'
 import { QuadroOverview } from './QuadroOverview'
+import initialAderenciaOct from '../data/initialAderencia202610.json'
+import { getAderenciaData, type AderenciaDataState } from '../lib/aderenciaService'
 
 // =====================================================================
 // Painel visual (dados estáticos / mock) — integração de números futura
@@ -297,37 +299,113 @@ const KpiAtendimento: React.FC<{
 }
 
 // ---------------- Charts (SVG puro) ----------------
-const PerformanceChart: React.FC = () => {
-  const W = 520, H = 200, padL = 34, padB = 34, padT = 10
-  const maxY = 750
-  const innerW = W - padL - 10
+export interface OperationalPerformanceDay {
+  dayStr: string
+  label: string
+  date: string
+  faturado: number
+  liberado: number
+  capacidade: number
+}
+
+interface PerformanceChartProps {
+  data: OperationalPerformanceDay[]
+  metric: 'cubagem' | 'pecas' | 'pedidos'
+}
+
+const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => {
+  const W = 520, H = 200, padL = 46, padB = 34, padT = 16
+  const innerW = W - padL - 12
   const innerH = H - padB - padT
-  const y = (v: number) => padT + innerH - (v / maxY) * innerH
-  const step = innerW / performanceData.length
-  const bw = step * 0.28
-  const linePts = performanceData.map((d, i) => `${padL + step * i + step / 2},${y(d.demanda)}`).join(' ')
+
+  // Encontrar valor máximo para escala Y com folga de 15%
+  const maxVal = Math.max(
+    ...data.map(d => Math.max(d.faturado, d.liberado, d.capacidade)),
+    10
+  )
+  const maxY = Math.ceil((maxVal * 1.15) / 100) * 100 || 1000
+
+  const y = (v: number) => padT + innerH - (Math.min(Math.max(v, 0), maxY) / maxY) * innerH
+  const step = innerW / Math.max(data.length, 1)
+  const bw = Math.min(step * 0.32, 18)
+
+  const ticks = [0, Math.round(maxY * 0.33), Math.round(maxY * 0.66), maxY]
+
+  // Formatação de valores para legenda Y
+  const formatY = (v: number) => {
+    if (v >= 1000) return `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k`
+    return `${v}`
+  }
+
+  // Linha da capacidade (meta)
+  const capPts = data.map((d, i) => `${padL + step * i + step / 2},${y(d.capacidade)}`).join(' ')
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
-      {[0, 250, 500, 750].map(t => (
+      {ticks.map(t => (
         <g key={t}>
-          <line x1={padL} x2={W - 10} y1={y(t)} y2={y(t)} stroke="#e2e8f0" strokeDasharray="3 3" />
-          <text x={padL - 6} y={y(t) + 3} fontSize="9" textAnchor="end" fill="#94a3b8">{t}</text>
+          <line x1={padL} x2={W - 12} y1={y(t)} y2={y(t)} stroke="#f1f5f9" strokeDasharray="3 3" />
+          <text x={padL - 6} y={y(t) + 3} fontSize="9" textAnchor="end" fill="#94a3b8" fontWeight="500">
+            {formatY(t)}
+          </text>
         </g>
       ))}
-      <line x1={padL} x2={W - 10} y1={y(CAPACIDADE)} y2={y(CAPACIDADE)} stroke="#93c5fd" strokeWidth="2" />
-      {performanceData.map((d, i) => {
+
+      {/* Linha de capacidade (meta) */}
+      {data.length > 1 && (
+        <polyline points={capPts} fill="none" stroke="#60a5fa" strokeWidth="2" strokeDasharray="4 4" />
+      )}
+
+      {/* Barras e labels */}
+      {data.map((d, i) => {
         const cx = padL + step * i + step / 2
+        const yFat = y(d.faturado)
+        const yLib = y(d.liberado)
+        const yCap = y(d.capacidade)
+        const yZero = y(0)
+
+        const hFat = Math.max(0, yZero - yFat)
+        const hLib = Math.max(0, yZero - yLib)
+
         return (
-          <g key={d.label}>
-            <rect x={cx - bw - 1} y={y(d.demanda)} width={bw} height={y(0) - y(d.demanda)} rx="2" fill="#3b82f6" />
-            <rect x={cx + 1} y={y(d.realizado)} width={bw} height={y(0) - y(d.realizado)} rx="2" fill="#16a34a" />
-            <text x={cx} y={H - 20} fontSize="9" textAnchor="middle" fill="#475569" fontWeight="600">{d.label}</text>
-            <text x={cx} y={H - 9} fontSize="8" textAnchor="middle" fill="#94a3b8">{d.date}</text>
+          <g key={d.date} className="cursor-pointer">
+            {/* Ponto na linha de capacidade */}
+            <circle cx={cx} cy={yCap} r="3" fill="#3b82f6" stroke="#ffffff" strokeWidth="1.5" />
+
+            {/* Barra Faturado (Azul) */}
+            <rect
+              x={cx - bw - 1}
+              y={yFat}
+              width={bw}
+              height={hFat}
+              rx="3"
+              fill="#2563eb"
+            >
+              <title>{`Faturado: ${d.faturado.toLocaleString('pt-BR')} ${metric === 'cubagem' ? 'm³' : metric} (${d.date})`}</title>
+            </rect>
+
+            {/* Barra Liberado (Verde) */}
+            <rect
+              x={cx + 1}
+              y={yLib}
+              width={bw}
+              height={hLib}
+              rx="3"
+              fill="#16a34a"
+            >
+              <title>{`Liberado: ${d.liberado.toLocaleString('pt-BR')} ${metric === 'cubagem' ? 'm³' : metric} (${d.date})`}</title>
+            </rect>
+
+            {/* Labels de Eixo X */}
+            <text x={cx} y={H - 20} fontSize="9.5" textAnchor="middle" fill="#334155" fontWeight="700">
+              {d.label}
+            </text>
+            <text x={cx} y={H - 9} fontSize="8" textAnchor="middle" fill="#94a3b8">
+              {d.date}
+            </text>
           </g>
         )
       })}
-      <polyline points={linePts} fill="none" stroke="#94a3b8" strokeWidth="1.5" />
     </svg>
   )
 }
@@ -510,6 +588,85 @@ export const DashboardPage: React.FC = () => {
     },
     lastDay: '30/out'
   })
+
+  // Estado de segmentação e dados de Acompanhamento Diário para o Gráfico de Performance
+  const [chartMetric, setChartMetric] = useState<'cubagem' | 'pecas' | 'pedidos'>('cubagem')
+  const [chartAderenciaData, setChartAderenciaData] = useState<AderenciaDataState | null>(() => {
+    return initialAderenciaOct as unknown as AderenciaDataState
+  })
+
+  // Carrega dados de Aderência (Acompanhamento Diário) para alimentar o gráfico
+  useEffect(() => {
+    const loadChartData = async () => {
+      try {
+        const now = new Date()
+        const curYear = now.getFullYear()
+        const curMonth = now.getMonth() + 1
+        // Tenta carregar do mês corrente (ex: Nov/2026)
+        const cloudData = await getAderenciaData(curYear, curMonth, '994').catch(() => null)
+        if (cloudData) {
+          setChartAderenciaData(cloudData)
+        } else if (curYear === 2026 && curMonth === 10) {
+          setChartAderenciaData(initialAderenciaOct as unknown as AderenciaDataState)
+        } else {
+          // Se não houver do mês atual, tenta Outubro/2026 como fallback
+          const octData = await getAderenciaData(2026, 10, '994').catch(() => null)
+          if (octData) {
+            setChartAderenciaData(octData)
+          } else {
+            setChartAderenciaData(initialAderenciaOct as unknown as AderenciaDataState)
+          }
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar dados de aderência para o gráfico:', err)
+      }
+    }
+    loadChartData()
+  }, [])
+
+  // Calcula os 7 dias para o gráfico (vinculados ao Acompanhamento Diário)
+  const performance7Days = useMemo<OperationalPerformanceDay[]>(() => {
+    const now = new Date()
+    const curYear = chartAderenciaData?.ano || now.getFullYear()
+    const curMonth = chartAderenciaData?.mes || (now.getMonth() + 1)
+    const weekdayLetters = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+
+    const liberadoTotals = (chartAderenciaData?.liberado?.totals as any)?.[chartMetric] || {}
+    const faturadoTotals = (chartAderenciaData?.faturado?.totals as any)?.[chartMetric] || {}
+    const capacidadeMap = (chartAderenciaData?.capacidade as any)?.[chartMetric] || {}
+
+    // Padrão de capacidade por dia útil
+    const defaultCap = chartMetric === 'cubagem' ? 1000 : chartMetric === 'pedidos' ? 2800 : 10000
+
+    // Range de 7 dias (dias 01 a 07 do mês)
+    const result: OperationalPerformanceDay[] = []
+    for (let dayNum = 1; dayNum <= 7; dayNum++) {
+      const dayStr = dayNum.toString().padStart(2, '0')
+      const dt = new Date(curYear, curMonth - 1, dayNum)
+      const isSunday = dt.getDay() === 0
+      const wLabel = weekdayLetters[dt.getDay()]
+      const dateLabel = `${dayStr}/${curMonth.toString().padStart(2, '0')}`
+
+      const rawFat = faturadoTotals[dayStr] ?? faturadoTotals[dayNum.toString()]
+      const fatVal = rawFat !== undefined ? Math.round(rawFat) : 0
+
+      const rawLib = liberadoTotals[dayStr] ?? liberadoTotals[dayNum.toString()]
+      const libVal = rawLib !== undefined ? Math.round(rawLib) : 0
+
+      const rawCap = capacidadeMap[dayStr] ?? capacidadeMap[dayNum.toString()]
+      const capVal = rawCap !== undefined ? Math.round(rawCap) : (isSunday ? 0 : defaultCap)
+
+      result.push({
+        dayStr,
+        label: wLabel,
+        date: dateLabel,
+        faturado: fatVal,
+        liberado: libVal,
+        capacidade: capVal
+      })
+    }
+    return result
+  }, [chartAderenciaData, chartMetric])
 
   // Estado integrado para Banco de Horas (Total Crédito e Total Débito com indicador de evolução vs. dia anterior)
   const [bankHoursStats, setBankHoursStats] = useState<{
@@ -1124,9 +1281,63 @@ export const DashboardPage: React.FC = () => {
       {/* Linha de gráficos e alertas */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
         <Card className="p-4 xl:col-span-5">
-          <CardTitle icon={<BarChart3 size={16} />} title="Evolução da Performance Operacional"
-            right={<Legend items={[{ label: 'Demanda', color: '#94a3b8', line: true }, { label: 'Realizado', color: '#16a34a' }, { label: 'Capacidade (Meta)', color: '#93c5fd', line: true }]} />} />
-          <PerformanceChart />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+              <span className="text-slate-500"><BarChart3 size={16} /></span>
+              Evolução da Performance Operacional
+            </h3>
+            
+            {/* Segmentação de Métricas */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setChartMetric('cubagem')}
+                className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${
+                  chartMetric === 'cubagem'
+                    ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Cubagem
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartMetric('pecas')}
+                className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${
+                  chartMetric === 'pecas'
+                    ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Peças
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartMetric('pedidos')}
+                className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${
+                  chartMetric === 'pedidos'
+                    ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Pedidos
+              </button>
+            </div>
+          </div>
+
+          {/* Legenda Atualizada: Faturado, Liberado, Capacidade (Meta) */}
+          <div className="flex items-center justify-between text-[11px] text-slate-600 mb-2">
+            <span className="text-[10px] text-slate-400 font-medium">Visão: 7 dias (Acompanhamento Diário)</span>
+            <Legend
+              items={[
+                { label: 'Faturado', color: '#2563eb' },
+                { label: 'Liberado', color: '#16a34a' },
+                { label: 'Capacidade (Meta)', color: '#60a5fa', line: true }
+              ]}
+            />
+          </div>
+
+          <PerformanceChart data={performance7Days} metric={chartMetric} />
         </Card>
         <Card className="p-4 xl:col-span-3">
           <CardTitle icon={<Timer size={16} />} title="Performance por Turno"
