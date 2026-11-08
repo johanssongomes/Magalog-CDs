@@ -2,12 +2,15 @@ import React, { useState, useEffect, useMemo } from 'react'
 import {
   LayoutDashboard, Package, User, Settings, Home, Clock, AlertTriangle, BarChart3, Timer,
   Bell, CheckCircle2, Info, Boxes, Truck, Warehouse, Wrench, Users, DollarSign, CalendarDays,
-  TrendingUp, TrendingDown, MessageSquareWarning, ArrowUpRight, ArrowDownRight, Layers
+  TrendingUp, TrendingDown, MessageSquareWarning, ArrowUpRight, ArrowDownRight, Layers,
+  PieChart, RefreshCw, UploadCloud
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import { PmtDashboardOverview } from './PmtDashboardOverview'
 import { QuadroOverview } from './QuadroOverview'
 import initialAderenciaOct from '../data/initialAderencia202610.json'
+import initialEstoqueCategoria from '../data/estoque_categoria_summary.json'
 import { getAderenciaData, type AderenciaDataState } from '../lib/aderenciaService'
 
 // =====================================================================
@@ -454,6 +457,165 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
   )
 }
 
+// ---------------- Relatório de Categorias de Estoque (EstoqueCD.xlsx) ----------------
+const CLASSE_ITEM_MAPPING: Record<string, string> = {
+  '99ACE': 'Madeira',
+  '99AER': 'Mercado',
+  '99ALM': 'Mercado',
+  '99BDC': 'Mercado',
+  '99BEB': 'Mercado',
+  '99COF': 'Cofre',
+  '99COL': 'Colchão/Estofado',
+  '99DIV': 'Diversos',
+  '99ECC': 'Colchão/Estofado',
+  '99EIS': 'Diversos',
+  '99HIG': 'Mercado',
+  '99LIM': 'Mercado',
+  '99LIV': 'Mercado',
+  '99LNB': 'Linha Branca',
+  '99MOV': 'Madeira',
+  '99PDE': 'Diversos',
+  '99PET': 'Mercado',
+  '99PNE': 'Pneu',
+  '99TV': 'Imagem'
+}
+
+const CATEGORY_COLORS: Record<string, { bar: string; text: string; bg: string }> = {
+  'Linha Branca': { bar: 'bg-blue-600', text: 'text-blue-700', bg: 'bg-blue-50' },
+  'Colchão/Estofado': { bar: 'bg-indigo-600', text: 'text-indigo-700', bg: 'bg-indigo-50' },
+  'Diversos': { bar: 'bg-emerald-600', text: 'text-emerald-700', bg: 'bg-emerald-50' },
+  'Imagem': { bar: 'bg-purple-600', text: 'text-purple-700', bg: 'bg-purple-50' },
+  'Madeira': { bar: 'bg-amber-600', text: 'text-amber-700', bg: 'bg-amber-50' },
+  'Pneu': { bar: 'bg-slate-700', text: 'text-slate-800', bg: 'bg-slate-100' },
+  'Mercado': { bar: 'bg-teal-600', text: 'text-teal-700', bg: 'bg-teal-50' },
+  'Cofre': { bar: 'bg-rose-600', text: 'text-rose-700', bg: 'bg-rose-50' }
+}
+
+export interface EstoqueCategoriaItem {
+  nome: string
+  cubagem: number
+  pecas: number
+  itens: number
+  percentual: number
+}
+
+export interface EstoqueSummaryData {
+  updatedAt: string
+  totalCubagem: number
+  totalPecas: number
+  totalLinhas: number
+  categorias: EstoqueCategoriaItem[]
+}
+
+const EstoqueCategoriasCard: React.FC<{
+  data: EstoqueSummaryData
+  onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
+  isProcessing?: boolean
+}> = ({ data, onFileUpload, isProcessing }) => {
+  return (
+    <Card className="p-4 xl:col-span-4 flex flex-col justify-between">
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="p-1 rounded-lg bg-blue-50 text-blue-600">
+              <Boxes size={16} />
+            </span>
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 leading-tight">
+                Estoque por Categoria (m³)
+              </h3>
+              <p className="text-[10px] text-slate-400">
+                Base: EstoqueCD.xlsx &bull; {data.totalLinhas.toLocaleString('pt-BR')} itens
+              </p>
+            </div>
+          </div>
+
+          <label
+            htmlFor="estoque-file-input"
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md border border-blue-200 cursor-pointer transition-all shrink-0"
+            title="Importar nova planilha EstoqueCD.xlsx"
+          >
+            {isProcessing ? (
+              <RefreshCw size={11} className="animate-spin text-blue-600" />
+            ) : (
+              <UploadCloud size={11} />
+            )}
+            <span>{isProcessing ? 'Lendo...' : 'Atualizar'}</span>
+            <input
+              id="estoque-file-input"
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={onFileUpload}
+              disabled={isProcessing}
+            />
+          </label>
+        </div>
+
+        {/* Resumo Totalizador */}
+        <div className="flex items-baseline justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 mb-2.5">
+          <div>
+            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">
+              Cubagem Total
+            </span>
+            <span className="text-lg font-black text-slate-800 leading-none">
+              {data.totalCubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+              <span className="text-xs font-bold text-slate-500 ml-1">m³</span>
+            </span>
+          </div>
+          <div className="text-right">
+            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">
+              Volume Físico
+            </span>
+            <span className="text-xs font-bold text-slate-700">
+              {data.totalPecas.toLocaleString('pt-BR')} <span className="font-normal text-slate-400">peças</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Lista de Categorias com Barra de Progresso */}
+        <div className="space-y-2 max-h-[195px] overflow-y-auto pr-1">
+          {data.categorias.map(cat => {
+            const colors = CATEGORY_COLORS[cat.nome] || { bar: 'bg-blue-500', text: 'text-blue-600', bg: 'bg-blue-50' }
+            return (
+              <div key={cat.nome} className="group">
+                <div className="flex items-center justify-between text-xs mb-0.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${colors.bar}`} />
+                    <span className="font-medium text-slate-700 truncate" title={cat.nome}>
+                      {cat.nome}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1.5 shrink-0">
+                    <span className="font-bold text-slate-900 font-mono text-[11px]">
+                      {cat.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m³
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium w-9 text-right">
+                      {cat.percentual}%
+                    </span>
+                  </div>
+                </div>
+                {/* Barra de progresso */}
+                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${colors.bar}`}
+                    style={{ width: `${Math.min(cat.percentual, 100)}%` }}
+                  />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="pt-2 border-t border-slate-100 text-[9.5px] text-slate-400 flex items-center justify-between mt-2">
+        <span>Coluna auxiliar: CLASSE_ITEM ➔ CATEGORIA</span>
+        <span>{data.categorias.length} categorias</span>
+      </div>
+    </Card>
+  )
+}
+
 const TurnoChart: React.FC = () => {
   const W = 300, H = 200, padL = 28, padB = 26, padT = 18
   const maxY = 600
@@ -711,6 +873,110 @@ export const DashboardPage: React.FC = () => {
     }
     return result
   }, [chartAderenciaData, chartMetric])
+
+  // Estado do Relatório de Estoque por Categoria (EstoqueCD.xlsx)
+  const [estoqueData, setEstoqueData] = useState<EstoqueSummaryData>(() => {
+    try {
+      const cached = localStorage.getItem('magalog_estoque_categoria_summary')
+      if (cached) return JSON.parse(cached)
+    } catch {}
+    return initialEstoqueCategoria as EstoqueSummaryData
+  })
+  const [isProcessingEstoque, setIsProcessingEstoque] = useState(false)
+
+  // Função para processar arquivo EstoqueCD.xlsx no frontend com conversão pela coluna auxiliar
+  const handleEstoqueUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsProcessingEstoque(true)
+    try {
+      const arrayBuffer = await file.arrayBuffer()
+      const wb = XLSX.read(arrayBuffer, { type: 'array' })
+      const firstSheet = wb.Sheets[wb.SheetNames[0]]
+      const rows: any[] = XLSX.utils.sheet_to_json(firstSheet)
+
+      const catTotals: Record<string, { cubagem: number; pecas: number; itens: number }> = {}
+      let totalCub = 0
+      let totalQtd = 0
+
+      rows.forEach(r => {
+        const classeItem = String(r.CLASSE_ITEM || '').trim()
+        // Coluna auxiliar calculada de acordo com o mapeamento
+        const categoria = CLASSE_ITEM_MAPPING[classeItem] || 'Diversos'
+        const cub = Number(r.CUB_TOTAL) || 0
+        const qnts = Number(r.QNTS) || 0
+
+        if (!catTotals[categoria]) {
+          catTotals[categoria] = { cubagem: 0, pecas: 0, itens: 0 }
+        }
+        catTotals[categoria].cubagem += cub
+        catTotals[categoria].pecas += qnts
+        catTotals[categoria].itens += 1
+        totalCub += cub
+        totalQtd += qnts
+      })
+
+      const summary: EstoqueSummaryData = {
+        updatedAt: new Date().toISOString(),
+        totalCubagem: Math.round(totalCub * 100) / 100,
+        totalPecas: totalQtd,
+        totalLinhas: rows.length,
+        categorias: Object.entries(catTotals).map(([nome, val]) => ({
+          nome,
+          cubagem: Math.round(val.cubagem * 100) / 100,
+          pecas: val.pecas,
+          itens: val.itens,
+          percentual: totalCub > 0 ? Math.round((val.cubagem / totalCub) * 1000) / 10 : 0
+        })).sort((a, b) => b.cubagem - a.cubagem)
+      }
+
+      setEstoqueData(summary)
+      try {
+        localStorage.setItem('magalog_estoque_categoria_summary', JSON.stringify(summary))
+      } catch {}
+
+      // Grava no Supabase para sincronizar entre usuários
+      try {
+        await supabase.from('performance_metrics').upsert({
+          cell_key: 'estoque_categoria_summary_994',
+          value: JSON.stringify(summary),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'cell_key' })
+      } catch {}
+    } catch (err) {
+      console.error('Erro ao processar planilha de estoque:', err)
+      alert('Erro ao processar EstoqueCD.xlsx. Verifique as colunas da planilha.')
+    } finally {
+      setIsProcessingEstoque(false)
+      // Limpa input
+      e.target.value = ''
+    }
+  }
+
+  // Tenta carregar dados sincronizados do Supabase ao montar
+  useEffect(() => {
+    const loadCloudEstoque = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('performance_metrics')
+          .select('value')
+          .eq('cell_key', 'estoque_categoria_summary_994')
+          .maybeSingle()
+
+        if (!error && data?.value) {
+          const parsed = JSON.parse(data.value)
+          if (parsed && parsed.categorias) {
+            setEstoqueData(parsed)
+            try {
+              localStorage.setItem('magalog_estoque_categoria_summary', JSON.stringify(parsed))
+            } catch {}
+          }
+        }
+      } catch {}
+    }
+    loadCloudEstoque()
+  }, [])
 
   // Estado integrado para Banco de Horas (Total Crédito e Total Débito com indicador de evolução vs. dia anterior)
   const [bankHoursStats, setBankHoursStats] = useState<{
@@ -1388,21 +1654,12 @@ export const DashboardPage: React.FC = () => {
             right={<Legend items={[{ label: 'Realizado', color: '#3b82f6' }, { label: 'Meta', color: '#cbd5e1' }]} />} />
           <TurnoChart />
         </Card>
-        <Card className="p-4 xl:col-span-4">
-          <CardTitle icon={<Bell size={16} />} title="Destaques & Alertas" />
-          <div className="space-y-2">
-            {alerts.map(a => (
-              <div key={a.title} className={`flex items-start gap-2.5 p-2.5 rounded-xl border ${a.tone}`}>
-                <span className="mt-0.5">{a.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold">{a.title}</p>
-                  <p className="text-[11px] text-slate-600">{a.desc}</p>
-                </div>
-                <span className="text-[10px] text-slate-400 whitespace-nowrap">{a.time}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
+        {/* Relatório de Categorias de Estoque (EstoqueCD.xlsx com coluna auxiliar CLASSE_ITEM) */}
+        <EstoqueCategoriasCard
+          data={estoqueData}
+          onFileUpload={handleEstoqueUpload}
+          isProcessing={isProcessingEstoque}
+        />
       </div>
 
       {/* Linha inferior */}

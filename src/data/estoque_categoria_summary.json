@@ -1,0 +1,64 @@
+{
+  "updatedAt": "2026-11-08T13:00:58.705Z",
+  "totalCubagem": 31924.77,
+  "totalPecas": 354552,
+  "totalLinhas": 21997,
+  "categorias": [
+    {
+      "nome": "Linha Branca",
+      "cubagem": 13745.66,
+      "pecas": 32274,
+      "itens": 764,
+      "percentual": 43.1
+    },
+    {
+      "nome": "Colchão/Estofado",
+      "cubagem": 6475.37,
+      "pecas": 23858,
+      "itens": 489,
+      "percentual": 20.3
+    },
+    {
+      "nome": "Diversos",
+      "cubagem": 4905.62,
+      "pecas": 122480,
+      "itens": 14486,
+      "percentual": 15.4
+    },
+    {
+      "nome": "Imagem",
+      "cubagem": 3361.61,
+      "pecas": 17910,
+      "itens": 700,
+      "percentual": 10.5
+    },
+    {
+      "nome": "Madeira",
+      "cubagem": 2888.02,
+      "pecas": 39268,
+      "itens": 4065,
+      "percentual": 9
+    },
+    {
+      "nome": "Pneu",
+      "cubagem": 458.91,
+      "pecas": 7868,
+      "itens": 433,
+      "percentual": 1.4
+    },
+    {
+      "nome": "Mercado",
+      "cubagem": 52.07,
+      "pecas": 6512,
+      "itens": 369,
+      "percentual": 0.2
+    },
+    {
+      "nome": "Cofre",
+      "cubagem": 37.51,
+      "pecas": 104382,
+      "itens": 691,
+      "percentual": 0.1
+    }
+  ]
+}
