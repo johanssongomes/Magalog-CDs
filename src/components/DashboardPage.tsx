@@ -602,19 +602,19 @@ const EstoqueCategoriasCard: React.FC<{
         </div>
 
         {/* Resumo Totalizador: Cubagem vs Capacidade Geral */}
-        <div className="grid grid-cols-3 gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100 mb-2.5">
+        <div className="grid grid-cols-3 gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100 mb-2">
           <div>
-            <span className="text-[9.5px] text-slate-500 font-semibold uppercase tracking-wider block">
+            <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider block">
               Cubagem Total
             </span>
             <span className="text-base font-black text-slate-800 leading-none">
-              {data.totalCubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+              {Math.round(data.totalCubagem).toLocaleString('pt-BR')}
               <span className="text-[10px] font-bold text-slate-500 ml-0.5">m³</span>
             </span>
           </div>
 
           <div>
-            <span className="text-[9.5px] text-slate-500 font-semibold uppercase tracking-wider block">
+            <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider block">
               Capacidade Meta
             </span>
             <span className="text-base font-black text-blue-700 leading-none">
@@ -624,7 +624,7 @@ const EstoqueCategoriasCard: React.FC<{
           </div>
 
           <div className="text-right">
-            <span className="text-[9.5px] text-slate-500 font-semibold uppercase tracking-wider block">
+            <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider block">
               Ocupação Geral
             </span>
             <span className={`text-base font-black leading-none ${(data.totalOcupacao || 0) > 100 ? 'text-amber-600' : 'text-emerald-600'}`}>
@@ -633,8 +633,8 @@ const EstoqueCategoriasCard: React.FC<{
           </div>
         </div>
 
-        {/* Lista de Categorias com Cubagem vs Capacidade */}
-        <div className="space-y-2 max-h-[195px] overflow-y-auto pr-1">
+        {/* Lista de Categorias com Cubagem vs Capacidade (todas visíveis sem rolagem) */}
+        <div className="space-y-1.5">
           {data.categorias.map(cat => {
             const colors = CATEGORY_COLORS[cat.nome] || { bar: 'bg-blue-500', text: 'text-blue-600', bg: 'bg-blue-50' }
             const isOverCapacity = cat.ocupacao > 100
@@ -642,23 +642,23 @@ const EstoqueCategoriasCard: React.FC<{
               <div key={cat.nome} className="group">
                 <div className="flex items-center justify-between text-xs mb-0.5">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${colors.bar}`} />
-                    <span className="font-semibold text-slate-700 truncate" title={cat.nome}>
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${colors.bar}`} />
+                    <span className="font-semibold text-slate-700 truncate text-[11px]" title={cat.nome}>
                       {cat.nome}
                     </span>
                   </div>
                   <div className="flex items-baseline gap-1.5 shrink-0 text-right">
-                    <span className="font-bold text-slate-900 font-mono text-[11px]">
-                      {cat.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                      <span className="text-[9.5px] font-normal text-slate-400"> / {cat.capacidade.toLocaleString('pt-BR')} m³</span>
+                    <span className="font-bold text-slate-900 font-mono text-[10.5px]">
+                      {Math.round(cat.cubagem).toLocaleString('pt-BR')}
+                      <span className="text-[9px] font-normal text-slate-400"> / {cat.capacidade.toLocaleString('pt-BR')} m³</span>
                     </span>
-                    <span className={`text-[10px] font-bold w-12 text-right ${isOverCapacity ? 'text-rose-600' : 'text-emerald-700'}`}>
+                    <span className={`text-[9.5px] font-bold w-11 text-right ${isOverCapacity ? 'text-rose-600' : 'text-emerald-700'}`}>
                       {cat.ocupacao.toFixed(1)}%
                     </span>
                   </div>
                 </div>
                 {/* Barra de ocupação em relação à capacidade */}
-                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${isOverCapacity ? 'bg-rose-500' : colors.bar}`}
                     style={{ width: `${Math.min(cat.ocupacao, 100)}%` }}
