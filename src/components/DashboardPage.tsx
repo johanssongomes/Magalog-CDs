@@ -500,7 +500,7 @@ const CATEGORY_COLORS: Record<string, { bar: string; text: string; bg: string }>
   'Madeira': { bar: 'bg-amber-600', text: 'text-amber-700', bg: 'bg-amber-50' },
   'Pneu': { bar: 'bg-slate-700', text: 'text-slate-800', bg: 'bg-slate-100' },
   'Mercado': { bar: 'bg-teal-600', text: 'text-teal-700', bg: 'bg-teal-50' },
-  'Cofre': { bar: 'bg-rose-600', text: 'text-rose-700', bg: 'bg-rose-50' }
+  'Cofre': { bar: 'bg-cyan-600', text: 'text-cyan-700', bg: 'bg-cyan-50' }
 }
 
 export interface EstoqueCategoriaItem {
@@ -638,6 +638,9 @@ const EstoqueCategoriasCard: React.FC<{
           {data.categorias.map(cat => {
             const colors = CATEGORY_COLORS[cat.nome] || { bar: 'bg-blue-500', text: 'text-blue-600', bg: 'bg-blue-50' }
             const isOverCapacity = cat.ocupacao > 100
+            // Cor da barra de progresso: vermelha se estourou a meta (>100%), senão usa verde suave para dentro da meta
+            const progressColor = isOverCapacity ? 'bg-rose-500' : 'bg-emerald-500'
+
             return (
               <div key={cat.nome} className="group">
                 <div className="flex items-center justify-between text-xs mb-0.5">
@@ -660,7 +663,7 @@ const EstoqueCategoriasCard: React.FC<{
                 {/* Barra de ocupação em relação à capacidade */}
                 <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${isOverCapacity ? 'bg-rose-500' : colors.bar}`}
+                    className={`h-full rounded-full transition-all duration-500 ${progressColor}`}
                     style={{ width: `${Math.min(cat.ocupacao, 100)}%` }}
                   />
                 </div>
