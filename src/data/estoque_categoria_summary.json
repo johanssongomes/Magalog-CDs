@@ -1,64 +1,172 @@
 {
-  "updatedAt": "2026-11-08T13:00:58.705Z",
-  "totalCubagem": 31924.77,
-  "totalPecas": 354552,
-  "totalLinhas": 21997,
-  "categorias": [
-    {
-      "nome": "Linha Branca",
-      "cubagem": 13745.66,
-      "pecas": 32274,
-      "itens": 764,
-      "percentual": 43.1
-    },
-    {
-      "nome": "Colchão/Estofado",
-      "cubagem": 6475.37,
-      "pecas": 23858,
-      "itens": 489,
-      "percentual": 20.3
-    },
-    {
-      "nome": "Diversos",
-      "cubagem": 4905.62,
-      "pecas": 122480,
-      "itens": 14486,
-      "percentual": 15.4
-    },
-    {
-      "nome": "Imagem",
-      "cubagem": 3361.61,
-      "pecas": 17910,
-      "itens": 700,
-      "percentual": 10.5
-    },
-    {
-      "nome": "Madeira",
-      "cubagem": 2888.02,
-      "pecas": 39268,
-      "itens": 4065,
-      "percentual": 9
-    },
-    {
-      "nome": "Pneu",
-      "cubagem": 458.91,
-      "pecas": 7868,
-      "itens": 433,
-      "percentual": 1.4
-    },
-    {
-      "nome": "Mercado",
-      "cubagem": 52.07,
-      "pecas": 6512,
-      "itens": 369,
-      "percentual": 0.2
-    },
-    {
-      "nome": "Cofre",
-      "cubagem": 37.51,
-      "pecas": 104382,
-      "itens": 691,
-      "percentual": 0.1
-    }
-  ]
+  "updatedAt": "2026-11-08T13:21:58.923Z",
+  "capacidades": {
+    "Cofre": 127,
+    "Colchão/Estofado": 5226,
+    "Diversos": 2975,
+    "Eletro Pesado": 13128,
+    "Linha Branca": 13128,
+    "Imagem": 2535,
+    "Madeira": 2798,
+    "Mercado": 358,
+    "Pneu": 372
+  },
+  "bomOnly": {
+    "totalCubagem": 31466.44,
+    "totalPecas": 350271,
+    "totalLinhas": 13198,
+    "categorias": [
+      {
+        "nome": "Eletro Pesado",
+        "cubagem": 13502.48,
+        "capacidade": 13128,
+        "ocupacao": 102.9,
+        "pecas": 31647,
+        "itens": 542,
+        "percentual": 42.9
+      },
+      {
+        "nome": "Colchão/Estofado",
+        "cubagem": 6405.19,
+        "capacidade": 5226,
+        "ocupacao": 122.6,
+        "pecas": 23763,
+        "itens": 406,
+        "percentual": 20.4
+      },
+      {
+        "nome": "Diversos",
+        "cubagem": 4855.61,
+        "capacidade": 2975,
+        "ocupacao": 163.2,
+        "pecas": 120716,
+        "itens": 6734,
+        "percentual": 15.4
+      },
+      {
+        "nome": "Imagem",
+        "cubagem": 3329.15,
+        "capacidade": 2535,
+        "ocupacao": 131.3,
+        "pecas": 17648,
+        "itens": 640,
+        "percentual": 10.6
+      },
+      {
+        "nome": "Madeira",
+        "cubagem": 2841.68,
+        "capacidade": 2798,
+        "ocupacao": 101.6,
+        "pecas": 38687,
+        "itens": 3687,
+        "percentual": 9
+      },
+      {
+        "nome": "Pneu",
+        "cubagem": 443.83,
+        "capacidade": 372,
+        "ocupacao": 119.3,
+        "pecas": 7650,
+        "itens": 386,
+        "percentual": 1.4
+      },
+      {
+        "nome": "Mercado",
+        "cubagem": 51.51,
+        "capacidade": 358,
+        "ocupacao": 14.4,
+        "pecas": 6280,
+        "itens": 325,
+        "percentual": 0.2
+      },
+      {
+        "nome": "Cofre",
+        "cubagem": 36.99,
+        "capacidade": 127,
+        "ocupacao": 29.1,
+        "pecas": 103880,
+        "itens": 478,
+        "percentual": 0.1
+      }
+    ]
+  },
+  "todos": {
+    "totalCubagem": 31924.77,
+    "totalPecas": 354552,
+    "totalLinhas": 21997,
+    "categorias": [
+      {
+        "nome": "Eletro Pesado",
+        "cubagem": 13745.66,
+        "capacidade": 13128,
+        "ocupacao": 104.7,
+        "pecas": 32274,
+        "itens": 764,
+        "percentual": 43.1
+      },
+      {
+        "nome": "Colchão/Estofado",
+        "cubagem": 6475.37,
+        "capacidade": 5226,
+        "ocupacao": 123.9,
+        "pecas": 23858,
+        "itens": 489,
+        "percentual": 20.3
+      },
+      {
+        "nome": "Diversos",
+        "cubagem": 4905.62,
+        "capacidade": 2975,
+        "ocupacao": 164.9,
+        "pecas": 122480,
+        "itens": 14486,
+        "percentual": 15.4
+      },
+      {
+        "nome": "Imagem",
+        "cubagem": 3361.61,
+        "capacidade": 2535,
+        "ocupacao": 132.6,
+        "pecas": 17910,
+        "itens": 700,
+        "percentual": 10.5
+      },
+      {
+        "nome": "Madeira",
+        "cubagem": 2888.02,
+        "capacidade": 2798,
+        "ocupacao": 103.2,
+        "pecas": 39268,
+        "itens": 4065,
+        "percentual": 9
+      },
+      {
+        "nome": "Pneu",
+        "cubagem": 458.91,
+        "capacidade": 372,
+        "ocupacao": 123.4,
+        "pecas": 7868,
+        "itens": 433,
+        "percentual": 1.4
+      },
+      {
+        "nome": "Mercado",
+        "cubagem": 52.07,
+        "capacidade": 358,
+        "ocupacao": 14.5,
+        "pecas": 6512,
+        "itens": 369,
+        "percentual": 0.2
+      },
+      {
+        "nome": "Cofre",
+        "cubagem": 37.51,
+        "capacidade": 127,
+        "ocupacao": 29.5,
+        "pecas": 104382,
+        "itens": 691,
+        "percentual": 0.1
+      }
+    ]
+  }
 }

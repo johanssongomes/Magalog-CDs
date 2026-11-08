@@ -472,7 +472,7 @@ const CLASSE_ITEM_MAPPING: Record<string, string> = {
   '99HIG': 'Mercado',
   '99LIM': 'Mercado',
   '99LIV': 'Mercado',
-  '99LNB': 'Linha Branca',
+  '99LNB': 'Eletro Pesado',
   '99MOV': 'Madeira',
   '99PDE': 'Diversos',
   '99PET': 'Mercado',
@@ -480,8 +480,20 @@ const CLASSE_ITEM_MAPPING: Record<string, string> = {
   '99TV': 'Imagem'
 }
 
+// Capacidade máxima cadastrada por categoria (em m³)
+export const CAPACIDADE_CATEGORIAS: Record<string, number> = {
+  'Cofre': 127,
+  'Colchão/Estofado': 5226,
+  'Diversos': 2975,
+  'Eletro Pesado': 13128,
+  'Imagem': 2535,
+  'Madeira': 2798,
+  'Mercado': 358,
+  'Pneu': 372
+}
+
 const CATEGORY_COLORS: Record<string, { bar: string; text: string; bg: string }> = {
-  'Linha Branca': { bar: 'bg-blue-600', text: 'text-blue-700', bg: 'bg-blue-50' },
+  'Eletro Pesado': { bar: 'bg-blue-600', text: 'text-blue-700', bg: 'bg-blue-50' },
   'Colchão/Estofado': { bar: 'bg-indigo-600', text: 'text-indigo-700', bg: 'bg-indigo-50' },
   'Diversos': { bar: 'bg-emerald-600', text: 'text-emerald-700', bg: 'bg-emerald-50' },
   'Imagem': { bar: 'bg-purple-600', text: 'text-purple-700', bg: 'bg-purple-50' },
@@ -494,6 +506,8 @@ const CATEGORY_COLORS: Record<string, { bar: string; text: string; bg: string }>
 export interface EstoqueCategoriaItem {
   nome: string
   cubagem: number
+  capacidade: number
+  ocupacao: number
   pecas: number
   itens: number
   percentual: number
@@ -502,6 +516,8 @@ export interface EstoqueCategoriaItem {
 export interface EstoqueSummaryData {
   updatedAt: string
   totalCubagem: number
+  totalCapacidade: number
+  totalOcupacao: number
   totalPecas: number
   totalLinhas: number
   categorias: EstoqueCategoriaItem[]
@@ -509,9 +525,11 @@ export interface EstoqueSummaryData {
 
 const EstoqueCategoriasCard: React.FC<{
   data: EstoqueSummaryData
+  filterStatus: 'BOM' | 'TODOS'
+  onFilterChange: (status: 'BOM' | 'TODOS') => void
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
   isProcessing?: boolean
-}> = ({ data, onFileUpload, isProcessing }) => {
+}> = ({ data, filterStatus, onFilterChange, onFileUpload, isProcessing }) => {
   return (
     <Card className="p-4 xl:col-span-4 flex flex-col justify-between">
       <div>
@@ -530,76 +548,120 @@ const EstoqueCategoriasCard: React.FC<{
             </div>
           </div>
 
-          <label
-            htmlFor="estoque-file-input"
-            className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md border border-blue-200 cursor-pointer transition-all shrink-0"
-            title="Importar nova planilha EstoqueCD.xlsx"
-          >
-            {isProcessing ? (
-              <RefreshCw size={11} className="animate-spin text-blue-600" />
-            ) : (
-              <UploadCloud size={11} />
-            )}
-            <span>{isProcessing ? 'Lendo...' : 'Atualizar'}</span>
-            <input
-              id="estoque-file-input"
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={onFileUpload}
-              disabled={isProcessing}
-            />
-          </label>
+          <div className="flex items-center gap-1.5">
+            {/* Filtro DS_AREA_ERP: BOM vs TODOS */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+              <button
+                type="button"
+                onClick={() => onFilterChange('BOM')}
+                className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition-all ${
+                  filterStatus === 'BOM'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Apenas itens com status BOM em DS_AREA_ERP"
+              >
+                BOM
+              </button>
+              <button
+                type="button"
+                onClick={() => onFilterChange('TODOS')}
+                className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition-all ${
+                  filterStatus === 'TODOS'
+                    ? 'bg-white text-slate-800 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Todos os status de DS_AREA_ERP"
+              >
+                Todos
+              </button>
+            </div>
+
+            {/* Botão de Upload */}
+            <label
+              htmlFor="estoque-file-input"
+              className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md border border-blue-200 cursor-pointer transition-all shrink-0"
+              title="Importar nova planilha EstoqueCD.xlsx"
+            >
+              {isProcessing ? (
+                <RefreshCw size={11} className="animate-spin text-blue-600" />
+              ) : (
+                <UploadCloud size={11} />
+              )}
+              <span>{isProcessing ? 'Lendo...' : 'Atualizar'}</span>
+              <input
+                id="estoque-file-input"
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={onFileUpload}
+                disabled={isProcessing}
+              />
+            </label>
+          </div>
         </div>
 
-        {/* Resumo Totalizador */}
-        <div className="flex items-baseline justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 mb-2.5">
+        {/* Resumo Totalizador: Cubagem vs Capacidade Geral */}
+        <div className="grid grid-cols-3 gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100 mb-2.5">
           <div>
-            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">
+            <span className="text-[9.5px] text-slate-500 font-semibold uppercase tracking-wider block">
               Cubagem Total
             </span>
-            <span className="text-lg font-black text-slate-800 leading-none">
+            <span className="text-base font-black text-slate-800 leading-none">
               {data.totalCubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-              <span className="text-xs font-bold text-slate-500 ml-1">m³</span>
+              <span className="text-[10px] font-bold text-slate-500 ml-0.5">m³</span>
             </span>
           </div>
-          <div className="text-right">
-            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">
-              Volume Físico
+
+          <div>
+            <span className="text-[9.5px] text-slate-500 font-semibold uppercase tracking-wider block">
+              Capacidade Meta
             </span>
-            <span className="text-xs font-bold text-slate-700">
-              {data.totalPecas.toLocaleString('pt-BR')} <span className="font-normal text-slate-400">peças</span>
+            <span className="text-base font-black text-blue-700 leading-none">
+              {(data.totalCapacidade || 27519).toLocaleString('pt-BR')}
+              <span className="text-[10px] font-bold text-slate-500 ml-0.5">m³</span>
+            </span>
+          </div>
+
+          <div className="text-right">
+            <span className="text-[9.5px] text-slate-500 font-semibold uppercase tracking-wider block">
+              Ocupação Geral
+            </span>
+            <span className={`text-base font-black leading-none ${(data.totalOcupacao || 0) > 100 ? 'text-amber-600' : 'text-emerald-600'}`}>
+              {(data.totalOcupacao || Math.round((data.totalCubagem / 27519) * 100)).toFixed(1)}%
             </span>
           </div>
         </div>
 
-        {/* Lista de Categorias com Barra de Progresso */}
+        {/* Lista de Categorias com Cubagem vs Capacidade */}
         <div className="space-y-2 max-h-[195px] overflow-y-auto pr-1">
           {data.categorias.map(cat => {
             const colors = CATEGORY_COLORS[cat.nome] || { bar: 'bg-blue-500', text: 'text-blue-600', bg: 'bg-blue-50' }
+            const isOverCapacity = cat.ocupacao > 100
             return (
               <div key={cat.nome} className="group">
                 <div className="flex items-center justify-between text-xs mb-0.5">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className={`w-2 h-2 rounded-full shrink-0 ${colors.bar}`} />
-                    <span className="font-medium text-slate-700 truncate" title={cat.nome}>
+                    <span className="font-semibold text-slate-700 truncate" title={cat.nome}>
                       {cat.nome}
                     </span>
                   </div>
-                  <div className="flex items-baseline gap-1.5 shrink-0">
+                  <div className="flex items-baseline gap-1.5 shrink-0 text-right">
                     <span className="font-bold text-slate-900 font-mono text-[11px]">
-                      {cat.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m³
+                      {cat.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                      <span className="text-[9.5px] font-normal text-slate-400"> / {cat.capacidade.toLocaleString('pt-BR')} m³</span>
                     </span>
-                    <span className="text-[10px] text-slate-400 font-medium w-9 text-right">
-                      {cat.percentual}%
+                    <span className={`text-[10px] font-bold w-12 text-right ${isOverCapacity ? 'text-rose-600' : 'text-emerald-700'}`}>
+                      {cat.ocupacao.toFixed(1)}%
                     </span>
                   </div>
                 </div>
-                {/* Barra de progresso */}
+                {/* Barra de ocupação em relação à capacidade */}
                 <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${colors.bar}`}
-                    style={{ width: `${Math.min(cat.percentual, 100)}%` }}
+                    className={`h-full rounded-full transition-all duration-500 ${isOverCapacity ? 'bg-rose-500' : colors.bar}`}
+                    style={{ width: `${Math.min(cat.ocupacao, 100)}%` }}
                   />
                 </div>
               </div>
@@ -609,7 +671,7 @@ const EstoqueCategoriasCard: React.FC<{
       </div>
 
       <div className="pt-2 border-t border-slate-100 text-[9.5px] text-slate-400 flex items-center justify-between mt-2">
-        <span>Coluna auxiliar: CLASSE_ITEM ➔ CATEGORIA</span>
+        <span>Filtro ERP: <strong className="text-slate-600 font-semibold">{filterStatus === 'BOM' ? 'Somente Status BOM' : 'Todos'}</strong></span>
         <span>{data.categorias.length} categorias</span>
       </div>
     </Card>
@@ -874,17 +936,48 @@ export const DashboardPage: React.FC = () => {
     return result
   }, [chartAderenciaData, chartMetric])
 
-  // Estado do Relatório de Estoque por Categoria (EstoqueCD.xlsx)
-  const [estoqueData, setEstoqueData] = useState<EstoqueSummaryData>(() => {
+  // Estado do Relatório de Estoque por Categoria (EstoqueCD.xlsx) com filtro de DS_AREA_ERP
+  const [estoqueFilterStatus, setEstoqueFilterStatus] = useState<'BOM' | 'TODOS'>('BOM')
+  const [estoqueBaseSummary, setEstoqueBaseSummary] = useState<{
+    bomOnly: EstoqueSummaryData
+    todos: EstoqueSummaryData
+  }>(() => {
     try {
-      const cached = localStorage.getItem('magalog_estoque_categoria_summary')
+      const cached = localStorage.getItem('magalog_estoque_categoria_summary_v2')
       if (cached) return JSON.parse(cached)
     } catch {}
-    return initialEstoqueCategoria as EstoqueSummaryData
+
+    const raw = initialEstoqueCategoria as any
+    if (raw?.bomOnly && raw?.todos) {
+      return { bomOnly: raw.bomOnly, todos: raw.todos }
+    }
+    // Fallback caso seja estrutura antiga
+    const defaultData: EstoqueSummaryData = {
+      updatedAt: new Date().toISOString(),
+      totalCubagem: raw?.totalCubagem || 31466.44,
+      totalCapacidade: 27519,
+      totalOcupacao: 114.3,
+      totalPecas: raw?.totalPecas || 350271,
+      totalLinhas: raw?.totalLinhas || 13198,
+      categorias: raw?.categorias || []
+    }
+    return { bomOnly: defaultData, todos: defaultData }
   })
   const [isProcessingEstoque, setIsProcessingEstoque] = useState(false)
 
-  // Função para processar arquivo EstoqueCD.xlsx no frontend com conversão pela coluna auxiliar
+  // Dados ativos conforme o filtro selecionado (BOM vs TODOS)
+  const activeEstoqueData: EstoqueSummaryData = useMemo(() => {
+    const active = estoqueFilterStatus === 'BOM' ? estoqueBaseSummary.bomOnly : estoqueBaseSummary.todos
+    const totalCapacidade = 27519
+    const totalOcupacao = totalCapacidade > 0 ? (active.totalCubagem / totalCapacidade) * 100 : 0
+    return {
+      ...active,
+      totalCapacidade,
+      totalOcupacao
+    }
+  }, [estoqueBaseSummary, estoqueFilterStatus])
+
+  // Função para processar arquivo EstoqueCD.xlsx no frontend calculando BOM e TODOS
   const handleEstoqueUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -896,51 +989,74 @@ export const DashboardPage: React.FC = () => {
       const firstSheet = wb.Sheets[wb.SheetNames[0]]
       const rows: any[] = XLSX.utils.sheet_to_json(firstSheet)
 
-      const catTotals: Record<string, { cubagem: number; pecas: number; itens: number }> = {}
-      let totalCub = 0
-      let totalQtd = 0
+      const buildSummary = (onlyBom: boolean): EstoqueSummaryData => {
+        const catTotals: Record<string, { cubagem: number; pecas: number; itens: number }> = {}
+        let totalCub = 0
+        let totalQtd = 0
+        let countLines = 0
 
-      rows.forEach(r => {
-        const classeItem = String(r.CLASSE_ITEM || '').trim()
-        // Coluna auxiliar calculada de acordo com o mapeamento
-        const categoria = CLASSE_ITEM_MAPPING[classeItem] || 'Diversos'
-        const cub = Number(r.CUB_TOTAL) || 0
-        const qnts = Number(r.QNTS) || 0
+        rows.forEach(r => {
+          const area = String(r.DS_AREA_ERP || '').trim().toUpperCase()
+          if (onlyBom && area !== 'BOM') return
 
-        if (!catTotals[categoria]) {
-          catTotals[categoria] = { cubagem: 0, pecas: 0, itens: 0 }
+          countLines++
+          const classeItem = String(r.CLASSE_ITEM || '').trim()
+          const categoria = CLASSE_ITEM_MAPPING[classeItem] || 'Diversos'
+          const cub = Number(r.CUB_TOTAL) || 0
+          const qnts = Number(r.QNTS) || 0
+
+          if (!catTotals[categoria]) {
+            catTotals[categoria] = { cubagem: 0, pecas: 0, itens: 0 }
+          }
+          catTotals[categoria].cubagem += cub
+          catTotals[categoria].pecas += qnts
+          catTotals[categoria].itens += 1
+          totalCub += cub
+          totalQtd += qnts
+        })
+
+        const totalCapacidade = 27519
+        const categorias: EstoqueCategoriaItem[] = Object.entries(catTotals).map(([nome, val]) => {
+          const cap = CAPACIDADE_CATEGORIAS[nome] || 0
+          const cub = Math.round(val.cubagem * 100) / 100
+          const ocupacao = cap > 0 ? (cub / cap) * 100 : 0
+          return {
+            nome,
+            cubagem: cub,
+            capacidade: cap,
+            ocupacao: Math.round(ocupacao * 10) / 10,
+            pecas: val.pecas,
+            itens: val.itens,
+            percentual: totalCub > 0 ? Math.round((cub / totalCub) * 1000) / 10 : 0
+          }
+        }).sort((a, b) => b.cubagem - a.cubagem)
+
+        return {
+          updatedAt: new Date().toISOString(),
+          totalCubagem: Math.round(totalCub * 100) / 100,
+          totalCapacidade,
+          totalOcupacao: totalCapacidade > 0 ? Math.round((totalCub / totalCapacidade) * 1000) / 10 : 0,
+          totalPecas: totalQtd,
+          totalLinhas: countLines,
+          categorias
         }
-        catTotals[categoria].cubagem += cub
-        catTotals[categoria].pecas += qnts
-        catTotals[categoria].itens += 1
-        totalCub += cub
-        totalQtd += qnts
-      })
-
-      const summary: EstoqueSummaryData = {
-        updatedAt: new Date().toISOString(),
-        totalCubagem: Math.round(totalCub * 100) / 100,
-        totalPecas: totalQtd,
-        totalLinhas: rows.length,
-        categorias: Object.entries(catTotals).map(([nome, val]) => ({
-          nome,
-          cubagem: Math.round(val.cubagem * 100) / 100,
-          pecas: val.pecas,
-          itens: val.itens,
-          percentual: totalCub > 0 ? Math.round((val.cubagem / totalCub) * 1000) / 10 : 0
-        })).sort((a, b) => b.cubagem - a.cubagem)
       }
 
-      setEstoqueData(summary)
+      const newBaseSummary = {
+        bomOnly: buildSummary(true),
+        todos: buildSummary(false)
+      }
+
+      setEstoqueBaseSummary(newBaseSummary)
       try {
-        localStorage.setItem('magalog_estoque_categoria_summary', JSON.stringify(summary))
+        localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(newBaseSummary))
       } catch {}
 
-      // Grava no Supabase para sincronizar entre usuários
+      // Grava no Supabase para sincronizar entre todos os usuários
       try {
         await supabase.from('performance_metrics').upsert({
-          cell_key: 'estoque_categoria_summary_994',
-          value: JSON.stringify(summary),
+          cell_key: 'estoque_categoria_summary_994_v2',
+          value: JSON.stringify(newBaseSummary),
           updated_at: new Date().toISOString()
         }, { onConflict: 'cell_key' })
       } catch {}
@@ -949,7 +1065,6 @@ export const DashboardPage: React.FC = () => {
       alert('Erro ao processar EstoqueCD.xlsx. Verifique as colunas da planilha.')
     } finally {
       setIsProcessingEstoque(false)
-      // Limpa input
       e.target.value = ''
     }
   }
@@ -961,15 +1076,15 @@ export const DashboardPage: React.FC = () => {
         const { data, error } = await supabase
           .from('performance_metrics')
           .select('value')
-          .eq('cell_key', 'estoque_categoria_summary_994')
+          .eq('cell_key', 'estoque_categoria_summary_994_v2')
           .maybeSingle()
 
         if (!error && data?.value) {
           const parsed = JSON.parse(data.value)
-          if (parsed && parsed.categorias) {
-            setEstoqueData(parsed)
+          if (parsed && parsed.bomOnly && parsed.todos) {
+            setEstoqueBaseSummary(parsed)
             try {
-              localStorage.setItem('magalog_estoque_categoria_summary', JSON.stringify(parsed))
+              localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(parsed))
             } catch {}
           }
         }
@@ -1654,9 +1769,11 @@ export const DashboardPage: React.FC = () => {
             right={<Legend items={[{ label: 'Realizado', color: '#3b82f6' }, { label: 'Meta', color: '#cbd5e1' }]} />} />
           <TurnoChart />
         </Card>
-        {/* Relatório de Categorias de Estoque (EstoqueCD.xlsx com coluna auxiliar CLASSE_ITEM) */}
+        {/* Relatório de Categorias de Estoque (EstoqueCD.xlsx com coluna auxiliar CLASSE_ITEM e Capacidades) */}
         <EstoqueCategoriasCard
-          data={estoqueData}
+          data={activeEstoqueData}
+          filterStatus={estoqueFilterStatus}
+          onFilterChange={setEstoqueFilterStatus}
           onFileUpload={handleEstoqueUpload}
           isProcessing={isProcessingEstoque}
         />
