@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Package, User, Settings, Home, Clock, AlertTriangle, BarChart3, Timer,
   Bell, CheckCircle2, Info, Boxes, Truck, Warehouse, Wrench, Users, DollarSign, CalendarDays,
   TrendingUp, TrendingDown, MessageSquareWarning, ArrowUpRight, ArrowDownRight, Layers,
-  PieChart, RefreshCw, UploadCloud
+  PieChart, RefreshCw, UploadCloud, Tv, BedDouble, Trees, ShoppingCart, ShieldCheck, Disc3
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -560,15 +560,69 @@ export const CAPACIDADE_CATEGORIAS: Record<string, number> = {
   'Pneu': 372
 }
 
-const CATEGORY_COLORS: Record<string, { bar: string; text: string; bg: string }> = {
-  'Eletro Pesado': { bar: 'bg-blue-600', text: 'text-blue-700', bg: 'bg-blue-50' },
-  'Colchão/Estofado': { bar: 'bg-indigo-600', text: 'text-indigo-700', bg: 'bg-indigo-50' },
-  'Diversos': { bar: 'bg-emerald-600', text: 'text-emerald-700', bg: 'bg-emerald-50' },
-  'Imagem': { bar: 'bg-purple-600', text: 'text-purple-700', bg: 'bg-purple-50' },
-  'Madeira': { bar: 'bg-amber-600', text: 'text-amber-700', bg: 'bg-amber-50' },
-  'Pneu': { bar: 'bg-slate-700', text: 'text-slate-800', bg: 'bg-slate-100' },
-  'Mercado': { bar: 'bg-teal-600', text: 'text-teal-700', bg: 'bg-teal-50' },
-  'Cofre': { bar: 'bg-cyan-600', text: 'text-cyan-700', bg: 'bg-cyan-50' }
+const CATEGORY_CONFIG: Record<string, {
+  bar: string
+  text: string
+  bg: string
+  border: string
+  icon: React.ReactNode
+}> = {
+  'Eletro Pesado': {
+    bar: 'bg-blue-600',
+    text: 'text-blue-700',
+    bg: 'bg-blue-50/80',
+    border: 'border-blue-100',
+    icon: <Truck size={12} className="text-blue-600" />
+  },
+  'Colchão/Estofado': {
+    bar: 'bg-indigo-600',
+    text: 'text-indigo-700',
+    bg: 'bg-indigo-50/80',
+    border: 'border-indigo-100',
+    icon: <BedDouble size={12} className="text-indigo-600" />
+  },
+  'Diversos': {
+    bar: 'bg-emerald-600',
+    text: 'text-emerald-700',
+    bg: 'bg-emerald-50/80',
+    border: 'border-emerald-100',
+    icon: <Boxes size={12} className="text-emerald-600" />
+  },
+  'Imagem': {
+    bar: 'bg-purple-600',
+    text: 'text-purple-700',
+    bg: 'bg-purple-50/80',
+    border: 'border-purple-100',
+    icon: <Tv size={12} className="text-purple-600" />
+  },
+  'Madeira': {
+    bar: 'bg-amber-600',
+    text: 'text-amber-700',
+    bg: 'bg-amber-50/80',
+    border: 'border-amber-100',
+    icon: <Trees size={12} className="text-amber-600" />
+  },
+  'Pneu': {
+    bar: 'bg-slate-700',
+    text: 'text-slate-800',
+    bg: 'bg-slate-100/80',
+    border: 'border-slate-200',
+    icon: <Disc3 size={12} className="text-slate-700" />
+  },
+  'Mercado': {
+    bar: 'bg-teal-600',
+    text: 'text-teal-700',
+    bg: 'bg-teal-50/80',
+    border: 'border-teal-100',
+    icon: <ShoppingCart size={12} className="text-teal-600" />
+  },
+  'Cofre': {
+    bar: 'bg-cyan-600',
+    text: 'text-cyan-700',
+    bg: 'bg-cyan-50/80',
+    border: 'border-cyan-100',
+    icon: <ShieldCheck size={12} className="text-cyan-600" />
+  }
 }
 
 export interface EstoqueCategoriaItem {
@@ -701,29 +755,45 @@ const EstoqueCategoriasCard: React.FC<{
           </div>
         </div>
 
-        {/* Lista de Categorias com Cubagem vs Capacidade (todas visíveis sem rolagem) */}
-        <div className="space-y-1.5">
+        {/* Lista de Categorias com Cubagem vs Capacidade (Design moderno com ícones) */}
+        <div className="space-y-1">
           {data.categorias.map(cat => {
-            const colors = CATEGORY_COLORS[cat.nome] || { bar: 'bg-blue-500', text: 'text-blue-600', bg: 'bg-blue-50' }
+            const config = CATEGORY_CONFIG[cat.nome] || {
+              bar: 'bg-blue-600',
+              text: 'text-blue-700',
+              bg: 'bg-blue-50/80',
+              border: 'border-blue-100',
+              icon: <Boxes size={12} className="text-blue-600" />
+            }
             const isOverCapacity = cat.ocupacao > 100
-            // Cor da barra de progresso: vermelha se estourou a meta (>100%), senão usa verde suave para dentro da meta
             const progressColor = isOverCapacity ? 'bg-rose-500' : 'bg-emerald-500'
 
             return (
-              <div key={cat.nome} className="group">
-                <div className="flex items-center justify-between text-xs mb-0.5">
+              <div
+                key={cat.nome}
+                className="group p-1 rounded-lg hover:bg-slate-50/90 transition-colors border border-transparent hover:border-slate-100"
+              >
+                <div className="flex items-center justify-between text-xs mb-1">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${colors.bar}`} />
-                    <span className="font-semibold text-slate-700 truncate text-[11px]" title={cat.nome}>
+                    <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border ${config.bg} ${config.border}`}>
+                      {config.icon}
+                    </span>
+                    <span className="font-bold text-slate-700 truncate text-[11px]" title={cat.nome}>
                       {cat.nome}
                     </span>
                   </div>
                   <div className="flex items-baseline gap-1.5 shrink-0 text-right">
-                    <span className="font-bold text-slate-900 font-mono text-[10.5px]">
+                    <span className="font-black text-slate-900 font-mono text-[10.5px]">
                       {Math.round(cat.cubagem).toLocaleString('pt-BR')}
                       <span className="text-[9px] font-normal text-slate-400"> / {cat.capacidade.toLocaleString('pt-BR')} m³</span>
                     </span>
-                    <span className={`text-[9.5px] font-bold w-11 text-right ${isOverCapacity ? 'text-rose-600' : 'text-emerald-700'}`}>
+                    <span
+                      className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded text-right min-w-10 ${
+                        isOverCapacity
+                          ? 'text-rose-600 bg-rose-50 border border-rose-100'
+                          : 'text-emerald-700 bg-emerald-50 border border-emerald-100'
+                      }`}
+                    >
                       {cat.ocupacao.toFixed(1)}%
                     </span>
                   </div>
