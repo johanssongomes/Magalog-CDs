@@ -318,7 +318,7 @@ interface PerformanceChartProps {
 }
 
 const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => {
-  const W = 520, H = 200, padL = 46, padB = 34, padT = 20
+  const W = 520, H = 208, padL = 46, padB = 42, padT = 20
   const innerW = W - padL - 12
   const innerH = H - padB - padT
 
@@ -445,41 +445,79 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
             )}
 
             {/* Labels de Eixo X */}
-            {d.isToday && (
-              <rect
-                x={cx - 18}
-                y={H - 32}
-                width={36}
-                height={12}
-                rx="6"
-                fill="#2563eb"
-              />
+            {d.isToday ? (
+              <g>
+                {/* Badge HOJE posicionada logo abaixo da barra */}
+                <rect
+                  x={cx - 15}
+                  y={H - 38}
+                  width={30}
+                  height={10}
+                  rx="5"
+                  fill="#2563eb"
+                />
+                <text
+                  x={cx}
+                  y={H - 30}
+                  fontSize="6.5"
+                  textAnchor="middle"
+                  fill="#ffffff"
+                  fontWeight="800"
+                  letterSpacing="0.5"
+                >
+                  HOJE
+                </text>
+
+                {/* Dia da semana */}
+                <text
+                  x={cx}
+                  y={H - 18}
+                  fontSize="9.5"
+                  textAnchor="middle"
+                  fill="#1d4ed8"
+                  fontWeight="800"
+                >
+                  {d.label}
+                </text>
+
+                {/* Data */}
+                <text
+                  x={cx}
+                  y={H - 7}
+                  fontSize="8"
+                  textAnchor="middle"
+                  fill="#2563eb"
+                  fontWeight="700"
+                >
+                  {d.date}
+                </text>
+              </g>
+            ) : (
+              <g>
+                {/* Dia da semana */}
+                <text
+                  x={cx}
+                  y={H - 18}
+                  fontSize="9.5"
+                  textAnchor="middle"
+                  fill="#334155"
+                  fontWeight="700"
+                >
+                  {d.label}
+                </text>
+
+                {/* Data */}
+                <text
+                  x={cx}
+                  y={H - 7}
+                  fontSize="8"
+                  textAnchor="middle"
+                  fill="#94a3b8"
+                >
+                  {d.date}
+                </text>
+              </g>
             )}
-            {d.isToday && (
-              <text x={cx} y={H - 23} fontSize="7" textAnchor="middle" fill="#ffffff" fontWeight="800">
-                HOJE
-              </text>
-            )}
-            <text
-              x={cx}
-              y={H - 20}
-              fontSize="9.5"
-              textAnchor="middle"
-              fill={d.isToday ? '#1d4ed8' : '#334155'}
-              fontWeight={d.isToday ? '800' : '700'}
-            >
-              {d.label}
-            </text>
-            <text
-              x={cx}
-              y={H - 9}
-              fontSize="8"
-              textAnchor="middle"
-              fill={d.isToday ? '#2563eb' : '#94a3b8'}
-              fontWeight={d.isToday ? '700' : '400'}
-            >
-              {d.date}
-            </text>
           </g>
         )
       })}
