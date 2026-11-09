@@ -306,6 +306,7 @@ export interface OperationalPerformanceDay {
   dayStr: string
   label: string
   date: string
+  isToday?: boolean
   faturado: number
   liberado: number
   capacidade: number
@@ -444,10 +445,39 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
             )}
 
             {/* Labels de Eixo X */}
-            <text x={cx} y={H - 20} fontSize="9.5" textAnchor="middle" fill="#334155" fontWeight="700">
+            {d.isToday && (
+              <rect
+                x={cx - 18}
+                y={H - 32}
+                width={36}
+                height={12}
+                rx="6"
+                fill="#2563eb"
+              />
+            )}
+            {d.isToday && (
+              <text x={cx} y={H - 23} fontSize="7" textAnchor="middle" fill="#ffffff" fontWeight="800">
+                HOJE
+              </text>
+            )}
+            <text
+              x={cx}
+              y={H - 20}
+              fontSize="9.5"
+              textAnchor="middle"
+              fill={d.isToday ? '#1d4ed8' : '#334155'}
+              fontWeight={d.isToday ? '800' : '700'}
+            >
               {d.label}
             </text>
-            <text x={cx} y={H - 9} fontSize="8" textAnchor="middle" fill="#94a3b8">
+            <text
+              x={cx}
+              y={H - 9}
+              fontSize="8"
+              textAnchor="middle"
+              fill={d.isToday ? '#2563eb' : '#94a3b8'}
+              fontWeight={d.isToday ? '700' : '400'}
+            >
               {d.date}
             </text>
           </g>
@@ -895,11 +925,12 @@ export const DashboardPage: React.FC = () => {
     loadChartData()
   }, [])
 
-  // Calcula os 7 dias para o gráfico (vinculados ao Acompanhamento Diário)
+  // Calcula a janela de 7 dias para o gráfico incluindo o dia de hoje (vinculados ao Acompanhamento Diário)
   const performance7Days = useMemo<OperationalPerformanceDay[]>(() => {
     const now = new Date()
     const curYear = chartAderenciaData?.ano || now.getFullYear()
     const curMonth = chartAderenciaData?.mes || (now.getMonth() + 1)
+    const todayNum = now.getDate()
     const weekdayLetters = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
     const liberadoTotals = (chartAderenciaData?.liberado?.totals as any)?.[chartMetric] || {}
@@ -909,12 +940,18 @@ export const DashboardPage: React.FC = () => {
     // Padrão de capacidade por dia útil
     const defaultCap = chartMetric === 'cubagem' ? 1000 : chartMetric === 'pedidos' ? 2800 : 10000
 
-    // Range de 7 dias (dias 01 a 07 do mês)
+    // Se o dia atual for maior que 7 no mês vigente, exibe a janela que alcança até a data de hoje
+    const totalDaysInMonth = new Date(curYear, curMonth, 0).getDate()
+    const effectiveDay = Math.min(Math.max(todayNum, 1), totalDaysInMonth)
+    const startDay = effectiveDay <= 7 ? 1 : Math.max(1, effectiveDay - 6)
+    const endDay = Math.min(startDay + 6, totalDaysInMonth)
+
     const result: OperationalPerformanceDay[] = []
-    for (let dayNum = 1; dayNum <= 7; dayNum++) {
+    for (let dayNum = startDay; dayNum <= endDay; dayNum++) {
       const dayStr = dayNum.toString().padStart(2, '0')
       const dt = new Date(curYear, curMonth - 1, dayNum)
       const isSunday = dt.getDay() === 0
+      const isToday = dayNum === todayNum && (now.getMonth() + 1) === curMonth && now.getFullYear() === curYear
       const wLabel = weekdayLetters[dt.getDay()]
       const dateLabel = `${dayStr}/${curMonth.toString().padStart(2, '0')}`
 
@@ -931,6 +968,7 @@ export const DashboardPage: React.FC = () => {
         dayStr,
         label: wLabel,
         date: dateLabel,
+        isToday,
         faturado: fatVal,
         liberado: libVal,
         capacidade: capVal
