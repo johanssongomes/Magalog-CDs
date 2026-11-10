@@ -190,8 +190,8 @@ export const PmtDashboardOverview: React.FC = () => {
       // % Aderência Fat x Cap = Faturado / Capacidade
       const aderFat = capVal > 0 ? (fatVal / capVal) * 100 : null
 
-      // Dias Em Carteira = Capacidade / PMT Planejado (com 1 casa decimal)
-      const diasEmCarteira = (pmtVal > 0 && capVal > 0) ? (capVal / pmtVal) : null
+      // Dias Em Carteira = PMT Planejado / Capacidade (com 1 casa decimal)
+      const diasEmCarteira = (capVal > 0 && pmtVal > 0) ? (pmtVal / capVal) : null
 
       return {
         day: d.day,
@@ -241,7 +241,7 @@ export const PmtDashboardOverview: React.FC = () => {
     const totalAderFat = sumCap > 0 ? Math.round((sumFat / sumCap) * 100) : 0
     const avgAderFat = avgCap > 0 ? Math.round((avgFat / avgCap) * 100) : 0
 
-    // Dias Em Carteira: Total Geral = sumCap / sumPmt | Média = média dos dias com cálculo válido
+    // Dias Em Carteira: Total Geral = sumPmt / sumCap | Média = média dos dias com cálculo válido
     const validDiasEmCarteira = dailyData
       .map(d => d.diasEmCarteira)
       .filter((v): v is number => v !== null && v > 0)
@@ -250,7 +250,7 @@ export const PmtDashboardOverview: React.FC = () => {
       ? validDiasEmCarteira.reduce((acc, curr) => acc + curr, 0) / validDiasEmCarteira.length
       : null
 
-    const totalDiasEmCarteira = (sumPmt > 0 && sumCap > 0) ? (sumCap / sumPmt) : null
+    const totalDiasEmCarteira = (sumCap > 0 && sumPmt > 0) ? (sumPmt / sumCap) : null
 
     return {
       sumPmt,
@@ -892,7 +892,7 @@ export const PmtDashboardOverview: React.FC = () => {
                 </td>
               </tr>
 
-              {/* LINHA 7: DIAS EM CARTEIRA (Capacidade / PMT Planejado) */}
+              {/* LINHA 7: DIAS EM CARTEIRA (PMT Planejado / Capacidade) */}
               <tr className="bg-sky-50/30 hover:bg-sky-50/60 transition-colors border-t border-slate-200">
                 <td className="sticky left-0 z-20 bg-sky-50/90 px-3 py-1.5 font-bold text-sky-900 border-r border-sky-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)] font-sans flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-sky-600 shrink-0" />
@@ -910,7 +910,7 @@ export const PmtDashboardOverview: React.FC = () => {
                           ? 'bg-rose-100/70 text-rose-700 border-rose-200'
                           : 'border-sky-100 text-sky-950'
                       }`}
-                      title={`Capacidade: ${d.cap} / PMT: ${d.pmt} = ${val} (${isHigh ? 'Acima de 1,5 dias' : 'Dentro do limite'})`}
+                      title={`PMT: ${d.pmt} / Capacidade: ${d.cap} = ${val} (${isHigh ? 'Acima de 1,5 dias' : 'Dentro do limite'})`}
                     >
                       {val}
                     </td>
