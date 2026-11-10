@@ -723,33 +723,45 @@ const EstoqueCategoriasCard: React.FC<{
           </div>
         </div>
 
-        {/* Resumo Totalizador: Cubagem vs Capacidade Geral */}
-        <div className="grid grid-cols-3 gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100 mb-2">
-          <div>
-            <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider block">
-              Cubagem Total
-            </span>
-            <span className="text-base font-black text-slate-800 leading-none">
+        {/* Resumo Totalizador: Cubagem vs Capacidade Geral (Cards centralizados com ícones) */}
+        <div className="grid grid-cols-3 gap-2 p-2 rounded-xl bg-slate-50/80 border border-slate-100 mb-2.5">
+          {/* Cubagem Total (Armazenado) */}
+          <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+            <div className="flex items-center gap-1 text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+              <span className="p-0.5 rounded bg-blue-50 text-blue-600">
+                <Boxes size={11} />
+              </span>
+              <span>Cubagem Total</span>
+            </div>
+            <span className="text-base font-black text-slate-800 leading-tight">
               {Math.round(data.totalCubagem).toLocaleString('pt-BR')}
               <span className="text-[10px] font-bold text-slate-500 ml-0.5">m³</span>
             </span>
           </div>
 
-          <div>
-            <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider block">
-              Capacidade Meta
-            </span>
-            <span className="text-base font-black text-blue-700 leading-none">
+          {/* Capacidade Meta */}
+          <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+            <div className="flex items-center gap-1 text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+              <span className="p-0.5 rounded bg-sky-50 text-sky-600">
+                <Warehouse size={11} />
+              </span>
+              <span>Capacidade Meta</span>
+            </div>
+            <span className="text-base font-black text-blue-700 leading-tight">
               {(data.totalCapacidade || 27519).toLocaleString('pt-BR')}
               <span className="text-[10px] font-bold text-slate-500 ml-0.5">m³</span>
             </span>
           </div>
 
-          <div className="text-right">
-            <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider block">
-              Ocupação Geral
-            </span>
-            <span className={`text-base font-black leading-none ${(data.totalOcupacao || 0) > 100 ? 'text-amber-600' : 'text-emerald-600'}`}>
+          {/* Ocupação Geral */}
+          <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+            <div className="flex items-center gap-1 text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+              <span className={`p-0.5 rounded ${(data.totalOcupacao || 0) > 100 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                <PieChart size={11} />
+              </span>
+              <span>Ocupação Geral</span>
+            </div>
+            <span className={`text-base font-black leading-tight ${(data.totalOcupacao || 0) > 100 ? 'text-amber-600' : 'text-emerald-600'}`}>
               {(data.totalOcupacao || Math.round((data.totalCubagem / 27519) * 100)).toFixed(1)}%
             </span>
           </div>
@@ -779,7 +791,8 @@ const EstoqueCategoriasCard: React.FC<{
             const isOverCapacity = cat.ocupacao > 100
             const progressColor = isOverCapacity ? 'bg-rose-500' : 'bg-emerald-500'
 
-            const diff = Math.round(cat.cubagem - cat.capacidade)
+            // Cálculo: Capacidade - Armazenado
+            const diff = Math.round(cat.capacidade - cat.cubagem)
             const diffFormatted = diff > 0
               ? `+${diff.toLocaleString('pt-BR')} m³`
               : `${diff.toLocaleString('pt-BR')} m³`
@@ -810,12 +823,12 @@ const EstoqueCategoriasCard: React.FC<{
                       {cat.capacidade.toLocaleString('pt-BR')} <span className="text-[8.5px] font-normal text-slate-400">m³</span>
                     </span>
 
-                    {/* Diferença */}
+                    {/* Diferença (Capacidade - Armazenado) */}
                     <span
                       className={`w-16 text-[9.5px] font-bold ${
-                        diff > 0 ? 'text-rose-600' : 'text-emerald-700'
+                        diff < 0 ? 'text-rose-600' : 'text-emerald-700'
                       }`}
-                      title={diff > 0 ? `Excesso de ${diffFormatted}` : `Espaço livre de ${Math.abs(diff).toLocaleString('pt-BR')} m³`}
+                      title={diff < 0 ? `Excesso de ${Math.abs(diff).toLocaleString('pt-BR')} m³` : `Saldo disponível de ${diffFormatted}`}
                     >
                       {diffFormatted}
                     </span>
