@@ -755,6 +755,17 @@ const EstoqueCategoriasCard: React.FC<{
           </div>
         </div>
 
+        {/* Cabeçalho das Colunas: Categoria | Armazenado | Capacidade | Dif / Ocupação */}
+        <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider px-1 pb-1 border-b border-slate-100 mb-1">
+          <span>Categoria</span>
+          <div className="flex items-center gap-2">
+            <span className="w-16 text-right">Armazenado</span>
+            <span className="w-16 text-right">Capacidade</span>
+            <span className="w-16 text-right">Diferença</span>
+            <span className="w-10 text-right">Ocup.</span>
+          </div>
+        </div>
+
         {/* Lista de Categorias com Cubagem vs Capacidade (Design moderno com ícones) */}
         <div className="space-y-1">
           {data.categorias.map(cat => {
@@ -767,6 +778,11 @@ const EstoqueCategoriasCard: React.FC<{
             }
             const isOverCapacity = cat.ocupacao > 100
             const progressColor = isOverCapacity ? 'bg-rose-500' : 'bg-emerald-500'
+
+            const diff = Math.round(cat.cubagem - cat.capacidade)
+            const diffFormatted = diff > 0
+              ? `+${diff.toLocaleString('pt-BR')} m³`
+              : `${diff.toLocaleString('pt-BR')} m³`
 
             return (
               <div
@@ -782,19 +798,37 @@ const EstoqueCategoriasCard: React.FC<{
                       {cat.nome}
                     </span>
                   </div>
-                  <div className="flex items-baseline gap-1.5 shrink-0 text-right">
-                    <span className="font-black text-slate-900 font-mono text-[10.5px]">
-                      {Math.round(cat.cubagem).toLocaleString('pt-BR')}
-                      <span className="text-[9px] font-normal text-slate-400"> / {cat.capacidade.toLocaleString('pt-BR')} m³</span>
+
+                  <div className="flex items-baseline gap-2 shrink-0 text-right font-mono text-[10.5px]">
+                    {/* Armazenado */}
+                    <span className="w-16 font-black text-slate-900" title={`Armazenado: ${Math.round(cat.cubagem).toLocaleString('pt-BR')} m³`}>
+                      {Math.round(cat.cubagem).toLocaleString('pt-BR')} <span className="text-[8.5px] font-normal text-slate-400">m³</span>
                     </span>
+
+                    {/* Capacidade */}
+                    <span className="w-16 text-slate-500 font-medium" title={`Capacidade: ${cat.capacidade.toLocaleString('pt-BR')} m³`}>
+                      {cat.capacidade.toLocaleString('pt-BR')} <span className="text-[8.5px] font-normal text-slate-400">m³</span>
+                    </span>
+
+                    {/* Diferença */}
                     <span
-                      className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded text-right min-w-10 ${
+                      className={`w-16 text-[9.5px] font-bold ${
+                        diff > 0 ? 'text-rose-600' : 'text-emerald-700'
+                      }`}
+                      title={diff > 0 ? `Excesso de ${diffFormatted}` : `Espaço livre de ${Math.abs(diff).toLocaleString('pt-BR')} m³`}
+                    >
+                      {diffFormatted}
+                    </span>
+
+                    {/* Ocupação */}
+                    <span
+                      className={`w-10 text-[9px] font-bold px-1 py-0.2 rounded text-center ${
                         isOverCapacity
                           ? 'text-rose-600 bg-rose-50 border border-rose-100'
                           : 'text-emerald-700 bg-emerald-50 border border-emerald-100'
                       }`}
                     >
-                      {cat.ocupacao.toFixed(1)}%
+                      {cat.ocupacao.toFixed(0)}%
                     </span>
                   </div>
                 </div>
