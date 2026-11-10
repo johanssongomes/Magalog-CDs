@@ -900,20 +900,34 @@ export const PmtDashboardOverview: React.FC = () => {
                 </td>
                 {dailyData.map((d) => {
                   const val = d.diasEmCarteira !== null ? d.diasEmCarteira.toFixed(1).replace('.', ',') : '-'
+                  const isHigh = d.diasEmCarteira !== null && d.diasEmCarteira > 1.5
+
                   return (
                     <td
                       key={`diasCarteira-${d.day}`}
-                      className="px-0.5 py-1.5 text-center border-r border-sky-100 font-bold text-sky-950 font-mono text-[11px]"
-                      title={`Capacidade: ${d.cap} / PMT: ${d.pmt} = ${val}`}
+                      className={`px-0.5 py-1.5 text-center border-r font-bold font-mono text-[11px] transition-colors ${
+                        isHigh
+                          ? 'bg-rose-100/70 text-rose-700 border-rose-200'
+                          : 'border-sky-100 text-sky-950'
+                      }`}
+                      title={`Capacidade: ${d.cap} / PMT: ${d.pmt} = ${val} (${isHigh ? 'Acima de 1,5 dias' : 'Dentro do limite'})`}
                     >
                       {val}
                     </td>
                   )
                 })}
-                <td className="px-2 py-1.5 text-center font-bold text-sky-900 bg-sky-100/50 border-r border-sky-200 font-mono text-[11px]">
+                <td className={`px-2 py-1.5 text-center font-bold border-r font-mono text-[11px] ${
+                  totals.avgDiasEmCarteira !== null && totals.avgDiasEmCarteira > 1.5
+                    ? 'bg-rose-100/70 text-rose-700 border-rose-200'
+                    : 'text-sky-900 bg-sky-100/50 border-sky-200'
+                }`}>
                   {totals.avgDiasEmCarteira !== null ? totals.avgDiasEmCarteira.toFixed(1).replace('.', ',') : '-'}
                 </td>
-                <td className="px-2 py-1.5 text-center font-black text-sky-950 bg-sky-100/50 font-mono text-[11px]">
+                <td className={`px-2 py-1.5 text-center font-black font-mono text-[11px] ${
+                  totals.totalDiasEmCarteira !== null && totals.totalDiasEmCarteira > 1.5
+                    ? 'bg-rose-100/70 text-rose-700'
+                    : 'text-sky-950 bg-sky-100/50'
+                }`}>
                   {totals.totalDiasEmCarteira !== null ? totals.totalDiasEmCarteira.toFixed(1).replace('.', ',') : '-'}
                 </td>
               </tr>
