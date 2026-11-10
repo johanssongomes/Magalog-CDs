@@ -723,49 +723,74 @@ const EstoqueCategoriasCard: React.FC<{
           </div>
         </div>
 
-        {/* Resumo Totalizador: Cubagem vs Capacidade Geral (Cards centralizados com ícones) */}
-        <div className="grid grid-cols-3 gap-2 p-2 rounded-xl bg-slate-50/80 border border-slate-100 mb-2.5">
-          {/* Cubagem Total (Armazenado) */}
-          <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
-            <div className="flex items-center gap-1 text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
-              <span className="p-0.5 rounded bg-blue-50 text-blue-600">
-                <Boxes size={11} />
-              </span>
-              <span>Cubagem Total</span>
-            </div>
-            <span className="text-base font-black text-slate-800 leading-tight">
-              {Math.round(data.totalCubagem).toLocaleString('pt-BR')}
-              <span className="text-[10px] font-bold text-slate-500 ml-0.5">m³</span>
-            </span>
-          </div>
+        {/* Resumo Totalizador: Cubagem vs Capacidade Geral vs Gap (Cards centralizados com ícones) */}
+        {(() => {
+          const capGeral = data.totalCapacidade || 27519
+          const armGeral = Math.round(data.totalCubagem)
+          const gapGeral = capGeral - armGeral
+          const gapFormatted = gapGeral > 0
+            ? `+${gapGeral.toLocaleString('pt-BR')}`
+            : `${gapGeral.toLocaleString('pt-BR')}`
 
-          {/* Capacidade Meta */}
-          <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
-            <div className="flex items-center gap-1 text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
-              <span className="p-0.5 rounded bg-sky-50 text-sky-600">
-                <Warehouse size={11} />
-              </span>
-              <span>Capacidade Meta</span>
-            </div>
-            <span className="text-base font-black text-blue-700 leading-tight">
-              {(data.totalCapacidade || 27519).toLocaleString('pt-BR')}
-              <span className="text-[10px] font-bold text-slate-500 ml-0.5">m³</span>
-            </span>
-          </div>
+          return (
+            <div className="grid grid-cols-4 gap-1.5 p-1.5 rounded-xl bg-slate-50/80 border border-slate-100 mb-2.5">
+              {/* Cubagem Total (Armazenado) */}
+              <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+                <div className="flex items-center gap-1 text-[8.5px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                  <span className="p-0.5 rounded bg-blue-50 text-blue-600">
+                    <Boxes size={10} />
+                  </span>
+                  <span>Cubagem Total</span>
+                </div>
+                <span className="text-sm font-black text-slate-800 leading-tight">
+                  {armGeral.toLocaleString('pt-BR')}
+                  <span className="text-[9px] font-bold text-slate-500 ml-0.5">m³</span>
+                </span>
+              </div>
 
-          {/* Ocupação Geral */}
-          <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
-            <div className="flex items-center gap-1 text-[9px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
-              <span className={`p-0.5 rounded ${(data.totalOcupacao || 0) > 100 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                <PieChart size={11} />
-              </span>
-              <span>Ocupação Geral</span>
+              {/* Capacidade Meta */}
+              <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+                <div className="flex items-center gap-1 text-[8.5px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                  <span className="p-0.5 rounded bg-sky-50 text-sky-600">
+                    <Warehouse size={10} />
+                  </span>
+                  <span>Capacidade Meta</span>
+                </div>
+                <span className="text-sm font-black text-blue-700 leading-tight">
+                  {capGeral.toLocaleString('pt-BR')}
+                  <span className="text-[9px] font-bold text-slate-500 ml-0.5">m³</span>
+                </span>
+              </div>
+
+              {/* Gap da Diferença (Capacidade - Armazenado) */}
+              <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+                <div className="flex items-center gap-1 text-[8.5px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                  <span className={`p-0.5 rounded ${gapGeral < 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                    <TrendingUp size={10} />
+                  </span>
+                  <span>Gap / Dif.</span>
+                </div>
+                <span className={`text-sm font-black leading-tight ${gapGeral < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                  {gapFormatted}
+                  <span className="text-[9px] font-bold ml-0.5">m³</span>
+                </span>
+              </div>
+
+              {/* Ocupação Geral */}
+              <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+                <div className="flex items-center gap-1 text-[8.5px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                  <span className={`p-0.5 rounded ${(data.totalOcupacao || 0) > 100 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                    <PieChart size={10} />
+                  </span>
+                  <span>Ocupação Geral</span>
+                </div>
+                <span className={`text-sm font-black leading-tight ${(data.totalOcupacao || 0) > 100 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                  {(data.totalOcupacao || Math.round((data.totalCubagem / 27519) * 100)).toFixed(1)}%
+                </span>
+              </div>
             </div>
-            <span className={`text-base font-black leading-tight ${(data.totalOcupacao || 0) > 100 ? 'text-amber-600' : 'text-emerald-600'}`}>
-              {(data.totalOcupacao || Math.round((data.totalCubagem / 27519) * 100)).toFixed(1)}%
-            </span>
-          </div>
-        </div>
+          )
+        })()}
 
         {/* Cabeçalho das Colunas: Categoria | Armazenado | Capacidade | Dif / Ocupação */}
         <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider px-1 pb-1 border-b border-slate-100 mb-1">
