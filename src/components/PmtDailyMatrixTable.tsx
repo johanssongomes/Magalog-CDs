@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { 
-  Table, 
-  Download, 
-  Filter, 
-  Search, 
-  Boxes, 
-  Package, 
-  Layers, 
+import {
+  Table,
+  Download,
+  Filter,
+  Search,
+  Boxes,
+  Package,
+  Layers,
   ArrowUpDown,
   CheckCircle2,
   Calendar,
@@ -30,12 +30,12 @@ import {
   EyeOff
 } from 'lucide-react'
 import { getPmtDailyMatrixFromSupabase } from '../lib/pmtService'
-import { 
-  getAderenciaData, 
-  saveAderenciaData, 
-  parseAderenciaExcel, 
-  type AderenciaDataState, 
-  type AderenciaMetricData 
+import {
+  getAderenciaData,
+  saveAderenciaData,
+  parseAderenciaExcel,
+  type AderenciaDataState,
+  type AderenciaMetricData
 } from '../lib/aderenciaService'
 import initialAderenciaOct from '../data/initialAderencia202610.json'
 
@@ -96,11 +96,11 @@ const YEARS_OPTIONS = [2024, 2025, 2026, 2027]
 type SectionView = 'all' | 'pedidos' | 'pecas' | 'cubagem'
 type GroupByView = 'modal' | 'categoria_produtividade'
 
-export const PmtDailyMatrixTable: React.FC<Props> = ({ 
-  ano, 
-  mes, 
-  cd = '994', 
-  pageTitle = 'PMT Expedição', 
+export const PmtDailyMatrixTable: React.FC<Props> = ({
+  ano,
+  mes,
+  cd = '994',
+  pageTitle = 'PMT Expedição',
   cardsContent,
   onAderenciaChange,
   onOpenImportModal,
@@ -200,7 +200,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
   // Carregar dados de Aderência do Supabase ou Cache para o mês específico
   useEffect(() => {
     let isMounted = true
-    
+
     // Limpa imediatamente o estado para o novo mês para evitar exibir dados do mês anterior
     if (ano === 2026 && mes === 10) {
       setAderencia(initialAderenciaOct as unknown as AderenciaDataState)
@@ -234,7 +234,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
     if (!matrix) return []
     if (!searchModal.trim()) return matrix.modals
     const term = searchModal.toLowerCase()
-    return matrix.modals.filter(m => 
+    return matrix.modals.filter(m =>
       m.toLowerCase().includes(term) || cleanModalName(m).toLowerCase().includes(term)
     )
   }, [matrix, searchModal])
@@ -471,7 +471,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
           {activeFilteredDays.map((d) => {
             const val = libTotals[d.dayStr] || 0
             return (
-              <td 
+              <td
                 key={`lib-${metricKey}-${d.dayStr}`}
                 className="px-1.5 py-2 text-center font-mono font-bold text-emerald-900 border-r border-emerald-200/80 text-[13px]"
               >
@@ -498,11 +498,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             const perc = pmtVal > 0 ? (libVal / pmtVal) * 100 : 0
             const isGood = perc >= 90
             return (
-              <td 
+              <td
                 key={`ader-lib-${metricKey}-${d.dayStr}`}
-                className={`px-1.5 py-1.5 text-center font-mono font-bold text-[12.5px] border-r border-emerald-200 ${
-                  pmtVal === 0 ? 'text-slate-400' : isGood ? 'text-emerald-700 font-extrabold' : 'text-amber-700'
-                }`}
+                className={`px-1.5 py-1.5 text-center font-mono font-bold text-[12.5px] border-r border-emerald-200 ${pmtVal === 0 ? 'text-slate-400' : isGood ? 'text-emerald-700 font-extrabold' : 'text-amber-700'
+                  }`}
               >
                 {pmtVal > 0 ? formatPercent(perc) : '-'}
               </td>
@@ -527,7 +526,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
           {activeFilteredDays.map((d) => {
             const val = fatTotals[d.dayStr] || 0
             return (
-              <td 
+              <td
                 key={`fat-${metricKey}-${d.dayStr}`}
                 className="px-1.5 py-2 text-center font-mono font-bold text-amber-900 border-r border-amber-200/80 text-[13px]"
               >
@@ -556,7 +555,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             const isEditing = editingCapacityCell?.metric === metricKey && editingCapacityCell?.dayStr === d.dayStr
             const val = capTotals[d.dayStr] || 0
             return (
-              <td 
+              <td
                 key={`cap-${metricKey}-${d.dayStr}`}
                 onClick={() => {
                   setEditingCapacityCell({ metric: metricKey, dayStr: d.dayStr })
@@ -599,7 +598,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
         </tr>
 
         {/* LINHA 5: ADERÊNCIA FATURADO X CAPACIDADE (% Faturado / Capacidade) */}
-        <tr className="bg-indigo-100/40 border-b-2 border-indigo-300 hover:bg-indigo-100/60 transition-colors">
+        <tr className="bg-indigo-100/40 border-b border-indigo-200/80 hover:bg-indigo-100/60 transition-colors">
           <td className="sticky left-0 z-20 bg-indigo-100/80 px-3 py-1.5 font-bold text-indigo-900 border-r border-indigo-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] pl-6 text-xs">
             % Aderência Fat. x Capacidade
           </td>
@@ -609,11 +608,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             const perc = capVal > 0 ? (fatVal / capVal) * 100 : 0
             const isGood = perc >= 90
             return (
-              <td 
+              <td
                 key={`ader-fat-${metricKey}-${d.dayStr}`}
-                className={`px-1.5 py-1.5 text-center font-mono font-bold text-[12.5px] border-r border-indigo-200 ${
-                  capVal === 0 ? 'text-slate-400' : isGood ? 'text-indigo-800 font-extrabold' : 'text-rose-700'
-                }`}
+                className={`px-1.5 py-1.5 text-center font-mono font-bold text-[12.5px] border-r border-indigo-200 ${capVal === 0 ? 'text-slate-400' : isGood ? 'text-indigo-800 font-extrabold' : 'text-rose-700'
+                  }`}
               >
                 {capVal > 0 ? formatPercent(perc) : '-'}
               </td>
@@ -626,6 +624,66 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             {capTotalSum > 0 ? formatPercent((fatTotalSum / capTotalSum) * 100) : '0.0%'}
           </td>
         </tr>
+
+        {/* LINHA 6: DIAS EM CARTEIRA (PMT Planejado / Capacidade) */}
+        <tr className="bg-sky-50/50 border-b-2 border-sky-300 hover:bg-sky-50/80 transition-colors">
+          <td className="sticky left-0 z-20 bg-sky-50/90 px-3 py-1.5 font-bold text-sky-950 border-r border-sky-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] flex items-center gap-1.5 text-xs">
+            <span className="w-2 h-2 rounded-full bg-sky-600 shrink-0" />
+            Dias Em Carteira
+          </td>
+          {activeFilteredDays.map((d) => {
+            const pmtVal = pmtTotals[d.dayStr] || 0
+            const capVal = capTotals[d.dayStr] || 0
+            const dias = (capVal > 0 && pmtVal > 0) ? (pmtVal / capVal) : null
+            const isHigh = dias !== null && dias > 1.5
+            const valStr = dias !== null ? dias.toFixed(1).replace('.', ',') : '-'
+
+            return (
+              <td
+                key={`dias-carteira-${metricKey}-${d.dayStr}`}
+                className={`px-1.5 py-1.5 text-center font-mono font-bold text-[12.5px] border-r transition-colors ${isHigh
+                    ? 'bg-rose-100/70 text-rose-700 border-rose-200'
+                    : 'text-sky-950 border-sky-200'
+                  }`}
+                title={`PMT: ${pmtVal} / Capacidade: ${capVal} = ${valStr} (${isHigh ? 'Acima de 1,5 dias' : 'Dentro do limite'})`}
+              >
+                {valStr}
+              </td>
+            )
+          })}
+          {/* Média */}
+          {(() => {
+            const validDias = activeFilteredDays
+              .map(d => {
+                const pmtVal = pmtTotals[d.dayStr] || 0
+                const capVal = capTotals[d.dayStr] || 0
+                return (capVal > 0 && pmtVal > 0) ? (pmtVal / capVal) : null
+              })
+              .filter((v): v is number => v !== null && v > 0)
+
+            const avgDias = validDias.length > 0 ? (validDias.reduce((a, b) => a + b, 0) / validDias.length) : null
+            const isAvgHigh = avgDias !== null && avgDias > 1.5
+
+            return (
+              <td className={`px-2 py-1.5 text-right font-mono font-bold border-r border-sky-300 text-[12.5px] ${isAvgHigh ? 'bg-rose-100/70 text-rose-700' : 'bg-sky-50/80 text-sky-950'
+                }`}>
+                {avgDias !== null ? avgDias.toFixed(1).replace('.', ',') : '-'}
+              </td>
+            )
+          })()}
+          {/* Total Geral (Total PMT / Total Capacidade) */}
+          {(() => {
+            const totalDias = (capTotalSum > 0 && pmtTotalSum > 0) ? (pmtTotalSum / capTotalSum) : null
+            const isTotalHigh = totalDias !== null && totalDias > 1.5
+
+            return (
+              <td className={`sticky right-0 z-20 px-3 py-1.5 text-right font-mono font-extrabold border-l border-sky-300 text-[13px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)] ${isTotalHigh ? 'bg-rose-100/90 text-rose-700' : 'bg-sky-100/90 text-sky-950'
+                }`}>
+                {totalDias !== null ? totalDias.toFixed(1).replace('.', ',') : '-'}
+              </td>
+            )
+          })()}
+        </tr>
       </>
     )
   }
@@ -635,7 +693,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
     return (
       <div className="bg-white border border-slate-200 rounded-2xl shadow-xs p-10 flex flex-col items-center justify-center gap-3 text-slate-400">
         <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-medium">Carregando dados de {mes.toString().padStart(2,'0')}/{ano}…</p>
+        <p className="text-sm font-medium">Carregando dados de {mes.toString().padStart(2, '0')}/{ano}…</p>
       </div>
     )
   }
@@ -649,7 +707,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
         </div>
         <div className="text-center">
           <p className="text-base font-semibold text-slate-600">Sem dados para este período</p>
-          <p className="text-sm text-slate-400 mt-1">Nenhum registro encontrado para CD {cd} — {mes.toString().padStart(2,'0')}/{ano}.</p>
+          <p className="text-sm text-slate-400 mt-1">Nenhum registro encontrado para CD {cd} — {mes.toString().padStart(2, '0')}/{ano}.</p>
           <p className="text-xs text-slate-300 mt-1">Importe a planilha PMT deste mês para visualizar os indicadores.</p>
         </div>
       </div>
@@ -673,7 +731,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                 Indicador PMT Diário
               </span>
               <span className="text-xs text-slate-400">•</span>
-              
+
               {/* Seletor ou Badge de Mês e Ano */}
               {onMonthChange ? (
                 <div className="inline-flex items-center gap-1.5 bg-slate-100/90 border border-slate-200/90 px-2 py-0.5 rounded-lg shadow-2xs">
@@ -754,11 +812,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs font-bold shadow-2xs cursor-pointer ${
-                selectedDays.length > 0 || startDateFilter || endDateFilter
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs font-bold shadow-2xs cursor-pointer ${selectedDays.length > 0 || startDateFilter || endDateFilter
                   ? 'bg-amber-500 border-amber-600 text-white shadow-amber-500/20'
                   : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
-              }`}
+                }`}
             >
               <div className="flex items-center gap-1.5">
                 <CalendarDays size={14} className={selectedDays.length > 0 || startDateFilter || endDateFilter ? 'text-white' : 'text-amber-600'} />
@@ -771,11 +828,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                       : 'Faixa de Datas'}
                 </span>
               </div>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold shadow-2xs ${
-                selectedDays.length > 0 || startDateFilter || endDateFilter
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold shadow-2xs ${selectedDays.length > 0 || startDateFilter || endDateFilter
                   ? 'bg-white/20 text-white'
                   : 'bg-amber-100 text-amber-800'
-              }`}>
+                }`}>
                 {activeFilteredDays.length}
               </span>
             </button>
@@ -821,11 +877,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                       setStartDateFilter('')
                       setEndDateFilter('')
                     }}
-                    className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all cursor-pointer ${
-                      selectedDays.length === 0 && !startDateFilter && !endDateFilter
+                    className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all cursor-pointer ${selectedDays.length === 0 && !startDateFilter && !endDateFilter
                         ? 'bg-amber-500 text-white shadow-xs'
                         : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60'
-                    }`}
+                      }`}
                   >
                     Mês Todo
                   </button>
@@ -875,11 +930,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                 <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-200/80">
                   <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
                     {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((dia, idx) => (
-                      <span 
-                        key={dia} 
-                        className={`text-[9px] font-bold uppercase tracking-wider ${
-                          idx === 0 || idx === 6 ? 'text-amber-600' : 'text-slate-400'
-                        }`}
+                      <span
+                        key={dia}
+                        className={`text-[9px] font-bold uppercase tracking-wider ${idx === 0 || idx === 6 ? 'text-amber-600' : 'text-slate-400'
+                          }`}
                       >
                         {dia}
                       </span>
@@ -918,13 +972,12 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                                 toggleDayFilter(d.day)
                               }}
                               title={`Dia ${d.day}`}
-                              className={`h-7 rounded-lg text-[11px] font-bold flex flex-col items-center justify-center transition-all cursor-pointer ${
-                                isSelected
+                              className={`h-7 rounded-lg text-[11px] font-bold flex flex-col items-center justify-center transition-all cursor-pointer ${isSelected
                                   ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30 scale-105 z-10'
                                   : isWeekend
                                     ? 'bg-amber-100/50 hover:bg-amber-200/60 text-amber-900 border border-amber-200/40'
                                     : 'bg-white hover:bg-slate-200/60 text-slate-700 border border-slate-200/50 hover:border-slate-300'
-                              }`}
+                                }`}
                             >
                               <span>{d.day}</span>
                             </button>
@@ -990,21 +1043,19 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
           <div className="inline-flex p-1 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-900">
             <button
               onClick={() => setGroupBy('modal')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                groupBy === 'modal'
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${groupBy === 'modal'
                   ? 'bg-amber-600 text-white shadow-2xs font-bold'
                   : 'hover:bg-amber-100 text-amber-800'
-              }`}
+                }`}
             >
               Por Modal
             </button>
             <button
               onClick={() => setGroupBy('categoria_produtividade')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                groupBy === 'categoria_produtividade'
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${groupBy === 'categoria_produtividade'
                   ? 'bg-amber-600 text-white shadow-2xs font-bold'
                   : 'hover:bg-amber-100 text-amber-800'
-              }`}
+                }`}
             >
               Por Categoria Produtividade
             </button>
@@ -1014,41 +1065,37 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
           <div className="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-semibold text-slate-600">
             <button
               onClick={() => setSelectedSection('all')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                selectedSection === 'all'
+              className={`px-3 py-1.5 rounded-lg transition-all ${selectedSection === 'all'
                   ? 'bg-white text-blue-700 shadow-2xs font-bold'
                   : 'hover:text-slate-900'
-              }`}
+                }`}
             >
               Todos
             </button>
             <button
               onClick={() => setSelectedSection('pedidos')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                selectedSection === 'pedidos'
+              className={`px-3 py-1.5 rounded-lg transition-all ${selectedSection === 'pedidos'
                   ? 'bg-white text-blue-700 shadow-2xs font-bold'
                   : 'hover:text-slate-900'
-              }`}
+                }`}
             >
               Pedidos TT
             </button>
             <button
               onClick={() => setSelectedSection('pecas')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                selectedSection === 'pecas'
+              className={`px-3 py-1.5 rounded-lg transition-all ${selectedSection === 'pecas'
                   ? 'bg-white text-blue-700 shadow-2xs font-bold'
                   : 'hover:text-slate-900'
-              }`}
+                }`}
             >
               Peças TT
             </button>
             <button
               onClick={() => setSelectedSection('cubagem')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                selectedSection === 'cubagem'
+              className={`px-3 py-1.5 rounded-lg transition-all ${selectedSection === 'cubagem'
                   ? 'bg-white text-blue-700 shadow-2xs font-bold'
                   : 'hover:text-slate-900'
-              }`}
+                }`}
             >
               Cubagem TT
             </button>
@@ -1070,11 +1117,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
           <button
             onClick={() => setIsContentMinimized(!isContentMinimized)}
             title={isContentMinimized ? 'Expandir linhas detalhadas de modais' : 'Minimizar linhas detalhadas e mostrar apenas Totais e Aderência'}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shadow-2xs transition-all cursor-pointer ${
-              isContentMinimized
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shadow-2xs transition-all cursor-pointer ${isContentMinimized
                 ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
                 : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-            }`}
+              }`}
           >
             {isContentMinimized ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
             <span>{isContentMinimized ? 'Expandir Linhas' : 'Minimizar Conteúdo'}</span>
@@ -1108,7 +1154,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             {/* Cabeçalho da Tabela */}
             <thead className="sticky top-0 z-30 bg-[#e0f2fe] border-b border-sky-300">
               <tr>
-                <th 
+                <th
                   scope="col"
                   className="sticky left-0 z-40 bg-[#e0f2fe] px-3 py-1.5 font-bold text-slate-800 border-r border-sky-200 min-w-[190px] w-[190px] shadow-[2px_0_4px_rgba(0,0,0,0.03)]"
                 >
@@ -1124,9 +1170,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                     <th
                       key={d.dayStr}
                       scope="col"
-                      className={`px-1.5 py-1 text-center font-normal min-w-[38px] border-r border-sky-200/80 ${
-                        isWeekend ? 'bg-sky-200/50' : ''
-                      }`}
+                      className={`px-1.5 py-1 text-center font-normal min-w-[38px] border-r border-sky-200/80 ${isWeekend ? 'bg-sky-200/50' : ''
+                        }`}
                     >
                       <div className="flex flex-col items-center leading-tight">
                         <span className="italic text-[10px] text-slate-600 font-semibold">{d.weekdayLetter}</span>
@@ -1136,14 +1181,14 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                   )
                 })}
 
-                <th 
+                <th
                   scope="col"
                   className="bg-[#e0f2fe] px-2 py-2 text-right font-bold text-slate-900 min-w-[70px] border-r border-sky-300 shadow-[-2px_0_4px_rgba(0,0,0,0.01)]"
                 >
                   Média
                 </th>
 
-                <th 
+                <th
                   scope="col"
                   className="sticky right-0 z-40 bg-[#e0f2fe] px-3 py-2 text-right font-bold text-slate-900 min-w-[90px] border-l border-sky-300 shadow-[-2px_0_4px_rgba(0,0,0,0.03)]"
                 >
@@ -1171,11 +1216,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                           const val = rowData[d.dayStr] || 0
                           const isZero = val === 0
                           return (
-                            <td 
+                            <td
                               key={`ped-${modalName}-${d.dayStr}`}
-                              className={`px-1.5 py-1.5 text-center font-mono text-[12px] border-r border-slate-100 ${
-                                isZero ? 'text-slate-400 italic' : 'text-slate-800'
-                              }`}
+                              className={`px-1.5 py-1.5 text-center font-mono text-[12px] border-r border-slate-100 ${isZero ? 'text-slate-400 italic' : 'text-slate-800'
+                                }`}
                             >
                               {formatNum(val)}
                             </td>
@@ -1197,7 +1241,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                       Pedidos TT (PMT Planejado)
                     </td>
                     {activeFilteredDays.map((d) => (
-                      <td 
+                      <td
                         key={`ped-tt-${d.dayStr}`}
                         className="px-1.5 py-2 text-center font-mono font-bold text-blue-900 border-r border-sky-200 text-[13px]"
                       >
@@ -1242,11 +1286,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                           const val = rowData[d.dayStr] || 0
                           const isZero = val === 0
                           return (
-                            <td 
+                            <td
                               key={`pec-${modalName}-${d.dayStr}`}
-                              className={`px-1.5 py-1.5 text-center font-mono text-[12px] border-r border-slate-100 ${
-                                isZero ? 'text-slate-400 italic' : 'text-slate-800'
-                              }`}
+                              className={`px-1.5 py-1.5 text-center font-mono text-[12px] border-r border-slate-100 ${isZero ? 'text-slate-400 italic' : 'text-slate-800'
+                                }`}
                             >
                               {formatNum(val)}
                             </td>
@@ -1268,7 +1311,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                       Peças TT (PMT Planejado)
                     </td>
                     {activeFilteredDays.map((d) => (
-                      <td 
+                      <td
                         key={`pec-tt-${d.dayStr}`}
                         className="px-1.5 py-2 text-center font-mono font-bold text-blue-900 border-r border-sky-200 text-[13px]"
                       >
@@ -1313,11 +1356,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                           const val = rowData[d.dayStr] || 0
                           const isZero = val === 0
                           return (
-                            <td 
+                            <td
                               key={`cub-${modalName}-${d.dayStr}`}
-                              className={`px-1.5 py-1.5 text-center font-mono text-[12px] border-r border-slate-100 ${
-                                isZero ? 'text-slate-400 italic' : 'text-slate-800'
-                              }`}
+                              className={`px-1.5 py-1.5 text-center font-mono text-[12px] border-r border-slate-100 ${isZero ? 'text-slate-400 italic' : 'text-slate-800'
+                                }`}
                             >
                               {formatNum(val)}
                             </td>
@@ -1339,7 +1381,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                       Cubagem TT (PMT Planejado)
                     </td>
                     {activeFilteredDays.map((d) => (
-                      <td 
+                      <td
                         key={`cub-tt-${d.dayStr}`}
                         className="px-1.5 py-2 text-center font-mono font-bold text-blue-900 border-r border-sky-200 text-[13px]"
                       >
@@ -1408,7 +1450,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                   </p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => { setIsUploadModalOpen(false); setUploadFeedback(null); }}
                 className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
@@ -1417,9 +1459,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             </div>
 
             {uploadFeedback && (
-              <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
-                uploadFeedback.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
-              }`}>
+              <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${uploadFeedback.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
                 <CheckCircle2 size={16} />
                 <span>{uploadFeedback.text}</span>
               </div>
