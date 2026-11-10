@@ -190,6 +190,9 @@ export const PmtDashboardOverview: React.FC = () => {
       // % Aderência Fat x Cap = Faturado / Capacidade
       const aderFat = capVal > 0 ? (fatVal / capVal) * 100 : null
 
+      // Dias Em Carteira = Capacidade / PMT Planejado (com 1 casa decimal)
+      const diasEmCarteira = (pmtVal > 0 && capVal > 0) ? (capVal / pmtVal) : null
+
       return {
         day: d.day,
         dayStr: d.dayStr,
@@ -199,7 +202,8 @@ export const PmtDashboardOverview: React.FC = () => {
         aderLib,
         fat: fatVal,
         cap: capVal,
-        aderFat
+        aderFat,
+        diasEmCarteira
       }
     })
   }, [daysInMonth, matrixData, aderenciaData, selectedMetric])
@@ -237,6 +241,17 @@ export const PmtDashboardOverview: React.FC = () => {
     const totalAderFat = sumCap > 0 ? Math.round((sumFat / sumCap) * 100) : 0
     const avgAderFat = avgCap > 0 ? Math.round((avgFat / avgCap) * 100) : 0
 
+    // Dias Em Carteira: Total Geral = sumCap / sumPmt | Média = média dos dias com cálculo válido
+    const validDiasEmCarteira = dailyData
+      .map(d => d.diasEmCarteira)
+      .filter((v): v is number => v !== null && v > 0)
+
+    const avgDiasEmCarteira = validDiasEmCarteira.length > 0
+      ? validDiasEmCarteira.reduce((acc, curr) => acc + curr, 0) / validDiasEmCarteira.length
+      : null
+
+    const totalDiasEmCarteira = (sumPmt > 0 && sumCap > 0) ? (sumCap / sumPmt) : null
+
     return {
       sumPmt,
       avgPmt,
@@ -249,7 +264,9 @@ export const PmtDashboardOverview: React.FC = () => {
       sumCap,
       avgCap,
       totalAderFat,
-      avgAderFat
+      avgAderFat,
+      avgDiasEmCarteira,
+      totalDiasEmCarteira
     }
   }, [dailyData])
 
@@ -447,8 +464,8 @@ export const PmtDashboardOverview: React.FC = () => {
         <div
           onClick={() => setSelectedMetric('pecas')}
           className={`p-4 rounded-2xl border cursor-pointer transition-all ${selectedMetric === 'pecas'
-              ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/20 shadow-sm'
-              : 'border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs hover:shadow-md'
+            ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/20 shadow-sm'
+            : 'border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs hover:shadow-md'
             } flex flex-col justify-between`}
         >
           <div>
@@ -519,8 +536,8 @@ export const PmtDashboardOverview: React.FC = () => {
         <div
           onClick={() => setSelectedMetric('pedidos')}
           className={`p-4 rounded-2xl border cursor-pointer transition-all ${selectedMetric === 'pedidos'
-              ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/20 shadow-sm'
-              : 'border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs hover:shadow-md'
+            ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/20 shadow-sm'
+            : 'border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs hover:shadow-md'
             } flex flex-col justify-between`}
         >
           <div>
@@ -591,8 +608,8 @@ export const PmtDashboardOverview: React.FC = () => {
         <div
           onClick={() => setSelectedMetric('cubagem')}
           className={`p-4 rounded-2xl border cursor-pointer transition-all ${selectedMetric === 'cubagem'
-              ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/20 shadow-sm'
-              : 'border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs hover:shadow-md'
+            ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/20 shadow-sm'
+            : 'border-slate-200/90 bg-gradient-to-b from-white to-slate-50/70 shadow-xs hover:shadow-md'
             } flex flex-col justify-between`}
         >
           <div>
@@ -680,8 +697,8 @@ export const PmtDashboardOverview: React.FC = () => {
                 type="button"
                 onClick={() => setSelectedMetric('pedidos')}
                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${selectedMetric === 'pedidos'
-                    ? 'bg-white text-blue-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
                   }`}
               >
                 Pedidos
@@ -690,8 +707,8 @@ export const PmtDashboardOverview: React.FC = () => {
                 type="button"
                 onClick={() => setSelectedMetric('pecas')}
                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${selectedMetric === 'pecas'
-                    ? 'bg-white text-blue-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
                   }`}
               >
                 Peças
@@ -700,8 +717,8 @@ export const PmtDashboardOverview: React.FC = () => {
                 type="button"
                 onClick={() => setSelectedMetric('cubagem')}
                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${selectedMetric === 'cubagem'
-                    ? 'bg-white text-blue-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
                   }`}
               >
                 Cubagem
@@ -872,6 +889,32 @@ export const PmtDashboardOverview: React.FC = () => {
                 </td>
                 <td className="px-2 py-1.5 text-center font-extrabold text-amber-700 bg-slate-50/60 text-[10.5px]">
                   {formatPerc(totals.totalAderFat).text}
+                </td>
+              </tr>
+
+              {/* LINHA 7: DIAS EM CARTEIRA (Capacidade / PMT Planejado) */}
+              <tr className="bg-sky-50/30 hover:bg-sky-50/60 transition-colors border-t border-slate-200">
+                <td className="sticky left-0 z-20 bg-sky-50/90 px-3 py-1.5 font-bold text-sky-900 border-r border-sky-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)] font-sans flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-sky-600 shrink-0" />
+                  Dias Em Carteira
+                </td>
+                {dailyData.map((d) => {
+                  const val = d.diasEmCarteira !== null ? d.diasEmCarteira.toFixed(1).replace('.', ',') : '-'
+                  return (
+                    <td
+                      key={`diasCarteira-${d.day}`}
+                      className="px-0.5 py-1.5 text-center border-r border-sky-100 font-bold text-sky-950 font-mono text-[11px]"
+                      title={`Capacidade: ${d.cap} / PMT: ${d.pmt} = ${val}`}
+                    >
+                      {val}
+                    </td>
+                  )
+                })}
+                <td className="px-2 py-1.5 text-center font-bold text-sky-900 bg-sky-100/50 border-r border-sky-200 font-mono text-[11px]">
+                  {totals.avgDiasEmCarteira !== null ? totals.avgDiasEmCarteira.toFixed(1).replace('.', ',') : '-'}
+                </td>
+                <td className="px-2 py-1.5 text-center font-black text-sky-950 bg-sky-100/50 font-mono text-[11px]">
+                  {totals.totalDiasEmCarteira !== null ? totals.totalDiasEmCarteira.toFixed(1).replace('.', ',') : '-'}
                 </td>
               </tr>
             </tbody>
