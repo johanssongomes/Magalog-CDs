@@ -1233,7 +1233,7 @@ export const DashboardPage: React.FC = () => {
     }
   }, [estoqueBaseSummary, estoqueFilterStatus])
 
-  // Função para processar arquivo EstoqueCD.xlsx no frontend calculando BOM e TODOS
+  // Função para processar arquivo EstoqueCD.xlsx no frontend calculando BOM e TODOS e cruzando valores com base_valores
   const handleEstoqueUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -1245,10 +1245,63 @@ export const DashboardPage: React.FC = () => {
       const firstSheet = wb.Sheets[wb.SheetNames[0]]
       const rows: any[] = XLSX.utils.sheet_to_json(firstSheet)
 
+      // 1. Identificar todos os códigos master e volumes
+      const masterCodesSet = new Set<string>()
+      const volMap = new Map<string, number>()
+
+      rows.forEach(r => {
+        const cod = String(r.CODIGO || '').trim()
+        const master = String(r.COD_GEMCO || cod.split('/')[0]).trim()
+        if (master) {
+          masterCodesSet.add(master)
+        }
+
+        const ds = String(r.DS_ITEM || '')
+        const mVol = ds.match(/VOL:?\s*(\d+)\s*\/\s*(\d+)/i)
+        let totalVols = 1
+        if (mVol) totalVols = parseInt(mVol[2], 10) || 1
+        if (cod.includes('/')) {
+          const suff = parseInt(cod.split('/')[1], 10)
+          if (suff && suff > totalVols) totalVols = suff
+        }
+        const cur = volMap.get(master) || 1
+        if (totalVols > cur) volMap.set(master, totalVols)
+      })
+
+      // 2. Buscar valores na tabela base_valores do Supabase em lotes
+      const costMap = new Map<string, number>()
+      const masterList = Array.from(masterCodesSet)
+      const batchSize = 500
+      const fetchBatches: string[][] = []
+      for (let i = 0; i < masterList.length; i += batchSize) {
+        fetchBatches.push(masterList.slice(i, i + batchSize))
+      }
+
+      try {
+        const batchResults = await Promise.all(
+          fetchBatches.map(batch =>
+            supabase
+              .from('base_valores')
+              .select('codigo, custo_inv')
+              .in('codigo', batch)
+          )
+        )
+        batchResults.forEach(res => {
+          if (res.data) {
+            res.data.forEach(item => {
+              costMap.set(String(item.codigo).trim(), Number(item.custo_inv) || 0)
+            })
+          }
+        })
+      } catch (errFetch) {
+        console.warn('Não foi possível consultar base_valores no Supabase:', errFetch)
+      }
+
       const buildSummary = (onlyBom: boolean): EstoqueSummaryData => {
-        const catTotals: Record<string, { cubagem: number; pecas: number; itens: number }> = {}
+        const catTotals: Record<string, { cubagem: number; pecas: number; itens: number; valor: number }> = {}
         let totalCub = 0
         let totalQtd = 0
+        let totalVal = 0
         let countLines = 0
 
         rows.forEach(r => {
@@ -1261,14 +1314,23 @@ export const DashboardPage: React.FC = () => {
           const cub = Number(r.CUB_TOTAL) || 0
           const qnts = Number(r.QNTS) || 0
 
+          const cod = String(r.CODIGO || '').trim()
+          const master = String(r.COD_GEMCO || cod.split('/')[0]).trim()
+          const custoMaster = costMap.get(master) || 0
+          const numVols = volMap.get(master) || 1
+          const itemValor = (custoMaster / numVols) * qnts
+
           if (!catTotals[categoria]) {
-            catTotals[categoria] = { cubagem: 0, pecas: 0, itens: 0 }
+            catTotals[categoria] = { cubagem: 0, pecas: 0, itens: 0, valor: 0 }
           }
           catTotals[categoria].cubagem += cub
           catTotals[categoria].pecas += qnts
           catTotals[categoria].itens += 1
+          catTotals[categoria].valor += itemValor
+
           totalCub += cub
           totalQtd += qnts
+          totalVal += itemValor
         })
 
         const totalCapacidade = 27519
@@ -1283,6 +1345,7 @@ export const DashboardPage: React.FC = () => {
             ocupacao: Math.round(ocupacao * 10) / 10,
             pecas: val.pecas,
             itens: val.itens,
+            valor: Math.round(val.valor * 100) / 100,
             percentual: totalCub > 0 ? Math.round((cub / totalCub) * 1000) / 10 : 0
           }
         }).sort((a, b) => b.cubagem - a.cubagem)
@@ -1293,6 +1356,7 @@ export const DashboardPage: React.FC = () => {
           totalCapacidade,
           totalOcupacao: totalCapacidade > 0 ? Math.round((totalCub / totalCapacidade) * 1000) / 10 : 0,
           totalPecas: totalQtd,
+          totalValor: Math.round(totalVal * 100) / 100,
           totalLinhas: countLines,
           categorias
         }

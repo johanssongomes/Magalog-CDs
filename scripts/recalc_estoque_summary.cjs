@@ -160,3 +160,4 @@ const fullSummary = {
 };
 fs.writeFileSync('src/data/estoque_categoria_summary.json', JSON.stringify(fullSummary, null, 2));
 console.log('estoque_categoria_summary.json atualizado com sucesso!');
+
