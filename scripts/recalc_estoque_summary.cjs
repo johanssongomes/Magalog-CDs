@@ -206,7 +206,8 @@ function summarizeBloqueios() {
           '90 DIAS': 0,
           '120 DIAS': 0,
           'ACIMA DE 120 DIAS': 0
-        }
+        },
+        itemsMap: {}
       };
     }
     const item = motivosMap[motivo];
@@ -215,6 +216,28 @@ function summarizeBloqueios() {
     item.cubagem += cub;
     item.valorTotal += valorItem;
     item.faixas[faixa] += valorItem;
+
+    if (master) {
+      if (!item.itemsMap[master]) {
+        item.itemsMap[master] = {
+          empresa: r.EMPRESA || '1994 - CD994-MARACANAU',
+          sku: master,
+          descricao: r.DS_ITEM || '',
+          linha: r.DS_LINHA || '',
+          classe: r.CLASSE_ITEM || '',
+          endereco: r.END3 || '',
+          diasBloq: dias,
+          pecas: 0,
+          cubagem: 0,
+          valorTotal: 0
+        };
+      }
+      const it = item.itemsMap[master];
+      it.pecas += qnts;
+      it.cubagem += cub;
+      it.valorTotal += valorItem;
+      if (dias > it.diasBloq) it.diasBloq = dias;
+    }
   });
 
   const motivos = Object.values(motivosMap).map(m => ({
@@ -230,7 +253,12 @@ function summarizeBloqueios() {
       '90 DIAS': Math.round(m.faixas['90 DIAS'] * 100) / 100,
       '120 DIAS': Math.round(m.faixas['120 DIAS'] * 100) / 100,
       'ACIMA DE 120 DIAS': Math.round(m.faixas['ACIMA DE 120 DIAS'] * 100) / 100
-    }
+    },
+    items: Object.values(m.itemsMap).map(it => ({
+      ...it,
+      cubagem: Math.round(it.cubagem * 1000) / 1000,
+      valorTotal: Math.round(it.valorTotal * 100) / 100
+    })).sort((a, b) => b.valorTotal - a.valorTotal)
   })).sort((a, b) => b.valorTotal - a.valorTotal);
 
   return {

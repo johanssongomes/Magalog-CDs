@@ -3,7 +3,8 @@ import {
   LayoutDashboard, Package, User, Settings, Home, Clock, AlertTriangle, BarChart3, Timer,
   Bell, CheckCircle2, Info, Boxes, Truck, Warehouse, Wrench, Users, DollarSign, CalendarDays,
   TrendingUp, TrendingDown, MessageSquareWarning, ArrowUpRight, ArrowDownRight, Layers,
-  PieChart, RefreshCw, UploadCloud, Tv, BedDouble, Trees, ShoppingCart, ShieldCheck, Disc3
+  PieChart, RefreshCw, UploadCloud, Tv, BedDouble, Trees, ShoppingCart, ShieldCheck, Disc3,
+  X, Search, Copy, Check
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -636,6 +637,19 @@ export interface EstoqueCategoriaItem {
   percentual: number
 }
 
+export interface EstoqueBloqueioItemDetalhe {
+  empresa: string
+  sku: string
+  descricao: string
+  linha: string
+  classe: string
+  endereco: string
+  diasBloq: number
+  pecas: number
+  cubagem: number
+  valorTotal: number
+}
+
 export interface EstoqueBloqueioMotivo {
   motivo: string
   skus: number
@@ -650,6 +664,7 @@ export interface EstoqueBloqueioMotivo {
     '120 DIAS': number
     'ACIMA DE 120 DIAS': number
   }
+  items?: EstoqueBloqueioItemDetalhe[]
 }
 
 export interface EstoqueBloqueiosData {
@@ -692,6 +707,227 @@ const formatCurrencyCompact = (val: number | undefined): string => {
   return `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 }
 
+const formatCurrencyMil = (val: number | undefined): string => {
+  if (!val || val === 0) return 'R$ 0,00'
+  if (val >= 1_000_000) {
+    return `R$ ${(val / 1_000_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} mi`
+  }
+  if (val >= 1_000) {
+    return `R$ ${(val / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} mil`
+  }
+  return `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+const BloqueioDetalhesModal: React.FC<{
+  isOpen: boolean
+  onClose: () => void
+  motivoNome: string
+  items: EstoqueBloqueioItemDetalhe[]
+}> = ({ isOpen, onClose, motivoNome, items }) => {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [sortField, setSortField] = useState<keyof EstoqueBloqueioItemDetalhe>('valorTotal')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+
+  if (!isOpen) return null
+
+  const filteredItems = useMemo(() => {
+    let result = items
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase()
+      result = result.filter(it =>
+        it.sku.toLowerCase().includes(q) ||
+        it.descricao.toLowerCase().includes(q) ||
+        it.linha.toLowerCase().includes(q) ||
+        it.classe.toLowerCase().includes(q) ||
+        it.endereco.toLowerCase().includes(q)
+      )
+    }
+    return [...result].sort((a, b) => {
+      const valA = a[sortField]
+      const valB = b[sortField]
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return sortOrder === 'asc' ? valA - valB : valB - valA
+      }
+      return sortOrder === 'asc'
+        ? String(valA).localeCompare(String(valB))
+        : String(valB).localeCompare(String(valA))
+    })
+  }, [items, searchTerm, sortField, sortOrder])
+
+  const totalPecas = filteredItems.reduce((acc, it) => acc + it.pecas, 0)
+  const totalCub = filteredItems.reduce((acc, it) => acc + it.cubagem, 0)
+  const totalVal = filteredItems.reduce((acc, it) => acc + it.valorTotal, 0)
+
+  const handleSort = (field: keyof EstoqueBloqueioItemDetalhe) => {
+    if (sortField === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortOrder('desc')
+    }
+  }
+
+  const handleCopyTable = () => {
+    const headers = ['Empresa', 'SKU (Gemco)', 'Descrição', 'Linha', 'Classe', 'Endereço', 'Dias Bloq.', 'Peças', 'm³', 'Valor Total (R$)']
+    const rows = filteredItems.map(it => [
+      it.empresa,
+      it.sku,
+      it.descricao,
+      it.linha,
+      it.classe,
+      it.endereco,
+      `${it.diasBloq} dias`,
+      it.pecas,
+      it.cubagem.toFixed(3),
+      it.valorTotal.toFixed(2)
+    ])
+    const tsv = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n')
+    navigator.clipboard.writeText(tsv)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-5xl flex flex-col max-h-[90vh] overflow-hidden">
+        {/* Cabeçalho */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/50 shrink-0">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <span>Detalhes do Bloqueio:</span>
+              <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-xs">
+                {motivoNome}
+              </span>
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Barra de Filtro / Busca */}
+        <div className="px-5 py-2.5 border-b border-slate-100 bg-white shrink-0">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Filtrar por SKU, Descrição, Linha ou Classe..."
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all text-slate-800"
+            />
+          </div>
+        </div>
+
+        {/* Tabela de Itens */}
+        <div className="overflow-auto flex-1 min-h-[300px] text-[11px]">
+          <table className="w-full border-collapse text-left">
+            <thead className="bg-[#111827] text-white text-[9px] uppercase tracking-wider sticky top-0 z-10 select-none">
+              <tr>
+                <th onClick={() => handleSort('empresa')} className="py-2 px-2.5 font-bold cursor-pointer hover:bg-slate-800">
+                  Empresa {sortField === 'empresa' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('sku')} className="py-2 px-2 font-bold cursor-pointer hover:bg-slate-800">
+                  SKU (Gemco) {sortField === 'sku' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('descricao')} className="py-2 px-2.5 font-bold cursor-pointer hover:bg-slate-800">
+                  Descrição {sortField === 'descricao' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('linha')} className="py-2 px-2 font-bold cursor-pointer hover:bg-slate-800">
+                  Linha {sortField === 'linha' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('classe')} className="py-2 px-1.5 text-center font-bold cursor-pointer hover:bg-slate-800">
+                  Classe {sortField === 'classe' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('endereco')} className="py-2 px-2 font-bold cursor-pointer hover:bg-slate-800">
+                  Endereço {sortField === 'endereco' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('diasBloq')} className="py-2 px-2 text-right font-bold cursor-pointer hover:bg-slate-800">
+                  Dias Bloq. {sortField === 'diasBloq' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('pecas')} className="py-2 px-2 text-center font-bold cursor-pointer hover:bg-slate-800">
+                  Peças {sortField === 'pecas' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('cubagem')} className="py-2 px-2 text-right font-bold cursor-pointer hover:bg-slate-800">
+                  m³ {sortField === 'cubagem' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('valorTotal')} className="py-2 px-3 text-right font-bold cursor-pointer hover:bg-slate-800">
+                  Valor Total {sortField === 'valorTotal' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-slate-700 font-mono text-[10.5px]">
+              {filteredItems.map(it => (
+                <tr key={it.sku} className="hover:bg-slate-50/80 transition-colors">
+                  <td className="py-1.5 px-2.5 font-sans text-slate-500 whitespace-nowrap text-[10px]">{it.empresa}</td>
+                  <td className="py-1.5 px-2 font-bold text-slate-900 whitespace-nowrap">{it.sku}</td>
+                  <td className="py-1.5 px-2.5 font-sans font-medium text-slate-800 max-w-xs truncate" title={it.descricao}>
+                    {it.descricao}
+                  </td>
+                  <td className="py-1.5 px-2 font-sans text-slate-600 whitespace-nowrap text-[10px]">{it.linha}</td>
+                  <td className="py-1.5 px-1.5 text-center text-slate-600 whitespace-nowrap text-[10px]">{it.classe}</td>
+                  <td className="py-1.5 px-2 text-slate-600 whitespace-nowrap text-[10px]">{it.endereco}</td>
+                  <td className="py-1.5 px-2 text-right text-slate-700 whitespace-nowrap">{it.diasBloq} dias</td>
+                  <td className="py-1.5 px-2 text-center font-bold text-slate-800 whitespace-nowrap">{it.pecas}</td>
+                  <td className="py-1.5 px-2 text-right text-slate-800 whitespace-nowrap">{it.cubagem.toFixed(3)}</td>
+                  <td className="py-1.5 px-3 text-right font-bold text-slate-900 whitespace-nowrap">
+                    {formatCurrencyMil(it.valorTotal)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="border-t-2 border-slate-300 bg-slate-50 font-bold sticky bottom-0 text-[11px] shadow-sm">
+              <tr>
+                <td colSpan={7} className="py-2 px-3 text-right font-sans uppercase text-slate-800">
+                  Total do Motivo:
+                </td>
+                <td className="py-2 px-2 text-center font-mono text-slate-900 font-black">
+                  {totalPecas.toLocaleString('pt-BR')}
+                </td>
+                <td className="py-2 px-2 text-right font-mono text-slate-900 font-black">
+                  {totalCub.toFixed(3)}
+                </td>
+                <td className="py-2 px-3 text-right font-mono text-slate-900 font-black">
+                  {formatCurrencyMil(totalVal)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* Rodapé do Modal */}
+        <div className="flex items-center justify-between px-5 py-2.5 border-t border-slate-100 bg-slate-50/50 shrink-0">
+          <span className="text-[11px] text-slate-500 font-medium">
+            {filteredItems.length} registros exibidos
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCopyTable}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all shadow-xs"
+            >
+              {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+              <span>{copied ? 'Copiado!' : 'Copiar Tabela'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white hover:bg-slate-100 rounded-lg border border-slate-200 transition-all"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const EstoqueCategoriasCard: React.FC<{
   data: EstoqueSummaryData
   filterStatus: 'BOM' | 'BLOQUEADOS'
@@ -703,6 +939,15 @@ const EstoqueCategoriasCard: React.FC<{
 }> = ({ data, filterStatus, onFilterChange, onFileUpload, isProcessing, bloqueioFaixa, onBloqueioFaixaChange }) => {
   const isBloqueios = filterStatus === 'BLOQUEADOS'
   const bloqueiosData = data.bloqueios
+
+  // Estado para o Modal de Detalhes do Bloqueio
+  const [selectedMotivo, setSelectedMotivo] = useState<EstoqueBloqueioMotivo | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const handleOpenMotivo = (motivo: EstoqueBloqueioMotivo) => {
+    setSelectedMotivo(motivo)
+    setIsModalOpen(true)
+  }
 
   // Filtra ou calcula os motivos de qualidade conforme a faixa de dias selecionada
   const faixasDisponiveis = ['TODOS', '0 DIAS', '7 DIAS', '30 DIAS', '90 DIAS', '120 DIAS', 'ACIMA DE 120 DIAS']
@@ -1130,8 +1375,15 @@ const EstoqueCategoriasCard: React.FC<{
                 <tbody className="divide-y divide-slate-100 font-mono">
                   {motivosFiltrados.slice(0, 15).map(m => (
                     <tr key={m.motivo} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-1 px-1.5 font-sans font-medium text-slate-800 truncate max-w-[140px]" title={m.motivo}>
-                        {m.motivo}
+                      <td className="py-1 px-1.5 font-sans font-medium text-slate-800 truncate max-w-[140px]">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenMotivo(m)}
+                          className="text-left font-bold text-blue-700 hover:text-blue-900 hover:underline cursor-pointer truncate max-w-full"
+                          title={`Clique para ver detalhes de ${m.motivo}`}
+                        >
+                          {m.motivo}
+                        </button>
                       </td>
                       <td className="py-1 px-1 text-center text-slate-600">{m.skus}</td>
                       <td className="py-1 px-1 text-center text-slate-600">{m.pecas.toLocaleString('pt-BR')}</td>
@@ -1190,6 +1442,14 @@ const EstoqueCategoriasCard: React.FC<{
           {isBloqueios ? `${motivosFiltrados.length} motivos` : `${data.categorias.length} categorias`}
         </span>
       </div>
+
+      {/* Modal de Detalhes do Bloqueio */}
+      <BloqueioDetalhesModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        motivoNome={selectedMotivo?.motivo || ''}
+        items={selectedMotivo?.items || []}
+      />
     </Card>
   )
 }
@@ -1665,6 +1925,7 @@ export const DashboardPage: React.FC = () => {
             '120 DIAS': number
             'ACIMA DE 120 DIAS': number
           }
+          itemsMap: Record<string, EstoqueBloqueioItemDetalhe>
         }> = {}
 
         let totalPecas = 0
@@ -1723,7 +1984,8 @@ export const DashboardPage: React.FC = () => {
                 '90 DIAS': 0,
                 '120 DIAS': 0,
                 'ACIMA DE 120 DIAS': 0
-              }
+              },
+              itemsMap: {}
             }
           }
           const m = motivosMap[motivo]
@@ -1732,6 +1994,28 @@ export const DashboardPage: React.FC = () => {
           m.cubagem += cub
           m.valorTotal += itemValor
           ;(m.faixas as any)[faixa] += itemValor
+
+          if (master) {
+            if (!m.itemsMap[master]) {
+              m.itemsMap[master] = {
+                empresa: String(r.EMPRESA || '1994 - CD994-MARACANAU'),
+                sku: master,
+                descricao: String(r.DS_ITEM || ''),
+                linha: String(r.DS_LINHA || ''),
+                classe: String(r.CLASSE_ITEM || ''),
+                endereco: String(r.END3 || ''),
+                diasBloq: dias,
+                pecas: 0,
+                cubagem: 0,
+                valorTotal: 0
+              }
+            }
+            const it = m.itemsMap[master]
+            it.pecas += qnts
+            it.cubagem += cub
+            it.valorTotal += itemValor
+            if (dias > it.diasBloq) it.diasBloq = dias
+          }
         })
 
         const motivos: EstoqueBloqueioMotivo[] = Object.values(motivosMap).map(m => ({
@@ -1747,7 +2031,12 @@ export const DashboardPage: React.FC = () => {
             '90 DIAS': Math.round(m.faixas['90 DIAS'] * 100) / 100,
             '120 DIAS': Math.round(m.faixas['120 DIAS'] * 100) / 100,
             'ACIMA DE 120 DIAS': Math.round(m.faixas['ACIMA DE 120 DIAS'] * 100) / 100
-          }
+          },
+          items: Object.values(m.itemsMap).map(it => ({
+            ...it,
+            cubagem: Math.round(it.cubagem * 1000) / 1000,
+            valorTotal: Math.round(it.valorTotal * 100) / 100
+          })).sort((a, b) => b.valorTotal - a.valorTotal)
         })).sort((a, b) => b.valorTotal - a.valorTotal)
 
         return {
