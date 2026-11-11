@@ -1065,7 +1065,7 @@ const EstoqueCategoriasCard: React.FC<{
   // Totalizadores de Bloqueios respeitando filtros
   const totalGeralBloqueios = useMemo(() => {
     if (!bloqueiosData) return { skus: 0, pecas: 0, cubagem: 0, valor: 0, linhas: 0 }
-    
+
     // Se não há filtro de tipo nem faixa, é o total geral bruto
     if (bloqueioFaixa === 'TODOS' && bloqueioTipo === 'TODOS') {
       return {
@@ -1114,11 +1114,10 @@ const EstoqueCategoriasCard: React.FC<{
               <button
                 type="button"
                 onClick={() => onFilterChange('BOM')}
-                className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${
-                  filterStatus === 'BOM'
+                className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${filterStatus === 'BOM'
                     ? 'bg-emerald-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
                 title="Apenas itens com status BOM em DS_AREA_ERP"
               >
                 BOM
@@ -1126,11 +1125,10 @@ const EstoqueCategoriasCard: React.FC<{
               <button
                 type="button"
                 onClick={() => onFilterChange('BLOQUEADOS')}
-                className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${
-                  filterStatus === 'BLOQUEADOS'
+                className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${filterStatus === 'BLOQUEADOS'
                     ? 'bg-amber-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
                 title="Itens com status BLOQUEADO em DS_AREA_ERP"
               >
                 Bloqueios
@@ -1394,9 +1392,8 @@ const EstoqueCategoriasCard: React.FC<{
 
                         {/* Diferença */}
                         <span
-                          className={`w-14 sm:w-16 text-[9.5px] font-bold ${
-                            diff < 0 ? 'text-rose-600' : 'text-emerald-700'
-                          }`}
+                          className={`w-14 sm:w-16 text-[9.5px] font-bold ${diff < 0 ? 'text-rose-600' : 'text-emerald-700'
+                            }`}
                           title={diff < 0 ? `Excesso de ${Math.abs(diff).toLocaleString('pt-BR')} m³` : `Saldo disponível de ${diffFormatted}`}
                         >
                           {diffFormatted}
@@ -1412,11 +1409,10 @@ const EstoqueCategoriasCard: React.FC<{
 
                         {/* Ocupação */}
                         <span
-                          className={`w-10 text-[9px] font-bold px-1 py-0.2 rounded text-center ${
-                            isOverCapacity
+                          className={`w-10 text-[9px] font-bold px-1 py-0.2 rounded text-center ${isOverCapacity
                               ? 'text-rose-600 bg-rose-50 border border-rose-100'
                               : 'text-emerald-700 bg-emerald-50 border border-emerald-100'
-                          }`}
+                            }`}
                         >
                           {cat.ocupacao.toFixed(0)}%
                         </span>
@@ -1448,33 +1444,30 @@ const EstoqueCategoriasCard: React.FC<{
                   <button
                     type="button"
                     onClick={() => setBloqueioTipo('TODOS')}
-                    className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${
-                      bloqueioTipo === 'TODOS'
+                    className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${bloqueioTipo === 'TODOS'
                         ? 'bg-slate-900 text-white shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     Todos
                   </button>
                   <button
                     type="button"
                     onClick={() => setBloqueioTipo('GERAL')}
-                    className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${
-                      bloqueioTipo === 'GERAL'
+                    className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${bloqueioTipo === 'GERAL'
                         ? 'bg-blue-600 text-white shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     Blq Geral
                   </button>
                   <button
                     type="button"
                     onClick={() => setBloqueioTipo('QUALIDADE')}
-                    className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${
-                      bloqueioTipo === 'QUALIDADE'
+                    className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${bloqueioTipo === 'QUALIDADE'
                         ? 'bg-amber-600 text-white shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     Blq Qualidade
                   </button>
@@ -1493,11 +1486,10 @@ const EstoqueCategoriasCard: React.FC<{
                       key={f}
                       type="button"
                       onClick={() => onBloqueioFaixaChange(f)}
-                      className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md whitespace-nowrap transition-all border ${
-                        isSelected
+                      className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md whitespace-nowrap transition-all border ${isSelected
                           ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
                           : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       {f}
                     </button>
@@ -1872,9 +1864,21 @@ export const DashboardPage: React.FC = () => {
   // Estado de segmentação e dados de Acompanhamento Diário para o Gráfico de Performance
   const [chartMetric, setChartMetric] = useState<'cubagem' | 'pecas' | 'pedidos'>('cubagem')
   const [chartAderenciaData, setChartAderenciaData] = useState<AderenciaDataState | null>(() => {
+    // 1. Tenta carregar do cache local do mês atual (Novembro/2026)
+    try {
+      const now = new Date()
+      const cachedCur = localStorage.getItem(`magalog_pmt_aderencia_994_${now.getFullYear()}_${(now.getMonth() + 1).toString().padStart(2, '0')}`)
+      if (cachedCur) return JSON.parse(cachedCur)
+    } catch {}
     return initialAderenciaOct as unknown as AderenciaDataState
   })
   const [chartPmtMatrix, setChartPmtMatrix] = useState<PmtDailyMatrixResponse | null>(() => {
+    // 1. Tenta carregar do cache local da matriz PMT do mês atual
+    try {
+      const now = new Date()
+      const cachedMatrix = localStorage.getItem(`magalog_pmt_daily_matrix_994_${now.getFullYear()}_${(now.getMonth() + 1).toString().padStart(2, '0')}_modal`)
+      if (cachedMatrix) return JSON.parse(cachedMatrix)
+    } catch {}
     return initialOctMatrix as unknown as PmtDailyMatrixResponse
   })
 
@@ -1983,7 +1987,7 @@ export const DashboardPage: React.FC = () => {
     try {
       const cached = localStorage.getItem('magalog_estoque_categoria_summary_v2')
       if (cached) return JSON.parse(cached)
-    } catch {}
+    } catch { }
 
     const raw = initialEstoqueCategoria as any
     if (raw?.bomOnly && raw?.todos) {
@@ -2220,7 +2224,7 @@ export const DashboardPage: React.FC = () => {
           totalPecas += qnts
           totalCubagem += cub
           totalValor += itemValor
-          ;(totalFaixas as any)[faixa] += itemValor
+            ; (totalFaixas as any)[faixa] += itemValor
 
           if (!motivosMap[motivo]) {
             motivosMap[motivo] = {
@@ -2245,7 +2249,7 @@ export const DashboardPage: React.FC = () => {
           m.pecas += qnts
           m.cubagem += cub
           m.valorTotal += itemValor
-          ;(m.faixas as any)[faixa] += itemValor
+            ; (m.faixas as any)[faixa] += itemValor
 
           if (master) {
             if (!m.itemsMap[master]) {
@@ -2318,7 +2322,7 @@ export const DashboardPage: React.FC = () => {
       setEstoqueBaseSummary(newBaseSummary)
       try {
         localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(newBaseSummary))
-      } catch {}
+      } catch { }
 
       // Grava no Supabase para sincronizar entre todos os usuários
       try {
@@ -2327,7 +2331,7 @@ export const DashboardPage: React.FC = () => {
           value: JSON.stringify(newBaseSummary),
           updated_at: new Date().toISOString()
         }, { onConflict: 'cell_key' })
-      } catch {}
+      } catch { }
     } catch (err) {
       console.error('Erro ao processar planilha de estoque:', err)
       alert('Erro ao processar EstoqueCD.xlsx. Verifique as colunas da planilha.')
@@ -2353,10 +2357,10 @@ export const DashboardPage: React.FC = () => {
             setEstoqueBaseSummary(parsed)
             try {
               localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(parsed))
-            } catch {}
+            } catch { }
           }
         }
-      } catch {}
+      } catch { }
     }
     loadCloudEstoque()
   }, [])
@@ -2979,39 +2983,36 @@ export const DashboardPage: React.FC = () => {
               <span className="text-slate-500"><BarChart3 size={16} /></span>
               Evolução da Performance Operacional
             </h3>
-            
+
             {/* Segmentação de Métricas */}
             <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 self-start sm:self-auto">
               <button
                 type="button"
                 onClick={() => setChartMetric('cubagem')}
-                className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${
-                  chartMetric === 'cubagem'
+                className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${chartMetric === 'cubagem'
                     ? 'bg-white text-blue-700 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 Cubagem
               </button>
               <button
                 type="button"
                 onClick={() => setChartMetric('pecas')}
-                className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${
-                  chartMetric === 'pecas'
+                className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${chartMetric === 'pecas'
                     ? 'bg-white text-blue-700 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 Peças
               </button>
               <button
                 type="button"
                 onClick={() => setChartMetric('pedidos')}
-                className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${
-                  chartMetric === 'pedidos'
+                className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${chartMetric === 'pedidos'
                     ? 'bg-white text-blue-700 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 Pedidos
               </button>
