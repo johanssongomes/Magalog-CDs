@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-11T01:20:57.035Z",
+  "updatedAt": "2026-11-11T02:38:27.700Z",
   "capacidades": {
     "Cofre": 127,
     "Colchão/Estofado": 5226,
@@ -12,182 +12,559 @@
     "Pneu": 372
   },
   "bomOnly": {
-    "totalCubagem": 31526.16,
+    "totalCubagem": 31655.66,
     "totalCapacidade": 27519,
-    "totalOcupacao": 114.6,
-    "totalPecas": 358609,
-    "totalValor": 147355461.73,
-    "totalLinhas": 12729,
+    "totalOcupacao": 115,
+    "totalPecas": 358202,
+    "totalValor": 147129255.02,
+    "totalLinhas": 12717,
     "categorias": [
       {
         "nome": "Eletro Pesado",
-        "cubagem": 14192.33,
+        "cubagem": 14221.53,
         "capacidade": 13128,
-        "ocupacao": 108.1,
-        "pecas": 33724,
-        "valor": 38216042.09,
-        "itens": 586,
-        "percentual": 45
+        "ocupacao": 108.3,
+        "pecas": 33597,
+        "valor": 38262089.08,
+        "itens": 587,
+        "percentual": 44.9
       },
       {
         "nome": "Colchão/Estofado",
-        "cubagem": 6609.25,
+        "cubagem": 6629.66,
         "capacidade": 5226,
-        "ocupacao": 126.5,
-        "pecas": 23858,
-        "valor": 4174738.93,
-        "itens": 415,
-        "percentual": 21
+        "ocupacao": 126.9,
+        "pecas": 23810,
+        "valor": 4185780.7,
+        "itens": 414,
+        "percentual": 20.9
       },
       {
         "nome": "Diversos",
-        "cubagem": 4525.15,
+        "cubagem": 4646.3,
         "capacidade": 2975,
-        "ocupacao": 152.1,
-        "pecas": 129678,
-        "valor": 16072931.04,
-        "itens": 6164,
-        "percentual": 14.4
+        "ocupacao": 156.2,
+        "pecas": 130871,
+        "valor": 16171697.41,
+        "itens": 6189,
+        "percentual": 14.7
       },
       {
         "nome": "Imagem",
-        "cubagem": 3038.03,
+        "cubagem": 3058.88,
         "capacidade": 2535,
-        "ocupacao": 119.8,
-        "pecas": 16215,
-        "valor": 28542466.58,
-        "itens": 637,
-        "percentual": 9.6
+        "ocupacao": 120.7,
+        "pecas": 16189,
+        "valor": 28741895.65,
+        "itens": 635,
+        "percentual": 9.7
       },
       {
         "nome": "Madeira",
-        "cubagem": 2638.59,
+        "cubagem": 2582.58,
         "capacidade": 2798,
-        "ocupacao": 94.3,
-        "pecas": 37107,
-        "valor": 8457821.15,
-        "itens": 3749,
-        "percentual": 8.4
+        "ocupacao": 92.3,
+        "pecas": 36217,
+        "valor": 8295165.04,
+        "itens": 3721,
+        "percentual": 8.2
       },
       {
         "nome": "Pneu",
-        "cubagem": 434.13,
+        "cubagem": 428.74,
         "capacidade": 372,
-        "ocupacao": 116.7,
-        "pecas": 8062,
-        "valor": 2109694.79,
-        "itens": 342,
+        "ocupacao": 115.3,
+        "pecas": 7966,
+        "valor": 2091076.48,
+        "itens": 335,
         "percentual": 1.4
       },
       {
         "nome": "Mercado",
-        "cubagem": 49.84,
+        "cubagem": 49.79,
         "capacidade": 358,
         "ocupacao": 13.9,
-        "pecas": 5998,
-        "valor": 249389.59,
-        "itens": 326,
+        "pecas": 5995,
+        "valor": 249250.25,
+        "itens": 324,
         "percentual": 0.2
       },
       {
         "nome": "Cofre",
-        "cubagem": 38.84,
+        "cubagem": 38.19,
         "capacidade": 127,
-        "ocupacao": 30.6,
-        "pecas": 103967,
-        "valor": 49532377.56,
-        "itens": 510,
+        "ocupacao": 30.1,
+        "pecas": 103557,
+        "valor": 49132300.4,
+        "itens": 512,
         "percentual": 0.1
       }
     ]
   },
   "todos": {
-    "totalCubagem": 32072.44,
+    "totalCubagem": 32115.19,
     "totalCapacidade": 27519,
-    "totalOcupacao": 116.5,
-    "totalPecas": 365105,
-    "totalValor": 149853157.49,
-    "totalLinhas": 22234,
+    "totalOcupacao": 116.7,
+    "totalPecas": 364305,
+    "totalValor": 148856439.16,
+    "totalLinhas": 21908,
     "categorias": [
       {
         "nome": "Eletro Pesado",
-        "cubagem": 14437.53,
+        "cubagem": 14414.64,
         "capacidade": 13128,
-        "ocupacao": 110,
-        "pecas": 34291,
-        "valor": 38948222.11,
-        "itens": 860,
-        "percentual": 45
+        "ocupacao": 109.8,
+        "pecas": 33936,
+        "valor": 38767851.61,
+        "itens": 758,
+        "percentual": 44.9
       },
       {
         "nome": "Colchão/Estofado",
-        "cubagem": 6721.2,
+        "cubagem": 6721.04,
         "capacidade": 5226,
         "ocupacao": 128.6,
-        "pecas": 23999,
-        "valor": 4242017.24,
-        "itens": 543,
-        "percentual": 21
+        "pecas": 24022,
+        "valor": 4235441.37,
+        "itens": 512,
+        "percentual": 20.9
       },
       {
         "nome": "Diversos",
-        "cubagem": 4569.91,
+        "cubagem": 4711.52,
         "capacidade": 2975,
-        "ocupacao": 153.6,
-        "pecas": 131284,
-        "valor": 16306001.58,
-        "itens": 14447,
-        "percentual": 14.2
+        "ocupacao": 158.4,
+        "pecas": 132538,
+        "valor": 16416753.05,
+        "itens": 14380,
+        "percentual": 14.7
       },
       {
         "nome": "Imagem",
-        "cubagem": 3095.9,
+        "cubagem": 3084.27,
         "capacidade": 2535,
-        "ocupacao": 122.1,
-        "pecas": 16495,
-        "valor": 29145031.79,
-        "itens": 704,
-        "percentual": 9.7
+        "ocupacao": 121.7,
+        "pecas": 16387,
+        "valor": 29053989.98,
+        "itens": 683,
+        "percentual": 9.6
       },
       {
         "nome": "Madeira",
-        "cubagem": 2710.7,
+        "cubagem": 2650.82,
         "capacidade": 2798,
-        "ocupacao": 96.9,
-        "pecas": 38091,
-        "valor": 8693133.23,
-        "itens": 4231,
-        "percentual": 8.5
+        "ocupacao": 94.7,
+        "pecas": 37149,
+        "valor": 8521416.78,
+        "itens": 4190,
+        "percentual": 8.3
       },
       {
         "nome": "Pneu",
-        "cubagem": 447.38,
+        "cubagem": 443.94,
         "capacidade": 372,
-        "ocupacao": 120.3,
-        "pecas": 8223,
-        "valor": 2171491.12,
-        "itens": 395,
+        "ocupacao": 119.3,
+        "pecas": 8171,
+        "valor": 2158090.53,
+        "itens": 391,
         "percentual": 1.4
       },
       {
         "nome": "Mercado",
-        "cubagem": 50.36,
+        "cubagem": 50.31,
         "capacidade": 358,
         "ocupacao": 14.1,
-        "pecas": 6225,
-        "valor": 253723.59,
-        "itens": 369,
+        "pecas": 6221,
+        "valor": 253549.95,
+        "itens": 366,
         "percentual": 0.2
       },
       {
         "nome": "Cofre",
-        "cubagem": 39.46,
+        "cubagem": 38.66,
         "capacidade": 127,
-        "ocupacao": 31.1,
-        "pecas": 106497,
-        "valor": 50093536.82,
-        "itens": 685,
+        "ocupacao": 30.4,
+        "pecas": 105881,
+        "valor": 49449345.91,
+        "itens": 628,
         "percentual": 0.1
+      }
+    ]
+  },
+  "bloqueios": {
+    "totalLinhas": 8250,
+    "totalSkus": 487,
+    "totalPecas": 2064,
+    "totalCubagem": 274.37,
+    "totalValor": 862230.75,
+    "totalFaixas": {
+      "0 DIAS": 19192.38,
+      "7 DIAS": 51043.93,
+      "30 DIAS": 374362.71,
+      "90 DIAS": 106608.71,
+      "120 DIAS": 29117.48,
+      "ACIMA DE 120 DIAS": 281905.54
+    },
+    "motivos": [
+      {
+        "motivo": "DEV FOR FRETE FOB",
+        "skus": 16,
+        "pecas": 188,
+        "cubagem": 76.72,
+        "valorTotal": 335032.4,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 0,
+          "30 DIAS": 312991.28,
+          "90 DIAS": 22041.12,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "REC CARGA-LACRADA AVARIA",
+        "skus": 194,
+        "pecas": 413,
+        "cubagem": 86.98,
+        "valorTotal": 210948.74,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 0,
+          "30 DIAS": 0,
+          "90 DIAS": 0,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 210948.74
+        }
+      },
+      {
+        "motivo": "AVARIA (CARGA LACRADA)",
+        "skus": 56,
+        "pecas": 179,
+        "cubagem": 19.34,
+        "valorTotal": 60355.86,
+        "faixas": {
+          "0 DIAS": 14861.64,
+          "7 DIAS": 6344.79,
+          "30 DIAS": 9220.09,
+          "90 DIAS": 18470.18,
+          "120 DIAS": 613.48,
+          "ACIMA DE 120 DIAS": 10845.68
+        }
+      },
+      {
+        "motivo": "DESCARTE PERECIVEIS",
+        "skus": 53,
+        "pecas": 585,
+        "cubagem": 10.43,
+        "valorTotal": 54400.96,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 0,
+          "30 DIAS": 3722.79,
+          "90 DIAS": 11504.86,
+          "120 DIAS": 2718.02,
+          "ACIMA DE 120 DIAS": 36455.29
+        }
+      },
+      {
+        "motivo": "F - FALTA/DVG (CTE)",
+        "skus": 68,
+        "pecas": 166,
+        "cubagem": 14.29,
+        "valorTotal": 43115.49,
+        "faixas": {
+          "0 DIAS": 190.94,
+          "7 DIAS": 10211.51,
+          "30 DIAS": 19035.86,
+          "90 DIAS": 13677.19,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "A - PROD. DANIFICADO (CTE/DQS)",
+        "skus": 65,
+        "pecas": 125,
+        "cubagem": 30.89,
+        "valorTotal": 40948.03,
+        "faixas": {
+          "0 DIAS": 4139.8,
+          "7 DIAS": 27946.6,
+          "30 DIAS": 5256.61,
+          "90 DIAS": 2972.9,
+          "120 DIAS": 632.11,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "DEVOLUÇÃO FORNECEDOR (CTE)",
+        "skus": 14,
+        "pecas": 144,
+        "cubagem": 6.52,
+        "valorTotal": 40163.1,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 2602.58,
+          "30 DIAS": 2929.28,
+          "90 DIAS": 6787.07,
+          "120 DIAS": 6064.04,
+          "ACIMA DE 120 DIAS": 21780.13
+        }
+      },
+      {
+        "motivo": "REFATURAMENTO",
+        "skus": 17,
+        "pecas": 22,
+        "cubagem": 7.52,
+        "valorTotal": 18940.57,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 665.28,
+          "30 DIAS": 13488.78,
+          "90 DIAS": 4786.5,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "F - SINISTRO (CTE)",
+        "skus": 20,
+        "pecas": 34,
+        "cubagem": 5.87,
+        "valorTotal": 18491.9,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 0,
+          "30 DIAS": 0,
+          "90 DIAS": 0,
+          "120 DIAS": 18491.9,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "F - BAIXA DE INVENTÁRIO",
+        "skus": 28,
+        "pecas": 94,
+        "cubagem": 9.06,
+        "valorTotal": 16748.8,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 0,
+          "30 DIAS": 0,
+          "90 DIAS": 16748.8,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "F - FALTA VOLUME (CTE)",
+        "skus": 18,
+        "pecas": 51,
+        "cubagem": 3.91,
+        "valorTotal": 11165.15,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 655.47,
+          "30 DIAS": 4405.3,
+          "90 DIAS": 4032.05,
+          "120 DIAS": 597.93,
+          "ACIMA DE 120 DIAS": 1474.4
+        }
+      },
+      {
+        "motivo": "CONTROLE DE ESTOQUE (CTE)",
+        "skus": 16,
+        "pecas": 20,
+        "cubagem": 2.07,
+        "valorTotal": 8478.21,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 1761.61,
+          "30 DIAS": 1873.4,
+          "90 DIAS": 4843.2,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "ESTORNO FILIAL (CTE)",
+        "skus": 2,
+        "pecas": 1,
+        "cubagem": 0.41,
+        "valorTotal": 1301.29,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 0,
+          "30 DIAS": 1301.29,
+          "90 DIAS": 0,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "REMANEJAMENTO",
+        "skus": 3,
+        "pecas": 2,
+        "cubagem": 0,
+        "valorTotal": 545.07,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 545.07,
+          "30 DIAS": 0,
+          "90 DIAS": 0,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "RECEBIMENTO TÉCNICO",
+        "skus": 7,
+        "pecas": 17,
+        "cubagem": 0.14,
+        "valorTotal": 528.67,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 230.35,
+          "30 DIAS": 0,
+          "90 DIAS": 298.33,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "INCLUSÃO DE SALDO (CSC)",
+        "skus": 3,
+        "pecas": 3,
+        "cubagem": 0.19,
+        "valorTotal": 446.51,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 0,
+          "30 DIAS": 0,
+          "90 DIAS": 446.51,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "BLOQ PALLET CHEP",
+        "skus": 2,
+        "pecas": 13,
+        "cubagem": 0,
+        "valorTotal": 401.31,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 0,
+          "30 DIAS": 0,
+          "90 DIAS": 0,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 401.31
+        }
+      },
+      {
+        "motivo": "AVARIA  PERECIVEIS",
+        "skus": 6,
+        "pecas": 7,
+        "cubagem": 0.04,
+        "valorTotal": 218.68,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 80.66,
+          "30 DIAS": 138.02,
+          "90 DIAS": 0,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "ENDERECO INATIVO",
+        "skus": 1,
+        "pecas": 0,
+        "cubagem": 0,
+        "valorTotal": 0,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 0,
+          "30 DIAS": 0,
+          "90 DIAS": 0,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "SALDO (CTE/DQS)",
+        "skus": 1,
+        "pecas": 0,
+        "cubagem": 0,
+        "valorTotal": 0,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 0,
+          "30 DIAS": 0,
+          "90 DIAS": 0,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "TROCA EMBALAGEM",
+        "skus": 1,
+        "pecas": 0,
+        "cubagem": 0,
+        "valorTotal": 0,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 0,
+          "30 DIAS": 0,
+          "90 DIAS": 0,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "QUARENTENA SHELF LIFE",
+        "skus": 1,
+        "pecas": 0,
+        "cubagem": 0,
+        "valorTotal": 0,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 0,
+          "30 DIAS": 0,
+          "90 DIAS": 0,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "IMOBILIZADO",
+        "skus": 1,
+        "pecas": 0,
+        "cubagem": 0,
+        "valorTotal": 0,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 0,
+          "30 DIAS": 0,
+          "90 DIAS": 0,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
+      },
+      {
+        "motivo": "DVG CARGA-LACRADA",
+        "skus": 1,
+        "pecas": 0,
+        "cubagem": 0,
+        "valorTotal": 0,
+        "faixas": {
+          "0 DIAS": 0,
+          "7 DIAS": 0,
+          "30 DIAS": 0,
+          "90 DIAS": 0,
+          "120 DIAS": 0,
+          "ACIMA DE 120 DIAS": 0
+        }
       }
     ]
   }

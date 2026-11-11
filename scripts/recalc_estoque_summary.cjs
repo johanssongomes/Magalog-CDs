@@ -145,6 +145,112 @@ function summarize(filterBom) {
   };
 }
 
+function getFaixaDias(dias) {
+  if (dias === 0) return '0 DIAS';
+  if (dias <= 7) return '7 DIAS';
+  if (dias <= 30) return '30 DIAS';
+  if (dias <= 90) return '90 DIAS';
+  if (dias <= 120) return '120 DIAS';
+  return 'ACIMA DE 120 DIAS';
+}
+
+function summarizeBloqueios() {
+  const bloqRows = rowsEstoque.filter(r => String(r.DS_AREA_ERP || '').trim().toUpperCase() === 'BLOQUEADO');
+  const motivosMap = {};
+  let totalPecas = 0;
+  let totalCubagem = 0;
+  let totalValor = 0;
+  const allSkusSet = new Set();
+  const totalFaixas = {
+    '0 DIAS': 0,
+    '7 DIAS': 0,
+    '30 DIAS': 0,
+    '90 DIAS': 0,
+    '120 DIAS': 0,
+    'ACIMA DE 120 DIAS': 0
+  };
+
+  bloqRows.forEach(r => {
+    let rawMotivo = String(r.AREA_ARMEZENAGEM || 'OUTROS').trim();
+    const motivo = rawMotivo.replace(/^\d+\s*-\s*/, '').trim();
+    const cod = String(r.CODIGO || '').trim();
+    const gemco = String(r.COD_GEMCO || '').trim();
+    const master = gemco || cod.split('/')[0];
+    const qnts = Number(r.QNTS) || 0;
+    const cub = Number(r.CUB_TOTAL) || 0;
+    const dias = Number(r.DIAS_ARMAZENAGEM) || 0;
+    const faixa = getFaixaDias(dias);
+
+    const custoMaster = mapaCustos.get(master) || mapaCustos.get(cod) || 0;
+    const numVolumes = masterVolumesCount.get(master) || 1;
+    const custoUnitarioVolume = numVolumes > 1 ? (custoMaster / numVolumes) : custoMaster;
+    const valorItem = qnts * custoUnitarioVolume;
+
+    allSkusSet.add(master);
+    totalPecas += qnts;
+    totalCubagem += cub;
+    totalValor += valorItem;
+    totalFaixas[faixa] += valorItem;
+
+    if (!motivosMap[motivo]) {
+      motivosMap[motivo] = {
+        motivo,
+        skusSet: new Set(),
+        pecas: 0,
+        cubagem: 0,
+        valorTotal: 0,
+        faixas: {
+          '0 DIAS': 0,
+          '7 DIAS': 0,
+          '30 DIAS': 0,
+          '90 DIAS': 0,
+          '120 DIAS': 0,
+          'ACIMA DE 120 DIAS': 0
+        }
+      };
+    }
+    const item = motivosMap[motivo];
+    item.skusSet.add(master);
+    item.pecas += qnts;
+    item.cubagem += cub;
+    item.valorTotal += valorItem;
+    item.faixas[faixa] += valorItem;
+  });
+
+  const motivos = Object.values(motivosMap).map(m => ({
+    motivo: m.motivo,
+    skus: m.skusSet.size,
+    pecas: m.pecas,
+    cubagem: Math.round(m.cubagem * 100) / 100,
+    valorTotal: Math.round(m.valorTotal * 100) / 100,
+    faixas: {
+      '0 DIAS': Math.round(m.faixas['0 DIAS'] * 100) / 100,
+      '7 DIAS': Math.round(m.faixas['7 DIAS'] * 100) / 100,
+      '30 DIAS': Math.round(m.faixas['30 DIAS'] * 100) / 100,
+      '90 DIAS': Math.round(m.faixas['90 DIAS'] * 100) / 100,
+      '120 DIAS': Math.round(m.faixas['120 DIAS'] * 100) / 100,
+      'ACIMA DE 120 DIAS': Math.round(m.faixas['ACIMA DE 120 DIAS'] * 100) / 100
+    }
+  })).sort((a, b) => b.valorTotal - a.valorTotal);
+
+  return {
+    totalLinhas: bloqRows.length,
+    totalSkus: allSkusSet.size,
+    totalPecas,
+    totalCubagem: Math.round(totalCubagem * 100) / 100,
+    totalValor: Math.round(totalValor * 100) / 100,
+    totalFaixas: {
+      '0 DIAS': Math.round(totalFaixas['0 DIAS'] * 100) / 100,
+      '7 DIAS': Math.round(totalFaixas['7 DIAS'] * 100) / 100,
+      '30 DIAS': Math.round(totalFaixas['30 DIAS'] * 100) / 100,
+      '90 DIAS': Math.round(totalFaixas['90 DIAS'] * 100) / 100,
+      '120 DIAS': Math.round(totalFaixas['120 DIAS'] * 100) / 100,
+      'ACIMA DE 120 DIAS': Math.round(totalFaixas['ACIMA DE 120 DIAS'] * 100) / 100
+    },
+    motivos
+  };
+}
+
 const resBom = summarize(true);
 console.log('Result BOM:');
 console.log('Total Valor BOM: R$', resBom.totalValor);
@@ -152,11 +258,16 @@ resBom.categorias.forEach(c => {
   console.log(' - ' + c.nome + ': R$ ' + c.valor + ' (' + c.cubagem + ' m³)');
 });
 
+const resBloqueios = summarizeBloqueios();
+console.log('Result Bloqueios:');
+console.log('Total Valor Bloqueios: R$', resBloqueios.totalValor, 'm³:', resBloqueios.totalCubagem, 'SKUs:', resBloqueios.totalSkus);
+
 const fullSummary = {
   updatedAt: new Date().toISOString(),
   capacidades,
   bomOnly: summarize(true),
-  todos: summarize(false)
+  todos: summarize(false),
+  bloqueios: resBloqueios
 };
 fs.writeFileSync('src/data/estoque_categoria_summary.json', JSON.stringify(fullSummary, null, 2));
 console.log('estoque_categoria_summary.json atualizado com sucesso!');

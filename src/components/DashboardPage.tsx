@@ -636,6 +636,39 @@ export interface EstoqueCategoriaItem {
   percentual: number
 }
 
+export interface EstoqueBloqueioMotivo {
+  motivo: string
+  skus: number
+  pecas: number
+  cubagem: number
+  valorTotal: number
+  faixas: {
+    '0 DIAS': number
+    '7 DIAS': number
+    '30 DIAS': number
+    '90 DIAS': number
+    '120 DIAS': number
+    'ACIMA DE 120 DIAS': number
+  }
+}
+
+export interface EstoqueBloqueiosData {
+  totalLinhas: number
+  totalSkus: number
+  totalPecas: number
+  totalCubagem: number
+  totalValor: number
+  totalFaixas: {
+    '0 DIAS': number
+    '7 DIAS': number
+    '30 DIAS': number
+    '90 DIAS': number
+    '120 DIAS': number
+    'ACIMA DE 120 DIAS': number
+  }
+  motivos: EstoqueBloqueioMotivo[]
+}
+
 export interface EstoqueSummaryData {
   updatedAt: string
   totalCubagem: number
@@ -645,6 +678,7 @@ export interface EstoqueSummaryData {
   totalValor?: number
   totalLinhas: number
   categorias: EstoqueCategoriaItem[]
+  bloqueios?: EstoqueBloqueiosData
 }
 
 const formatCurrencyCompact = (val: number | undefined): string => {
@@ -660,22 +694,68 @@ const formatCurrencyCompact = (val: number | undefined): string => {
 
 const EstoqueCategoriasCard: React.FC<{
   data: EstoqueSummaryData
-  filterStatus: 'BOM' | 'TODOS'
-  onFilterChange: (status: 'BOM' | 'TODOS') => void
+  filterStatus: 'BOM' | 'BLOQUEADOS'
+  onFilterChange: (status: 'BOM' | 'BLOQUEADOS') => void
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
   isProcessing?: boolean
-}> = ({ data, filterStatus, onFilterChange, onFileUpload, isProcessing }) => {
+  bloqueioFaixa: string
+  onBloqueioFaixaChange: (faixa: string) => void
+}> = ({ data, filterStatus, onFilterChange, onFileUpload, isProcessing, bloqueioFaixa, onBloqueioFaixaChange }) => {
+  const isBloqueios = filterStatus === 'BLOQUEADOS'
+  const bloqueiosData = data.bloqueios
+
+  // Filtra ou calcula os motivos de qualidade conforme a faixa de dias selecionada
+  const faixasDisponiveis = ['TODOS', '0 DIAS', '7 DIAS', '30 DIAS', '90 DIAS', '120 DIAS', 'ACIMA DE 120 DIAS']
+
+  const motivosFiltrados = useMemo(() => {
+    if (!bloqueiosData?.motivos) return []
+    return bloqueiosData.motivos.map(m => {
+      let valorExibido = m.valorTotal
+      if (bloqueioFaixa !== 'TODOS') {
+        valorExibido = (m.faixas as any)[bloqueioFaixa] || 0
+      }
+      return {
+        ...m,
+        valorExibido
+      }
+    }).filter(m => m.valorExibido > 0 || bloqueioFaixa === 'TODOS')
+      .sort((a, b) => b.valorExibido - a.valorExibido)
+  }, [bloqueiosData, bloqueioFaixa])
+
+  // Totalizadores de Bloqueios
+  const totalGeralBloqueios = useMemo(() => {
+    if (!bloqueiosData) return { skus: 0, pecas: 0, cubagem: 0, valor: 0 }
+    if (bloqueioFaixa === 'TODOS') {
+      return {
+        skus: bloqueiosData.totalSkus,
+        pecas: bloqueiosData.totalPecas,
+        cubagem: bloqueiosData.totalCubagem,
+        valor: bloqueiosData.totalValor
+      }
+    }
+    const valFaixa = (bloqueiosData.totalFaixas as any)[bloqueioFaixa] || 0
+    const sumPecas = motivosFiltrados.reduce((acc, m) => acc + m.pecas, 0)
+    const sumCub = motivosFiltrados.reduce((acc, m) => acc + m.cubagem, 0)
+    const sumSkus = motivosFiltrados.reduce((acc, m) => acc + m.skus, 0)
+    return {
+      skus: sumSkus,
+      pecas: sumPecas,
+      cubagem: Math.round(sumCub * 100) / 100,
+      valor: Math.round(valFaixa * 100) / 100
+    }
+  }, [bloqueiosData, bloqueioFaixa, motivosFiltrados])
+
   return (
     <Card className="p-4 xl:col-span-4 flex flex-col justify-between">
       <div>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className="p-1 rounded-lg bg-blue-50 text-blue-600">
+            <span className={`p-1 rounded-lg ${isBloqueios ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
               <Boxes size={16} />
             </span>
             <div>
               <h3 className="text-sm font-bold text-slate-800 leading-tight">
-                Estoque por Categoria (m³)
+                {isBloqueios ? 'Estoque Bloqueado por Motivo' : 'Estoque por Categoria (m³)'}
               </h3>
               <p className="text-[10px] text-slate-400">
                 Base: EstoqueCD.xlsx &bull; {data.totalLinhas.toLocaleString('pt-BR')} itens
@@ -684,12 +764,12 @@ const EstoqueCategoriasCard: React.FC<{
           </div>
 
           <div className="flex items-center gap-1.5">
-            {/* Filtro DS_AREA_ERP: BOM vs TODOS */}
+            {/* Filtro DS_AREA_ERP: BOM vs BLOQUEADOS */}
             <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
               <button
                 type="button"
                 onClick={() => onFilterChange('BOM')}
-                className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition-all ${
+                className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${
                   filterStatus === 'BOM'
                     ? 'bg-emerald-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -700,15 +780,15 @@ const EstoqueCategoriasCard: React.FC<{
               </button>
               <button
                 type="button"
-                onClick={() => onFilterChange('TODOS')}
-                className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition-all ${
-                  filterStatus === 'TODOS'
-                    ? 'bg-white text-slate-800 shadow-2xs'
+                onClick={() => onFilterChange('BLOQUEADOS')}
+                className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${
+                  filterStatus === 'BLOQUEADOS'
+                    ? 'bg-amber-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
-                title="Todos os status de DS_AREA_ERP"
+                title="Itens com status BLOQUEADO em DS_AREA_ERP"
               >
-                Todos
+                Bloqueios
               </button>
             </div>
 
@@ -736,194 +816,379 @@ const EstoqueCategoriasCard: React.FC<{
           </div>
         </div>
 
-        {/* Resumo Totalizador: Cubagem vs Capacidade Geral vs Gap vs Ocupação vs Valor TT (5 cards com ícones) */}
-        {(() => {
-          const capGeral = data.totalCapacidade || 27519
-          const armGeral = Math.round(data.totalCubagem)
-          const gapGeral = capGeral - armGeral
-          const gapFormatted = gapGeral > 0
-            ? `+${gapGeral.toLocaleString('pt-BR')}`
-            : `${gapGeral.toLocaleString('pt-BR')}`
-
-          return (
-            <div className="grid grid-cols-5 gap-1.5 p-1.5 rounded-xl bg-slate-50/80 border border-slate-100 mb-2.5">
-              {/* Cubagem Total (Armazenado) */}
-              <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
-                <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
-                  <span className="p-0.5 rounded bg-blue-50 text-blue-600">
-                    <Boxes size={10} />
-                  </span>
-                  <span>Cubagem Total</span>
-                </div>
-                <span className="text-sm font-black text-slate-800 leading-tight">
-                  {armGeral.toLocaleString('pt-BR')}
-                  <span className="text-[9px] font-bold text-slate-500 ml-0.5">m³</span>
-                </span>
-              </div>
-
-              {/* Capacidade Meta */}
-              <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
-                <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
-                  <span className="p-0.5 rounded bg-sky-50 text-sky-600">
-                    <Warehouse size={10} />
-                  </span>
-                  <span>Capacidade Meta</span>
-                </div>
-                <span className="text-sm font-black text-blue-700 leading-tight">
-                  {capGeral.toLocaleString('pt-BR')}
-                  <span className="text-[9px] font-bold text-slate-500 ml-0.5">m³</span>
-                </span>
-              </div>
-
-              {/* Gap da Diferença (Capacidade - Armazenado) */}
-              <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
-                <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
-                  <span className={`p-0.5 rounded ${gapGeral < 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                    <TrendingUp size={10} />
-                  </span>
-                  <span>Gap / Dif.</span>
-                </div>
-                <span className={`text-sm font-black leading-tight ${gapGeral < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
-                  {gapFormatted}
-                  <span className="text-[9px] font-bold ml-0.5">m³</span>
-                </span>
-              </div>
-
-              {/* Ocupação Geral */}
-              <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
-                <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
-                  <span className={`p-0.5 rounded ${(data.totalOcupacao || 0) > 100 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                    <PieChart size={10} />
-                  </span>
-                  <span>Ocupação Geral</span>
-                </div>
-                <span className={`text-sm font-black leading-tight ${(data.totalOcupacao || 0) > 100 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                  {(data.totalOcupacao || Math.round((data.totalCubagem / 27519) * 100)).toFixed(1)}%
-                </span>
-              </div>
-
-              {/* Valor Total do Estoque (Novo Card) */}
-              <div
-                className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs cursor-default"
-                title={`Valor Total do Estoque: R$ ${(data.totalValor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-              >
-                <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
-                  <span className="p-0.5 rounded bg-emerald-50 text-emerald-600">
-                    <DollarSign size={10} />
-                  </span>
-                  <span className="text-emerald-800">Valor TT</span>
-                </div>
-                <span className="text-sm font-black text-emerald-700 font-mono leading-tight">
-                  {formatCurrencyCompact(data.totalValor)}
-                </span>
-              </div>
-            </div>
-          )
-        })()}
-
-        {/* Cabeçalho das Colunas: Categoria | Armazenado | Capacidade | Diferença | Valor TT | Ocupação */}
-        <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider px-1 pb-1 border-b border-slate-100 mb-1">
-          <span>Categoria</span>
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <span className="w-14 sm:w-16 text-right">Armazenado</span>
-            <span className="w-14 sm:w-16 text-right">Capacidade</span>
-            <span className="w-14 sm:w-16 text-right">Diferença</span>
-            <span className="w-14 sm:w-16 text-right text-emerald-700">Valor TT</span>
-            <span className="w-10 text-right">Ocup.</span>
-          </div>
-        </div>
-
-        {/* Lista de Categorias com Cubagem vs Capacidade (Design moderno com ícones) */}
-        <div className="space-y-1">
-          {data.categorias.map(cat => {
-            const config = CATEGORY_CONFIG[cat.nome] || {
-              bar: 'bg-blue-600',
-              text: 'text-blue-700',
-              bg: 'bg-blue-50/80',
-              border: 'border-blue-100',
-              icon: <Boxes size={12} className="text-blue-600" />
-            }
-            const isOverCapacity = cat.ocupacao > 100
-            const progressColor = isOverCapacity ? 'bg-rose-500' : 'bg-emerald-500'
-
-            // Cálculo: Capacidade - Armazenado
-            const diff = Math.round(cat.capacidade - cat.cubagem)
-            const diffFormatted = diff > 0
-              ? `+${diff.toLocaleString('pt-BR')} m³`
-              : `${diff.toLocaleString('pt-BR')} m³`
+        {/* Resumo Totalizador Superior (5 cards) */}
+        {!isBloqueios ? (
+          (() => {
+            const capGeral = data.totalCapacidade || 27519
+            const armGeral = Math.round(data.totalCubagem)
+            const gapGeral = capGeral - armGeral
+            const gapFormatted = gapGeral > 0
+              ? `+${gapGeral.toLocaleString('pt-BR')}`
+              : `${gapGeral.toLocaleString('pt-BR')}`
 
             return (
-              <div
-                key={cat.nome}
-                className="group p-1 rounded-lg hover:bg-slate-50/90 transition-colors border border-transparent hover:border-slate-100"
-              >
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border ${config.bg} ${config.border}`}>
-                      {config.icon}
+              <div className="grid grid-cols-5 gap-1.5 p-1.5 rounded-xl bg-slate-50/80 border border-slate-100 mb-2.5">
+                {/* Cubagem Total (Armazenado) */}
+                <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+                  <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                    <span className="p-0.5 rounded bg-blue-50 text-blue-600">
+                      <Boxes size={10} />
                     </span>
-                    <span className="font-bold text-slate-700 truncate text-[11px]" title={cat.nome}>
-                      {cat.nome}
-                    </span>
+                    <span>Cubagem Total</span>
                   </div>
-
-                  <div className="flex items-baseline gap-1.5 sm:gap-2 shrink-0 text-right font-mono text-[10.5px]">
-                    {/* Armazenado */}
-                    <span className="w-14 sm:w-16 font-black text-slate-900" title={`Armazenado: ${Math.round(cat.cubagem).toLocaleString('pt-BR')} m³`}>
-                      {Math.round(cat.cubagem).toLocaleString('pt-BR')} <span className="text-[8.5px] font-normal text-slate-400">m³</span>
-                    </span>
-
-                    {/* Capacidade */}
-                    <span className="w-14 sm:w-16 text-slate-500 font-medium" title={`Capacidade: ${cat.capacidade.toLocaleString('pt-BR')} m³`}>
-                      {cat.capacidade.toLocaleString('pt-BR')} <span className="text-[8.5px] font-normal text-slate-400">m³</span>
-                    </span>
-
-                    {/* Diferença (Capacidade - Armazenado) */}
-                    <span
-                      className={`w-14 sm:w-16 text-[9.5px] font-bold ${
-                        diff < 0 ? 'text-rose-600' : 'text-emerald-700'
-                      }`}
-                      title={diff < 0 ? `Excesso de ${Math.abs(diff).toLocaleString('pt-BR')} m³` : `Saldo disponível de ${diffFormatted}`}
-                    >
-                      {diffFormatted}
-                    </span>
-
-                    {/* Valor TT da Categoria */}
-                    <span
-                      className="w-14 sm:w-16 text-[10px] font-bold text-emerald-700"
-                      title={cat.valor ? `Valor em Estoque: R$ ${cat.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Sem valor calculado'}
-                    >
-                      {formatCurrencyCompact(cat.valor)}
-                    </span>
-
-                    {/* Ocupação */}
-                    <span
-                      className={`w-10 text-[9px] font-bold px-1 py-0.2 rounded text-center ${
-                        isOverCapacity
-                          ? 'text-rose-600 bg-rose-50 border border-rose-100'
-                          : 'text-emerald-700 bg-emerald-50 border border-emerald-100'
-                      }`}
-                    >
-                      {cat.ocupacao.toFixed(0)}%
-                    </span>
-                  </div>
+                  <span className="text-sm font-black text-slate-800 leading-tight">
+                    {armGeral.toLocaleString('pt-BR')}
+                    <span className="text-[9px] font-bold text-slate-500 ml-0.5">m³</span>
+                  </span>
                 </div>
-                {/* Barra de ocupação em relação à capacidade */}
-                <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${progressColor}`}
-                    style={{ width: `${Math.min(cat.ocupacao, 100)}%` }}
-                  />
+
+                {/* Capacidade Meta */}
+                <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+                  <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                    <span className="p-0.5 rounded bg-sky-50 text-sky-600">
+                      <Warehouse size={10} />
+                    </span>
+                    <span>Capacidade Meta</span>
+                  </div>
+                  <span className="text-sm font-black text-blue-700 leading-tight">
+                    {capGeral.toLocaleString('pt-BR')}
+                    <span className="text-[9px] font-bold text-slate-500 ml-0.5">m³</span>
+                  </span>
+                </div>
+
+                {/* Gap da Diferença (Capacidade - Armazenado) */}
+                <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+                  <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                    <span className={`p-0.5 rounded ${gapGeral < 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                      <TrendingUp size={10} />
+                    </span>
+                    <span>Gap / Dif.</span>
+                  </div>
+                  <span className={`text-sm font-black leading-tight ${gapGeral < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                    {gapFormatted}
+                    <span className="text-[9px] font-bold ml-0.5">m³</span>
+                  </span>
+                </div>
+
+                {/* Ocupação Geral */}
+                <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+                  <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                    <span className={`p-0.5 rounded ${(data.totalOcupacao || 0) > 100 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                      <PieChart size={10} />
+                    </span>
+                    <span>Ocupação Geral</span>
+                  </div>
+                  <span className={`text-sm font-black leading-tight ${(data.totalOcupacao || 0) > 100 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                    {(data.totalOcupacao || Math.round((data.totalCubagem / 27519) * 100)).toFixed(1)}%
+                  </span>
+                </div>
+
+                {/* Valor Total do Estoque */}
+                <div
+                  className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs cursor-default"
+                  title={`Valor Total do Estoque: R$ ${(data.totalValor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                >
+                  <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                    <span className="p-0.5 rounded bg-emerald-50 text-emerald-600">
+                      <DollarSign size={10} />
+                    </span>
+                    <span className="text-emerald-800">Valor TT</span>
+                  </div>
+                  <span className="text-sm font-black text-emerald-700 font-mono leading-tight">
+                    {formatCurrencyCompact(data.totalValor)}
+                  </span>
                 </div>
               </div>
             )
-          })}
-        </div>
+          })()
+        ) : (
+          /* Cards Totalizadores de Bloqueios */
+          <div className="grid grid-cols-5 gap-1.5 p-1.5 rounded-xl bg-amber-50/50 border border-amber-100 mb-2.5">
+            {/* Cubagem Bloqueada */}
+            <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+              <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                <span className="p-0.5 rounded bg-amber-50 text-amber-600">
+                  <Boxes size={10} />
+                </span>
+                <span>Cubagem Bloq.</span>
+              </div>
+              <span className="text-sm font-black text-slate-800 leading-tight">
+                {totalGeralBloqueios.cubagem.toLocaleString('pt-BR')}
+                <span className="text-[9px] font-bold text-slate-500 ml-0.5">m³</span>
+              </span>
+            </div>
+
+            {/* Peças Bloqueadas */}
+            <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+              <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                <span className="p-0.5 rounded bg-blue-50 text-blue-600">
+                  <Package size={10} />
+                </span>
+                <span>Peças Bloq.</span>
+              </div>
+              <span className="text-sm font-black text-blue-700 leading-tight">
+                {totalGeralBloqueios.pecas.toLocaleString('pt-BR')}
+              </span>
+            </div>
+
+            {/* SKUs Distintos */}
+            <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+              <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                <span className="p-0.5 rounded bg-indigo-50 text-indigo-600">
+                  <Layers size={10} />
+                </span>
+                <span>SKUs Únicos</span>
+              </div>
+              <span className="text-sm font-black text-indigo-700 leading-tight">
+                {totalGeralBloqueios.skus.toLocaleString('pt-BR')}
+              </span>
+            </div>
+
+            {/* Linhas / Registros */}
+            <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+              <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                <span className="p-0.5 rounded bg-rose-50 text-rose-600">
+                  <AlertTriangle size={10} />
+                </span>
+                <span>Ocorrências</span>
+              </div>
+              <span className="text-sm font-black text-rose-600 leading-tight">
+                {data.totalLinhas.toLocaleString('pt-BR')}
+              </span>
+            </div>
+
+            {/* Valor TT Bloqueado */}
+            <div
+              className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs cursor-default"
+              title={`Valor Bloqueado: R$ ${totalGeralBloqueios.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            >
+              <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                <span className="p-0.5 rounded bg-emerald-50 text-emerald-600">
+                  <DollarSign size={10} />
+                </span>
+                <span className="text-emerald-800">Valor TT Bloq.</span>
+              </div>
+              <span className="text-sm font-black text-emerald-700 font-mono leading-tight">
+                {formatCurrencyCompact(totalGeralBloqueios.valor)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* CONTEÚDO PRINCIPAL: TABELA BOM vs TABELA DE BLOQUEIOS */}
+        {!isBloqueios ? (
+          <div>
+            {/* Cabeçalho das Colunas BOM: Categoria | Armazenado | Capacidade | Diferença | Valor TT | Ocupação */}
+            <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider px-1 pb-1 border-b border-slate-100 mb-1">
+              <span>Categoria</span>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="w-14 sm:w-16 text-right">Armazenado</span>
+                <span className="w-14 sm:w-16 text-right">Capacidade</span>
+                <span className="w-14 sm:w-16 text-right">Diferença</span>
+                <span className="w-14 sm:w-16 text-right text-emerald-700">Valor TT</span>
+                <span className="w-10 text-right">Ocup.</span>
+              </div>
+            </div>
+
+            {/* Lista de Categorias BOM */}
+            <div className="space-y-1">
+              {data.categorias.map(cat => {
+                const config = CATEGORY_CONFIG[cat.nome] || {
+                  bar: 'bg-blue-600',
+                  text: 'text-blue-700',
+                  bg: 'bg-blue-50/80',
+                  border: 'border-blue-100',
+                  icon: <Boxes size={12} className="text-blue-600" />
+                }
+                const isOverCapacity = cat.ocupacao > 100
+                const progressColor = isOverCapacity ? 'bg-rose-500' : 'bg-emerald-500'
+
+                const diff = Math.round(cat.capacidade - cat.cubagem)
+                const diffFormatted = diff > 0
+                  ? `+${diff.toLocaleString('pt-BR')} m³`
+                  : `${diff.toLocaleString('pt-BR')} m³`
+
+                return (
+                  <div
+                    key={cat.nome}
+                    className="group p-1 rounded-lg hover:bg-slate-50/90 transition-colors border border-transparent hover:border-slate-100"
+                  >
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border ${config.bg} ${config.border}`}>
+                          {config.icon}
+                        </span>
+                        <span className="font-bold text-slate-700 truncate text-[11px]" title={cat.nome}>
+                          {cat.nome}
+                        </span>
+                      </div>
+
+                      <div className="flex items-baseline gap-1.5 sm:gap-2 shrink-0 text-right font-mono text-[10.5px]">
+                        {/* Armazenado */}
+                        <span className="w-14 sm:w-16 font-black text-slate-900" title={`Armazenado: ${Math.round(cat.cubagem).toLocaleString('pt-BR')} m³`}>
+                          {Math.round(cat.cubagem).toLocaleString('pt-BR')} <span className="text-[8.5px] font-normal text-slate-400">m³</span>
+                        </span>
+
+                        {/* Capacidade */}
+                        <span className="w-14 sm:w-16 text-slate-500 font-medium" title={`Capacidade: ${cat.capacidade.toLocaleString('pt-BR')} m³`}>
+                          {cat.capacidade.toLocaleString('pt-BR')} <span className="text-[8.5px] font-normal text-slate-400">m³</span>
+                        </span>
+
+                        {/* Diferença */}
+                        <span
+                          className={`w-14 sm:w-16 text-[9.5px] font-bold ${
+                            diff < 0 ? 'text-rose-600' : 'text-emerald-700'
+                          }`}
+                          title={diff < 0 ? `Excesso de ${Math.abs(diff).toLocaleString('pt-BR')} m³` : `Saldo disponível de ${diffFormatted}`}
+                        >
+                          {diffFormatted}
+                        </span>
+
+                        {/* Valor TT */}
+                        <span
+                          className="w-14 sm:w-16 text-[10px] font-bold text-emerald-700"
+                          title={cat.valor ? `Valor em Estoque: R$ ${cat.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Sem valor calculado'}
+                        >
+                          {formatCurrencyCompact(cat.valor)}
+                        </span>
+
+                        {/* Ocupação */}
+                        <span
+                          className={`w-10 text-[9px] font-bold px-1 py-0.2 rounded text-center ${
+                            isOverCapacity
+                              ? 'text-rose-600 bg-rose-50 border border-rose-100'
+                              : 'text-emerald-700 bg-emerald-50 border border-emerald-100'
+                          }`}
+                        >
+                          {cat.ocupacao.toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                    {/* Barra de ocupação */}
+                    <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${progressColor}`}
+                        style={{ width: `${Math.min(cat.ocupacao, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          /* TABELA DE BLOQUEIOS COM SEGMENTAÇÃO DE DIAS */
+          <div>
+            {/* Segmentação Interativa por Faixa de Dias */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-1.5 mb-2 no-scrollbar">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mr-1 shrink-0">
+                Faixa:
+              </span>
+              {faixasDisponiveis.map(f => {
+                const isSelected = bloqueioFaixa === f
+                return (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => onBloqueioFaixaChange(f)}
+                    className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md whitespace-nowrap transition-all border ${
+                      isSelected
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {f}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Cabeçalho da Tabela de Bloqueios */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-[10px]">
+                <thead>
+                  <tr className="border-b border-slate-200 text-[8.5px] font-bold uppercase text-slate-600 bg-slate-50">
+                    <th className="py-1 px-1.5 font-bold">Motivo de Qualidade</th>
+                    <th className="py-1 px-1 text-center w-10">SKUs</th>
+                    <th className="py-1 px-1 text-center w-10">Pçs</th>
+                    <th className="py-1 px-1 text-center w-12">m³</th>
+                    {bloqueioFaixa === 'TODOS' ? (
+                      <>
+                        <th className="py-1 px-1 text-right w-14 text-emerald-700">0 Dias</th>
+                        <th className="py-1 px-1 text-right w-14 text-emerald-700">7 Dias</th>
+                        <th className="py-1 px-1 text-right w-14 text-amber-700">30 Dias</th>
+                        <th className="py-1 px-1 text-right w-14 text-amber-700">90 Dias</th>
+                        <th className="py-1 px-1 text-right w-14 text-rose-700">120 Dias</th>
+                        <th className="py-1 px-1 text-right w-16 text-rose-800">+120 Dias</th>
+                      </>
+                    ) : null}
+                    <th className="py-1 px-1.5 text-right font-bold w-16 text-emerald-800">
+                      {bloqueioFaixa === 'TODOS' ? 'Valor Total' : `Valor (${bloqueioFaixa})`}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-mono">
+                  {motivosFiltrados.slice(0, 15).map(m => (
+                    <tr key={m.motivo} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-1 px-1.5 font-sans font-medium text-slate-800 truncate max-w-[140px]" title={m.motivo}>
+                        {m.motivo}
+                      </td>
+                      <td className="py-1 px-1 text-center text-slate-600">{m.skus}</td>
+                      <td className="py-1 px-1 text-center text-slate-600">{m.pecas.toLocaleString('pt-BR')}</td>
+                      <td className="py-1 px-1 text-center text-slate-600">{m.cubagem.toFixed(1)}</td>
+                      {bloqueioFaixa === 'TODOS' ? (
+                        <>
+                          <td className="py-1 px-1 text-right text-slate-500">{formatCurrencyCompact(m.faixas['0 DIAS'])}</td>
+                          <td className="py-1 px-1 text-right text-slate-500">{formatCurrencyCompact(m.faixas['7 DIAS'])}</td>
+                          <td className="py-1 px-1 text-right text-slate-500">{formatCurrencyCompact(m.faixas['30 DIAS'])}</td>
+                          <td className="py-1 px-1 text-right text-slate-500">{formatCurrencyCompact(m.faixas['90 DIAS'])}</td>
+                          <td className="py-1 px-1 text-right text-slate-500">{formatCurrencyCompact(m.faixas['120 DIAS'])}</td>
+                          <td className="py-1 px-1 text-right text-slate-500">{formatCurrencyCompact(m.faixas['ACIMA DE 120 DIAS'])}</td>
+                        </>
+                      ) : null}
+                      <td className="py-1 px-1.5 text-right font-bold text-emerald-700">
+                        {formatCurrencyCompact(m.valorExibido)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-300 bg-slate-50/90 font-bold text-[9.5px]">
+                    <td className="py-1 px-1.5 font-sans uppercase text-slate-800">Total Geral</td>
+                    <td className="py-1 px-1 text-center font-mono text-slate-800">{totalGeralBloqueios.skus}</td>
+                    <td className="py-1 px-1 text-center font-mono text-slate-800">{totalGeralBloqueios.pecas.toLocaleString('pt-BR')}</td>
+                    <td className="py-1 px-1 text-center font-mono text-slate-800">{totalGeralBloqueios.cubagem.toFixed(1)}</td>
+                    {bloqueioFaixa === 'TODOS' && bloqueiosData ? (
+                      <>
+                        <td className="py-1 px-1 text-right font-mono text-emerald-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['0 DIAS'])}</td>
+                        <td className="py-1 px-1 text-right font-mono text-emerald-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['7 DIAS'])}</td>
+                        <td className="py-1 px-1 text-right font-mono text-amber-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['30 DIAS'])}</td>
+                        <td className="py-1 px-1 text-right font-mono text-amber-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['90 DIAS'])}</td>
+                        <td className="py-1 px-1 text-right font-mono text-rose-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['120 DIAS'])}</td>
+                        <td className="py-1 px-1 text-right font-mono text-rose-800">{formatCurrencyCompact(bloqueiosData.totalFaixas['ACIMA DE 120 DIAS'])}</td>
+                      </>
+                    ) : null}
+                    <td className="py-1 px-1.5 text-right font-mono text-emerald-800 font-black">
+                      {formatCurrencyCompact(totalGeralBloqueios.valor)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="pt-2 border-t border-slate-100 text-[9.5px] text-slate-400 flex items-center justify-between mt-2">
-        <span>Filtro ERP: <strong className="text-slate-600 font-semibold">{filterStatus === 'BOM' ? 'Somente Status BOM' : 'Todos'}</strong></span>
-        <span>{data.categorias.length} categorias</span>
+        <span>
+          Filtro ERP:{' '}
+          <strong className="text-slate-600 font-semibold">
+            {isBloqueios ? `Somente Bloqueados (${bloqueioFaixa})` : 'Somente Status BOM'}
+          </strong>
+        </span>
+        <span>
+          {isBloqueios ? `${motivosFiltrados.length} motivos` : `${data.categorias.length} categorias`}
+        </span>
       </div>
     </Card>
   )
@@ -1195,11 +1460,13 @@ export const DashboardPage: React.FC = () => {
     return result
   }, [chartAderenciaData, chartMetric])
 
-  // Estado do Relatório de Estoque por Categoria (EstoqueCD.xlsx) com filtro de DS_AREA_ERP
-  const [estoqueFilterStatus, setEstoqueFilterStatus] = useState<'BOM' | 'TODOS'>('BOM')
+  // Estado do Relatório de Estoque por Categoria (EstoqueCD.xlsx) com filtro de DS_AREA_ERP (BOM vs BLOQUEADOS)
+  const [estoqueFilterStatus, setEstoqueFilterStatus] = useState<'BOM' | 'BLOQUEADOS'>('BOM')
+  const [bloqueioFaixa, setBloqueioFaixa] = useState<string>('TODOS')
   const [estoqueBaseSummary, setEstoqueBaseSummary] = useState<{
     bomOnly: EstoqueSummaryData
     todos: EstoqueSummaryData
+    bloqueios?: EstoqueBloqueiosData
   }>(() => {
     try {
       const cached = localStorage.getItem('magalog_estoque_categoria_summary_v2')
@@ -1208,7 +1475,7 @@ export const DashboardPage: React.FC = () => {
 
     const raw = initialEstoqueCategoria as any
     if (raw?.bomOnly && raw?.todos) {
-      return { bomOnly: raw.bomOnly, todos: raw.todos }
+      return { bomOnly: raw.bomOnly, todos: raw.todos, bloqueios: raw.bloqueios }
     }
     // Fallback caso seja estrutura antiga
     const defaultData: EstoqueSummaryData = {
@@ -1221,19 +1488,35 @@ export const DashboardPage: React.FC = () => {
       totalLinhas: raw?.totalLinhas || 12729,
       categorias: raw?.categorias || []
     }
-    return { bomOnly: defaultData, todos: defaultData }
+    return { bomOnly: defaultData, todos: defaultData, bloqueios: raw?.bloqueios }
   })
   const [isProcessingEstoque, setIsProcessingEstoque] = useState(false)
 
-  // Dados ativos conforme o filtro selecionado (BOM vs TODOS)
+  // Dados ativos conforme o filtro selecionado (BOM vs BLOQUEADOS)
   const activeEstoqueData: EstoqueSummaryData = useMemo(() => {
-    const active = estoqueFilterStatus === 'BOM' ? estoqueBaseSummary.bomOnly : estoqueBaseSummary.todos
+    const isBloq = estoqueFilterStatus === 'BLOQUEADOS'
+    if (isBloq && estoqueBaseSummary.bloqueios) {
+      const b = estoqueBaseSummary.bloqueios
+      return {
+        updatedAt: estoqueBaseSummary.bomOnly?.updatedAt || new Date().toISOString(),
+        totalCubagem: b.totalCubagem,
+        totalCapacidade: 0,
+        totalOcupacao: 0,
+        totalPecas: b.totalPecas,
+        totalValor: b.totalValor,
+        totalLinhas: b.totalLinhas,
+        categorias: [],
+        bloqueios: b
+      }
+    }
+    const active = estoqueBaseSummary.bomOnly
     const totalCapacidade = 27519
     const totalOcupacao = totalCapacidade > 0 ? (active.totalCubagem / totalCapacidade) * 100 : 0
     return {
       ...active,
       totalCapacidade,
-      totalOcupacao
+      totalOcupacao,
+      bloqueios: estoqueBaseSummary.bloqueios
     }
   }, [estoqueBaseSummary, estoqueFilterStatus])
 
@@ -1366,9 +1649,129 @@ export const DashboardPage: React.FC = () => {
         }
       }
 
+      const buildBloqueios = (): EstoqueBloqueiosData => {
+        const bloqRows = rows.filter(r => String(r.DS_AREA_ERP || '').trim().toUpperCase() === 'BLOQUEADO')
+        const motivosMap: Record<string, {
+          motivo: string
+          skusSet: Set<string>
+          pecas: number
+          cubagem: number
+          valorTotal: number
+          faixas: {
+            '0 DIAS': number
+            '7 DIAS': number
+            '30 DIAS': number
+            '90 DIAS': number
+            '120 DIAS': number
+            'ACIMA DE 120 DIAS': number
+          }
+        }> = {}
+
+        let totalPecas = 0
+        let totalCubagem = 0
+        let totalValor = 0
+        const allSkusSet = new Set<string>()
+        const totalFaixas = {
+          '0 DIAS': 0,
+          '7 DIAS': 0,
+          '30 DIAS': 0,
+          '90 DIAS': 0,
+          '120 DIAS': 0,
+          'ACIMA DE 120 DIAS': 0
+        }
+
+        const getFaixa = (dias: number) => {
+          if (dias === 0) return '0 DIAS'
+          if (dias <= 7) return '7 DIAS'
+          if (dias <= 30) return '30 DIAS'
+          if (dias <= 90) return '90 DIAS'
+          if (dias <= 120) return '120 DIAS'
+          return 'ACIMA DE 120 DIAS'
+        }
+
+        bloqRows.forEach(r => {
+          const rawMotivo = String(r.AREA_ARMEZENAGEM || 'OUTROS').trim()
+          const motivo = rawMotivo.replace(/^\d+\s*-\s*/, '').trim()
+          const cod = String(r.CODIGO || '').trim()
+          const master = String(r.COD_GEMCO || cod.split('/')[0]).trim()
+          const qnts = Number(r.QNTS) || 0
+          const cub = Number(r.CUB_TOTAL) || 0
+          const dias = Number(r.DIAS_ARMAZENAGEM) || 0
+          const faixa = getFaixa(dias)
+
+          const custoMaster = costMap.get(master) || 0
+          const numVols = volMap.get(master) || 1
+          const itemValor = (custoMaster / numVols) * qnts
+
+          allSkusSet.add(master)
+          totalPecas += qnts
+          totalCubagem += cub
+          totalValor += itemValor
+          ;(totalFaixas as any)[faixa] += itemValor
+
+          if (!motivosMap[motivo]) {
+            motivosMap[motivo] = {
+              motivo,
+              skusSet: new Set(),
+              pecas: 0,
+              cubagem: 0,
+              valorTotal: 0,
+              faixas: {
+                '0 DIAS': 0,
+                '7 DIAS': 0,
+                '30 DIAS': 0,
+                '90 DIAS': 0,
+                '120 DIAS': 0,
+                'ACIMA DE 120 DIAS': 0
+              }
+            }
+          }
+          const m = motivosMap[motivo]
+          m.skusSet.add(master)
+          m.pecas += qnts
+          m.cubagem += cub
+          m.valorTotal += itemValor
+          ;(m.faixas as any)[faixa] += itemValor
+        })
+
+        const motivos: EstoqueBloqueioMotivo[] = Object.values(motivosMap).map(m => ({
+          motivo: m.motivo,
+          skus: m.skusSet.size,
+          pecas: m.pecas,
+          cubagem: Math.round(m.cubagem * 100) / 100,
+          valorTotal: Math.round(m.valorTotal * 100) / 100,
+          faixas: {
+            '0 DIAS': Math.round(m.faixas['0 DIAS'] * 100) / 100,
+            '7 DIAS': Math.round(m.faixas['7 DIAS'] * 100) / 100,
+            '30 DIAS': Math.round(m.faixas['30 DIAS'] * 100) / 100,
+            '90 DIAS': Math.round(m.faixas['90 DIAS'] * 100) / 100,
+            '120 DIAS': Math.round(m.faixas['120 DIAS'] * 100) / 100,
+            'ACIMA DE 120 DIAS': Math.round(m.faixas['ACIMA DE 120 DIAS'] * 100) / 100
+          }
+        })).sort((a, b) => b.valorTotal - a.valorTotal)
+
+        return {
+          totalLinhas: bloqRows.length,
+          totalSkus: allSkusSet.size,
+          totalPecas,
+          totalCubagem: Math.round(totalCubagem * 100) / 100,
+          totalValor: Math.round(totalValor * 100) / 100,
+          totalFaixas: {
+            '0 DIAS': Math.round(totalFaixas['0 DIAS'] * 100) / 100,
+            '7 DIAS': Math.round(totalFaixas['7 DIAS'] * 100) / 100,
+            '30 DIAS': Math.round(totalFaixas['30 DIAS'] * 100) / 100,
+            '90 DIAS': Math.round(totalFaixas['90 DIAS'] * 100) / 100,
+            '120 DIAS': Math.round(totalFaixas['120 DIAS'] * 100) / 100,
+            'ACIMA DE 120 DIAS': Math.round(totalFaixas['ACIMA DE 120 DIAS'] * 100) / 100
+          },
+          motivos
+        }
+      }
+
       const newBaseSummary = {
         bomOnly: buildSummary(true),
-        todos: buildSummary(false)
+        todos: buildSummary(false),
+        bloqueios: buildBloqueios()
       }
 
       setEstoqueBaseSummary(newBaseSummary)
@@ -2093,13 +2496,15 @@ export const DashboardPage: React.FC = () => {
             right={<Legend items={[{ label: 'Realizado', color: '#3b82f6' }, { label: 'Meta', color: '#cbd5e1' }]} />} />
           <TurnoChart />
         </Card>
-        {/* Relatório de Categorias de Estoque (EstoqueCD.xlsx com coluna auxiliar CLASSE_ITEM e Capacidades) */}
+        {/* Relatório de Categorias de Estoque / Bloqueios de Qualidade (EstoqueCD.xlsx) */}
         <EstoqueCategoriasCard
           data={activeEstoqueData}
           filterStatus={estoqueFilterStatus}
           onFilterChange={setEstoqueFilterStatus}
           onFileUpload={handleEstoqueUpload}
           isProcessing={isProcessingEstoque}
+          bloqueioFaixa={bloqueioFaixa}
+          onBloqueioFaixaChange={setBloqueioFaixa}
         />
       </div>
 
