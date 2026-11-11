@@ -11,7 +11,9 @@ import { supabase } from '../lib/supabase'
 import { PmtDashboardOverview } from './PmtDashboardOverview'
 import { QuadroOverview } from './QuadroOverview'
 import initialAderenciaOct from '../data/initialAderencia202610.json'
+import initialAderenciaNov from '../data/initialAderencia202611.json'
 import initialOctMatrix from '../data/pmt_oct_2026_matrix.json'
+import initialNovMatrix from '../data/pmt_nov_2026_matrix.json'
 import initialEstoqueCategoria from '../data/estoque_categoria_summary.json'
 import { getAderenciaData, type AderenciaDataState } from '../lib/aderenciaService'
 import { getPmtDailyMatrixFromSupabase, type PmtDailyMatrixResponse } from '../lib/pmtService'
@@ -1870,7 +1872,8 @@ export const DashboardPage: React.FC = () => {
       const cachedCur = localStorage.getItem(`magalog_pmt_aderencia_994_${now.getFullYear()}_${(now.getMonth() + 1).toString().padStart(2, '0')}`)
       if (cachedCur) return JSON.parse(cachedCur)
     } catch {}
-    return initialAderenciaOct as unknown as AderenciaDataState
+    // Padrão imediato idêntico ao mês ativo (Novembro/2026) para evitar qualquer flicker/salto ao alternar de aba
+    return (initialAderenciaNov || initialAderenciaOct) as unknown as AderenciaDataState
   })
   const [chartPmtMatrix, setChartPmtMatrix] = useState<PmtDailyMatrixResponse | null>(() => {
     // 1. Tenta carregar do cache local da matriz PMT do mês atual
@@ -1879,11 +1882,13 @@ export const DashboardPage: React.FC = () => {
       const cachedMatrix = localStorage.getItem(`magalog_pmt_daily_matrix_994_${now.getFullYear()}_${(now.getMonth() + 1).toString().padStart(2, '0')}_modal`)
       if (cachedMatrix) return JSON.parse(cachedMatrix)
     } catch {}
-    return initialOctMatrix as unknown as PmtDailyMatrixResponse
+    // Padrão imediato idêntico à matriz PMT de Novembro/2026
+    return (initialNovMatrix || initialOctMatrix) as unknown as PmtDailyMatrixResponse
   })
 
   // Carrega dados de Aderência e Matriz PMT para alimentar o gráfico
   useEffect(() => {
+    let isMounted = true
     const loadChartData = async () => {
       try {
         const now = new Date()
@@ -1895,28 +1900,29 @@ export const DashboardPage: React.FC = () => {
           getPmtDailyMatrixFromSupabase(curYear, curMonth, '994', 'modal').catch(() => null)
         ])
 
+        if (!isMounted) return
+
         if (cloudAderencia) {
           setChartAderenciaData(cloudAderencia)
+        } else if (curYear === 2026 && curMonth === 11) {
+          setChartAderenciaData(initialAderenciaNov as unknown as AderenciaDataState)
         } else if (curYear === 2026 && curMonth === 10) {
           setChartAderenciaData(initialAderenciaOct as unknown as AderenciaDataState)
-        } else {
-          const octData = await getAderenciaData(2026, 10, '994').catch(() => null)
-          setChartAderenciaData(octData || (initialAderenciaOct as unknown as AderenciaDataState))
         }
 
         if (cloudPmt && cloudPmt.days && cloudPmt.days.length > 0) {
           setChartPmtMatrix(cloudPmt)
+        } else if (curYear === 2026 && curMonth === 11) {
+          setChartPmtMatrix(initialNovMatrix as unknown as PmtDailyMatrixResponse)
         } else if (curYear === 2026 && curMonth === 10) {
           setChartPmtMatrix(initialOctMatrix as unknown as PmtDailyMatrixResponse)
-        } else {
-          const octPmt = await getPmtDailyMatrixFromSupabase(2026, 10, '994', 'modal').catch(() => null)
-          setChartPmtMatrix(octPmt || (initialOctMatrix as unknown as PmtDailyMatrixResponse))
         }
       } catch (err) {
         console.warn('Erro ao carregar dados de aderência e PMT para o gráfico:', err)
       }
     }
     loadChartData()
+    return () => { isMounted = false }
   }, [])
 
   // Calcula a janela de 7 dias para o gráfico incluindo o dia de hoje (vinculados ao Acompanhamento Diário e PMT Planejado)
