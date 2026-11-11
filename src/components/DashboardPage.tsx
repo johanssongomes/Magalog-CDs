@@ -998,6 +998,9 @@ const EstoqueCategoriasCard: React.FC<{
         isQualidade: isQualidadeMotivo(m.motivo)
       }
     }).filter(m => {
+      // Regra: Somente bloqueios que tenham itens (peças > 0)
+      if (!m.pecas || m.pecas <= 0) return false
+
       const matchFaixa = m.valorExibido > 0 || bloqueioFaixa === 'TODOS'
       if (!matchFaixa) return false
       if (bloqueioTipo === 'GERAL') return !m.isQualidade
@@ -1546,7 +1549,7 @@ const EstoqueCategoriasCard: React.FC<{
 
                     // Se selecionou 'GERAL' ou 'QUALIDADE', renderiza direto
                     if (bloqueioTipo !== 'TODOS') {
-                      return motivosFiltrados.slice(0, 15).map(renderRow)
+                      return motivosFiltrados.map(renderRow)
                     }
 
                     // Se selecionou 'TODOS', faz o corte com a linha cinza divisória
