@@ -11,8 +11,10 @@ import { supabase } from '../lib/supabase'
 import { PmtDashboardOverview } from './PmtDashboardOverview'
 import { QuadroOverview } from './QuadroOverview'
 import initialAderenciaOct from '../data/initialAderencia202610.json'
+import initialOctMatrix from '../data/pmt_oct_2026_matrix.json'
 import initialEstoqueCategoria from '../data/estoque_categoria_summary.json'
 import { getAderenciaData, type AderenciaDataState } from '../lib/aderenciaService'
+import { getPmtDailyMatrixFromSupabase, type PmtDailyMatrixResponse } from '../lib/pmtService'
 
 // =====================================================================
 // Painel visual (dados estáticos / mock) — integração de números futura
@@ -311,6 +313,7 @@ export interface OperationalPerformanceDay {
   faturado: number
   liberado: number
   capacidade: number
+  pmtPlanejado?: number
 }
 
 interface PerformanceChartProps {
@@ -323,9 +326,9 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
   const innerW = W - padL - 12
   const innerH = H - padB - padT
 
-  // Encontrar valor máximo para escala Y com folga de 20% para caber os valores acima das barras
+  // Encontrar valor máximo para escala Y com folga de 25% para caber os valores acima das barras e marcadores
   const maxVal = Math.max(
-    ...data.map(d => Math.max(d.faturado, d.liberado, d.capacidade)),
+    ...data.map(d => Math.max(d.faturado, d.liberado, d.capacidade, d.pmtPlanejado || 0)),
     10
   )
   const maxY = Math.ceil((maxVal * 1.25) / 100) * 100 || 1000
@@ -342,7 +345,7 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
     return `${v}`
   }
 
-  // Formatação compacta para os valores acima das barras
+  // Formatação compacta para os valores acima das barras / marcadores
   const formatBarVal = (v: number) => {
     if (v === 0) return ''
     if (v >= 1000) {
@@ -352,8 +355,11 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
     return `${v}`
   }
 
-  // Linha da capacidade (meta)
+  // Linha da capacidade (meta) tracejada
   const capPts = data.map((d, i) => `${padL + step * i + step / 2},${y(d.capacidade)}`).join(' ')
+
+  // Linha do PMT Planejado (Linhas com Marcadores)
+  const pmtPts = data.map((d, i) => `${padL + step * i + step / 2},${y(d.pmtPlanejado || 0)}`).join(' ')
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
@@ -371,12 +377,18 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
         <polyline points={capPts} fill="none" stroke="#60a5fa" strokeWidth="2" strokeDasharray="4 4" />
       )}
 
+      {/* Linha do PMT Planejado (Linha com Marcadores) */}
+      {data.length > 1 && (
+        <polyline points={pmtPts} fill="none" stroke="#64748b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+
       {/* Barras e labels */}
       {data.map((d, i) => {
         const cx = padL + step * i + step / 2
         const yFat = y(d.faturado)
         const yLib = y(d.liberado)
         const yCap = y(d.capacidade)
+        const yPmt = y(d.pmtPlanejado || 0)
         const yZero = y(0)
 
         const hFat = Math.max(0, yZero - yFat)
@@ -384,6 +396,7 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
 
         const textFat = formatBarVal(d.faturado)
         const textLib = formatBarVal(d.liberado)
+        const textPmt = formatBarVal(d.pmtPlanejado || 0)
 
         return (
           <g key={d.date} className="cursor-pointer">
@@ -443,6 +456,37 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
               >
                 {textLib}
               </text>
+            )}
+
+            {/* Marcador do PMT Planejado (Ponto Branco com borda ardósia) */}
+            {(d.pmtPlanejado || 0) > 0 && (
+              <g>
+                <circle
+                  cx={cx}
+                  cy={yPmt}
+                  r="4"
+                  fill="#ffffff"
+                  stroke="#475569"
+                  strokeWidth="2.2"
+                />
+                <circle
+                  cx={cx}
+                  cy={yPmt}
+                  r="1.5"
+                  fill="#475569"
+                />
+                <text
+                  x={cx}
+                  y={yPmt - 6}
+                  fontSize="7.5"
+                  textAnchor="middle"
+                  fill="#475569"
+                  fontWeight="800"
+                >
+                  {textPmt}
+                </text>
+                <title>{`PMT Planejado: ${(d.pmtPlanejado || 0).toLocaleString('pt-BR')} ${metric === 'cubagem' ? 'm³' : metric} (${d.date})`}</title>
+              </g>
             )}
 
             {/* Labels de Eixo X */}
@@ -1830,37 +1874,48 @@ export const DashboardPage: React.FC = () => {
   const [chartAderenciaData, setChartAderenciaData] = useState<AderenciaDataState | null>(() => {
     return initialAderenciaOct as unknown as AderenciaDataState
   })
+  const [chartPmtMatrix, setChartPmtMatrix] = useState<PmtDailyMatrixResponse | null>(() => {
+    return initialOctMatrix as unknown as PmtDailyMatrixResponse
+  })
 
-  // Carrega dados de Aderência (Acompanhamento Diário) para alimentar o gráfico
+  // Carrega dados de Aderência e Matriz PMT para alimentar o gráfico
   useEffect(() => {
     const loadChartData = async () => {
       try {
         const now = new Date()
         const curYear = now.getFullYear()
         const curMonth = now.getMonth() + 1
-        // Tenta carregar do mês corrente (ex: Nov/2026)
-        const cloudData = await getAderenciaData(curYear, curMonth, '994').catch(() => null)
-        if (cloudData) {
-          setChartAderenciaData(cloudData)
+
+        const [cloudAderencia, cloudPmt] = await Promise.all([
+          getAderenciaData(curYear, curMonth, '994').catch(() => null),
+          getPmtDailyMatrixFromSupabase(curYear, curMonth, '994', 'modal').catch(() => null)
+        ])
+
+        if (cloudAderencia) {
+          setChartAderenciaData(cloudAderencia)
         } else if (curYear === 2026 && curMonth === 10) {
           setChartAderenciaData(initialAderenciaOct as unknown as AderenciaDataState)
         } else {
-          // Se não houver do mês atual, tenta Outubro/2026 como fallback
           const octData = await getAderenciaData(2026, 10, '994').catch(() => null)
-          if (octData) {
-            setChartAderenciaData(octData)
-          } else {
-            setChartAderenciaData(initialAderenciaOct as unknown as AderenciaDataState)
-          }
+          setChartAderenciaData(octData || (initialAderenciaOct as unknown as AderenciaDataState))
+        }
+
+        if (cloudPmt && cloudPmt.days && cloudPmt.days.length > 0) {
+          setChartPmtMatrix(cloudPmt)
+        } else if (curYear === 2026 && curMonth === 10) {
+          setChartPmtMatrix(initialOctMatrix as unknown as PmtDailyMatrixResponse)
+        } else {
+          const octPmt = await getPmtDailyMatrixFromSupabase(2026, 10, '994', 'modal').catch(() => null)
+          setChartPmtMatrix(octPmt || (initialOctMatrix as unknown as PmtDailyMatrixResponse))
         }
       } catch (err) {
-        console.warn('Erro ao carregar dados de aderência para o gráfico:', err)
+        console.warn('Erro ao carregar dados de aderência e PMT para o gráfico:', err)
       }
     }
     loadChartData()
   }, [])
 
-  // Calcula a janela de 7 dias para o gráfico incluindo o dia de hoje (vinculados ao Acompanhamento Diário)
+  // Calcula a janela de 7 dias para o gráfico incluindo o dia de hoje (vinculados ao Acompanhamento Diário e PMT Planejado)
   const performance7Days = useMemo<OperationalPerformanceDay[]>(() => {
     const now = new Date()
     const curYear = chartAderenciaData?.ano || now.getFullYear()
@@ -1871,6 +1926,7 @@ export const DashboardPage: React.FC = () => {
     const liberadoTotals = (chartAderenciaData?.liberado?.totals as any)?.[chartMetric] || {}
     const faturadoTotals = (chartAderenciaData?.faturado?.totals as any)?.[chartMetric] || {}
     const capacidadeMap = (chartAderenciaData?.capacidade as any)?.[chartMetric] || {}
+    const pmtTotalsMap = (chartPmtMatrix?.totals as any)?.[chartMetric] || {}
 
     // Padrão de capacidade por dia útil
     const defaultCap = chartMetric === 'cubagem' ? 1000 : chartMetric === 'pedidos' ? 2800 : 10000
@@ -1899,6 +1955,9 @@ export const DashboardPage: React.FC = () => {
       const rawCap = capacidadeMap[dayStr] ?? capacidadeMap[dayNum.toString()]
       const capVal = rawCap !== undefined ? Math.round(rawCap) : (isSunday ? 0 : defaultCap)
 
+      const rawPmt = pmtTotalsMap[dayStr] ?? pmtTotalsMap[dayNum.toString()]
+      const pmtVal = rawPmt !== undefined ? Math.round(rawPmt) : 0
+
       result.push({
         dayStr,
         label: wLabel,
@@ -1906,11 +1965,12 @@ export const DashboardPage: React.FC = () => {
         isToday,
         faturado: fatVal,
         liberado: libVal,
-        capacidade: capVal
+        capacidade: capVal,
+        pmtPlanejado: pmtVal
       })
     }
     return result
-  }, [chartAderenciaData, chartMetric])
+  }, [chartAderenciaData, chartPmtMatrix, chartMetric])
 
   // Estado do Relatório de Estoque por Categoria (EstoqueCD.xlsx) com filtro de DS_AREA_ERP (BOM vs BLOQUEADOS)
   const [estoqueFilterStatus, setEstoqueFilterStatus] = useState<'BOM' | 'BLOQUEADOS'>('BOM')
@@ -2958,14 +3018,15 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Legenda Atualizada: Faturado, Liberado, Capacidade (Meta) */}
+          {/* Legenda Atualizada: Faturado, Liberado, Capacidade (Meta), PMT Planejado */}
           <div className="flex items-center justify-between text-[11px] text-slate-600 mb-2">
             <span className="text-[10px] text-slate-400 font-medium">Visão: 7 dias (Acompanhamento Diário)</span>
             <Legend
               items={[
                 { label: 'Faturado', color: '#2563eb' },
                 { label: 'Liberado', color: '#16a34a' },
-                { label: 'Capacidade (Meta)', color: '#60a5fa', line: true }
+                { label: 'Capacidade (Meta)', color: '#60a5fa', line: true },
+                { label: 'PMT Planejado', color: '#475569', line: true }
               ]}
             />
           </div>
