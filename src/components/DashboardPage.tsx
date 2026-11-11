@@ -631,6 +631,7 @@ export interface EstoqueCategoriaItem {
   capacidade: number
   ocupacao: number
   pecas: number
+  valor?: number
   itens: number
   percentual: number
 }
@@ -641,8 +642,20 @@ export interface EstoqueSummaryData {
   totalCapacidade: number
   totalOcupacao: number
   totalPecas: number
+  totalValor?: number
   totalLinhas: number
   categorias: EstoqueCategoriaItem[]
+}
+
+const formatCurrencyCompact = (val: number | undefined): string => {
+  if (!val || val === 0) return 'R$ 0'
+  if (val >= 1_000_000) {
+    return `R$ ${(val / 1_000_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}M`
+  }
+  if (val >= 1_000) {
+    return `R$ ${(val / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}k`
+  }
+  return `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 }
 
 const EstoqueCategoriasCard: React.FC<{
@@ -668,6 +681,18 @@ const EstoqueCategoriasCard: React.FC<{
                 Base: EstoqueCD.xlsx &bull; {data.totalLinhas.toLocaleString('pt-BR')} itens
               </p>
             </div>
+          </div>
+
+          {/* Valor TT do Estoque (Área destacada no cabeçalho) */}
+          <div
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 shadow-2xs"
+            title={`Valor Total do Estoque: R$ ${(data.totalValor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          >
+            <DollarSign size={13} className="text-emerald-600 shrink-0" />
+            <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-tight">Valor TT:</span>
+            <span className="text-xs font-black text-emerald-700 font-mono">
+              {formatCurrencyCompact(data.totalValor)}
+            </span>
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -792,13 +817,14 @@ const EstoqueCategoriasCard: React.FC<{
           )
         })()}
 
-        {/* Cabeçalho das Colunas: Categoria | Armazenado | Capacidade | Dif / Ocupação */}
+        {/* Cabeçalho das Colunas: Categoria | Armazenado | Capacidade | Diferença | Valor TT | Ocupação */}
         <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider px-1 pb-1 border-b border-slate-100 mb-1">
           <span>Categoria</span>
-          <div className="flex items-center gap-2">
-            <span className="w-16 text-right">Armazenado</span>
-            <span className="w-16 text-right">Capacidade</span>
-            <span className="w-16 text-right">Diferença</span>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="w-14 sm:w-16 text-right">Armazenado</span>
+            <span className="w-14 sm:w-16 text-right">Capacidade</span>
+            <span className="w-14 sm:w-16 text-right">Diferença</span>
+            <span className="w-14 sm:w-16 text-right text-emerald-700">Valor TT</span>
             <span className="w-10 text-right">Ocup.</span>
           </div>
         </div>
@@ -837,25 +863,33 @@ const EstoqueCategoriasCard: React.FC<{
                     </span>
                   </div>
 
-                  <div className="flex items-baseline gap-2 shrink-0 text-right font-mono text-[10.5px]">
+                  <div className="flex items-baseline gap-1.5 sm:gap-2 shrink-0 text-right font-mono text-[10.5px]">
                     {/* Armazenado */}
-                    <span className="w-16 font-black text-slate-900" title={`Armazenado: ${Math.round(cat.cubagem).toLocaleString('pt-BR')} m³`}>
+                    <span className="w-14 sm:w-16 font-black text-slate-900" title={`Armazenado: ${Math.round(cat.cubagem).toLocaleString('pt-BR')} m³`}>
                       {Math.round(cat.cubagem).toLocaleString('pt-BR')} <span className="text-[8.5px] font-normal text-slate-400">m³</span>
                     </span>
 
                     {/* Capacidade */}
-                    <span className="w-16 text-slate-500 font-medium" title={`Capacidade: ${cat.capacidade.toLocaleString('pt-BR')} m³`}>
+                    <span className="w-14 sm:w-16 text-slate-500 font-medium" title={`Capacidade: ${cat.capacidade.toLocaleString('pt-BR')} m³`}>
                       {cat.capacidade.toLocaleString('pt-BR')} <span className="text-[8.5px] font-normal text-slate-400">m³</span>
                     </span>
 
                     {/* Diferença (Capacidade - Armazenado) */}
                     <span
-                      className={`w-16 text-[9.5px] font-bold ${
+                      className={`w-14 sm:w-16 text-[9.5px] font-bold ${
                         diff < 0 ? 'text-rose-600' : 'text-emerald-700'
                       }`}
                       title={diff < 0 ? `Excesso de ${Math.abs(diff).toLocaleString('pt-BR')} m³` : `Saldo disponível de ${diffFormatted}`}
                     >
                       {diffFormatted}
+                    </span>
+
+                    {/* Valor TT da Categoria */}
+                    <span
+                      className="w-14 sm:w-16 text-[10px] font-bold text-emerald-700"
+                      title={cat.valor ? `Valor em Estoque: R$ ${cat.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Sem valor calculado'}
+                    >
+                      {formatCurrencyCompact(cat.valor)}
                     </span>
 
                     {/* Ocupação */}
@@ -1175,11 +1209,12 @@ export const DashboardPage: React.FC = () => {
     // Fallback caso seja estrutura antiga
     const defaultData: EstoqueSummaryData = {
       updatedAt: new Date().toISOString(),
-      totalCubagem: raw?.totalCubagem || 31466.44,
+      totalCubagem: raw?.totalCubagem || 31526.16,
       totalCapacidade: 27519,
-      totalOcupacao: 114.3,
-      totalPecas: raw?.totalPecas || 350271,
-      totalLinhas: raw?.totalLinhas || 13198,
+      totalOcupacao: 114.6,
+      totalPecas: raw?.totalPecas || 358609,
+      totalValor: raw?.totalValor || 147355461.73,
+      totalLinhas: raw?.totalLinhas || 12729,
       categorias: raw?.categorias || []
     }
     return { bomOnly: defaultData, todos: defaultData }
