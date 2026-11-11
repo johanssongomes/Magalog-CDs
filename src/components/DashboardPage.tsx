@@ -791,14 +791,14 @@ const BloqueioDetalhesModal: React.FC<{
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-5xl flex flex-col max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-[95vw] 2xl:max-w-7xl flex flex-col h-[90vh] overflow-hidden">
         {/* Cabeçalho */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/50 shrink-0">
           <div>
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <span>Detalhes do Bloqueio:</span>
-              <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-xs">
+              <span className="text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200 text-xs font-black">
                 {motivoNome}
               </span>
             </h2>
@@ -806,7 +806,7 @@ const BloqueioDetalhesModal: React.FC<{
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <X size={18} />
           </button>
@@ -827,57 +827,57 @@ const BloqueioDetalhesModal: React.FC<{
         </div>
 
         {/* Tabela de Itens */}
-        <div className="overflow-auto flex-1 min-h-[300px] text-[11px]">
-          <table className="w-full border-collapse text-left">
-            <thead className="bg-[#111827] text-white text-[9px] uppercase tracking-wider sticky top-0 z-10 select-none">
+        <div className="overflow-auto flex-1 min-h-0 text-[11px]">
+          <table className="w-full border-collapse text-left min-w-[1000px]">
+            <thead className="bg-[#111827] text-white text-[9.5px] uppercase tracking-wider sticky top-0 z-10 select-none">
               <tr>
-                <th onClick={() => handleSort('empresa')} className="py-2 px-2.5 font-bold cursor-pointer hover:bg-slate-800">
+                <th onClick={() => handleSort('empresa')} className="py-2.5 px-3 font-bold cursor-pointer hover:bg-slate-800 whitespace-nowrap">
                   Empresa {sortField === 'empresa' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => handleSort('sku')} className="py-2 px-2 font-bold cursor-pointer hover:bg-slate-800">
+                <th onClick={() => handleSort('sku')} className="py-2.5 px-3 font-bold cursor-pointer hover:bg-slate-800 whitespace-nowrap">
                   SKU (Gemco) {sortField === 'sku' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => handleSort('descricao')} className="py-2 px-2.5 font-bold cursor-pointer hover:bg-slate-800">
+                <th onClick={() => handleSort('descricao')} className="py-2.5 px-3 font-bold cursor-pointer hover:bg-slate-800 whitespace-nowrap">
                   Descrição {sortField === 'descricao' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => handleSort('linha')} className="py-2 px-2 font-bold cursor-pointer hover:bg-slate-800">
+                <th onClick={() => handleSort('linha')} className="py-2.5 px-3 font-bold cursor-pointer hover:bg-slate-800 whitespace-nowrap">
                   Linha {sortField === 'linha' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => handleSort('classe')} className="py-2 px-1.5 text-center font-bold cursor-pointer hover:bg-slate-800">
+                <th onClick={() => handleSort('classe')} className="py-2.5 px-2 text-center font-bold cursor-pointer hover:bg-slate-800 whitespace-nowrap">
                   Classe {sortField === 'classe' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => handleSort('endereco')} className="py-2 px-2 font-bold cursor-pointer hover:bg-slate-800">
+                <th onClick={() => handleSort('endereco')} className="py-2.5 px-3 font-bold cursor-pointer hover:bg-slate-800 whitespace-nowrap">
                   Endereço {sortField === 'endereco' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => handleSort('diasBloq')} className="py-2 px-2 text-right font-bold cursor-pointer hover:bg-slate-800">
+                <th onClick={() => handleSort('diasBloq')} className="py-2.5 px-3 text-right font-bold cursor-pointer hover:bg-slate-800 whitespace-nowrap">
                   Dias Bloq. {sortField === 'diasBloq' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => handleSort('pecas')} className="py-2 px-2 text-center font-bold cursor-pointer hover:bg-slate-800">
+                <th onClick={() => handleSort('pecas')} className="py-2.5 px-3 text-center font-bold cursor-pointer hover:bg-slate-800 whitespace-nowrap">
                   Peças {sortField === 'pecas' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => handleSort('cubagem')} className="py-2 px-2 text-right font-bold cursor-pointer hover:bg-slate-800">
+                <th onClick={() => handleSort('cubagem')} className="py-2.5 px-3 text-right font-bold cursor-pointer hover:bg-slate-800 whitespace-nowrap">
                   m³ {sortField === 'cubagem' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => handleSort('valorTotal')} className="py-2 px-3 text-right font-bold cursor-pointer hover:bg-slate-800">
+                <th onClick={() => handleSort('valorTotal')} className="py-2.5 px-4 text-right font-bold cursor-pointer hover:bg-slate-800 whitespace-nowrap">
                   Valor Total {sortField === 'valorTotal' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700 font-mono text-[10.5px]">
+            <tbody className="divide-y divide-slate-100 text-slate-700 font-mono text-[11px]">
               {filteredItems.map(it => (
                 <tr key={it.sku} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="py-1.5 px-2.5 font-sans text-slate-500 whitespace-nowrap text-[10px]">{it.empresa}</td>
-                  <td className="py-1.5 px-2 font-bold text-slate-900 whitespace-nowrap">{it.sku}</td>
-                  <td className="py-1.5 px-2.5 font-sans font-medium text-slate-800 max-w-xs truncate" title={it.descricao}>
+                  <td className="py-2 px-3 font-sans text-slate-500 whitespace-nowrap text-[10.5px]">{it.empresa}</td>
+                  <td className="py-2 px-3 font-bold text-slate-900 whitespace-nowrap">{it.sku}</td>
+                  <td className="py-2 px-3 font-sans font-medium text-slate-800 whitespace-nowrap" title={it.descricao}>
                     {it.descricao}
                   </td>
-                  <td className="py-1.5 px-2 font-sans text-slate-600 whitespace-nowrap text-[10px]">{it.linha}</td>
-                  <td className="py-1.5 px-1.5 text-center text-slate-600 whitespace-nowrap text-[10px]">{it.classe}</td>
-                  <td className="py-1.5 px-2 text-slate-600 whitespace-nowrap text-[10px]">{it.endereco}</td>
-                  <td className="py-1.5 px-2 text-right text-slate-700 whitespace-nowrap">{it.diasBloq} dias</td>
-                  <td className="py-1.5 px-2 text-center font-bold text-slate-800 whitespace-nowrap">{it.pecas}</td>
-                  <td className="py-1.5 px-2 text-right text-slate-800 whitespace-nowrap">{it.cubagem.toFixed(3)}</td>
-                  <td className="py-1.5 px-3 text-right font-bold text-slate-900 whitespace-nowrap">
+                  <td className="py-2 px-3 font-sans text-slate-600 whitespace-nowrap text-[10.5px]">{it.linha}</td>
+                  <td className="py-2 px-2 text-center text-slate-600 whitespace-nowrap text-[10.5px]">{it.classe}</td>
+                  <td className="py-2 px-3 text-slate-600 whitespace-nowrap text-[10.5px]">{it.endereco}</td>
+                  <td className="py-2 px-3 text-right text-slate-700 whitespace-nowrap">{it.diasBloq} dias</td>
+                  <td className="py-2 px-3 text-center font-bold text-slate-800 whitespace-nowrap">{it.pecas}</td>
+                  <td className="py-2 px-3 text-right text-slate-800 whitespace-nowrap">{it.cubagem.toFixed(3)}</td>
+                  <td className="py-2 px-4 text-right font-bold text-slate-900 whitespace-nowrap">
                     {formatCurrencyMil(it.valorTotal)}
                   </td>
                 </tr>
@@ -885,16 +885,16 @@ const BloqueioDetalhesModal: React.FC<{
             </tbody>
             <tfoot className="border-t-2 border-slate-300 bg-slate-50 font-bold sticky bottom-0 text-[11px] shadow-sm">
               <tr>
-                <td colSpan={7} className="py-2 px-3 text-right font-sans uppercase text-slate-800">
+                <td colSpan={7} className="py-2.5 px-4 text-right font-sans uppercase text-slate-800">
                   Total do Motivo:
                 </td>
-                <td className="py-2 px-2 text-center font-mono text-slate-900 font-black">
+                <td className="py-2.5 px-3 text-center font-mono text-slate-900 font-black">
                   {totalPecas.toLocaleString('pt-BR')}
                 </td>
-                <td className="py-2 px-2 text-right font-mono text-slate-900 font-black">
+                <td className="py-2.5 px-3 text-right font-mono text-slate-900 font-black">
                   {totalCub.toFixed(3)}
                 </td>
-                <td className="py-2 px-3 text-right font-mono text-slate-900 font-black">
+                <td className="py-2.5 px-4 text-right font-mono text-slate-900 font-black">
                   {formatCurrencyMil(totalVal)}
                 </td>
               </tr>
@@ -938,9 +938,13 @@ const EstoqueCategoriasCard: React.FC<{
   isProcessing?: boolean
   bloqueioFaixa: string
   onBloqueioFaixaChange: (faixa: string) => void
-}> = ({ data, filterStatus, onFilterChange, onFileUpload, isProcessing, bloqueioFaixa, onBloqueioFaixaChange }) => {
+  totalEstoqueGeralValor?: number
+}> = ({ data, filterStatus, onFilterChange, onFileUpload, isProcessing, bloqueioFaixa, onBloqueioFaixaChange, totalEstoqueGeralValor }) => {
   const isBloqueios = filterStatus === 'BLOQUEADOS'
   const bloqueiosData = data.bloqueios
+
+  // Valor total de referência do estoque para cálculo da porcentagem
+  const baseTotalValor = totalEstoqueGeralValor || 147129255.02
 
   // Estado para o Modal de Detalhes do Bloqueio
   const [selectedMotivo, setSelectedMotivo] = useState<EstoqueBloqueioMotivo | null>(null)
@@ -1204,10 +1208,10 @@ const EstoqueCategoriasCard: React.FC<{
               </span>
             </div>
 
-            {/* Valor TT Bloqueado */}
+            {/* Valor TT Bloqueado com % do Estoque Total */}
             <div
               className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs cursor-default"
-              title={`Valor Bloqueado: R$ ${totalGeralBloqueios.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              title={`Valor Bloqueado: R$ ${totalGeralBloqueios.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${baseTotalValor > 0 ? ((totalGeralBloqueios.valor / baseTotalValor) * 100).toFixed(2) : 0}% do Estoque Total)`}
             >
               <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
                 <span className="p-0.5 rounded bg-emerald-50 text-emerald-600">
@@ -1215,9 +1219,14 @@ const EstoqueCategoriasCard: React.FC<{
                 </span>
                 <span className="text-emerald-800">Valor TT Bloq.</span>
               </div>
-              <span className="text-sm font-black text-emerald-700 font-mono leading-tight">
-                {formatCurrencyCompact(totalGeralBloqueios.valor)}
-              </span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-sm font-black text-emerald-700 font-mono leading-tight">
+                  {formatCurrencyCompact(totalGeralBloqueios.valor)}
+                </span>
+                <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                  {baseTotalValor > 0 ? `${((totalGeralBloqueios.valor / baseTotalValor) * 100).toFixed(2)}%` : '0%'}
+                </span>
+              </div>
             </div>
           </div>
         )}
@@ -2796,6 +2805,7 @@ export const DashboardPage: React.FC = () => {
           isProcessing={isProcessingEstoque}
           bloqueioFaixa={bloqueioFaixa}
           onBloqueioFaixaChange={setBloqueioFaixa}
+          totalEstoqueGeralValor={estoqueBaseSummary.bomOnly?.totalValor}
         />
       </div>
 
