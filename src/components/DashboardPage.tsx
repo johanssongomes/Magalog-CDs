@@ -722,25 +722,25 @@ const BloqueioDetalhesModal: React.FC<{
   isOpen: boolean
   onClose: () => void
   motivoNome: string
-  items: EstoqueBloqueioItemDetalhe[]
-}> = ({ isOpen, onClose, motivoNome, items }) => {
+  items?: EstoqueBloqueioItemDetalhe[]
+}> = ({ isOpen, onClose, motivoNome, items = [] }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [copied, setCopied] = useState(false)
   const [sortField, setSortField] = useState<keyof EstoqueBloqueioItemDetalhe>('valorTotal')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
-  if (!isOpen) return null
+  const safeItems = items || []
 
   const filteredItems = useMemo(() => {
-    let result = items
+    let result = safeItems
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase()
       result = result.filter(it =>
-        it.sku.toLowerCase().includes(q) ||
-        it.descricao.toLowerCase().includes(q) ||
-        it.linha.toLowerCase().includes(q) ||
-        it.classe.toLowerCase().includes(q) ||
-        it.endereco.toLowerCase().includes(q)
+        (it.sku || '').toLowerCase().includes(q) ||
+        (it.descricao || '').toLowerCase().includes(q) ||
+        (it.linha || '').toLowerCase().includes(q) ||
+        (it.classe || '').toLowerCase().includes(q) ||
+        (it.endereco || '').toLowerCase().includes(q)
       )
     }
     return [...result].sort((a, b) => {
@@ -750,14 +750,16 @@ const BloqueioDetalhesModal: React.FC<{
         return sortOrder === 'asc' ? valA - valB : valB - valA
       }
       return sortOrder === 'asc'
-        ? String(valA).localeCompare(String(valB))
-        : String(valB).localeCompare(String(valA))
+        ? String(valA || '').localeCompare(String(valB || ''))
+        : String(valB || '').localeCompare(String(valA || ''))
     })
-  }, [items, searchTerm, sortField, sortOrder])
+  }, [safeItems, searchTerm, sortField, sortOrder])
 
-  const totalPecas = filteredItems.reduce((acc, it) => acc + it.pecas, 0)
-  const totalCub = filteredItems.reduce((acc, it) => acc + it.cubagem, 0)
-  const totalVal = filteredItems.reduce((acc, it) => acc + it.valorTotal, 0)
+  const totalPecas = filteredItems.reduce((acc, it) => acc + (it.pecas || 0), 0)
+  const totalCub = filteredItems.reduce((acc, it) => acc + (it.cubagem || 0), 0)
+  const totalVal = filteredItems.reduce((acc, it) => acc + (it.valorTotal || 0), 0)
+
+  if (!isOpen) return null
 
   const handleSort = (field: keyof EstoqueBloqueioItemDetalhe) => {
     if (sortField === field) {
