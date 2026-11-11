@@ -949,14 +949,41 @@ const EstoqueCategoriasCard: React.FC<{
   // Estado para o Modal de Detalhes do Bloqueio
   const [selectedMotivo, setSelectedMotivo] = useState<EstoqueBloqueioMotivo | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  // Segmentação por Tipo de Bloqueio: 'TODOS' | 'GERAL' | 'QUALIDADE'
+  const [bloqueioTipo, setBloqueioTipo] = useState<'TODOS' | 'GERAL' | 'QUALIDADE'>('TODOS')
 
   const handleOpenMotivo = (motivo: EstoqueBloqueioMotivo) => {
     setSelectedMotivo(motivo)
     setIsModalOpen(true)
   }
 
-  // Filtra ou calcula os motivos de qualidade conforme a faixa de dias selecionada
+  // Lista dos motivos que pertencem ao Bloco de "BLQ QUALIDADE" (conforme solicitado)
+  const MOTIVOS_QUALIDADE_SET = useMemo(() => new Set([
+    'F - FALTA/DVG (CTE)',
+    'A - PROD. DANIFICADO (CTE/DQS)',
+    'F - FALTA VOLUME (CTE)',
+    'CONTROLE DE ESTOQUE (CTE)',
+    'ESTORNO FILIAL (CTE)',
+    'REMANEJAMENTO',
+    'RECEBIMENTO TÉCNICO',
+    'AVARIA PERECIVEIS',
+    'AVARIA  PERECIVEIS'
+  ]), [])
+
+  // Filtra ou calcula os motivos de qualidade conforme a faixa de dias e tipo selecionados
   const faixasDisponiveis = ['TODOS', '0 DIAS', '7 DIAS', '30 DIAS', '90 DIAS', '120 DIAS', 'ACIMA DE 120 DIAS']
+
+  const isQualidadeMotivo = (motivoNome: string) => {
+    return MOTIVOS_QUALIDADE_SET.has(motivoNome.trim()) ||
+      motivoNome.includes('FALTA/DVG') ||
+      motivoNome.includes('PROD. DANIFICADO') ||
+      motivoNome.includes('FALTA VOLUME') ||
+      motivoNome.includes('CONTROLE DE ESTOQUE') ||
+      motivoNome.includes('ESTORNO FILIAL') ||
+      motivoNome.includes('REMANEJAMENTO') ||
+      motivoNome.includes('RECEBIMENTO TÉCNICO') ||
+      (motivoNome.includes('AVARIA') && motivoNome.includes('PERECIVEIS'))
+  }
 
   const motivosFiltrados = useMemo(() => {
     if (!bloqueiosData?.motivos) return []
@@ -967,24 +994,43 @@ const EstoqueCategoriasCard: React.FC<{
       }
       return {
         ...m,
-        valorExibido
+        valorExibido,
+        isQualidade: isQualidadeMotivo(m.motivo)
       }
-    }).filter(m => m.valorExibido > 0 || bloqueioFaixa === 'TODOS')
-      .sort((a, b) => b.valorExibido - a.valorExibido)
-  }, [bloqueiosData, bloqueioFaixa])
+    }).filter(m => {
+      const matchFaixa = m.valorExibido > 0 || bloqueioFaixa === 'TODOS'
+      if (!matchFaixa) return false
+      if (bloqueioTipo === 'GERAL') return !m.isQualidade
+      if (bloqueioTipo === 'QUALIDADE') return m.isQualidade
+      return true
+    }).sort((a, b) => b.valorExibido - a.valorExibido)
+  }, [bloqueiosData, bloqueioFaixa, bloqueioTipo])
 
-  // Totalizadores de Bloqueios
+  // Separação em dois grupos para quando bloqueioTipo === 'TODOS'
+  const motivosGeral = useMemo(() => {
+    return motivosFiltrados.filter(m => !m.isQualidade)
+  }, [motivosFiltrados])
+
+  const motivosQualidade = useMemo(() => {
+    return motivosFiltrados.filter(m => m.isQualidade)
+  }, [motivosFiltrados])
+
+  // Totalizadores de Bloqueios respeitando filtros
   const totalGeralBloqueios = useMemo(() => {
-    if (!bloqueiosData) return { skus: 0, pecas: 0, cubagem: 0, valor: 0 }
-    if (bloqueioFaixa === 'TODOS') {
+    if (!bloqueiosData) return { skus: 0, pecas: 0, cubagem: 0, valor: 0, linhas: 0 }
+    
+    // Se não há filtro de tipo nem faixa, é o total geral bruto
+    if (bloqueioFaixa === 'TODOS' && bloqueioTipo === 'TODOS') {
       return {
         skus: bloqueiosData.totalSkus,
         pecas: bloqueiosData.totalPecas,
         cubagem: bloqueiosData.totalCubagem,
-        valor: bloqueiosData.totalValor
+        valor: bloqueiosData.totalValor,
+        linhas: data.totalLinhas
       }
     }
-    const valFaixa = (bloqueiosData.totalFaixas as any)[bloqueioFaixa] || 0
+
+    const sumValor = motivosFiltrados.reduce((acc, m) => acc + m.valorExibido, 0)
     const sumPecas = motivosFiltrados.reduce((acc, m) => acc + m.pecas, 0)
     const sumCub = motivosFiltrados.reduce((acc, m) => acc + m.cubagem, 0)
     const sumSkus = motivosFiltrados.reduce((acc, m) => acc + m.skus, 0)
@@ -992,9 +1038,10 @@ const EstoqueCategoriasCard: React.FC<{
       skus: sumSkus,
       pecas: sumPecas,
       cubagem: Math.round(sumCub * 100) / 100,
-      valor: Math.round(valFaixa * 100) / 100
+      valor: Math.round(sumValor * 100) / 100,
+      linhas: data.totalLinhas
     }
-  }, [bloqueiosData, bloqueioFaixa, motivosFiltrados])
+  }, [bloqueiosData, bloqueioFaixa, bloqueioTipo, motivosFiltrados, data.totalLinhas])
 
   return (
     <Card className={`p-4 flex flex-col justify-between transition-all duration-300 ${isBloqueios ? 'xl:col-span-6 2xl:col-span-6' : 'xl:col-span-4'}`}>
@@ -1341,33 +1388,78 @@ const EstoqueCategoriasCard: React.FC<{
             </div>
           </div>
         ) : (
-          /* TABELA DE BLOQUEIOS COM SEGMENTAÇÃO DE DIAS */
+          /* TABELA DE BLOQUEIOS COM SEGMENTAÇÃO DE DIAS E TIPO */
           <div>
-            {/* Segmentação Interativa por Faixa de Dias */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-1.5 mb-2 no-scrollbar">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mr-1 shrink-0">
-                Faixa:
-              </span>
-              {faixasDisponiveis.map(f => {
-                const isSelected = bloqueioFaixa === f
-                return (
+            {/* Segmentação Interativa: Faixa de Dias + Tipo de Bloqueio */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-100">
+              {/* Seletor de Tipo de Bloqueio: TODOS | BLQ GERAL | BLQ QUALIDADE */}
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mr-1 shrink-0">
+                  Tipo:
+                </span>
+                <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
                   <button
-                    key={f}
                     type="button"
-                    onClick={() => onBloqueioFaixaChange(f)}
-                    className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md whitespace-nowrap transition-all border ${
-                      isSelected
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    onClick={() => setBloqueioTipo('TODOS')}
+                    className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${
+                      bloqueioTipo === 'TODOS'
+                        ? 'bg-slate-900 text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    {f}
+                    Todos
                   </button>
-                )
-              })}
+                  <button
+                    type="button"
+                    onClick={() => setBloqueioTipo('GERAL')}
+                    className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${
+                      bloqueioTipo === 'GERAL'
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Blq Geral
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBloqueioTipo('QUALIDADE')}
+                    className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${
+                      bloqueioTipo === 'QUALIDADE'
+                        ? 'bg-amber-600 text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Blq Qualidade
+                  </button>
+                </div>
+              </div>
+
+              {/* Seletor por Faixa de Dias */}
+              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mr-1 shrink-0">
+                  Faixa:
+                </span>
+                {faixasDisponiveis.map(f => {
+                  const isSelected = bloqueioFaixa === f
+                  return (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => onBloqueioFaixaChange(f)}
+                      className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md whitespace-nowrap transition-all border ${
+                        isSelected
+                          ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
-            {/* Cabeçalho da Tabela de Bloqueios */}
+            {/* Cabeçalho e Linhas da Tabela de Bloqueios */}
             <div className="overflow-x-auto no-scrollbar">
               <table className="w-full text-left border-collapse text-[11px]">
                 <thead>
@@ -1398,70 +1490,117 @@ const EstoqueCategoriasCard: React.FC<{
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-mono text-[11px] whitespace-nowrap">
-                  {motivosFiltrados.slice(0, 15).map(m => {
-                    const pctBloq = totalGeralBloqueios.valor > 0
-                      ? ((m.valorExibido / totalGeralBloqueios.valor) * 100).toFixed(1)
-                      : '0.0'
-                    const pctEstoque = baseTotalValor > 0
-                      ? ((m.valorExibido / baseTotalValor) * 100).toFixed(2)
-                      : '0.00'
+                  {/* Função auxiliar para renderizar cada linha do motivo */}
+                  {(() => {
+                    const colCount = bloqueioFaixa === 'TODOS' ? 12 : 6
 
+                    const renderRow = (m: EstoqueBloqueioMotivo & { valorExibido: number; isQualidade: boolean }) => {
+                      const pctBloq = totalGeralBloqueios.valor > 0
+                        ? ((m.valorExibido / totalGeralBloqueios.valor) * 100).toFixed(1)
+                        : '0.0'
+                      const pctEstoque = baseTotalValor > 0
+                        ? ((m.valorExibido / baseTotalValor) * 100).toFixed(2)
+                        : '0.00'
+
+                      return (
+                        <tr key={m.motivo} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-1.5 px-1.5 font-sans font-medium text-slate-800">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenMotivo(m)}
+                              className="text-left font-bold text-blue-700 hover:text-blue-900 hover:underline cursor-pointer tracking-tight text-[11px]"
+                              title={`Clique para ver detalhes de ${m.motivo}`}
+                            >
+                              {m.motivo}
+                            </button>
+                          </td>
+                          <td className="py-1.5 px-1.5 text-center text-slate-700">{m.skus}</td>
+                          <td className="py-1.5 px-1.5 text-center text-slate-700">{m.pecas.toLocaleString('pt-BR')}</td>
+                          <td className="py-1.5 px-1.5 text-center text-slate-700">{m.cubagem.toFixed(1)}</td>
+                          {bloqueioFaixa === 'TODOS' ? (
+                            <>
+                              <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['0 DIAS'])}</td>
+                              <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['7 DIAS'])}</td>
+                              <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['30 DIAS'])}</td>
+                              <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['90 DIAS'])}</td>
+                              <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['120 DIAS'])}</td>
+                              <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['ACIMA DE 120 DIAS'])}</td>
+                            </>
+                          ) : null}
+                          <td className="py-1.5 px-1.5 text-right font-bold text-emerald-700">
+                            {formatCurrencyCompact(m.valorExibido)}
+                          </td>
+                          <td className="py-1.5 px-1.5 text-center">
+                            <span className="text-[9.5px] font-bold text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200">
+                              {pctBloq}%
+                            </span>
+                          </td>
+                          <td className="py-1.5 px-1.5 text-center">
+                            <span className="text-[9.5px] font-bold text-blue-700 bg-blue-50 px-1 py-0.5 rounded border border-blue-200">
+                              {pctEstoque}%
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    }
+
+                    // Se selecionou 'GERAL' ou 'QUALIDADE', renderiza direto
+                    if (bloqueioTipo !== 'TODOS') {
+                      return motivosFiltrados.slice(0, 15).map(renderRow)
+                    }
+
+                    // Se selecionou 'TODOS', faz o corte com a linha cinza divisória
                     return (
-                      <tr key={m.motivo} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-1.5 px-1.5 font-sans font-medium text-slate-800">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenMotivo(m)}
-                            className="text-left font-bold text-blue-700 hover:text-blue-900 hover:underline cursor-pointer tracking-tight text-[11px]"
-                            title={`Clique para ver detalhes de ${m.motivo}`}
-                          >
-                            {m.motivo}
-                          </button>
-                        </td>
-                        <td className="py-1.5 px-1.5 text-center text-slate-700">{m.skus}</td>
-                        <td className="py-1.5 px-1.5 text-center text-slate-700">{m.pecas.toLocaleString('pt-BR')}</td>
-                        <td className="py-1.5 px-1.5 text-center text-slate-700">{m.cubagem.toFixed(1)}</td>
-                        {bloqueioFaixa === 'TODOS' ? (
-                          <>
-                            <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['0 DIAS'])}</td>
-                            <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['7 DIAS'])}</td>
-                            <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['30 DIAS'])}</td>
-                            <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['90 DIAS'])}</td>
-                            <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['120 DIAS'])}</td>
-                            <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['ACIMA DE 120 DIAS'])}</td>
-                          </>
-                        ) : null}
-                        <td className="py-1.5 px-1.5 text-right font-bold text-emerald-700">
-                          {formatCurrencyCompact(m.valorExibido)}
-                        </td>
-                        <td className="py-1.5 px-1.5 text-center">
-                          <span className="text-[9.5px] font-bold text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200">
-                            {pctBloq}%
-                          </span>
-                        </td>
-                        <td className="py-1.5 px-1.5 text-center">
-                          <span className="text-[9.5px] font-bold text-blue-700 bg-blue-50 px-1 py-0.5 rounded border border-blue-200">
-                            {pctEstoque}%
-                          </span>
-                        </td>
-                      </tr>
+                      <>
+                        {/* Grupo 1: Bloqueios Gerais */}
+                        {motivosGeral.map(renderRow)}
+
+                        {/* Linha Divisória de Corte Cinza com título do Bloco de Qualidade */}
+                        {motivosQualidade.length > 0 && (
+                          <tr className="bg-slate-100/90 border-y-2 border-slate-300">
+                            <td colSpan={colCount} className="py-1.5 px-2 font-sans font-bold text-slate-700 uppercase tracking-wider text-[9px]">
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                                <span>Bloqueios de Qualidade (Falta / DVG / Avarias / CTE / Remanejamento)</span>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+
+                        {/* Grupo 2: Bloqueios de Qualidade (Abaixo da linha cinza) */}
+                        {motivosQualidade.map(renderRow)}
+                      </>
                     )
-                  })}
+                  })()}
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-slate-300 bg-slate-50/90 font-bold text-[10.5px] whitespace-nowrap">
-                    <td className="py-1.5 px-1.5 font-sans uppercase text-slate-800">Total Geral</td>
+                    <td className="py-1.5 px-1.5 font-sans uppercase text-slate-800">
+                      Total {bloqueioTipo === 'TODOS' ? 'Geral' : bloqueioTipo === 'GERAL' ? 'Blq Geral' : 'Blq Qualidade'}
+                    </td>
                     <td className="py-1.5 px-1.5 text-center font-mono text-slate-800">{totalGeralBloqueios.skus}</td>
                     <td className="py-1.5 px-1.5 text-center font-mono text-slate-800">{totalGeralBloqueios.pecas.toLocaleString('pt-BR')}</td>
                     <td className="py-1.5 px-1.5 text-center font-mono text-slate-800">{totalGeralBloqueios.cubagem.toFixed(1)}</td>
                     {bloqueioFaixa === 'TODOS' && bloqueiosData ? (
                       <>
-                        <td className="py-1.5 px-1.5 text-right font-mono text-emerald-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['0 DIAS'])}</td>
-                        <td className="py-1.5 px-1.5 text-right font-mono text-emerald-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['7 DIAS'])}</td>
-                        <td className="py-1.5 px-1.5 text-right font-mono text-amber-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['30 DIAS'])}</td>
-                        <td className="py-1.5 px-1.5 text-right font-mono text-amber-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['90 DIAS'])}</td>
-                        <td className="py-1.5 px-1.5 text-right font-mono text-rose-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['120 DIAS'])}</td>
-                        <td className="py-1.5 px-1.5 text-right font-mono text-rose-800">{formatCurrencyCompact(bloqueiosData.totalFaixas['ACIMA DE 120 DIAS'])}</td>
+                        <td className="py-1.5 px-1.5 text-right font-mono text-emerald-700">
+                          {formatCurrencyCompact(motivosFiltrados.reduce((acc, m) => acc + (m.faixas['0 DIAS'] || 0), 0))}
+                        </td>
+                        <td className="py-1.5 px-1.5 text-right font-mono text-emerald-700">
+                          {formatCurrencyCompact(motivosFiltrados.reduce((acc, m) => acc + (m.faixas['7 DIAS'] || 0), 0))}
+                        </td>
+                        <td className="py-1.5 px-1.5 text-right font-mono text-amber-700">
+                          {formatCurrencyCompact(motivosFiltrados.reduce((acc, m) => acc + (m.faixas['30 DIAS'] || 0), 0))}
+                        </td>
+                        <td className="py-1.5 px-1.5 text-right font-mono text-amber-700">
+                          {formatCurrencyCompact(motivosFiltrados.reduce((acc, m) => acc + (m.faixas['90 DIAS'] || 0), 0))}
+                        </td>
+                        <td className="py-1.5 px-1.5 text-right font-mono text-rose-700">
+                          {formatCurrencyCompact(motivosFiltrados.reduce((acc, m) => acc + (m.faixas['120 DIAS'] || 0), 0))}
+                        </td>
+                        <td className="py-1.5 px-1.5 text-right font-mono text-rose-800">
+                          {formatCurrencyCompact(motivosFiltrados.reduce((acc, m) => acc + (m.faixas['ACIMA DE 120 DIAS'] || 0), 0))}
+                        </td>
                       </>
                     ) : null}
                     <td className="py-1.5 px-1.5 text-right font-mono text-emerald-800 font-black">
