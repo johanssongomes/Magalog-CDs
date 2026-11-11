@@ -27,3 +27,4 @@ CREATE POLICY "Permitir insercao e atualizacao publica de base_valores"
   ON public.base_valores FOR ALL
   USING (true)
   WITH CHECK (true);
+
