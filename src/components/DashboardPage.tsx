@@ -997,7 +997,7 @@ const EstoqueCategoriasCard: React.FC<{
   }, [bloqueiosData, bloqueioFaixa, motivosFiltrados])
 
   return (
-    <Card className="p-4 xl:col-span-4 flex flex-col justify-between">
+    <Card className={`p-4 flex flex-col justify-between transition-all duration-300 ${isBloqueios ? 'xl:col-span-6 2xl:col-span-6' : 'xl:col-span-4'}`}>
       <div>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -1360,36 +1360,36 @@ const EstoqueCategoriasCard: React.FC<{
             </div>
 
             {/* Cabeçalho da Tabela de Bloqueios */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-[10.5px]">
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-left border-collapse text-[10px]">
                 <thead>
-                  <tr className="border-b border-slate-200 text-[8.5px] font-bold uppercase tracking-wider text-slate-600 bg-slate-50 select-none whitespace-nowrap">
-                    <th className="py-1.5 px-2 font-bold">Motivo de Qualidade</th>
-                    <th className="py-1.5 px-1.5 text-center font-bold">SKUs</th>
-                    <th className="py-1.5 px-1.5 text-center font-bold">Pçs</th>
-                    <th className="py-1.5 px-1.5 text-center font-bold">m³</th>
+                  <tr className="border-b border-slate-200 text-[8px] font-bold uppercase tracking-wider text-slate-600 bg-slate-50 select-none whitespace-nowrap">
+                    <th className="py-1 px-1 font-bold">Motivo de Qualidade</th>
+                    <th className="py-1 px-1 text-center font-bold">SKUs</th>
+                    <th className="py-1 px-1 text-center font-bold">Pçs</th>
+                    <th className="py-1 px-1 text-center font-bold">m³</th>
                     {bloqueioFaixa === 'TODOS' ? (
                       <>
-                        <th className="py-1.5 px-1.5 text-right font-bold text-emerald-700">0 Dias</th>
-                        <th className="py-1.5 px-1.5 text-right font-bold text-emerald-700">7 Dias</th>
-                        <th className="py-1.5 px-1.5 text-right font-bold text-amber-700">30 Dias</th>
-                        <th className="py-1.5 px-1.5 text-right font-bold text-amber-700">90 Dias</th>
-                        <th className="py-1.5 px-1.5 text-right font-bold text-rose-700">120 Dias</th>
-                        <th className="py-1.5 px-1.5 text-right font-bold text-rose-800">+120 Dias</th>
+                        <th className="py-1 px-1 text-right font-bold text-emerald-700">0D</th>
+                        <th className="py-1 px-1 text-right font-bold text-emerald-700">7D</th>
+                        <th className="py-1 px-1 text-right font-bold text-amber-700">30D</th>
+                        <th className="py-1 px-1 text-right font-bold text-amber-700">90D</th>
+                        <th className="py-1 px-1 text-right font-bold text-rose-700">120D</th>
+                        <th className="py-1 px-1 text-right font-bold text-rose-800">+120D</th>
                       </>
                     ) : null}
-                    <th className="py-1.5 px-2 text-right font-bold text-emerald-800">
-                      {bloqueioFaixa === 'TODOS' ? 'Valor Total' : `Valor (${bloqueioFaixa})`}
+                    <th className="py-1 px-1 text-right font-bold text-emerald-800">
+                      {bloqueioFaixa === 'TODOS' ? 'Valor TT' : `Valor (${bloqueioFaixa})`}
                     </th>
-                    <th className="py-1.5 px-2 text-center font-bold text-amber-800" title="% sobre o Valor Total Bloqueado">
+                    <th className="py-1 px-1 text-center font-bold text-amber-800" title="% sobre o Valor Total Bloqueado">
                       % Bloq.
                     </th>
-                    <th className="py-1.5 px-2 text-center font-bold text-blue-800" title="% sobre o Valor Total do Estoque">
-                      % Estoque
+                    <th className="py-1 px-1 text-center font-bold text-blue-800" title="% sobre o Valor Total do Estoque">
+                      % Est.
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-mono text-[10.5px] whitespace-nowrap">
+                <tbody className="divide-y divide-slate-100 font-mono text-[10px] whitespace-nowrap">
                   {motivosFiltrados.slice(0, 15).map(m => {
                     const pctBloq = totalGeralBloqueios.valor > 0
                       ? ((m.valorExibido / totalGeralBloqueios.valor) * 100).toFixed(1)
@@ -1400,7 +1400,7 @@ const EstoqueCategoriasCard: React.FC<{
 
                     return (
                       <tr key={m.motivo} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-1.5 px-2 font-sans font-medium text-slate-800">
+                        <td className="py-1 px-1 font-sans font-medium text-slate-800">
                           <button
                             type="button"
                             onClick={() => handleOpenMotivo(m)}
@@ -1410,29 +1410,29 @@ const EstoqueCategoriasCard: React.FC<{
                             {m.motivo}
                           </button>
                         </td>
-                        <td className="py-1.5 px-1.5 text-center text-slate-600">{m.skus}</td>
-                        <td className="py-1.5 px-1.5 text-center text-slate-600">{m.pecas.toLocaleString('pt-BR')}</td>
-                        <td className="py-1.5 px-1.5 text-center text-slate-600">{m.cubagem.toFixed(1)}</td>
+                        <td className="py-1 px-1 text-center text-slate-600">{m.skus}</td>
+                        <td className="py-1 px-1 text-center text-slate-600">{m.pecas.toLocaleString('pt-BR')}</td>
+                        <td className="py-1 px-1 text-center text-slate-600">{m.cubagem.toFixed(1)}</td>
                         {bloqueioFaixa === 'TODOS' ? (
                           <>
-                            <td className="py-1.5 px-1.5 text-right text-slate-500">{formatCurrencyCompact(m.faixas['0 DIAS'])}</td>
-                            <td className="py-1.5 px-1.5 text-right text-slate-500">{formatCurrencyCompact(m.faixas['7 DIAS'])}</td>
-                            <td className="py-1.5 px-1.5 text-right text-slate-500">{formatCurrencyCompact(m.faixas['30 DIAS'])}</td>
-                            <td className="py-1.5 px-1.5 text-right text-slate-500">{formatCurrencyCompact(m.faixas['90 DIAS'])}</td>
-                            <td className="py-1.5 px-1.5 text-right text-slate-500">{formatCurrencyCompact(m.faixas['120 DIAS'])}</td>
-                            <td className="py-1.5 px-1.5 text-right text-slate-500">{formatCurrencyCompact(m.faixas['ACIMA DE 120 DIAS'])}</td>
+                            <td className="py-1 px-1 text-right text-slate-500">{formatCurrencyCompact(m.faixas['0 DIAS'])}</td>
+                            <td className="py-1 px-1 text-right text-slate-500">{formatCurrencyCompact(m.faixas['7 DIAS'])}</td>
+                            <td className="py-1 px-1 text-right text-slate-500">{formatCurrencyCompact(m.faixas['30 DIAS'])}</td>
+                            <td className="py-1 px-1 text-right text-slate-500">{formatCurrencyCompact(m.faixas['90 DIAS'])}</td>
+                            <td className="py-1 px-1 text-right text-slate-500">{formatCurrencyCompact(m.faixas['120 DIAS'])}</td>
+                            <td className="py-1 px-1 text-right text-slate-500">{formatCurrencyCompact(m.faixas['ACIMA DE 120 DIAS'])}</td>
                           </>
                         ) : null}
-                        <td className="py-1.5 px-2 text-right font-bold text-emerald-700">
+                        <td className="py-1 px-1 text-right font-bold text-emerald-700">
                           {formatCurrencyCompact(m.valorExibido)}
                         </td>
-                        <td className="py-1.5 px-2 text-center">
-                          <span className="text-[9.5px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                        <td className="py-1 px-1 text-center">
+                          <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
                             {pctBloq}%
                           </span>
                         </td>
-                        <td className="py-1.5 px-2 text-center">
-                          <span className="text-[9.5px] font-bold text-blue-700 bg-blue-50 px-1 py-0.2 rounded border border-blue-200">
+                        <td className="py-1 px-1 text-center">
+                          <span className="text-[9px] font-bold text-blue-700 bg-blue-50 px-1 py-0.2 rounded border border-blue-200">
                             {pctEstoque}%
                           </span>
                         </td>
@@ -1441,28 +1441,28 @@ const EstoqueCategoriasCard: React.FC<{
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-slate-300 bg-slate-50/90 font-bold text-[10px] whitespace-nowrap">
-                    <td className="py-2 px-2 font-sans uppercase text-slate-800">Total Geral</td>
-                    <td className="py-2 px-1.5 text-center font-mono text-slate-800">{totalGeralBloqueios.skus}</td>
-                    <td className="py-2 px-1.5 text-center font-mono text-slate-800">{totalGeralBloqueios.pecas.toLocaleString('pt-BR')}</td>
-                    <td className="py-2 px-1.5 text-center font-mono text-slate-800">{totalGeralBloqueios.cubagem.toFixed(1)}</td>
+                  <tr className="border-t-2 border-slate-300 bg-slate-50/90 font-bold text-[9.5px] whitespace-nowrap">
+                    <td className="py-1 px-1 font-sans uppercase text-slate-800">Total Geral</td>
+                    <td className="py-1 px-1 text-center font-mono text-slate-800">{totalGeralBloqueios.skus}</td>
+                    <td className="py-1 px-1 text-center font-mono text-slate-800">{totalGeralBloqueios.pecas.toLocaleString('pt-BR')}</td>
+                    <td className="py-1 px-1 text-center font-mono text-slate-800">{totalGeralBloqueios.cubagem.toFixed(1)}</td>
                     {bloqueioFaixa === 'TODOS' && bloqueiosData ? (
                       <>
-                        <td className="py-2 px-1.5 text-right font-mono text-emerald-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['0 DIAS'])}</td>
-                        <td className="py-2 px-1.5 text-right font-mono text-emerald-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['7 DIAS'])}</td>
-                        <td className="py-2 px-1.5 text-right font-mono text-amber-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['30 DIAS'])}</td>
-                        <td className="py-2 px-1.5 text-right font-mono text-amber-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['90 DIAS'])}</td>
-                        <td className="py-2 px-1.5 text-right font-mono text-rose-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['120 DIAS'])}</td>
-                        <td className="py-2 px-1.5 text-right font-mono text-rose-800">{formatCurrencyCompact(bloqueiosData.totalFaixas['ACIMA DE 120 DIAS'])}</td>
+                        <td className="py-1 px-1 text-right font-mono text-emerald-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['0 DIAS'])}</td>
+                        <td className="py-1 px-1 text-right font-mono text-emerald-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['7 DIAS'])}</td>
+                        <td className="py-1 px-1 text-right font-mono text-amber-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['30 DIAS'])}</td>
+                        <td className="py-1 px-1 text-right font-mono text-amber-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['90 DIAS'])}</td>
+                        <td className="py-1 px-1 text-right font-mono text-rose-700">{formatCurrencyCompact(bloqueiosData.totalFaixas['120 DIAS'])}</td>
+                        <td className="py-1 px-1 text-right font-mono text-rose-800">{formatCurrencyCompact(bloqueiosData.totalFaixas['ACIMA DE 120 DIAS'])}</td>
                       </>
                     ) : null}
-                    <td className="py-2 px-2 text-right font-mono text-emerald-800 font-black">
+                    <td className="py-1 px-1 text-right font-mono text-emerald-800 font-black">
                       {formatCurrencyCompact(totalGeralBloqueios.valor)}
                     </td>
-                    <td className="py-2 px-2 text-center font-mono text-amber-800 font-bold">
+                    <td className="py-1 px-1 text-center font-mono text-amber-800 font-bold">
                       100%
                     </td>
-                    <td className="py-2 px-2 text-center font-mono text-blue-800 font-bold">
+                    <td className="py-1 px-1 text-center font-mono text-blue-800 font-bold">
                       {baseTotalValor > 0 ? `${((totalGeralBloqueios.valor / baseTotalValor) * 100).toFixed(2)}%` : '0%'}
                     </td>
                   </tr>
@@ -2763,7 +2763,7 @@ export const DashboardPage: React.FC = () => {
 
       {/* Linha de gráficos e alertas */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-        <Card className="p-4 xl:col-span-5">
+        <Card className={`p-4 transition-all duration-300 ${estoqueFilterStatus === 'BLOQUEADOS' ? 'xl:col-span-4' : 'xl:col-span-5'}`}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
             <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
               <span className="text-slate-500"><BarChart3 size={16} /></span>
@@ -2822,7 +2822,7 @@ export const DashboardPage: React.FC = () => {
 
           <PerformanceChart data={performance7Days} metric={chartMetric} />
         </Card>
-        <Card className="p-4 xl:col-span-3">
+        <Card className={`p-4 transition-all duration-300 ${estoqueFilterStatus === 'BLOQUEADOS' ? 'xl:col-span-2' : 'xl:col-span-3'}`}>
           <CardTitle icon={<Timer size={16} />} title="Performance por Turno"
             right={<Legend items={[{ label: 'Realizado', color: '#3b82f6' }, { label: 'Meta', color: '#cbd5e1' }]} />} />
           <TurnoChart />
