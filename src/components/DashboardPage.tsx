@@ -683,18 +683,6 @@ const EstoqueCategoriasCard: React.FC<{
             </div>
           </div>
 
-          {/* Valor TT do Estoque (Área destacada no cabeçalho) */}
-          <div
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 shadow-2xs"
-            title={`Valor Total do Estoque: R$ ${(data.totalValor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          >
-            <DollarSign size={13} className="text-emerald-600 shrink-0" />
-            <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-tight">Valor TT:</span>
-            <span className="text-xs font-black text-emerald-700 font-mono">
-              {formatCurrencyCompact(data.totalValor)}
-            </span>
-          </div>
-
           <div className="flex items-center gap-1.5">
             {/* Filtro DS_AREA_ERP: BOM vs TODOS */}
             <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
@@ -748,7 +736,7 @@ const EstoqueCategoriasCard: React.FC<{
           </div>
         </div>
 
-        {/* Resumo Totalizador: Cubagem vs Capacidade Geral vs Gap (Cards centralizados com ícones) */}
+        {/* Resumo Totalizador: Cubagem vs Capacidade Geral vs Gap vs Ocupação vs Valor TT (5 cards com ícones) */}
         {(() => {
           const capGeral = data.totalCapacidade || 27519
           const armGeral = Math.round(data.totalCubagem)
@@ -758,10 +746,10 @@ const EstoqueCategoriasCard: React.FC<{
             : `${gapGeral.toLocaleString('pt-BR')}`
 
           return (
-            <div className="grid grid-cols-4 gap-1.5 p-1.5 rounded-xl bg-slate-50/80 border border-slate-100 mb-2.5">
+            <div className="grid grid-cols-5 gap-1.5 p-1.5 rounded-xl bg-slate-50/80 border border-slate-100 mb-2.5">
               {/* Cubagem Total (Armazenado) */}
               <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
-                <div className="flex items-center gap-1 text-[8.5px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
                   <span className="p-0.5 rounded bg-blue-50 text-blue-600">
                     <Boxes size={10} />
                   </span>
@@ -775,7 +763,7 @@ const EstoqueCategoriasCard: React.FC<{
 
               {/* Capacidade Meta */}
               <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
-                <div className="flex items-center gap-1 text-[8.5px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
                   <span className="p-0.5 rounded bg-sky-50 text-sky-600">
                     <Warehouse size={10} />
                   </span>
@@ -789,7 +777,7 @@ const EstoqueCategoriasCard: React.FC<{
 
               {/* Gap da Diferença (Capacidade - Armazenado) */}
               <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
-                <div className="flex items-center gap-1 text-[8.5px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
                   <span className={`p-0.5 rounded ${gapGeral < 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
                     <TrendingUp size={10} />
                   </span>
@@ -803,7 +791,7 @@ const EstoqueCategoriasCard: React.FC<{
 
               {/* Ocupação Geral */}
               <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
-                <div className="flex items-center gap-1 text-[8.5px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
                   <span className={`p-0.5 rounded ${(data.totalOcupacao || 0) > 100 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
                     <PieChart size={10} />
                   </span>
@@ -811,6 +799,22 @@ const EstoqueCategoriasCard: React.FC<{
                 </div>
                 <span className={`text-sm font-black leading-tight ${(data.totalOcupacao || 0) > 100 ? 'text-amber-600' : 'text-emerald-600'}`}>
                   {(data.totalOcupacao || Math.round((data.totalCubagem / 27519) * 100)).toFixed(1)}%
+                </span>
+              </div>
+
+              {/* Valor Total do Estoque (Novo Card) */}
+              <div
+                className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs cursor-default"
+                title={`Valor Total do Estoque: R$ ${(data.totalValor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              >
+                <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                  <span className="p-0.5 rounded bg-emerald-50 text-emerald-600">
+                    <DollarSign size={10} />
+                  </span>
+                  <span className="text-emerald-800">Valor TT</span>
+                </div>
+                <span className="text-sm font-black text-emerald-700 font-mono leading-tight">
+                  {formatCurrencyCompact(data.totalValor)}
                 </span>
               </div>
             </div>
