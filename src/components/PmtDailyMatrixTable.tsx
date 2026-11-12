@@ -140,6 +140,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
   const [editingCapacityCell, setEditingCapacityCell] = useState<{ metric: 'pedidos' | 'pecas' | 'cubagem'; dayStr: string } | null>(null)
   const [capacityInputVal, setCapacityInputVal] = useState('')
 
+  // Edição rápida de Carteira Real em célula
+  const [editingCarteiraCell, setEditingCarteiraCell] = useState<{ metric: 'pedidos' | 'pecas' | 'cubagem'; dayStr: string } | null>(null)
+  const [carteiraInputVal, setCarteiraInputVal] = useState('')
+
   // Filtros de Calendário (Mês Todo, Dias Úteis, Quinzenas, Dias Específicos e Faixa de Datas)
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false)
   const [selectedDays, setSelectedDays] = useState<number[]>([])
@@ -322,6 +326,26 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
     setEditingCapacityCell(null)
   }
 
+  // Salvar alteração de Carteira Real
+  const handleSaveCarteiraReal = async (metric: 'pedidos' | 'pecas' | 'cubagem', dayStr: string, value: number) => {
+    const curCarteira = aderencia.carteiraReal || {}
+    const updated: AderenciaDataState = {
+      ...aderencia,
+      carteiraReal: {
+        ...curCarteira,
+        [metric]: {
+          ...(curCarteira[metric] || {}),
+          [dayStr]: value
+        }
+      }
+    }
+    setAderencia(updated)
+    if (onAderenciaChange) onAderenciaChange(updated)
+    window.dispatchEvent(new CustomEvent('aderenciaDataUpdated', { detail: updated }))
+    await saveAderenciaData(updated)
+    setEditingCarteiraCell(null)
+  }
+
   // Upload e processamento de planilhas de Aderência
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'liberado' | 'faturado') => {
     const file = e.target.files?.[0]
@@ -458,6 +482,40 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
     const capTotalSum = getRowTotal(capTotals)
     const capTotalAvg = getRowAverage(capTotals)
 
+    // 5. Carteira Real (Digitada Manualmente)
+    const carteiraRealTotals = aderencia.carteiraReal?.[metricKey] || {}
+    const carteiraRealSum = getRowTotal(carteiraRealTotals)
+    const carteiraRealAvg = getRowAverage(carteiraRealTotals)
+
+    // 6. Carteira Diluição Calculada Dia a Dia
+    // Fórmula: Começa com a Carteira Real do dia (se digitada) ou do dia anterior;
+    // Nos dias seguintes: Carteira Anterior + Planejado - Capacidade
+    const diluicaoMap: Record<string, number | null> = {}
+    let runningCarteira: number | null = null
+
+    activeFilteredDays.forEach((d) => {
+      const realVal = carteiraRealTotals[d.dayStr]
+      const pmtVal = pmtTotals[d.dayStr] || 0
+      const capVal = capTotals[d.dayStr] || 0
+
+      if (realVal !== undefined && realVal !== null && realVal > 0) {
+        // Ponto de partida explicitado pelo usuário
+        runningCarteira = realVal
+        diluicaoMap[d.dayStr] = realVal
+      } else if (runningCarteira !== null) {
+        // Diluição projetada: Anterior + Planejado - Capacidade
+        const nextVal = Math.max(0, runningCarteira + pmtVal - capVal)
+        runningCarteira = nextVal
+        diluicaoMap[d.dayStr] = nextVal
+      } else {
+        diluicaoMap[d.dayStr] = null
+      }
+    })
+
+    const validDiluicao = activeFilteredDays.map(d => diluicaoMap[d.dayStr]).filter((v): v is number => v !== null)
+    const diluicaoAvg = validDiluicao.length > 0 ? validDiluicao.reduce((a, b) => a + b, 0) / validDiluicao.length : 0
+    const diluicaoLast = validDiluicao.length > 0 ? validDiluicao[validDiluicao.length - 1] : 0
+
     return (
       <>
         {/* LINHA 1: LIBERADO */}
@@ -539,6 +597,37 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
           </td>
           <td className="sticky right-0 z-20 bg-amber-50 px-3 py-2 text-right font-mono font-bold text-amber-900 border-l border-amber-300 text-[13px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
             {formatNum(fatTotalSum)}
+          </td>
+        </tr>
+
+        {/* LINHA: CARTEIRA DILUIÇÃO (Calculada: Carteira Anterior + Planejado - Capacidade) */}
+        <tr className="bg-orange-50/70 border-b border-orange-200/80 hover:bg-orange-50 transition-colors">
+          <td className="sticky left-0 z-20 bg-orange-50 px-3 py-2 font-bold text-orange-950 border-r border-orange-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] flex items-center justify-between text-xs">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-orange-500" />
+              Carteira Diluição {metricKey === 'cubagem' ? 'm³' : `(${titleLabel})`}
+            </span>
+            <span className="text-[9px] text-orange-600 font-semibold ml-1">(Calculada)</span>
+          </td>
+          {activeFilteredDays.map((d) => {
+            const val = diluicaoMap[d.dayStr]
+            return (
+              <td
+                key={`diluicao-${metricKey}-${d.dayStr}`}
+                className={`px-1.5 py-2 text-center font-mono font-extrabold text-[13px] border-r border-orange-200/80 ${
+                  val === null ? 'text-slate-300' : 'text-orange-950 bg-orange-100/30'
+                }`}
+                title={val !== null ? `Carteira Diluição: ${formatNum(val)}` : 'Preencha Carteira Real para iniciar projeção'}
+              >
+                {val !== null ? formatNum(val) : '-'}
+              </td>
+            )
+          })}
+          <td className="px-2 py-2 text-right font-mono font-bold text-orange-900 border-r border-orange-300 text-[13px] bg-orange-50/90">
+            {diluicaoAvg > 0 ? formatNum(diluicaoAvg) : '-'}
+          </td>
+          <td className="sticky right-0 z-20 bg-orange-50 px-3 py-2 text-right font-mono font-black text-orange-950 border-l border-orange-300 text-[13px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+            {diluicaoLast > 0 ? formatNum(diluicaoLast) : '-'}
           </td>
         </tr>
 
@@ -683,6 +772,63 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
               </td>
             )
           })()}
+        </tr>
+
+        {/* LINHA: CARTEIRA REAL (Digitada Manualmente após Dias Em Carteira) */}
+        <tr className="bg-emerald-50/50 border-b-2 border-emerald-300 hover:bg-emerald-50/80 transition-colors">
+          <td className="sticky left-0 z-20 bg-emerald-50/90 px-3 py-2 font-bold text-emerald-950 border-r border-emerald-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] flex items-center justify-between text-xs">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-600" />
+              Carteira {metricKey === 'cubagem' ? 'm³' : ''} Real
+            </span>
+            <span className="text-[9px] text-emerald-700 font-normal ml-1">(clique p/ digitar)</span>
+          </td>
+          {activeFilteredDays.map((d) => {
+            const isEditing = editingCarteiraCell?.metric === metricKey && editingCarteiraCell?.dayStr === d.dayStr
+            const val = carteiraRealTotals[d.dayStr] || 0
+            return (
+              <td
+                key={`carteira-real-${metricKey}-${d.dayStr}`}
+                onClick={() => {
+                  setEditingCarteiraCell({ metric: metricKey, dayStr: d.dayStr })
+                  setCarteiraInputVal(val ? String(val) : '')
+                }}
+                className="px-1 py-1.5 text-center font-mono font-bold text-emerald-950 border-r border-emerald-200 text-[13px] cursor-pointer hover:bg-emerald-100/70 transition-colors"
+                title="Clique para digitar a carteira real deste dia"
+              >
+                {isEditing ? (
+                  <input
+                    type="number"
+                    autoFocus
+                    value={carteiraInputVal}
+                    onChange={(e) => setCarteiraInputVal(e.target.value)}
+                    onBlur={() => {
+                      const num = parseFloat(carteiraInputVal) || 0
+                      handleSaveCarteiraReal(metricKey, d.dayStr, num)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const num = parseFloat(carteiraInputVal) || 0
+                        handleSaveCarteiraReal(metricKey, d.dayStr, num)
+                      }
+                      if (e.key === 'Escape') setEditingCarteiraCell(null)
+                    }}
+                    className="w-full text-center bg-white border border-emerald-500 rounded px-1 py-0.5 text-[12px] font-mono focus:outline-none"
+                  />
+                ) : (
+                  <span className={val > 0 ? 'text-emerald-900 font-extrabold' : 'text-slate-300'}>
+                    {val > 0 ? formatNum(val) : '-'}
+                  </span>
+                )}
+              </td>
+            )
+          })}
+          <td className="px-2 py-2 text-right font-mono font-bold text-emerald-900 border-r border-emerald-300 text-[13px] bg-emerald-50/90">
+            {carteiraRealAvg > 0 ? formatNum(carteiraRealAvg) : '-'}
+          </td>
+          <td className="sticky right-0 z-20 bg-emerald-50/95 px-3 py-2 text-right font-mono font-black text-emerald-950 border-l border-emerald-300 text-[13px] shadow-[-2px_0_4px_rgba(0,0,0,0.03)]">
+            {carteiraRealSum > 0 ? formatNum(carteiraRealSum) : '-'}
+          </td>
         </tr>
       </>
     )

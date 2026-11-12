@@ -3,7 +3,7 @@ import { TrendingUp, Package, Layers, Boxes, Truck, CheckCircle2, ChevronLeft, C
 import initialOctMatrix from '../data/pmt_oct_2026_matrix.json'
 import initialAderenciaOct from '../data/initialAderencia202610.json'
 import { getPmtDailyMatrixFromSupabase, getPmtSummaryFromSupabase, type PmtDailyMatrixResponse } from '../lib/pmtService'
-import { getAderenciaData, type AderenciaDataState } from '../lib/aderenciaService'
+import { getAderenciaData, saveAderenciaData, type AderenciaDataState } from '../lib/aderenciaService'
 
 type MetricType = 'pedidos' | 'pecas' | 'cubagem'
 
@@ -39,6 +39,10 @@ export const PmtDashboardOverview: React.FC = () => {
     total_cub?: number
     total_linhas?: number
   } | null>(null)
+
+  // Edição rápida de Carteira Real em célula
+  const [editingCarteiraCell, setEditingCarteiraCell] = useState<string | null>(null)
+  const [carteiraInputVal, setCarteiraInputVal] = useState('')
 
   // Carregar dados de PMT e Aderência sempre que mês ou ano mudarem
   useEffect(() => {
@@ -135,6 +139,26 @@ export const PmtDashboardOverview: React.FC = () => {
     return days
   }, [selectedYear, selectedMonth])
 
+  // Salvar alteração de Carteira Real
+  const handleSaveCarteiraReal = async (dayStr: string, value: number) => {
+    if (!aderenciaData) return
+    const curCarteira = aderenciaData.carteiraReal || {}
+    const updated: AderenciaDataState = {
+      ...aderenciaData,
+      carteiraReal: {
+        ...curCarteira,
+        [selectedMetric]: {
+          ...(curCarteira[selectedMetric] || {}),
+          [dayStr]: value
+        }
+      }
+    }
+    setAderenciaData(updated)
+    window.dispatchEvent(new CustomEvent('aderenciaDataUpdated', { detail: updated }))
+    await saveAderenciaData(updated)
+    setEditingCarteiraCell(null)
+  }
+
   // Obter dados diários consolidados para a métrica selecionada
   const dailyData = useMemo(() => {
     // 1. PMT Planejado Diário
@@ -164,6 +188,36 @@ export const PmtDashboardOverview: React.FC = () => {
     const liberadoTotals = (aderenciaData?.liberado?.totals as any)?.[selectedMetric] || {}
     const faturadoTotals = (aderenciaData?.faturado?.totals as any)?.[selectedMetric] || {}
     const capacidadeMap = (aderenciaData?.capacidade as any)?.[selectedMetric] || {}
+    const carteiraRealMap = (aderenciaData?.carteiraReal as any)?.[selectedMetric] || {}
+
+    // 3. Projeção de Diluição Dia a Dia
+    const diluicaoMap: Record<string, number | null> = {}
+    let runningCarteira: number | null = null
+
+    daysInMonth.forEach(d => {
+      const pmtVal = Math.round(pmtDailyMap[d.dayStr] || 0)
+      const rawCap = capacidadeMap[d.dayStr] ?? capacidadeMap[d.day.toString()]
+      const isSunday = d.weekdayLetter === 'D'
+      let defaultCap = 0
+      if (!isSunday) {
+        if (selectedMetric === 'cubagem') defaultCap = 1000
+        else if (selectedMetric === 'pedidos') defaultCap = 2800
+        else defaultCap = 10000
+      }
+      const capVal = rawCap !== undefined ? Math.round(rawCap) : defaultCap
+      const realVal = carteiraRealMap[d.dayStr] ?? carteiraRealMap[d.day.toString()]
+
+      if (realVal !== undefined && realVal !== null && realVal > 0) {
+        runningCarteira = realVal
+        diluicaoMap[d.dayStr] = realVal
+      } else if (runningCarteira !== null) {
+        const nextVal = Math.max(0, runningCarteira + pmtVal - capVal)
+        runningCarteira = nextVal
+        diluicaoMap[d.dayStr] = nextVal
+      } else {
+        diluicaoMap[d.dayStr] = null
+      }
+    })
 
     return daysInMonth.map(d => {
       const pmtVal = Math.round(pmtDailyMap[d.dayStr] || 0)
@@ -193,6 +247,9 @@ export const PmtDashboardOverview: React.FC = () => {
       // Dias Em Carteira = PMT Planejado / Capacidade (com 1 casa decimal)
       const diasEmCarteira = (capVal > 0 && pmtVal > 0) ? (pmtVal / capVal) : null
 
+      // Carteira Real digitada
+      const carteiraRealVal = carteiraRealMap[d.dayStr] ?? carteiraRealMap[d.day.toString()] ?? 0
+
       return {
         day: d.day,
         dayStr: d.dayStr,
@@ -203,7 +260,9 @@ export const PmtDashboardOverview: React.FC = () => {
         fat: fatVal,
         cap: capVal,
         aderFat,
-        diasEmCarteira
+        diasEmCarteira,
+        carteiraReal: carteiraRealVal,
+        carteiraDiluicao: diluicaoMap[d.dayStr]
       }
     })
   }, [daysInMonth, matrixData, aderenciaData, selectedMetric])
@@ -252,6 +311,16 @@ export const PmtDashboardOverview: React.FC = () => {
 
     const totalDiasEmCarteira = (sumCap > 0 && sumPmt > 0) ? (sumPmt / sumCap) : null
 
+    // Carteira Real: soma e média dos dias com valor preenchido
+    const validCarteiraReal = dailyData.map(d => d.carteiraReal).filter(v => v > 0)
+    const sumCarteiraReal = validCarteiraReal.reduce((a, b) => a + b, 0)
+    const avgCarteiraReal = validCarteiraReal.length > 0 ? Math.round(sumCarteiraReal / validCarteiraReal.length) : 0
+
+    // Carteira Diluição: média e último valor projetado
+    const validDiluicao = dailyData.map(d => d.carteiraDiluicao).filter((v): v is number => v !== null)
+    const avgDiluicao = validDiluicao.length > 0 ? Math.round(validDiluicao.reduce((a, b) => a + b, 0) / validDiluicao.length) : 0
+    const lastDiluicao = validDiluicao.length > 0 ? validDiluicao[validDiluicao.length - 1] : 0
+
     return {
       sumPmt,
       avgPmt,
@@ -266,7 +335,11 @@ export const PmtDashboardOverview: React.FC = () => {
       totalAderFat,
       avgAderFat,
       avgDiasEmCarteira,
-      totalDiasEmCarteira
+      totalDiasEmCarteira,
+      sumCarteiraReal,
+      avgCarteiraReal,
+      avgDiluicao,
+      lastDiluicao
     }
   }, [dailyData])
 
@@ -852,6 +925,37 @@ export const PmtDashboardOverview: React.FC = () => {
                 </td>
               </tr>
 
+              {/* LINHA: CARTEIRA DILUIÇÃO (Calculada: Carteira Anterior + Planejado - Capacidade) */}
+              <tr className="bg-orange-50/50 hover:bg-orange-50/80 transition-colors border-t border-orange-100">
+                <td className="sticky left-0 z-20 bg-orange-50/90 px-3 py-1.5 font-bold text-orange-950 border-r border-orange-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)] font-sans flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
+                    Carteira Diluição {selectedMetric === 'cubagem' ? 'm³' : `(${metricLabel})`}
+                  </span>
+                  <span className="text-[9px] text-orange-600 font-semibold ml-1">(Calculada)</span>
+                </td>
+                {dailyData.map((d) => {
+                  const val = d.carteiraDiluicao
+                  return (
+                    <td
+                      key={`diluicao-${d.day}`}
+                      className={`px-1 py-1.5 text-center border-r border-orange-100 font-bold text-[11px] ${
+                        val === null ? 'text-slate-300' : 'text-orange-950 bg-orange-100/30 font-extrabold'
+                      }`}
+                      title={val !== null ? `Carteira Diluição: ${formatNum(val)}` : 'Preencha Carteira Real para iniciar projeção'}
+                    >
+                      {val !== null ? formatNum(val) : '-'}
+                    </td>
+                  )
+                })}
+                <td className="px-2 py-1.5 text-center font-bold text-orange-900 bg-orange-100/40 border-r border-orange-200">
+                  {totals.avgDiluicao > 0 ? formatNum(totals.avgDiluicao) : '-'}
+                </td>
+                <td className="px-2 py-1.5 text-center font-extrabold text-orange-950 bg-orange-100/40">
+                  {totals.lastDiluicao > 0 ? formatNum(totals.lastDiluicao) : '-'}
+                </td>
+              </tr>
+
               {/* LINHA 5: CAPACIDADE */}
               <tr className="bg-slate-50/60 hover:bg-slate-100/60 transition-colors">
                 <td className="sticky left-0 z-20 bg-slate-100/90 px-3 py-1.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)] font-sans flex items-center gap-1.5">
@@ -929,6 +1033,61 @@ export const PmtDashboardOverview: React.FC = () => {
                     : 'text-sky-950 bg-sky-100/50'
                 }`}>
                   {totals.totalDiasEmCarteira !== null ? totals.totalDiasEmCarteira.toFixed(1).replace('.', ',') : '-'}
+                </td>
+              </tr>
+
+              {/* LINHA: CARTEIRA REAL (Digitada Manualmente após Dias Em Carteira) */}
+              <tr className="bg-emerald-50/40 hover:bg-emerald-50/70 transition-colors border-t border-emerald-200">
+                <td className="sticky left-0 z-20 bg-emerald-50/90 px-3 py-1.5 font-bold text-emerald-950 border-r border-emerald-200 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.02)] font-sans flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0" />
+                    Carteira {selectedMetric === 'cubagem' ? 'm³' : ''} Real
+                  </span>
+                  <span className="text-[9px] text-emerald-700 font-normal ml-1">(clique p/ digitar)</span>
+                </td>
+                {dailyData.map((d) => {
+                  const isEditing = editingCarteiraCell?.metric === selectedMetric && editingCarteiraCell?.dayStr === d.dayStr
+                  const val = d.carteiraReal
+                  return (
+                    <td
+                      key={`carteira-real-${d.day}`}
+                      onClick={() => {
+                        setEditingCarteiraCell({ metric: selectedMetric, dayStr: d.dayStr })
+                        setCarteiraInputVal(val ? String(val) : '')
+                      }}
+                      className="px-1 py-1.5 text-center font-mono font-bold text-emerald-950 border-r border-emerald-100 text-[11px] cursor-pointer hover:bg-emerald-100/70 transition-colors"
+                      title="Clique para digitar a carteira real deste dia"
+                    >
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          autoFocus
+                          value={carteiraInputVal}
+                          onChange={(e) => setCarteiraInputVal(e.target.value)}
+                          onBlur={() => {
+                            const num = parseFloat(carteiraInputVal) || 0
+                            handleSaveCarteiraReal(selectedMetric, d.dayStr, num)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const num = parseFloat(carteiraInputVal) || 0
+                              handleSaveCarteiraReal(selectedMetric, d.dayStr, num)
+                            }
+                            if (e.key === 'Escape') setEditingCarteiraCell(null)
+                          }}
+                          className="w-full text-center bg-white border border-emerald-400 rounded px-1 py-0.5 text-[11px] font-mono focus:outline-none"
+                        />
+                      ) : (
+                        <span>{val ? formatNum(val) : '-'}</span>
+                      )}
+                    </td>
+                  )
+                })}
+                <td className="px-2 py-1.5 text-center font-bold text-emerald-900 bg-emerald-100/40 border-r border-emerald-200">
+                  {totals.avgCarteiraReal > 0 ? formatNum(totals.avgCarteiraReal) : '-'}
+                </td>
+                <td className="px-2 py-1.5 text-center font-extrabold text-emerald-950 bg-emerald-100/40">
+                  {totals.sumCarteiraReal > 0 ? formatNum(totals.sumCarteiraReal) : '-'}
                 </td>
               </tr>
             </tbody>

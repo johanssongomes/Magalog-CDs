@@ -1117,8 +1117,8 @@ const EstoqueCategoriasCard: React.FC<{
                 type="button"
                 onClick={() => onFilterChange('BOM')}
                 className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${filterStatus === 'BOM'
-                    ? 'bg-emerald-600 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
                   }`}
                 title="Apenas itens com status BOM em DS_AREA_ERP"
               >
@@ -1128,8 +1128,8 @@ const EstoqueCategoriasCard: React.FC<{
                 type="button"
                 onClick={() => onFilterChange('BLOQUEADOS')}
                 className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${filterStatus === 'BLOQUEADOS'
-                    ? 'bg-amber-600 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-amber-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
                   }`}
                 title="Itens com status BLOQUEADO em DS_AREA_ERP"
               >
@@ -1412,8 +1412,8 @@ const EstoqueCategoriasCard: React.FC<{
                         {/* Ocupação */}
                         <span
                           className={`w-10 text-[9px] font-bold px-1 py-0.2 rounded text-center ${isOverCapacity
-                              ? 'text-rose-600 bg-rose-50 border border-rose-100'
-                              : 'text-emerald-700 bg-emerald-50 border border-emerald-100'
+                            ? 'text-rose-600 bg-rose-50 border border-rose-100'
+                            : 'text-emerald-700 bg-emerald-50 border border-emerald-100'
                             }`}
                         >
                           {cat.ocupacao.toFixed(0)}%
@@ -1447,8 +1447,8 @@ const EstoqueCategoriasCard: React.FC<{
                     type="button"
                     onClick={() => setBloqueioTipo('TODOS')}
                     className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${bloqueioTipo === 'TODOS'
-                        ? 'bg-slate-900 text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-slate-900 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
                       }`}
                   >
                     Todos
@@ -1457,8 +1457,8 @@ const EstoqueCategoriasCard: React.FC<{
                     type="button"
                     onClick={() => setBloqueioTipo('GERAL')}
                     className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${bloqueioTipo === 'GERAL'
-                        ? 'bg-blue-600 text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
                       }`}
                   >
                     Blq Geral
@@ -1467,8 +1467,8 @@ const EstoqueCategoriasCard: React.FC<{
                     type="button"
                     onClick={() => setBloqueioTipo('QUALIDADE')}
                     className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${bloqueioTipo === 'QUALIDADE'
-                        ? 'bg-amber-600 text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-amber-600 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
                       }`}
                   >
                     Blq Qualidade
@@ -1489,8 +1489,8 @@ const EstoqueCategoriasCard: React.FC<{
                       type="button"
                       onClick={() => onBloqueioFaixaChange(f)}
                       className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md whitespace-nowrap transition-all border ${isSelected
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
-                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                         }`}
                     >
                       {f}
@@ -1871,7 +1871,7 @@ export const DashboardPage: React.FC = () => {
       const now = new Date()
       const cachedCur = localStorage.getItem(`magalog_pmt_aderencia_994_${now.getFullYear()}_${(now.getMonth() + 1).toString().padStart(2, '0')}`)
       if (cachedCur) return JSON.parse(cachedCur)
-    } catch {}
+    } catch { }
     // Padrão imediato idêntico ao mês ativo (Novembro/2026) para evitar qualquer flicker/salto ao alternar de aba
     return (initialAderenciaNov || initialAderenciaOct) as unknown as AderenciaDataState
   })
@@ -1881,7 +1881,7 @@ export const DashboardPage: React.FC = () => {
       const now = new Date()
       const cachedMatrix = localStorage.getItem(`magalog_pmt_daily_matrix_994_${now.getFullYear()}_${(now.getMonth() + 1).toString().padStart(2, '0')}_modal`)
       if (cachedMatrix) return JSON.parse(cachedMatrix)
-    } catch {}
+    } catch { }
     // Padrão imediato idêntico à matriz PMT de Novembro/2026
     return (initialNovMatrix || initialOctMatrix) as unknown as PmtDailyMatrixResponse
   })
@@ -2996,8 +2996,8 @@ export const DashboardPage: React.FC = () => {
                 type="button"
                 onClick={() => setChartMetric('cubagem')}
                 className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${chartMetric === 'cubagem'
-                    ? 'bg-white text-blue-700 shadow-2xs font-bold'
-                    : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
                   }`}
               >
                 Cubagem
@@ -3006,8 +3006,8 @@ export const DashboardPage: React.FC = () => {
                 type="button"
                 onClick={() => setChartMetric('pecas')}
                 className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${chartMetric === 'pecas'
-                    ? 'bg-white text-blue-700 shadow-2xs font-bold'
-                    : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
                   }`}
               >
                 Peças
@@ -3016,8 +3016,8 @@ export const DashboardPage: React.FC = () => {
                 type="button"
                 onClick={() => setChartMetric('pedidos')}
                 className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${chartMetric === 'pedidos'
-                    ? 'bg-white text-blue-700 shadow-2xs font-bold'
-                    : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
                   }`}
               >
                 Pedidos

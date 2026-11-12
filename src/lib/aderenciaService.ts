@@ -43,6 +43,11 @@ export interface AderenciaDataState {
     pecas: Record<string, number>
     cubagem: Record<string, number>
   }
+  carteiraReal?: {
+    cubagem?: Record<string, number>
+    pedidos?: Record<string, number>
+    pecas?: Record<string, number>
+  }
   updatedAt?: string
 }
 
