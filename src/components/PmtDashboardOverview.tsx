@@ -208,9 +208,12 @@ export const PmtDashboardOverview: React.FC = () => {
       const realVal = carteiraRealMap[d.dayStr] ?? carteiraRealMap[d.day.toString()]
 
       if (realVal !== undefined && realVal !== null && realVal > 0) {
-        runningCarteira = realVal
-        diluicaoMap[d.dayStr] = realVal
+        // No próprio dia onde foi digitado, já calcula: Carteira Real + Planejado - Capacidade
+        const calculatedVal = Math.max(0, realVal + pmtVal - capVal)
+        runningCarteira = calculatedVal
+        diluicaoMap[d.dayStr] = calculatedVal
       } else if (runningCarteira !== null) {
+        // Diluição projetada nos dias seguintes: Diluição Anterior + Planejado - Capacidade
         const nextVal = Math.max(0, runningCarteira + pmtVal - capVal)
         runningCarteira = nextVal
         diluicaoMap[d.dayStr] = nextVal

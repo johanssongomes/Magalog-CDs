@@ -499,11 +499,13 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
       const capVal = capTotals[d.dayStr] || 0
 
       if (realVal !== undefined && realVal !== null && realVal > 0) {
-        // Ponto de partida explicitado pelo usuário
-        runningCarteira = realVal
-        diluicaoMap[d.dayStr] = realVal
+        // Ponto de partida explicitado pelo usuário:
+        // No próprio dia onde foi digitado, já calcula: Carteira Real + Planejado - Capacidade
+        const calculatedVal = Math.max(0, realVal + pmtVal - capVal)
+        runningCarteira = calculatedVal
+        diluicaoMap[d.dayStr] = calculatedVal
       } else if (runningCarteira !== null) {
-        // Diluição projetada: Anterior + Planejado - Capacidade
+        // Diluição projetada nos dias seguintes: Diluição Anterior + Planejado - Capacidade
         const nextVal = Math.max(0, runningCarteira + pmtVal - capVal)
         runningCarteira = nextVal
         diluicaoMap[d.dayStr] = nextVal
