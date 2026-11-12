@@ -716,7 +716,7 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
           </td>
         </tr>
 
-        {/* LINHA 6: DIAS EM CARTEIRA (PMT Planejado / Capacidade) */}
+        {/* LINHA 6: DIAS EM CARTEIRA (Carteira Diluição ou PMT Planejado / Capacidade) */}
         <tr className="bg-sky-50/50 border-b-2 border-sky-300 hover:bg-sky-50/80 transition-colors">
           <td className="sticky left-0 z-20 bg-sky-50/90 px-3 py-1.5 font-bold text-sky-950 border-r border-sky-300 whitespace-nowrap shadow-[2px_0_4px_rgba(0,0,0,0.03)] flex items-center gap-1.5 text-xs">
             <span className="w-2 h-2 rounded-full bg-sky-600 shrink-0" />
@@ -725,18 +725,27 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
           {activeFilteredDays.map((d) => {
             const pmtVal = pmtTotals[d.dayStr] || 0
             const capVal = capTotals[d.dayStr] || 0
-            const dias = (capVal > 0 && pmtVal > 0) ? (pmtVal / capVal) : null
+            const dilVal = diluicaoMap[d.dayStr]
+            // Se Carteira Diluição tiver valor, assume ele no lugar da PMT; se não, mantém o cálculo com a PMT
+            const baseVal = (dilVal !== null && dilVal !== undefined) ? dilVal : pmtVal
+            const dias = (capVal > 0 && baseVal > 0) ? (baseVal / capVal) : null
             const isHigh = dias !== null && dias > 1.5
             const valStr = dias !== null ? dias.toFixed(1).replace('.', ',') : '-'
+            const isUsingDiluicao = dilVal !== null && dilVal !== undefined
 
             return (
               <td
                 key={`dias-carteira-${metricKey}-${d.dayStr}`}
                 className={`px-1.5 py-1.5 text-center font-mono font-bold text-[12.5px] border-r transition-colors ${isHigh
                     ? 'bg-rose-100/70 text-rose-700 border-rose-200'
+                    : isUsingDiluicao
+                    ? 'bg-orange-50/60 text-sky-950 border-sky-200'
                     : 'text-sky-950 border-sky-200'
                   }`}
-                title={`PMT: ${pmtVal} / Capacidade: ${capVal} = ${valStr} (${isHigh ? 'Acima de 1,5 dias' : 'Dentro do limite'})`}
+                title={isUsingDiluicao
+                  ? `Diluição: ${dilVal} / Capacidade: ${capVal} = ${valStr} (${isHigh ? 'Acima de 1,5 dias' : 'Dentro do limite'})`
+                  : `PMT: ${pmtVal} / Capacidade: ${capVal} = ${valStr} (${isHigh ? 'Acima de 1,5 dias' : 'Dentro do limite'})`
+                }
               >
                 {valStr}
               </td>
@@ -748,7 +757,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
               .map(d => {
                 const pmtVal = pmtTotals[d.dayStr] || 0
                 const capVal = capTotals[d.dayStr] || 0
-                return (capVal > 0 && pmtVal > 0) ? (pmtVal / capVal) : null
+                const dilVal = diluicaoMap[d.dayStr]
+                const baseVal = (dilVal !== null && dilVal !== undefined) ? dilVal : pmtVal
+                return (capVal > 0 && baseVal > 0) ? (baseVal / capVal) : null
               })
               .filter((v): v is number => v !== null && v > 0)
 
@@ -762,9 +773,11 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
               </td>
             )
           })()}
-          {/* Total Geral (Total PMT / Total Capacidade) */}
+          {/* Total Geral */}
           {(() => {
-            const totalDias = (capTotalSum > 0 && pmtTotalSum > 0) ? (pmtTotalSum / capTotalSum) : null
+            const lastDil = validDiluicao.length > 0 ? validDiluicao[validDiluicao.length - 1] : null
+            const baseSum = lastDil !== null ? lastDil : pmtTotalSum
+            const totalDias = (capTotalAvg > 0 && baseSum > 0) ? (baseSum / capTotalAvg) : (capTotalSum > 0 && pmtTotalSum > 0 ? (pmtTotalSum / capTotalSum) : null)
             const isTotalHigh = totalDias !== null && totalDias > 1.5
 
             return (

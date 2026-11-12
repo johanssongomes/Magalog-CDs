@@ -247,8 +247,10 @@ export const PmtDashboardOverview: React.FC = () => {
       // % Aderência Fat x Cap = Faturado / Capacidade
       const aderFat = capVal > 0 ? (fatVal / capVal) * 100 : null
 
-      // Dias Em Carteira = PMT Planejado / Capacidade (com 1 casa decimal)
-      const diasEmCarteira = (capVal > 0 && pmtVal > 0) ? (pmtVal / capVal) : null
+      const dilVal = diluicaoMap[d.dayStr]
+      // Se Carteira Diluição tiver valor, assume ele no lugar da PMT; se não, mantém o cálculo com a PMT
+      const baseVal = (dilVal !== null && dilVal !== undefined) ? dilVal : pmtVal
+      const diasEmCarteira = (capVal > 0 && baseVal > 0) ? (baseVal / capVal) : null
 
       // Carteira Real digitada
       const carteiraRealVal = carteiraRealMap[d.dayStr] ?? carteiraRealMap[d.day.toString()] ?? 0
