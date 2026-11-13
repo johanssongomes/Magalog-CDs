@@ -1053,20 +1053,43 @@ const EstoqueCategoriasCard: React.FC<{
       (motivoNome.includes('AVARIA') && motivoNome.includes('PERECIVEIS'))
   }
 
+  const matchesFaixa = (dias: number, faixa: string) => {
+    if (faixa === 'TODOS') return true
+    if (faixa === '0 DIAS') return dias === 0
+    if (faixa === '7 DIAS') return dias > 0 && dias <= 7
+    if (faixa === '30 DIAS') return dias > 7 && dias <= 30
+    if (faixa === '90 DIAS') return dias > 30 && dias <= 90
+    if (faixa === '120 DIAS') return dias > 90 && dias <= 120
+    if (faixa === 'ACIMA DE 120 DIAS') return dias > 120
+    return true
+  }
+
   const motivosFiltrados = useMemo(() => {
     if (!bloqueiosData?.motivos) return []
     return bloqueiosData.motivos.map(m => {
       let valorExibido = m.valorTotal
+      let skusExibidos = m.skus
+      let pecasExibidas = m.pecas
+      let cubagemExibida = m.cubagem
+
       if (bloqueioFaixa !== 'TODOS') {
         valorExibido = (m.faixas as any)[bloqueioFaixa] || 0
+        const itemsDaFaixa = (m.items || []).filter(it => matchesFaixa(it.diasBloq, bloqueioFaixa))
+        skusExibidos = itemsDaFaixa.length
+        pecasExibidas = itemsDaFaixa.reduce((acc, it) => acc + (it.pecas || 0), 0)
+        cubagemExibida = Math.round(itemsDaFaixa.reduce((acc, it) => acc + (it.cubagem || 0), 0) * 100) / 100
       }
+
       return {
         ...m,
+        skus: skusExibidos,
+        pecas: pecasExibidas,
+        cubagem: cubagemExibida,
         valorExibido,
         isQualidade: isQualidadeMotivo(m.motivo)
       }
     }).filter(m => {
-      // Regra: Somente bloqueios que tenham itens (peças > 0)
+      // Regra: Somente bloqueios que tenham itens na faixa selecionada (peças > 0)
       if (!m.pecas || m.pecas <= 0) return false
 
       const matchFaixa = m.valorExibido > 0 || bloqueioFaixa === 'TODOS'
