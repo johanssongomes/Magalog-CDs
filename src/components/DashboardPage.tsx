@@ -324,20 +324,22 @@ interface PerformanceChartProps {
 }
 
 const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => {
-  const W = 520, H = 208, padL = 46, padB = 42, padT = 20
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
+
+  const W = 520, H = 216, padL = 46, padB = 44, padT = 24
   const innerW = W - padL - 12
   const innerH = H - padB - padT
 
-  // Encontrar valor máximo para escala Y com folga de 25% para caber os valores acima das barras e marcadores
+  // Encontrar valor máximo para escala Y com folga de 28% para caber marcadores e valores confortavelmente
   const maxVal = Math.max(
     ...data.map(d => Math.max(d.faturado, d.liberado, d.capacidade, d.pmtPlanejado || 0)),
     10
   )
-  const maxY = Math.ceil((maxVal * 1.25) / 100) * 100 || 1000
+  const maxY = Math.ceil((maxVal * 1.28) / 100) * 100 || 1000
 
   const y = (v: number) => padT + innerH - (Math.min(Math.max(v, 0), maxY) / maxY) * innerH
   const step = innerW / Math.max(data.length, 1)
-  const bw = Math.min(step * 0.32, 18)
+  const bw = Math.min(step * 0.32, 17)
 
   const ticks = [0, Math.round(maxY * 0.33), Math.round(maxY * 0.66), maxY]
 
@@ -347,7 +349,7 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
     return `${v}`
   }
 
-  // Formatação compacta para os valores acima das barras / marcadores
+  // Formatação compacta para os valores
   const formatBarVal = (v: number) => {
     if (v === 0) return ''
     if (v >= 1000) {
@@ -357,218 +359,331 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
     return `${v}`
   }
 
-  // Linha da capacidade (meta) tracejada
-  const capPts = data.map((d, i) => `${padL + step * i + step / 2},${y(d.capacidade)}`).join(' ')
+  // Pontos de coordenadas (x, y)
+  const ptsCap = data.map((d, i) => ({ x: padL + step * i + step / 2, y: y(d.capacidade) }))
+  const ptsPmt = data.map((d, i) => ({ x: padL + step * i + step / 2, y: y(d.pmtPlanejado || 0) }))
 
-  // Linha do PMT Planejado (Linhas com Marcadores)
-  const pmtPts = data.map((d, i) => `${padL + step * i + step / 2},${y(d.pmtPlanejado || 0)}`).join(' ')
+  // Gerador de curva suave Bézier (Smooth Spline)
+  const createSmoothPath = (points: { x: number; y: number }[]) => {
+    if (points.length < 2) return ''
+    let path = `M ${points[0].x},${points[0].y}`
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i === 0 ? 0 : i - 1]
+      const p1 = points[i]
+      const p2 = points[i + 1]
+      const p3 = points[i + 2 < points.length ? i + 2 : i + 1]
+
+      const cp1x = p1.x + (p2.x - p0.x) / 6
+      const cp1y = p1.y + (p2.y - p0.y) / 6
+      const cp2x = p2.x - (p3.x - p1.x) / 6
+      const cp2y = p2.y - (p3.y - p1.y) / 6
+
+      path += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`
+    }
+    return path
+  }
+
+  const pmtSmoothPath = createSmoothPath(ptsPmt)
+  const capSmoothPath = createSmoothPath(ptsCap)
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
-      {ticks.map(t => (
-        <g key={t}>
-          <line x1={padL} x2={W - 12} y1={y(t)} y2={y(t)} stroke="#f1f5f9" strokeDasharray="3 3" />
-          <text x={padL - 6} y={y(t) + 3} fontSize="9" textAnchor="end" fill="#94a3b8" fontWeight="500">
-            {formatY(t)}
-          </text>
-        </g>
-      ))}
+    <div className="relative w-full">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto overflow-visible select-none">
+        <defs>
+          {/* Gradiente Faturado */}
+          <linearGradient id="fatGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="100%" stopColor="#1d4ed8" />
+          </linearGradient>
 
-      {/* Linha de capacidade (meta) */}
-      {data.length > 1 && (
-        <polyline points={capPts} fill="none" stroke="#60a5fa" strokeWidth="2" strokeDasharray="4 4" />
-      )}
+          {/* Gradiente Liberado */}
+          <linearGradient id="libGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#22c55e" />
+            <stop offset="100%" stopColor="#15803d" />
+          </linearGradient>
 
-      {/* Linha do PMT Planejado (Linha com Marcadores) */}
-      {data.length > 1 && (
-        <polyline points={pmtPts} fill="none" stroke="#64748b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-      )}
+          {/* Sombra suave para marcadores e badges */}
+          <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodColor="#0f172a" floodOpacity="0.12" />
+          </filter>
+        </defs>
 
-      {/* Barras e labels */}
-      {data.map((d, i) => {
-        const cx = padL + step * i + step / 2
-        const yFat = y(d.faturado)
-        const yLib = y(d.liberado)
-        const yCap = y(d.capacidade)
-        const yPmt = y(d.pmtPlanejado || 0)
-        const yZero = y(0)
+        {/* Linhas de grade e ticks do Eixo Y */}
+        {ticks.map(t => (
+          <g key={t}>
+            <line x1={padL} x2={W - 12} y1={y(t)} y2={y(t)} stroke="#f1f5f9" strokeDasharray="3 3" />
+            <text x={padL - 6} y={y(t) + 3} fontSize="9" textAnchor="end" fill="#94a3b8" fontWeight="500">
+              {formatY(t)}
+            </text>
+          </g>
+        ))}
 
-        const hFat = Math.max(0, yZero - yFat)
-        const hLib = Math.max(0, yZero - yLib)
+        {/* Linha da Capacidade (Meta) - Suave e Discreta */}
+        {data.length > 1 && (
+          <path
+            d={capSmoothPath}
+            fill="none"
+            stroke="#93c5fd"
+            strokeWidth="1.8"
+            strokeDasharray="4 4"
+            strokeLinecap="round"
+          />
+        )}
 
-        const textFat = formatBarVal(d.faturado)
-        const textLib = formatBarVal(d.liberado)
-        const textPmt = formatBarVal(d.pmtPlanejado || 0)
+        {/* Linha do PMT Planejado (Curva Bézier Suave e Moderna) */}
+        {data.length > 1 && (
+          <path
+            d={pmtSmoothPath}
+            fill="none"
+            stroke="#475569"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="transition-all duration-300"
+          />
+        )}
 
-        return (
-          <g key={d.date} className="cursor-pointer">
-            {/* Ponto na linha de capacidade */}
-            <circle cx={cx} cy={yCap} r="3" fill="#3b82f6" stroke="#ffffff" strokeWidth="1.5" />
-            {d.capacidade > 0 && (
-              <title>{`Capacidade: ${d.capacidade.toLocaleString('pt-BR')} (${d.date})`}</title>
-            )}
+        {/* Barras e labels */}
+        {data.map((d, i) => {
+          const cx = padL + step * i + step / 2
+          const yFat = y(d.faturado)
+          const yLib = y(d.liberado)
+          const yCap = y(d.capacidade)
+          const yPmt = y(d.pmtPlanejado || 0)
+          const yZero = y(0)
 
-            {/* Barra Faturado (Azul) */}
-            <rect
-              x={cx - bw - 1}
-              y={yFat}
-              width={bw}
-              height={hFat}
-              rx="3"
-              fill="#2563eb"
+          const hFat = Math.max(0, yZero - yFat)
+          const hLib = Math.max(0, yZero - yLib)
+
+          const textFat = formatBarVal(d.faturado)
+          const textLib = formatBarVal(d.liberado)
+          const textPmt = formatBarVal(d.pmtPlanejado || 0)
+
+          const isHovered = hoveredIdx === i
+
+          return (
+            <g
+              key={d.date}
+              className="cursor-pointer transition-opacity duration-200"
+              onMouseEnter={() => setHoveredIdx(i)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              opacity={hoveredIdx !== null && !isHovered ? 0.45 : 1}
             >
-              <title>{`Faturado: ${d.faturado.toLocaleString('pt-BR')} ${metric === 'cubagem' ? 'm³' : metric} (${d.date})`}</title>
-            </rect>
+              {/* Coluna transparente interativa para capturar hover com folga */}
+              <rect
+                x={cx - step / 2}
+                y={padT}
+                width={step}
+                height={innerH + padB}
+                fill="transparent"
+              />
 
-            {/* Valor acima da barra Faturado */}
-            {d.faturado > 0 && (
-              <text
-                x={cx - bw / 2 - 1}
-                y={yFat - 3}
-                fontSize="7.5"
-                textAnchor="middle"
-                fill="#1d4ed8"
-                fontWeight="700"
-              >
-                {textFat}
-              </text>
-            )}
+              {/* Ponto sutil na linha de capacidade */}
+              <circle
+                cx={cx}
+                cy={yCap}
+                r="2.5"
+                fill="#3b82f6"
+                stroke="#ffffff"
+                strokeWidth="1.2"
+              />
 
-            {/* Barra Liberado (Verde) */}
-            <rect
-              x={cx + 1}
-              y={yLib}
-              width={bw}
-              height={hLib}
-              rx="3"
-              fill="#16a34a"
-            >
-              <title>{`Liberado: ${d.liberado.toLocaleString('pt-BR')} ${metric === 'cubagem' ? 'm³' : metric} (${d.date})`}</title>
-            </rect>
+              {/* Barra Faturado (Azul com Cantos Arredondados e Gradiente) */}
+              <rect
+                x={cx - bw - 1}
+                y={yFat}
+                width={bw}
+                height={hFat}
+                rx="4"
+                fill="url(#fatGrad)"
+                className="transition-all"
+              />
 
-            {/* Valor acima da barra Liberado */}
-            {d.liberado > 0 && (
-              <text
-                x={cx + bw / 2 + 1}
-                y={yLib - 3}
-                fontSize="7.5"
-                textAnchor="middle"
-                fill="#15803d"
-                fontWeight="700"
-              >
-                {textLib}
-              </text>
-            )}
-
-            {/* Marcador do PMT Planejado (Ponto Branco com borda ardósia) */}
-            {(d.pmtPlanejado || 0) > 0 && (
-              <g>
-                <circle
-                  cx={cx}
-                  cy={yPmt}
-                  r="4"
-                  fill="#ffffff"
-                  stroke="#475569"
-                  strokeWidth="2.2"
-                />
-                <circle
-                  cx={cx}
-                  cy={yPmt}
-                  r="1.5"
-                  fill="#475569"
-                />
+              {/* Rótulo Faturado (posicionado com folga limpa acima da barra) */}
+              {d.faturado > 0 && (
                 <text
-                  x={cx}
-                  y={yPmt - 6}
+                  x={cx - bw / 2 - 1}
+                  y={yFat - 3}
                   fontSize="7.5"
                   textAnchor="middle"
-                  fill="#475569"
-                  fontWeight="800"
-                >
-                  {textPmt}
-                </text>
-                <title>{`PMT Planejado: ${(d.pmtPlanejado || 0).toLocaleString('pt-BR')} ${metric === 'cubagem' ? 'm³' : metric} (${d.date})`}</title>
-              </g>
-            )}
-
-            {/* Labels de Eixo X */}
-            {d.isToday ? (
-              <g>
-                {/* Badge HOJE posicionada logo abaixo da barra */}
-                <rect
-                  x={cx - 15}
-                  y={H - 38}
-                  width={30}
-                  height={10}
-                  rx="5"
-                  fill="#2563eb"
-                />
-                <text
-                  x={cx}
-                  y={H - 30}
-                  fontSize="6.5"
-                  textAnchor="middle"
-                  fill="#ffffff"
-                  fontWeight="800"
-                  letterSpacing="0.5"
-                >
-                  HOJE
-                </text>
-
-                {/* Dia da semana */}
-                <text
-                  x={cx}
-                  y={H - 18}
-                  fontSize="9.5"
-                  textAnchor="middle"
                   fill="#1d4ed8"
-                  fontWeight="800"
-                >
-                  {d.label}
-                </text>
-
-                {/* Data */}
-                <text
-                  x={cx}
-                  y={H - 7}
-                  fontSize="8"
-                  textAnchor="middle"
-                  fill="#2563eb"
                   fontWeight="700"
                 >
-                  {d.date}
+                  {textFat}
                 </text>
-              </g>
-            ) : (
-              <g>
-                {/* Dia da semana */}
+              )}
+
+              {/* Barra Liberado (Verde com Cantos Arredondados e Gradiente) */}
+              <rect
+                x={cx + 1}
+                y={yLib}
+                width={bw}
+                height={hLib}
+                rx="4"
+                fill="url(#libGrad)"
+                className="transition-all"
+              />
+
+              {/* Rótulo Liberado (posicionado com folga limpa acima da barra) */}
+              {d.liberado > 0 && (
                 <text
-                  x={cx}
-                  y={H - 18}
-                  fontSize="9.5"
+                  x={cx + bw / 2 + 1}
+                  y={yLib - 3}
+                  fontSize="7.5"
                   textAnchor="middle"
-                  fill="#334155"
+                  fill="#15803d"
                   fontWeight="700"
                 >
-                  {d.label}
+                  {textLib}
                 </text>
+              )}
 
-                {/* Data */}
-                <text
-                  x={cx}
-                  y={H - 7}
-                  fontSize="8"
-                  textAnchor="middle"
-                  fill="#94a3b8"
-                >
-                  {d.date}
-                </text>
-              </g>
-            )}
-          </g>
+              {/* Marcador do PMT Planejado (Design Elegante e Limpo) */}
+              {(d.pmtPlanejado || 0) > 0 && (
+                <g filter="url(#softShadow)">
+                  {/* Círculo Principal Estilo Apple */}
+                  <circle
+                    cx={cx}
+                    cy={yPmt}
+                    r={isHovered ? '4.5' : '3.5'}
+                    fill="#ffffff"
+                    stroke="#334155"
+                    strokeWidth="2"
+                    className="transition-all duration-200"
+                  />
+                  {/* Pílula / Badge do valor do PMT para não colidir com o texto das barras */}
+                  <g transform={`translate(${cx}, ${yPmt - 14})`}>
+                    <rect
+                      x="-13"
+                      y="-4.5"
+                      width="26"
+                      height="11"
+                      rx="3.5"
+                      fill="#ffffff"
+                      stroke="#cbd5e1"
+                      strokeWidth="0.8"
+                    />
+                    <text
+                      x="0"
+                      y="3.5"
+                      fontSize="7"
+                      textAnchor="middle"
+                      fill="#334155"
+                      fontWeight="800"
+                    >
+                      {textPmt}
+                    </text>
+                  </g>
+                </g>
+              )}
+
+              {/* Labels de Eixo X */}
+              {d.isToday ? (
+                <g>
+                  {/* Badge HOJE posicionada com destaque suave */}
+                  <rect
+                    x={cx - 15}
+                    y={H - 40}
+                    width={30}
+                    height={11}
+                    rx="5.5"
+                    fill="#2563eb"
+                  />
+                  <text
+                    x={cx}
+                    y={H - 32}
+                    fontSize="6.5"
+                    textAnchor="middle"
+                    fill="#ffffff"
+                    fontWeight="800"
+                    letterSpacing="0.5"
+                  >
+                    HOJE
+                  </text>
+
+                  {/* Dia da semana */}
+                  <text
+                    x={cx}
+                    y={H - 19}
+                    fontSize="9.5"
+                    textAnchor="middle"
+                    fill="#1d4ed8"
+                    fontWeight="800"
+                  >
+                    {d.label}
+                  </text>
+
+                  {/* Data */}
+                  <text
+                    x={cx}
+                    y={H - 7}
+                    fontSize="8"
+                    textAnchor="middle"
+                    fill="#2563eb"
+                    fontWeight="700"
+                  >
+                    {d.date}
+                  </text>
+                </g>
+              ) : (
+                <g>
+                  {/* Dia da semana */}
+                  <text
+                    x={cx}
+                    y={H - 19}
+                    fontSize="9.5"
+                    textAnchor="middle"
+                    fill="#334155"
+                    fontWeight="700"
+                  >
+                    {d.label}
+                  </text>
+
+                  {/* Data */}
+                  <text
+                    x={cx}
+                    y={H - 7}
+                    fontSize="8"
+                    textAnchor="middle"
+                    fill="#94a3b8"
+                  >
+                    {d.date}
+                  </text>
+                </g>
+              )}
+            </g>
+          )
+        })}
+      </svg>
+
+      {/* Tooltip Executivo Flutuante ao passar o mouse */}
+      {hoveredIdx !== null && data[hoveredIdx] && (() => {
+        const d = data[hoveredIdx]
+        const unit = metric === 'cubagem' ? 'm³' : metric
+        const pmtVal = d.pmtPlanejado || 0
+        const aderencia = pmtVal > 0 ? ((d.liberado / pmtVal) * 100).toFixed(1) : '-'
+
+        return (
+          <div
+            className="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white px-3.5 py-2 rounded-xl shadow-xl backdrop-blur-xs border border-slate-700/60 pointer-events-none z-30 animate-in fade-in zoom-in-95 duration-150 flex items-center gap-4 text-xs"
+          >
+            <div>
+              <span className="font-extrabold text-amber-400">{d.label} ({d.date})</span>
+              {d.isToday && <span className="ml-1.5 px-1.5 py-0.2 bg-blue-500 text-white rounded text-[9px] font-bold">HOJE</span>}
+            </div>
+            <div className="flex items-center gap-3 text-[11px] font-mono border-l border-slate-700 pl-3">
+              <span className="text-blue-400 font-bold">Fat: {d.faturado.toLocaleString('pt-BR')} {unit}</span>
+              <span className="text-emerald-400 font-bold">Lib: {d.liberado.toLocaleString('pt-BR')} {unit}</span>
+              <span className="text-slate-300">PMT: {pmtVal.toLocaleString('pt-BR')} {unit}</span>
+              <span className="text-sky-300">Meta: {d.capacidade.toLocaleString('pt-BR')}</span>
+              {aderencia !== '-' && (
+                <span className="text-amber-300 font-bold">Ader: {aderencia}%</span>
+              )}
+            </div>
+          </div>
         )
-      })}
-    </svg>
+      })()}
+    </div>
   )
 }
 
