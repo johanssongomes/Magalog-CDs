@@ -186,6 +186,12 @@ export function parseAderenciaExcel(
     const rowMes = dateParts.mes
     const dayStr = dateParts.dayStr
     const rowCd = String(r['CD'] || r['cd'] || contextCd).trim()
+
+    // FILTRO OBRIGATÓRIO POR CD: Ignora linhas de outros CDs para não somar a rede inteira
+    if (contextCd && rowCd !== String(contextCd).trim()) {
+      return
+    }
+
     const monthKey = `${rowAno}-${rowMes.toString().padStart(2, '0')}`
 
     if (!monthsMap[monthKey]) {
