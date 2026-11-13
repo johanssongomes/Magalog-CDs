@@ -1856,12 +1856,22 @@ const TurnoChart: React.FC = () => {
   )
 }
 
-const Legend: React.FC<{ items: { label: string; color: string; line?: boolean }[] }> = ({ items }) => (
-  <div className="flex items-center gap-3 text-[10px] text-slate-500">
+const Legend: React.FC<{ items: { label: string; color: string; line?: boolean; dashed?: boolean }[]; size?: 'sm' | 'md' }> = ({ items, size = 'sm' }) => (
+  <div className={`flex flex-wrap items-center gap-3.5 ${size === 'md' ? 'text-xs text-slate-700 font-semibold' : 'text-[11px] text-slate-500'}`}>
     {items.map(it => (
-      <span key={it.label} className="flex items-center gap-1">
-        <span className={it.line ? 'w-4 h-0.5' : 'w-2.5 h-2.5 rounded-sm'} style={{ background: it.color }} />
-        {it.label}
+      <span key={it.label} className="flex items-center gap-1.5 whitespace-nowrap">
+        {it.line ? (
+          <span
+            className={`inline-block ${size === 'md' ? 'w-5 h-1' : 'w-4 h-0.5'} rounded-full`}
+            style={{
+              background: it.dashed ? undefined : it.color,
+              borderTop: it.dashed ? `${size === 'md' ? '2.5px' : '2px'} dashed ${it.color}` : undefined
+            }}
+          />
+        ) : (
+          <span className={`inline-block ${size === 'md' ? 'w-3.5 h-3.5 rounded' : 'w-2.5 h-2.5 rounded-sm'} shrink-0 shadow-2xs`} style={{ background: it.color }} />
+        )}
+        <span className={size === 'md' ? 'font-bold text-slate-700' : ''}>{it.label}</span>
       </span>
     ))}
   </div>
@@ -3165,17 +3175,20 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Legenda Atualizada: Faturado, Liberado, Capacidade (Meta), PMT Planejado */}
-          <div className="flex items-center justify-between text-[11px] text-slate-600 mb-2">
-            <span className="text-[10px] text-slate-400 font-medium">Visão: 7 dias (Acompanhamento Diário)</span>
-            <Legend
-              items={[
-                { label: 'Faturado', color: '#2563eb' },
-                { label: 'Liberado', color: '#16a34a' },
-                { label: 'Capacidade (Meta)', color: '#60a5fa', line: true },
-                { label: 'PMT Planejado', color: '#475569', line: true }
-              ]}
-            />
+          {/* Legenda Atualizada com Tamanho Maior e Destaque Visual */}
+          <div className="flex flex-wrap items-center justify-between gap-2 text-slate-700 mb-2.5 pt-1 border-t border-slate-100/80">
+            <span className="text-[11px] text-slate-400 font-semibold">Visão: 7 dias (Acompanhamento Diário)</span>
+            <div className="bg-slate-50/90 px-2.5 py-1 rounded-lg border border-slate-200/80 shadow-2xs">
+              <Legend
+                size="md"
+                items={[
+                  { label: 'Faturado', color: '#2563eb' },
+                  { label: 'Liberado', color: '#16a34a' },
+                  { label: 'Capacidade (Meta)', color: '#60a5fa', line: true, dashed: true },
+                  { label: 'PMT Planejado', color: '#334155', line: true }
+                ]}
+              />
+            </div>
           </div>
 
           <PerformanceChart data={performance7Days} metric={chartMetric} />
