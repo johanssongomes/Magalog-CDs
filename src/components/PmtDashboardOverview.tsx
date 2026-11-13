@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { TrendingUp, Package, Layers, Boxes, Truck, CheckCircle2, ChevronLeft, ChevronRight, Loader2, CalendarDays, RotateCcw } from 'lucide-react'
 import initialOctMatrix from '../data/pmt_oct_2026_matrix.json'
 import initialAderenciaOct from '../data/initialAderencia202610.json'
+import initialAderenciaNov from '../data/initialAderencia202611.json'
 import { getPmtDailyMatrixFromSupabase, getPmtSummaryFromSupabase, type PmtDailyMatrixResponse } from '../lib/pmtService'
 import { getAderenciaData, saveAderenciaData, type AderenciaDataState } from '../lib/aderenciaService'
 
@@ -84,6 +85,8 @@ export const PmtDashboardOverview: React.FC = () => {
         // 2. Aderência (Liberado, Faturado e Capacidade)
         if (cloudAderencia) {
           setAderenciaData(cloudAderencia)
+        } else if (selectedYear === 2026 && selectedMonth === 11) {
+          setAderenciaData(initialAderenciaNov as unknown as AderenciaDataState)
         } else if (selectedYear === 2026 && selectedMonth === 10) {
           setAderenciaData(initialAderenciaOct as unknown as AderenciaDataState)
         } else {
@@ -116,8 +119,17 @@ export const PmtDashboardOverview: React.FC = () => {
 
     fetchData()
 
+    const handleAderenciaUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<AderenciaDataState>
+      if (customEvent.detail && customEvent.detail.ano === selectedYear && customEvent.detail.mes === selectedMonth) {
+        setAderenciaData(customEvent.detail)
+      }
+    }
+    window.addEventListener('aderenciaDataUpdated', handleAderenciaUpdated)
+
     return () => {
       isMounted = false
+      window.removeEventListener('aderenciaDataUpdated', handleAderenciaUpdated)
     }
   }, [selectedYear, selectedMonth])
 
