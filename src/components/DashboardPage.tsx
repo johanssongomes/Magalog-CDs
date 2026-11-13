@@ -1818,6 +1818,48 @@ const EstoqueCategoriasCard: React.FC<{
                 </button>
               </div>
 
+              {/* Indicador Executivo: % Atual de Qualidade e Situação da Meta */}
+              <div
+                onClick={() => setIsQualidadeModalOpen(true)}
+                className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100/90 border border-slate-200/90 shadow-2xs cursor-pointer transition-all group"
+                title="Clique para abrir os detalhes da Meta de Qualidade & GPO"
+              >
+                {/* % Atual de Qualidade */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9.5px] font-bold text-slate-500 uppercase tracking-tight">Qualidade:</span>
+                  <span className={`text-[11px] font-black font-mono px-1.5 py-0.2 rounded border ${qualidadeGpoStats.qualidadeEstoquePct >= 99.95
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      : qualidadeGpoStats.qualidadeEstoquePct >= 99.85
+                        ? 'bg-amber-100 text-amber-900 border-amber-300'
+                        : 'bg-rose-100 text-rose-800 border-rose-300'
+                    }`}>
+                    {qualidadeGpoStats.qualidadeEstoquePct.toFixed(2)}%
+                  </span>
+                </div>
+
+                <div className="w-px h-3.5 bg-slate-300/80"></div>
+
+                {/* Situação em Relação à Meta de 99,95% */}
+                <div className="flex items-center gap-1">
+                  <span className="text-[9.5px] font-bold text-slate-400">Meta 99,95%:</span>
+                  {qualidadeGpoStats.atingiuMeta ? (
+                    <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 flex items-center gap-0.5">
+                      <span>✓ Na Meta</span>
+                      <span className="text-[9px] font-bold text-emerald-600">
+                        (Folga: R$ {(Math.abs(qualidadeGpoStats.diferencaParaMeta) / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k)
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200 flex items-center gap-0.5">
+                      <span>Fora da Meta</span>
+                      <span className="text-[9px] font-black text-rose-800 bg-rose-200/80 px-1 py-0.2 rounded ml-0.5">
+                        Excesso: +R$ {(qualidadeGpoStats.diferencaParaMeta / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k
+                      </span>
+                    </span>
+                  )}
+                </div>
+              </div>
+
               {/* Seletor por Faixa de Dias */}
               <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mr-1 shrink-0">
