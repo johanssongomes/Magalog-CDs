@@ -768,17 +768,34 @@ const BloqueioDetalhesModal: React.FC<{
   isOpen: boolean
   onClose: () => void
   motivoNome: string
+  faixaSelecionada?: string
   items?: EstoqueBloqueioItemDetalhe[]
-}> = ({ isOpen, onClose, motivoNome, items = [] }) => {
+}> = ({ isOpen, onClose, motivoNome, faixaSelecionada = 'TODOS', items = [] }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [copied, setCopied] = useState(false)
   const [sortField, setSortField] = useState<keyof EstoqueBloqueioItemDetalhe>('valorTotal')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
-  const safeItems = items || []
+  // Filtra os itens pela faixa de dias selecionada se não for 'TODOS'
+  const itemsByFaixa = useMemo(() => {
+    const raw = items || []
+    if (!faixaSelecionada || faixaSelecionada === 'TODOS') return raw
+
+    const matchesFaixa = (dias: number, faixa: string) => {
+      if (faixa === '0 DIAS') return dias === 0
+      if (faixa === '7 DIAS') return dias > 0 && dias <= 7
+      if (faixa === '30 DIAS') return dias > 7 && dias <= 30
+      if (faixa === '90 DIAS') return dias > 30 && dias <= 90
+      if (faixa === '120 DIAS') return dias > 90 && dias <= 120
+      if (faixa === 'ACIMA DE 120 DIAS') return dias > 120
+      return true
+    }
+
+    return raw.filter(it => matchesFaixa(it.diasBloq, faixaSelecionada))
+  }, [items, faixaSelecionada])
 
   const filteredItems = useMemo(() => {
-    let result = safeItems
+    let result = itemsByFaixa
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase()
       result = result.filter(it =>
@@ -799,7 +816,7 @@ const BloqueioDetalhesModal: React.FC<{
         ? String(valA || '').localeCompare(String(valB || ''))
         : String(valB || '').localeCompare(String(valA || ''))
     })
-  }, [safeItems, searchTerm, sortField, sortOrder])
+  }, [itemsByFaixa, searchTerm, sortField, sortOrder])
 
   const totalPecas = filteredItems.reduce((acc, it) => acc + (it.pecas || 0), 0)
   const totalCub = filteredItems.reduce((acc, it) => acc + (it.cubagem || 0), 0)
@@ -847,6 +864,11 @@ const BloqueioDetalhesModal: React.FC<{
               <span className="text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200 text-xs font-black">
                 {motivoNome}
               </span>
+              {faixaSelecionada && faixaSelecionada !== 'TODOS' && (
+                <span className="text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200 text-xs font-bold">
+                  Faixa: {faixaSelecionada}
+                </span>
+              )}
             </h2>
           </div>
           <button
@@ -1247,8 +1269,8 @@ const EstoqueCategoriasCard: React.FC<{
             )
           })()
         ) : (
-          /* Cards Totalizadores de Bloqueios */
-          <div className="grid grid-cols-5 gap-1.5 p-1.5 rounded-xl bg-amber-50/50 border border-amber-100 mb-2.5">
+          /* Cards Totalizadores de Bloqueios (4 cards balanceados sem Ocorrências) */
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 rounded-xl bg-amber-50/50 border border-amber-100 mb-2.5">
             {/* Cubagem Bloqueada */}
             <div className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
               <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
@@ -1287,27 +1309,6 @@ const EstoqueCategoriasCard: React.FC<{
               <span className="text-sm font-black text-indigo-700 leading-tight">
                 {totalGeralBloqueios.skus.toLocaleString('pt-BR')}
               </span>
-            </div>
-
-            {/* Linhas / Registros */}
-            <div
-              className="flex flex-col items-center text-center p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs cursor-default"
-              title="8.250 linhas registradas no ERP como BLOQUEADO (sendo 819 posições ocupadas com saldo físico e 7.431 endereços técnicos vazios/reservados)"
-            >
-              <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
-                <span className="p-0.5 rounded bg-rose-50 text-rose-600">
-                  <AlertTriangle size={10} />
-                </span>
-                <span>Ocorrências</span>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-sm font-black text-rose-600 leading-tight">
-                  {data.totalLinhas.toLocaleString('pt-BR')}
-                </span>
-                <span className="text-[8.5px] font-bold text-slate-400" title="819 endereços ocupados com peças físicas">
-                  (819 c/ saldo)
-                </span>
-              </div>
             </div>
 
             {/* Valor TT Bloqueado com % do Estoque Total */}
@@ -1678,6 +1679,7 @@ const EstoqueCategoriasCard: React.FC<{
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         motivoNome={selectedMotivo?.motivo || ''}
+        faixaSelecionada={bloqueioFaixa}
         items={selectedMotivo?.items || []}
       />
     </Card>
