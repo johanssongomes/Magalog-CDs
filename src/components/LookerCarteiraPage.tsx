@@ -24,15 +24,14 @@ export const LookerCarteiraPage: React.FC = () => {
     setIframeKey(prev => prev + 1)
   }
 
-  // Controle de modo de visualização (Padrão ou Expandido para ver toda a tabela)
-  const [alturaModo, setAlturaModo] = useState<'ajustada' | 'completa'>('completa')
+  // Controle de modo de visualização (Padrão: Ajustado à Janela)
+  const [alturaModo, setAlturaModo] = useState<'ajustada' | 'completa'>('ajustada')
 
   return (
-    <div className={`flex flex-col animate-in fade-in duration-200 ${
-      isFullScreen 
-        ? 'fixed inset-0 z-50 bg-slate-900 p-3' 
+    <div className={`flex flex-col animate-in fade-in duration-200 ${isFullScreen
+        ? 'fixed inset-0 z-50 bg-slate-900 p-3'
         : 'w-full space-y-2'
-    }`}>
+      }`}>
       {/* Barra de Controles Compacta */}
       <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-2xs flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2.5">
@@ -56,22 +55,20 @@ export const LookerCarteiraPage: React.FC = () => {
           <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
             <button
               onClick={() => setAlturaModo('completa')}
-              className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                alturaModo === 'completa'
+              className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${alturaModo === 'completa'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-blue-700'
-              }`}
+                }`}
               title="Exibe todo o relatório e a tabela de uma vez sem barra interna"
             >
               Ver Tabela Inteira (Sem corte)
             </button>
             <button
               onClick={() => setAlturaModo('ajustada')}
-              className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                alturaModo === 'ajustada'
+              className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${alturaModo === 'ajustada'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-blue-700'
-              }`}
+                }`}
               title="Ajusta o container exatamente à altura visível da janela"
             >
               Ajustar à Janela
@@ -119,14 +116,13 @@ export const LookerCarteiraPage: React.FC = () => {
       </div>
 
       {/* Container com Proporção Natural sem deformação do menu lateral */}
-      <div 
-        className={`relative w-full rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs ${
-          isFullScreen 
-            ? 'flex-1 h-full' 
+      <div
+        className={`relative w-full rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs ${isFullScreen
+            ? 'flex-1 h-full'
             : alturaModo === 'completa'
               ? 'h-[1050px]'
               : 'h-[calc(100vh-175px)] min-h-[650px]'
-        }`}
+          }`}
       >
         {isLoading && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-xs space-y-2">
