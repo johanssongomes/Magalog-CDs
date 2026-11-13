@@ -857,6 +857,7 @@ export interface EstoqueSummaryData {
   bloqueios?: EstoqueBloqueiosData
 }
 
+// Formata valor financeiro compacto (ex: R$ 211k, R$ 1.5M, R$ 215)
 const formatCurrencyCompact = (val: number | undefined): string => {
   if (!val || val === 0) return 'R$ 0'
   if (val >= 1_000_000) {
@@ -865,7 +866,61 @@ const formatCurrencyCompact = (val: number | undefined): string => {
   if (val >= 1_000) {
     return `R$ ${(val / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}k`
   }
-  return `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+  return `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+}
+
+// Estilização condicional para destacar células de valor na matriz de bloqueios
+const getValorFaixaBadge = (val: number | undefined, faixa: '0D' | '7D' | '30D' | '90D' | '120D' | '+120D') => {
+  if (!val || val === 0) {
+    return <span className="text-slate-300 font-normal">R$ 0</span>
+  }
+
+  // Estilos de destaque progressivo por relevância e criticidade da faixa
+  let colorClass = 'text-slate-700 font-semibold'
+  let bgClass = ''
+
+  if (val >= 100_000) {
+    // Destaque de alto impacto (>= 100k)
+    if (faixa === '+120D' || faixa === '120D') {
+      colorClass = 'text-rose-950 font-black'
+      bgClass = 'bg-rose-100/90 border border-rose-300 px-1.5 py-0.5 rounded shadow-2xs'
+    } else if (faixa === '90D' || faixa === '30D') {
+      colorClass = 'text-amber-950 font-black'
+      bgClass = 'bg-amber-100/90 border border-amber-300 px-1.5 py-0.5 rounded shadow-2xs'
+    } else {
+      colorClass = 'text-emerald-950 font-black'
+      bgClass = 'bg-emerald-100/90 border border-emerald-300 px-1.5 py-0.5 rounded shadow-2xs'
+    }
+  } else if (val >= 10_000) {
+    // Destaque intermediário (10k - 99k)
+    if (faixa === '+120D' || faixa === '120D') {
+      colorClass = 'text-rose-800 font-bold'
+      bgClass = 'bg-rose-50 px-1 py-0.5 rounded border border-rose-200/60'
+    } else if (faixa === '90D' || faixa === '30D') {
+      colorClass = 'text-amber-800 font-bold'
+      bgClass = 'bg-amber-50 px-1 py-0.5 rounded border border-amber-200/60'
+    } else {
+      colorClass = 'text-emerald-800 font-bold'
+      bgClass = 'bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200/60'
+    }
+  } else if (val >= 1_000) {
+    // Valor perceptível (1k - 10k)
+    if (faixa === '+120D' || faixa === '120D') {
+      colorClass = 'text-rose-700 font-semibold'
+    } else if (faixa === '90D' || faixa === '30D') {
+      colorClass = 'text-amber-700 font-semibold'
+    } else {
+      colorClass = 'text-emerald-700 font-semibold'
+    }
+  } else {
+    colorClass = 'text-slate-500 font-medium'
+  }
+
+  return (
+    <span className={`inline-block ${colorClass} ${bgClass}`} title={`R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+      {formatCurrencyCompact(val)}
+    </span>
+  )
 }
 
 const formatCurrencyMil = (val: number | undefined): string => {
@@ -1699,24 +1754,36 @@ const EstoqueCategoriasCard: React.FC<{
                           <td className="py-1.5 px-1.5 text-center text-slate-700">{m.cubagem.toFixed(1)}</td>
                           {bloqueioFaixa === 'TODOS' ? (
                             <>
-                              <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['0 DIAS'])}</td>
-                              <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['7 DIAS'])}</td>
-                              <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['30 DIAS'])}</td>
-                              <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['90 DIAS'])}</td>
-                              <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['120 DIAS'])}</td>
-                              <td className="py-1.5 px-1.5 text-right text-slate-600">{formatCurrencyCompact(m.faixas['ACIMA DE 120 DIAS'])}</td>
+                              <td className="py-1.5 px-1.5 text-right">{getValorFaixaBadge(m.faixas['0 DIAS'], '0D')}</td>
+                              <td className="py-1.5 px-1.5 text-right">{getValorFaixaBadge(m.faixas['7 DIAS'], '7D')}</td>
+                              <td className="py-1.5 px-1.5 text-right">{getValorFaixaBadge(m.faixas['30 DIAS'], '30D')}</td>
+                              <td className="py-1.5 px-1.5 text-right">{getValorFaixaBadge(m.faixas['90 DIAS'], '90D')}</td>
+                              <td className="py-1.5 px-1.5 text-right">{getValorFaixaBadge(m.faixas['120 DIAS'], '120D')}</td>
+                              <td className="py-1.5 px-1.5 text-right">{getValorFaixaBadge(m.faixas['ACIMA DE 120 DIAS'], '+120D')}</td>
                             </>
                           ) : null}
-                          <td className="py-1.5 px-1.5 text-right font-bold text-emerald-700">
-                            {formatCurrencyCompact(m.valorExibido)}
+                          <td className="py-1.5 px-1.5 text-right font-bold">
+                            <span className={m.valorExibido >= 100_000 ? 'text-emerald-900 font-black bg-emerald-100/90 px-1.5 py-0.5 rounded border border-emerald-300' : m.valorExibido >= 20_000 ? 'text-emerald-800 font-extrabold bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200' : 'text-emerald-700 font-bold'}>
+                              {formatCurrencyCompact(m.valorExibido)}
+                            </span>
                           </td>
                           <td className="py-1.5 px-1.5 text-center">
-                            <span className="text-[9.5px] font-bold text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200">
+                            <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded border ${Number(pctBloq) >= 20
+                                ? 'bg-amber-200 text-amber-950 font-black border-amber-400 shadow-2xs'
+                                : Number(pctBloq) >= 5
+                                  ? 'bg-amber-100 text-amber-900 font-bold border-amber-300'
+                                  : 'text-amber-700 bg-amber-50 border-amber-200'
+                              }`}>
                               {pctBloq}%
                             </span>
                           </td>
                           <td className="py-1.5 px-1.5 text-center">
-                            <span className="text-[9.5px] font-bold text-blue-700 bg-blue-50 px-1 py-0.5 rounded border border-blue-200">
+                            <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded border ${Number(pctEstoque) >= 0.1
+                                ? 'bg-blue-200 text-blue-950 font-black border-blue-400 shadow-2xs'
+                                : Number(pctEstoque) >= 0.03
+                                  ? 'bg-blue-100 text-blue-900 font-bold border-blue-300'
+                                  : 'text-blue-700 bg-blue-50 border-blue-200'
+                              }`}>
                               {pctEstoque}%
                             </span>
                           </td>
