@@ -55,6 +55,7 @@ import { PmtDailyMatrixTable } from './PmtDailyMatrixTable'
 import { BankHoursPage } from './BankHoursPage'
 import { getAderenciaData, type AderenciaDataState } from '../lib/aderenciaService'
 import initialAderenciaOct from '../data/initialAderencia202610.json'
+import initialAderenciaNov from '../data/initialAderencia202611.json'
 import { PromocionaisTable } from './PromocionaisTable'
 import { PmtProjectionsChartPage } from './PmtProjectionsChartPage'
 import { TableauIndicadoresPage } from './TableauIndicadoresPage'
@@ -1728,6 +1729,9 @@ export const PmtsPage: React.FC = () => {
 
   // Estado de Aderência para os Cards Superiores
   const [aderenciaState, setAderenciaState] = useState<AderenciaDataState | null>(() => {
+    if (selectedYear === 2026 && selectedMonth === 11) {
+      return initialAderenciaNov as unknown as AderenciaDataState
+    }
     if (selectedYear === 2026 && selectedMonth === 10) {
       return initialAderenciaOct as unknown as AderenciaDataState
     }
@@ -1736,7 +1740,9 @@ export const PmtsPage: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true
-    if (selectedYear === 2026 && selectedMonth === 10) {
+    if (selectedYear === 2026 && selectedMonth === 11) {
+      setAderenciaState(initialAderenciaNov as unknown as AderenciaDataState)
+    } else if (selectedYear === 2026 && selectedMonth === 10) {
       setAderenciaState(initialAderenciaOct as unknown as AderenciaDataState)
     } else {
       setAderenciaState(null)

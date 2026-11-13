@@ -38,6 +38,7 @@ import {
   type AderenciaMetricData
 } from '../lib/aderenciaService'
 import initialAderenciaOct from '../data/initialAderencia202610.json'
+import initialAderenciaNov from '../data/initialAderencia202611.json'
 
 interface DayItem {
   day: number
@@ -125,6 +126,9 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
 
   // Estado dos Dados de Aderência (Liberado, Faturado e Capacidade)
   const [aderencia, setAderencia] = useState<AderenciaDataState>(() => {
+    if (ano === 2026 && mes === 11) {
+      return initialAderenciaNov as unknown as AderenciaDataState
+    }
     if (ano === 2026 && mes === 10) {
       return initialAderenciaOct as unknown as AderenciaDataState
     }
@@ -205,8 +209,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
   useEffect(() => {
     let isMounted = true
 
-    // Limpa imediatamente o estado para o novo mês para evitar exibir dados do mês anterior
-    if (ano === 2026 && mes === 10) {
+    // Inicializa o estado para o mês selecionado
+    if (ano === 2026 && mes === 11) {
+      setAderencia(initialAderenciaNov as unknown as AderenciaDataState)
+    } else if (ano === 2026 && mes === 10) {
       setAderencia(initialAderenciaOct as unknown as AderenciaDataState)
     } else {
       setAderencia(getEmptyAderenciaState(ano, mes, cd))
@@ -217,6 +223,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
       if (isMounted) {
         if (dbData) {
           setAderencia(dbData)
+        } else if (ano === 2026 && mes === 11) {
+          setAderencia(initialAderenciaNov as unknown as AderenciaDataState)
         } else if (ano === 2026 && mes === 10) {
           setAderencia(initialAderenciaOct as unknown as AderenciaDataState)
         } else {
@@ -225,7 +233,19 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
       }
     }
     loadAderencia()
-    return () => { isMounted = false }
+
+    const handleAderenciaUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<AderenciaDataState>
+      if (customEvent.detail && customEvent.detail.ano === ano && customEvent.detail.mes === mes) {
+        setAderencia(customEvent.detail)
+      }
+    }
+    window.addEventListener('aderenciaDataUpdated', handleAderenciaUpdated)
+
+    return () => {
+      isMounted = false
+      window.removeEventListener('aderenciaDataUpdated', handleAderenciaUpdated)
+    }
   }, [ano, mes, cd])
 
   // Função para remover a numeração inicial dos nomes dos modais
@@ -616,9 +636,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             return (
               <td
                 key={`diluicao-${metricKey}-${d.dayStr}`}
-                className={`px-1.5 py-2 text-center font-mono font-extrabold text-[13px] border-r border-orange-200/80 ${
-                  val === null ? 'text-slate-300' : 'text-orange-950 bg-orange-100/30'
-                }`}
+                className={`px-1.5 py-2 text-center font-mono font-extrabold text-[13px] border-r border-orange-200/80 ${val === null ? 'text-slate-300' : 'text-orange-950 bg-orange-100/30'
+                  }`}
                 title={val !== null ? `Carteira Diluição: ${formatNum(val)}` : 'Preencha Carteira Real para iniciar projeção'}
               >
                 {val !== null ? formatNum(val) : '-'}
@@ -737,8 +756,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
               <td
                 key={`dias-carteira-${metricKey}-${d.dayStr}`}
                 className={`px-1.5 py-1.5 text-center font-mono font-bold text-[12.5px] border-r transition-colors ${isHigh
-                    ? 'bg-rose-100/70 text-rose-700 border-rose-200'
-                    : isUsingDiluicao
+                  ? 'bg-rose-100/70 text-rose-700 border-rose-200'
+                  : isUsingDiluicao
                     ? 'bg-orange-50/60 text-sky-950 border-sky-200'
                     : 'text-sky-950 border-sky-200'
                   }`}
@@ -974,8 +993,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
               type="button"
               onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs font-bold shadow-2xs cursor-pointer ${selectedDays.length > 0 || startDateFilter || endDateFilter
-                  ? 'bg-amber-500 border-amber-600 text-white shadow-amber-500/20'
-                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                ? 'bg-amber-500 border-amber-600 text-white shadow-amber-500/20'
+                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
                 }`}
             >
               <div className="flex items-center gap-1.5">
@@ -990,8 +1009,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                 </span>
               </div>
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold shadow-2xs ${selectedDays.length > 0 || startDateFilter || endDateFilter
-                  ? 'bg-white/20 text-white'
-                  : 'bg-amber-100 text-amber-800'
+                ? 'bg-white/20 text-white'
+                : 'bg-amber-100 text-amber-800'
                 }`}>
                 {activeFilteredDays.length}
               </span>
@@ -1039,8 +1058,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                       setEndDateFilter('')
                     }}
                     className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all cursor-pointer ${selectedDays.length === 0 && !startDateFilter && !endDateFilter
-                        ? 'bg-amber-500 text-white shadow-xs'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60'
                       }`}
                   >
                     Mês Todo
@@ -1134,10 +1153,10 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
                               }}
                               title={`Dia ${d.day}`}
                               className={`h-7 rounded-lg text-[11px] font-bold flex flex-col items-center justify-center transition-all cursor-pointer ${isSelected
-                                  ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30 scale-105 z-10'
-                                  : isWeekend
-                                    ? 'bg-amber-100/50 hover:bg-amber-200/60 text-amber-900 border border-amber-200/40'
-                                    : 'bg-white hover:bg-slate-200/60 text-slate-700 border border-slate-200/50 hover:border-slate-300'
+                                ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30 scale-105 z-10'
+                                : isWeekend
+                                  ? 'bg-amber-100/50 hover:bg-amber-200/60 text-amber-900 border border-amber-200/40'
+                                  : 'bg-white hover:bg-slate-200/60 text-slate-700 border border-slate-200/50 hover:border-slate-300'
                                 }`}
                             >
                               <span>{d.day}</span>
@@ -1205,8 +1224,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             <button
               onClick={() => setGroupBy('modal')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${groupBy === 'modal'
-                  ? 'bg-amber-600 text-white shadow-2xs font-bold'
-                  : 'hover:bg-amber-100 text-amber-800'
+                ? 'bg-amber-600 text-white shadow-2xs font-bold'
+                : 'hover:bg-amber-100 text-amber-800'
                 }`}
             >
               Por Modal
@@ -1214,8 +1233,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             <button
               onClick={() => setGroupBy('categoria_produtividade')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${groupBy === 'categoria_produtividade'
-                  ? 'bg-amber-600 text-white shadow-2xs font-bold'
-                  : 'hover:bg-amber-100 text-amber-800'
+                ? 'bg-amber-600 text-white shadow-2xs font-bold'
+                : 'hover:bg-amber-100 text-amber-800'
                 }`}
             >
               Por Categoria Produtividade
@@ -1227,8 +1246,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             <button
               onClick={() => setSelectedSection('all')}
               className={`px-3 py-1.5 rounded-lg transition-all ${selectedSection === 'all'
-                  ? 'bg-white text-blue-700 shadow-2xs font-bold'
-                  : 'hover:text-slate-900'
+                ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                : 'hover:text-slate-900'
                 }`}
             >
               Todos
@@ -1236,8 +1255,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             <button
               onClick={() => setSelectedSection('pedidos')}
               className={`px-3 py-1.5 rounded-lg transition-all ${selectedSection === 'pedidos'
-                  ? 'bg-white text-blue-700 shadow-2xs font-bold'
-                  : 'hover:text-slate-900'
+                ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                : 'hover:text-slate-900'
                 }`}
             >
               Pedidos TT
@@ -1245,8 +1264,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             <button
               onClick={() => setSelectedSection('pecas')}
               className={`px-3 py-1.5 rounded-lg transition-all ${selectedSection === 'pecas'
-                  ? 'bg-white text-blue-700 shadow-2xs font-bold'
-                  : 'hover:text-slate-900'
+                ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                : 'hover:text-slate-900'
                 }`}
             >
               Peças TT
@@ -1254,8 +1273,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             <button
               onClick={() => setSelectedSection('cubagem')}
               className={`px-3 py-1.5 rounded-lg transition-all ${selectedSection === 'cubagem'
-                  ? 'bg-white text-blue-700 shadow-2xs font-bold'
-                  : 'hover:text-slate-900'
+                ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                : 'hover:text-slate-900'
                 }`}
             >
               Cubagem TT
@@ -1279,8 +1298,8 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
             onClick={() => setIsContentMinimized(!isContentMinimized)}
             title={isContentMinimized ? 'Expandir linhas detalhadas de modais' : 'Minimizar linhas detalhadas e mostrar apenas Totais e Aderência'}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shadow-2xs transition-all cursor-pointer ${isContentMinimized
-                ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-                : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+              ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+              : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
               }`}
           >
             {isContentMinimized ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
