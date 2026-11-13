@@ -1766,18 +1766,18 @@ const EstoqueCategoriasCard: React.FC<{
         ) : (
           /* TABELA DE BLOQUEIOS COM SEGMENTAÇÃO DE DIAS E TIPO */
           <div>
-            {/* Segmentação Interativa: Faixa de Dias + Tipo de Bloqueio */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-100">
-              {/* Seletor de Tipo de Bloqueio: TODOS | BLQ GERAL | BLQ QUALIDADE */}
-              <div className="flex items-center gap-1">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mr-1 shrink-0">
+            {/* Segmentação Interativa: Faixa de Dias + Tipo de Bloqueio em Linha Única */}
+            <div className="flex items-center justify-between gap-1.5 pb-2 mb-2 border-b border-slate-100 overflow-x-auto no-scrollbar">
+              {/* Esquerda: Tipo + Botão Meta */}
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mr-0.5 shrink-0">
                   Tipo:
                 </span>
-                <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
                   <button
                     type="button"
                     onClick={() => setBloqueioTipo('TODOS')}
-                    className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${bloqueioTipo === 'TODOS'
+                    className={`px-1.5 py-0.5 text-[9px] font-bold rounded-md transition-all ${bloqueioTipo === 'TODOS'
                       ? 'bg-slate-900 text-white shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
                       }`}
@@ -1787,7 +1787,7 @@ const EstoqueCategoriasCard: React.FC<{
                   <button
                     type="button"
                     onClick={() => setBloqueioTipo('GERAL')}
-                    className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${bloqueioTipo === 'GERAL'
+                    className={`px-1.5 py-0.5 text-[9px] font-bold rounded-md transition-all ${bloqueioTipo === 'GERAL'
                       ? 'bg-blue-600 text-white shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
                       }`}
@@ -1797,7 +1797,7 @@ const EstoqueCategoriasCard: React.FC<{
                   <button
                     type="button"
                     onClick={() => setBloqueioTipo('QUALIDADE')}
-                    className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all ${bloqueioTipo === 'QUALIDADE'
+                    className={`px-1.5 py-0.5 text-[9px] font-bold rounded-md transition-all ${bloqueioTipo === 'QUALIDADE'
                       ? 'bg-amber-600 text-white shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
                       }`}
@@ -1810,24 +1810,24 @@ const EstoqueCategoriasCard: React.FC<{
                 <button
                   type="button"
                   onClick={() => setIsQualidadeModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[9.5px] font-bold rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-2xs transition-all cursor-pointer ml-1"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-2xs transition-all cursor-pointer shrink-0"
                   title="Ver Gráfico de Atingimento da Meta de Qualidade e GPO"
                 >
-                  <Target size={12} className="text-white" />
+                  <Target size={11} className="text-white" />
                   <span>Meta Qualidade</span>
                 </button>
               </div>
 
-              {/* Indicador Executivo: % Atual de Qualidade e Situação da Meta */}
+              {/* Centro: Indicador Executivo Compacto (% Atual de Qualidade e Situação da Meta) */}
               <div
                 onClick={() => setIsQualidadeModalOpen(true)}
-                className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100/90 border border-slate-200/90 shadow-2xs cursor-pointer transition-all group"
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-50 hover:bg-slate-100/90 border border-slate-200/90 shadow-2xs cursor-pointer transition-all shrink-0"
                 title="Clique para abrir os detalhes da Meta de Qualidade & GPO"
               >
                 {/* % Atual de Qualidade */}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[9.5px] font-bold text-slate-500 uppercase tracking-tight">Qualidade:</span>
-                  <span className={`text-[11px] font-black font-mono px-1.5 py-0.2 rounded border ${qualidadeGpoStats.qualidadeEstoquePct >= 99.95
+                <div className="flex items-center gap-1">
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">Qualidade:</span>
+                  <span className={`text-[10px] font-black font-mono px-1 py-0.2 rounded border ${qualidadeGpoStats.qualidadeEstoquePct >= 99.95
                       ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                       : qualidadeGpoStats.qualidadeEstoquePct >= 99.85
                         ? 'bg-amber-100 text-amber-900 border-amber-300'
@@ -1837,32 +1837,32 @@ const EstoqueCategoriasCard: React.FC<{
                   </span>
                 </div>
 
-                <div className="w-px h-3.5 bg-slate-300/80"></div>
+                <div className="w-px h-3 bg-slate-300"></div>
 
                 {/* Situação em Relação à Meta de 99,95% */}
                 <div className="flex items-center gap-1">
-                  <span className="text-[9.5px] font-bold text-slate-400">Meta 99,95%:</span>
+                  <span className="text-[9px] font-bold text-slate-400">Meta:</span>
                   {qualidadeGpoStats.atingiuMeta ? (
-                    <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 flex items-center gap-0.5">
+                    <span className="text-[9.5px] font-black text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200 flex items-center gap-0.5">
                       <span>✓ Na Meta</span>
-                      <span className="text-[9px] font-bold text-emerald-600">
+                      <span className="text-[8.5px] font-bold text-emerald-600">
                         (Folga: R$ {(Math.abs(qualidadeGpoStats.diferencaParaMeta) / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k)
                       </span>
                     </span>
                   ) : (
-                    <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200 flex items-center gap-0.5">
+                    <span className="text-[9.5px] font-black text-rose-700 bg-rose-50 px-1 py-0.2 rounded border border-rose-200 flex items-center gap-0.5">
                       <span>Fora da Meta</span>
-                      <span className="text-[9px] font-black text-rose-800 bg-rose-200/80 px-1 py-0.2 rounded ml-0.5">
-                        Excesso: +R$ {(qualidadeGpoStats.diferencaParaMeta / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k
+                      <span className="text-[8.5px] font-black text-rose-800 bg-rose-200/80 px-1 py-0.2 rounded">
+                        +{formatCurrencyCompact(qualidadeGpoStats.diferencaParaMeta)}
                       </span>
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Seletor por Faixa de Dias */}
-              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mr-1 shrink-0">
+              {/* Direita: Seletor por Faixa de Dias */}
+              <div className="flex items-center gap-0.5 shrink-0">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mr-0.5 shrink-0">
                   Faixa:
                 </span>
                 {faixasDisponiveis.map(f => {
@@ -1872,7 +1872,7 @@ const EstoqueCategoriasCard: React.FC<{
                       key={f}
                       type="button"
                       onClick={() => onBloqueioFaixaChange(f)}
-                      className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md whitespace-nowrap transition-all border ${isSelected
+                      className={`px-1.5 py-0.5 text-[9px] font-bold rounded-md whitespace-nowrap transition-all border ${isSelected
                         ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                         }`}
