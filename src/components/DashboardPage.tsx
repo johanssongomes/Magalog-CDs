@@ -4,7 +4,7 @@ import {
   Bell, CheckCircle2, Info, Boxes, Truck, Warehouse, Wrench, Users, DollarSign, CalendarDays,
   TrendingUp, TrendingDown, MessageSquareWarning, ArrowUpRight, ArrowDownRight, Layers,
   PieChart, RefreshCw, UploadCloud, Tv, BedDouble, Trees, ShoppingCart, ShieldCheck, Disc3,
-  X, Search, Copy, Check
+  X, Search, Copy, Check, Target, Award, Flag, Scale
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -1187,6 +1187,8 @@ const EstoqueCategoriasCard: React.FC<{
   // Estado para o Modal de Detalhes do Bloqueio
   const [selectedMotivo, setSelectedMotivo] = useState<EstoqueBloqueioMotivo | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  // Estado para o Modal/Painel de Metas de Qualidade & GPO
+  const [isQualidadeModalOpen, setIsQualidadeModalOpen] = useState(false)
   // Segmentação por Tipo de Bloqueio: 'TODOS' | 'GERAL' | 'QUALIDADE'
   const [bloqueioTipo, setBloqueioTipo] = useState<'TODOS' | 'GERAL' | 'QUALIDADE'>('TODOS')
 
@@ -1278,6 +1280,81 @@ const EstoqueCategoriasCard: React.FC<{
   const motivosQualidade = useMemo(() => {
     return motivosFiltrados.filter(m => m.isQualidade)
   }, [motivosFiltrados])
+
+  // Totalizador específico de Bloqueios de Qualidade (usado no Painel de Metas & GPO)
+  const totalQualidadeGeral = useMemo(() => {
+    if (!bloqueiosData?.motivos) return { valor: 0, skus: 0, pecas: 0, cubagem: 0 }
+    const qualList = bloqueiosData.motivos.filter(m => isQualidadeMotivo(m.motivo))
+    const valor = qualList.reduce((acc, m) => acc + (m.valorTotal || 0), 0)
+    const skus = qualList.reduce((acc, m) => acc + (m.skus || 0), 0)
+    const pecas = qualList.reduce((acc, m) => acc + (m.pecas || 0), 0)
+    const cubagem = qualList.reduce((acc, m) => acc + (m.cubagem || 0), 0)
+    return { valor, skus, pecas, cubagem }
+  }, [bloqueiosData])
+
+  // Indicadores de Qualidade do Estoque & Metas GPO
+  const qualidadeGpoStats = useMemo(() => {
+    const valorEstoqueTotal = baseTotalValor || 148900000 // Valor de custo do inventário ativo
+    const valorBloqQualidade = totalQualidadeGeral.valor || 106300 // Valor total retido por qualidade
+    const representacaoPct = valorEstoqueTotal > 0 ? (valorBloqQualidade / valorEstoqueTotal) * 100 : 0
+    const qualidadeEstoquePct = Math.max(0, 100 - representacaoPct)
+
+    // Meta oficial: 99,95% -> Teto de bloqueio de qualidade permitido: 0,05%
+    const metaPct = 99.95
+    const tetoBloqueioPermitido = valorEstoqueTotal * 0.0005 // 0.05%
+    const diferencaParaMeta = valorBloqQualidade - tetoBloqueioPermitido
+    const atingiuMeta = qualidadeEstoquePct >= metaPct
+
+    // Classificação de Grupos
+    // Grupo 1: >= 99.95% (Excelência, 100% GPO)
+    // Grupo 2: >= 99.85% e < 99.95% (Consolidação, 75% GPO)
+    // Grupo 3: >= 99.80% e < 99.85% (Alavancagem, 50% GPO)
+    // Grupo 4: < 99.80% (Crítico, GPO Zerado)
+    let grupoAtivo: 1 | 2 | 3 | 4 = 4
+    let grupoNome = 'Grupo 4: CRÍTICO'
+    let grupoDesc = 'Abaixo de 99,80% (GPO Zerado)'
+    let grupoComportamento = 'Atenção Imediata. Alto volume de bloqueios de qualidade comprometendo a meta operacional.'
+
+    if (qualidadeEstoquePct >= 99.95) {
+      grupoAtivo = 1
+      grupoNome = 'Grupo 1: EXCELÊNCIA'
+      grupoDesc = 'Qualidade de Estoque igual ou superior a 99,95%'
+      grupoComportamento = 'Excelente controle operacional. Processos preventivos altamente eficazes mantendo o inventário dentro da meta máxima.'
+    } else if (qualidadeEstoquePct >= 99.85) {
+      grupoAtivo = 2
+      grupoNome = 'Grupo 2: CONSOLIDAÇÃO'
+      grupoDesc = 'Em Evolução (Qualidade de Estoque entre 99,85% e 99,94%)'
+      grupoComportamento = 'Foco em Gestão Corretiva Agilizada. O CD possui processos estáveis, mas ainda convive com gargalos pontuais de estoque envelhecido ou bloqueios transitórios.'
+    } else if (qualidadeEstoquePct >= 99.80) {
+      grupoAtivo = 3
+      grupoNome = 'Grupo 3: ALAVANCAGEM'
+      grupoDesc = 'Qualidade de Estoque entre 99,80% e 99,84%'
+      grupoComportamento = 'Aceleração de tratativas de regularização de faltas, avarias e estornos para recuperação do índice.'
+    }
+
+    // Posição percentual na régua (escala de 99,50% a 100,00%)
+    const minRegua = 99.50
+    const maxRegua = 100.00
+    const posicaoReguaPct = Math.min(Math.max(((qualidadeEstoquePct - minRegua) / (maxRegua - minRegua)) * 100, 0), 100)
+    const metaReguaPct = ((metaPct - minRegua) / (maxRegua - minRegua)) * 100
+
+    return {
+      valorEstoqueTotal,
+      valorBloqQualidade,
+      representacaoPct,
+      qualidadeEstoquePct,
+      metaPct,
+      tetoBloqueioPermitido,
+      diferencaParaMeta,
+      atingiuMeta,
+      grupoAtivo,
+      grupoNome,
+      grupoDesc,
+      grupoComportamento,
+      posicaoReguaPct,
+      metaReguaPct
+    }
+  }, [baseTotalValor, totalQualidadeGeral])
 
   // Totalizadores de Bloqueios respeitando filtros
   const totalGeralBloqueios = useMemo(() => {
@@ -1668,6 +1745,17 @@ const EstoqueCategoriasCard: React.FC<{
                     Blq Qualidade
                   </button>
                 </div>
+
+                {/* Botão para Exibir o Gráfico / Painel de Metas de Qualidade & GPO */}
+                <button
+                  type="button"
+                  onClick={() => setIsQualidadeModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[9.5px] font-bold rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-2xs transition-all cursor-pointer ml-1"
+                  title="Ver Gráfico de Atingimento da Meta de Qualidade e GPO"
+                >
+                  <Target size={12} className="text-white" />
+                  <span>Meta Qualidade</span>
+                </button>
               </div>
 
               {/* Seletor por Faixa de Dias */}
@@ -1769,20 +1857,20 @@ const EstoqueCategoriasCard: React.FC<{
                           </td>
                           <td className="py-1.5 px-1.5 text-center">
                             <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded border ${Number(pctBloq) >= 20
-                                ? 'bg-amber-200 text-amber-950 font-black border-amber-400 shadow-2xs'
-                                : Number(pctBloq) >= 5
-                                  ? 'bg-amber-100 text-amber-900 font-bold border-amber-300'
-                                  : 'text-amber-700 bg-amber-50 border-amber-200'
+                              ? 'bg-amber-200 text-amber-950 font-black border-amber-400 shadow-2xs'
+                              : Number(pctBloq) >= 5
+                                ? 'bg-amber-100 text-amber-900 font-bold border-amber-300'
+                                : 'text-amber-700 bg-amber-50 border-amber-200'
                               }`}>
                               {pctBloq}%
                             </span>
                           </td>
                           <td className="py-1.5 px-1.5 text-center">
                             <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded border ${Number(pctEstoque) >= 0.1
-                                ? 'bg-blue-200 text-blue-950 font-black border-blue-400 shadow-2xs'
-                                : Number(pctEstoque) >= 0.03
-                                  ? 'bg-blue-100 text-blue-900 font-bold border-blue-300'
-                                  : 'text-blue-700 bg-blue-50 border-blue-200'
+                              ? 'bg-blue-200 text-blue-950 font-black border-blue-400 shadow-2xs'
+                              : Number(pctEstoque) >= 0.03
+                                ? 'bg-blue-100 text-blue-900 font-bold border-blue-300'
+                                : 'text-blue-700 bg-blue-50 border-blue-200'
                               }`}>
                               {pctEstoque}%
                             </span>
@@ -1887,6 +1975,306 @@ const EstoqueCategoriasCard: React.FC<{
         faixaSelecionada={bloqueioFaixa}
         items={selectedMotivo?.items || []}
       />
+
+      {/* Modal de Atingimento da Meta de Qualidade & GPO */}
+      {isQualidadeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl max-h-[92vh] overflow-y-auto p-5 sm:p-7 space-y-6">
+
+            {/* Cabeçalho do Modal */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shadow-xs">
+                  <Target size={22} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    <span>Acompanhamento da Meta de Qualidade &amp; GPO</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-200">
+                      CD994 MARACANAÚ
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Diretriz de GPO &bull; Classificação por Grupos e Limite Máximo de Bloqueios de Qualidade
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsQualidadeModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* 1. TOPO: 4 CARDS DE GRUPOS DE PERFORMANCE */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Grupo 1 */}
+              <div className={`p-4 rounded-xl border text-center transition-all ${qualidadeGpoStats.grupoAtivo === 1
+                  ? 'bg-sky-50 border-sky-300 ring-2 ring-sky-400/50 shadow-xs'
+                  : 'bg-slate-50/70 border-slate-200/90'
+                }`}>
+                <div className="w-7 h-7 rounded-full bg-sky-100 border border-sky-300 text-sky-700 flex items-center justify-center font-bold text-xs mx-auto mb-2">
+                  1
+                </div>
+                <h4 className="text-xs font-bold text-slate-800 mb-1">Grupo de Excelência</h4>
+                <div className="text-sm font-black text-slate-900">Atingir: 99,95%</div>
+                <div className="text-[11px] text-slate-500 mb-2 font-medium">(100% do GPO)</div>
+                <div className="text-[11.5px] font-bold text-slate-600">
+                  {qualidadeGpoStats.atingiuMeta ? (
+                    <span className="text-emerald-700 font-bold">✓ Atingido</span>
+                  ) : (
+                    <span className="text-rose-600 font-bold">
+                      Liberar: R$ {formatCurrencyCompact(Math.max(0, qualidadeGpoStats.diferencaParaMeta))}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Grupo 2 */}
+              <div className={`p-4 rounded-xl border text-center transition-all ${qualidadeGpoStats.grupoAtivo === 2
+                  ? 'bg-amber-50/80 border-amber-300 ring-2 ring-amber-400/50 shadow-xs'
+                  : 'bg-slate-50/70 border-slate-200/90'
+                }`}>
+                <div className="w-7 h-7 rounded-full bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center font-bold text-xs mx-auto mb-2">
+                  2
+                </div>
+                <h4 className="text-xs font-bold text-slate-800 mb-1">Grupo de Consolidação</h4>
+                <div className="text-sm font-black text-slate-900">Atingir: 99,85%</div>
+                <div className="text-[11px] text-slate-500 mb-2 font-medium">(75% do GPO)</div>
+                <div className="text-[11.5px] font-bold text-emerald-700">
+                  {qualidadeGpoStats.qualidadeEstoquePct >= 99.85 ? '✓ Atingido' : 'Pendente'}
+                </div>
+              </div>
+
+              {/* Grupo 3 */}
+              <div className={`p-4 rounded-xl border text-center transition-all ${qualidadeGpoStats.grupoAtivo === 3
+                  ? 'bg-orange-50/80 border-orange-300 ring-2 ring-orange-400/50 shadow-xs'
+                  : 'bg-slate-50/70 border-slate-200/90'
+                }`}>
+                <div className="w-7 h-7 rounded-full bg-orange-100 border border-orange-300 text-orange-700 flex items-center justify-center font-bold text-xs mx-auto mb-2">
+                  3
+                </div>
+                <h4 className="text-xs font-bold text-slate-800 mb-1">Grupo de Alavancagem</h4>
+                <div className="text-sm font-black text-slate-900">Atingir: 99,80%</div>
+                <div className="text-[11px] text-slate-500 mb-2 font-medium">(50% do GPO)</div>
+                <div className="text-[11.5px] font-bold text-emerald-700">
+                  {qualidadeGpoStats.qualidadeEstoquePct >= 99.80 ? '✓ Atingido' : 'Pendente'}
+                </div>
+              </div>
+
+              {/* Grupo 4 - Crítico */}
+              <div className={`p-4 rounded-xl border text-center transition-all ${qualidadeGpoStats.grupoAtivo === 4
+                  ? 'bg-rose-50 border-rose-300 ring-2 ring-rose-400/50 shadow-xs'
+                  : 'bg-slate-50/70 border-slate-200/90'
+                }`}>
+                <div className="w-7 h-7 rounded-full bg-rose-100 border border-rose-300 text-rose-700 flex items-center justify-center font-bold text-xs mx-auto mb-2">
+                  !
+                </div>
+                <h4 className="text-xs font-bold text-slate-800 mb-1">Grupo Crítico</h4>
+                <div className="text-sm font-black text-rose-700">Abaixo de 99,80%</div>
+                <div className="text-[11px] text-slate-500 mb-2 font-medium">(GPO Zerado)</div>
+                <div className="text-[11.5px] font-bold text-slate-500">
+                  {qualidadeGpoStats.qualidadeEstoquePct < 99.80 ? 'Abaixo do limite' : 'Fora da zona crítica'}
+                </div>
+              </div>
+            </div>
+
+            {/* 2. LINHA DE 4 INDICADORES CENTRAIS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Card 1: Valor Estoque Total */}
+              <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  Valor Estoque Total
+                </span>
+                <div className="text-2xl font-black text-slate-900 tracking-tight">
+                  R$ {(qualidadeGpoStats.valorEstoqueTotal / 1_000_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Mi
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">Valor de custo total do inventário ativo</p>
+              </div>
+
+              {/* Card 2: Bloqueios Qualidade */}
+              <div className="p-4 rounded-xl bg-white border-l-4 border-l-rose-500 border border-slate-200 shadow-2xs">
+                <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block mb-1">
+                  Bloqueios Qualidade
+                </span>
+                <div className="text-2xl font-black text-rose-600 tracking-tight">
+                  R$ {(qualidadeGpoStats.valorBloqQualidade / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} mil
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">Valor total retido por qualidade</p>
+              </div>
+
+              {/* Card 3: Representação (%) */}
+              <div className="p-4 rounded-xl bg-white border-l-4 border-l-amber-500 border border-slate-200 shadow-2xs">
+                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block mb-1">
+                  Representação (%)
+                </span>
+                <div className="text-2xl font-black text-amber-600 tracking-tight">
+                  {qualidadeGpoStats.representacaoPct.toFixed(2)}%
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">% do valor bloqueado sobre o total</p>
+              </div>
+
+              {/* Card 4: Qualidade do Estoque */}
+              <div className="p-4 rounded-xl bg-white border-l-4 border-l-sky-500 border border-slate-200 shadow-2xs">
+                <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wider block mb-1">
+                  Qualidade do Estoque
+                </span>
+                <div className="text-2xl font-black text-sky-600 tracking-tight">
+                  {qualidadeGpoStats.qualidadeEstoquePct.toFixed(2)}%
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  100% - {qualidadeGpoStats.representacaoPct.toFixed(2)}% = {qualidadeGpoStats.qualidadeEstoquePct.toFixed(2)}%
+                </p>
+              </div>
+            </div>
+
+            {/* 3. CARD INFORMATIVO DO GRUPO VIGENTE */}
+            <div className="p-4 rounded-xl border border-sky-200 bg-sky-50/60 flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-white border border-sky-200 text-sky-700 shadow-2xs shrink-0 mt-0.5">
+                <Scale size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-900 tracking-tight">
+                  {qualidadeGpoStats.grupoNome}
+                </h4>
+                <p className="text-xs font-semibold text-sky-800 mt-0.5">
+                  {qualidadeGpoStats.grupoDesc}
+                </p>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  <strong className="text-slate-800">Comportamento:</strong> {qualidadeGpoStats.grupoComportamento}
+                </p>
+              </div>
+            </div>
+
+            {/* 4. PAINEL DE ATINGIMENTO DA META & RÉGUA DE QUALIDADE */}
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-6">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h4 className="text-sm font-bold text-slate-900">
+                  Atingimento da Meta de Qualidade (Meta: 99,95%)
+                </h4>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase font-mono ${qualidadeGpoStats.atingiuMeta
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-rose-100 text-rose-800'
+                  }`}>
+                  {qualidadeGpoStats.atingiuMeta ? 'Dentro da Meta' : 'Fora da Meta'}
+                </span>
+              </div>
+
+              {/* 3 Blocos de Resumo da Meta */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-slate-100 pb-5">
+                {/* Teto Bloqueio Permitido */}
+                <div className="border-l-2 border-slate-300 pl-3">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Teto Bloqueio Permitido (0,05%)
+                  </span>
+                  <div className="text-lg font-black text-slate-900 mt-0.5">
+                    R$ {(qualidadeGpoStats.tetoBloqueioPermitido / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} mil
+                  </div>
+                  <span className="text-[10px] text-slate-400">Máximo aceitável para atingir a meta</span>
+                </div>
+
+                {/* Valor Bloqueado Realizado */}
+                <div className="border-l-2 border-slate-300 pl-3">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Valor Bloqueado Realizado
+                  </span>
+                  <div className="text-lg font-black text-rose-600 mt-0.5">
+                    R$ {(qualidadeGpoStats.valorBloqQualidade / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} mil
+                  </div>
+                  <span className="text-[10px] text-slate-400">Valor real bloqueado no agrupamento</span>
+                </div>
+
+                {/* Status do Indicador */}
+                <div className="border-l-2 border-slate-300 pl-3">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Status do Indicador
+                  </span>
+                  <div className={`text-lg font-black mt-0.5 ${qualidadeGpoStats.atingiuMeta ? 'text-emerald-700' : 'text-rose-600'}`}>
+                    {qualidadeGpoStats.atingiuMeta ? 'DENTRO DA META' : 'FORA DA META'}
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-500">
+                    {qualidadeGpoStats.atingiuMeta
+                      ? `Folga: R$ ${(Math.abs(qualidadeGpoStats.diferencaParaMeta) / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} mil`
+                      : `Excesso: +R$ ${(qualidadeGpoStats.diferencaParaMeta / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} mil`
+                    }
+                  </span>
+                </div>
+              </div>
+
+              {/* TERMÔMETRO / RÉGUA COM GRADIENTE E MARCADORES */}
+              <div className="pt-8 pb-10 px-4">
+                <div className="relative w-full">
+
+                  {/* Marcador do CD 994 (Acima da Barra) */}
+                  <div
+                    className="absolute -top-12 -translate-x-1/2 flex flex-col items-center transition-all duration-500 z-20 pointer-events-none"
+                    style={{ left: `${qualidadeGpoStats.posicaoReguaPct}%` }}
+                  >
+                    <div className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 font-black text-[11px] shadow-md border border-amber-600/30 whitespace-nowrap text-center leading-tight">
+                      <div className="text-[9px] font-bold uppercase tracking-wider text-slate-900">CD994</div>
+                      <div>MARACANAÚ</div>
+                      <div className="text-[10px] font-extrabold text-slate-950">{qualidadeGpoStats.qualidadeEstoquePct.toFixed(2)}%</div>
+                    </div>
+                    {/* Foto / Avatar Representativo */}
+                    <div className="w-6 h-6 rounded-full border-2 border-white bg-slate-800 text-white flex items-center justify-center text-[9px] font-black shadow-md mt-0.5">
+                      <User size={13} />
+                    </div>
+                  </div>
+
+                  {/* Marcador da Meta: 99,95% (Bandeira) */}
+                  <div
+                    className="absolute -top-7 -translate-x-1/2 flex flex-col items-center z-10 pointer-events-none"
+                    style={{ left: `${qualidadeGpoStats.metaReguaPct}%` }}
+                  >
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-white border border-slate-400 text-slate-800 font-black text-[10px] shadow-2xs whitespace-nowrap">
+                      <Flag size={11} className="text-slate-800" />
+                      <span>META: 99,95%</span>
+                    </div>
+                    <div className="w-0.5 h-10 bg-slate-900"></div>
+                  </div>
+
+                  {/* BARRA HORIZONTAL COM GRADIENTE */}
+                  <div className="w-full h-8 rounded-full shadow-inner bg-gradient-to-r from-rose-500 via-amber-400 via-yellow-400 to-emerald-500 p-0.5 flex items-center justify-between px-3 text-[10px] font-black text-white select-none">
+                    <span className="drop-shadow-xs">99,50%</span>
+                    <span className="drop-shadow-xs">100,00%</span>
+                  </div>
+
+                  {/* Marcador do Total (Abaixo da Barra) */}
+                  <div
+                    className="absolute -bottom-8 -translate-x-1/2 flex flex-col items-center z-20 pointer-events-none"
+                    style={{ left: `${qualidadeGpoStats.posicaoReguaPct}%` }}
+                  >
+                    <div className="w-1.5 h-1.5 bg-slate-900 rotate-45 -mb-1"></div>
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 text-white font-black text-[11px] shadow-lg whitespace-nowrap">
+                      <User size={12} className="text-slate-300" />
+                      <span>TOTAL: {qualidadeGpoStats.qualidadeEstoquePct.toFixed(2)}%</span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+
+            {/* Rodapé de Ações */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs text-slate-400">
+                * O indicador reflete exclusivamente o inventário retido por motivos de qualidade técnica/operacional.
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsQualidadeModalOpen(false)}
+                className="px-5 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition-colors cursor-pointer"
+              >
+                Fechar Painel
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </Card>
   )
 }
