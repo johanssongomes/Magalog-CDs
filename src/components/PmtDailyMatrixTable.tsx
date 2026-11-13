@@ -393,9 +393,14 @@ export const PmtDailyMatrixTable: React.FC<Props> = ({
         const mYear = parsedItem.ano
         const mMonth = parsedItem.mes
 
-        // Recupera dados já existentes do mês de destino (se houver) para manter capacidade e a outra métrica
-        const existingData = await getAderenciaData(mYear, mMonth, cd)
-        const baseForMonth: AderenciaDataState = existingData || getEmptyAderenciaState(mYear, mMonth, cd)
+        // Recupera dados já existentes: se for o mês atualmente na tela, usa o estado 'aderencia' atual para nunca sobrescrever com dados antigos
+        let baseForMonth: AderenciaDataState
+        if (mYear === ano && mMonth === mes && aderencia) {
+          baseForMonth = aderencia
+        } else {
+          const existingData = await getAderenciaData(mYear, mMonth, cd)
+          baseForMonth = existingData || getEmptyAderenciaState(mYear, mMonth, cd)
+        }
 
         const updatedMonthState: AderenciaDataState = {
           ...baseForMonth,

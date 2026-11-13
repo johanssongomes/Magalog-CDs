@@ -51,10 +51,10 @@ export interface AderenciaDataState {
   updatedAt?: string
 }
 
-const STORAGE_KEY_ADERENCIA = (ano: number, mes: number, cd: string) => 
+const STORAGE_KEY_ADERENCIA = (ano: number, mes: number, cd: string) =>
   `magalog_pmt_aderencia_${cd}_${ano}_${mes.toString().padStart(2, '0')}`
 
-const SUPABASE_KEY_ADERENCIA = (ano: number, mes: number, cd: string) => 
+const SUPABASE_KEY_ADERENCIA = (ano: number, mes: number, cd: string) =>
   `_pmt_aderencia_${cd}_${ano}_${mes.toString().padStart(2, '0')}`
 
 // Função auxiliar para converter valores da planilha com segurança
@@ -89,9 +89,9 @@ export function extractDayStr(val: any): string | null {
 
 // Extrair dia, mês e ano de um registro ou data
 export function extractDateParts(
-  row: any, 
-  dateColumnName?: string, 
-  defaultAno?: number, 
+  row: any,
+  dateColumnName?: string,
+  defaultAno?: number,
   defaultMes?: number
 ): { dayStr: string; mes: number; ano: number } | null {
   if (!row) return null
@@ -187,8 +187,11 @@ export function parseAderenciaExcel(
     const dayStr = dateParts.dayStr
     const rowCd = String(r['CD'] || r['cd'] || contextCd).trim()
 
-    // FILTRO OBRIGATÓRIO POR CD: Ignora linhas de outros CDs para não somar a rede inteira
-    if (contextCd && rowCd !== String(contextCd).trim()) {
+    // FILTRO OBRIGATÓRIO POR CD: Extrai apenas os dígitos para comparar (ex: '994', 'CD 994', etc.)
+    const cleanRowCd = rowCd.replace(/\D/g, '')
+    const cleanContextCd = String(contextCd).trim().replace(/\D/g, '')
+
+    if (cleanContextCd && cleanRowCd !== cleanContextCd) {
       return
     }
 
@@ -258,7 +261,7 @@ export async function getAderenciaData(ano: number, mes: number, cd: string = '9
       const parsed: AderenciaDataState = JSON.parse(data.value)
       try {
         localStorage.setItem(localKey, JSON.stringify(parsed))
-      } catch {}
+      } catch { }
       return parsed
     }
   } catch (err) {
@@ -269,7 +272,7 @@ export async function getAderenciaData(ano: number, mes: number, cd: string = '9
   try {
     const local = localStorage.getItem(localKey)
     if (local) return JSON.parse(local)
-  } catch {}
+  } catch { }
 
   return null
 }
@@ -284,7 +287,7 @@ export async function saveAderenciaData(state: AderenciaDataState): Promise<void
 
   try {
     localStorage.setItem(localKey, jsonStr)
-  } catch {}
+  } catch { }
 
   try {
     await supabase.from('performance_metrics').upsert({
