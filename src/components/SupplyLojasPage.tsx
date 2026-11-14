@@ -26,6 +26,26 @@ import initialPivotData from '../data/supply_pivot_summary.json'
 
 type EstoqueTipoMetric = 'FISICO' | 'LOGICO' | 'TRANSITO' | 'ESTOQUE'
 type OrderByOption = 'LINHA_ASC' | 'ESTOQUE_DESC' | 'ESTOQUE_ASC' | 'LOJAS_DESC'
+type RegionalOption = 'TODOS' | 'Thiago' | 'Outros Regionais'
+
+// Mapeamento das 45 filiais por Regional
+const REGIONAL_FILIAIS_MAP: Record<number, 'Thiago' | 'Outros Regionais'> = {
+  // Regional Thiago (32 Lojas)
+  710: 'Thiago', 727: 'Thiago', 734: 'Thiago', 740: 'Thiago', 742: 'Thiago',
+  743: 'Thiago', 745: 'Thiago', 746: 'Thiago', 751: 'Thiago', 752: 'Thiago',
+  755: 'Thiago', 757: 'Thiago', 761: 'Thiago', 765: 'Thiago', 778: 'Thiago',
+  802: 'Thiago', 809: 'Thiago', 835: 'Thiago', 840: 'Thiago', 842: 'Thiago',
+  846: 'Thiago', 847: 'Thiago', 872: 'Thiago', 873: 'Thiago', 1206: 'Thiago',
+  1207: 'Thiago', 1217: 'Thiago', 1344: 'Thiago', 1345: 'Thiago', 1347: 'Thiago',
+  1386: 'Thiago', 1411: 'Thiago',
+
+  // Outros Regionais (13 Lojas)
+  662: 'Outros Regionais', 736: 'Outros Regionais', 785: 'Outros Regionais',
+  820: 'Outros Regionais', 857: 'Outros Regionais', 871: 'Outros Regionais',
+  984: 'Outros Regionais', 1223: 'Outros Regionais', 1236: 'Outros Regionais',
+  1341: 'Outros Regionais', 1349: 'Outros Regionais', 1363: 'Outros Regionais',
+  1376: 'Outros Regionais'
+}
 
 const METRIC_INDEX: Record<EstoqueTipoMetric, number> = {
   FISICO: 0,
@@ -42,6 +62,7 @@ export const SupplyLojasPage: React.FC = () => {
   // -------------------------------------------------------------
   const [pivotStatus, setPivotStatus] = useState<string>('LOJA SEM FISICO')
   const [selectedMetric, setSelectedMetric] = useState<EstoqueTipoMetric>('FISICO')
+  const [selectedRegional, setSelectedRegional] = useState<RegionalOption>('TODOS')
   const [orderBy, setOrderBy] = useState<OrderByOption>('LINHA_ASC')
   const [pivotSearch, setPivotSearch] = useState<string>('')
   const [expandedLinhas, setExpandedLinhas] = useState<Record<string, boolean>>({
@@ -66,7 +87,13 @@ export const SupplyLojasPage: React.FC = () => {
     setExpandedLinhas(newExpanded)
   }
 
-  const filiaisList = useMemo(() => initialPivotData.filiais as number[], [])
+  // Lista de filiais filtradas por Regional
+  const filiaisList = useMemo(() => {
+    const all = initialPivotData.filiais as number[]
+    if (selectedRegional === 'TODOS') return all
+    return all.filter(f => REGIONAL_FILIAIS_MAP[f] === selectedRegional)
+  }, [selectedRegional])
+
   const metricIdx = METRIC_INDEX[selectedMetric]
 
   // Rótulo da coluna do CD
@@ -108,14 +135,14 @@ export const SupplyLojasPage: React.FC = () => {
 
     Object.entries(currentStatusObj).forEach(([linha, lData]) => {
       const allSkusRaw = Object.values(lData.skus)
-      
+
       const filteredRaw = query
         ? allSkusRaw.filter(s =>
-            linha.toLowerCase().includes(query) ||
-            s.c.toLowerCase().includes(query) ||
-            s.n.toLowerCase().includes(query) ||
-            s.d.toLowerCase().includes(query)
-          )
+          linha.toLowerCase().includes(query) ||
+          s.c.toLowerCase().includes(query) ||
+          s.n.toLowerCase().includes(query) ||
+          s.d.toLowerCase().includes(query)
+        )
         : allSkusRaw
 
       if (filteredRaw.length > 0) {
@@ -374,11 +401,10 @@ export const SupplyLojasPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('dashboard')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'dashboard'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'dashboard'
                 ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
                 : 'text-slate-600 hover:text-slate-900'
-            }`}
+              }`}
           >
             <LayoutDashboard size={14} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-slate-400'} />
             <span>Supply Dashboard</span>
@@ -387,11 +413,10 @@ export const SupplyLojasPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('painel')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'painel'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'painel'
                 ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
                 : 'text-slate-600 hover:text-slate-900'
-            }`}
+              }`}
           >
             <TableIcon size={14} className={activeTab === 'painel' ? 'text-amber-600' : 'text-slate-400'} />
             <span>Painel Supply</span>
@@ -400,11 +425,10 @@ export const SupplyLojasPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('relatorio')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'relatorio'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'relatorio'
                 ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
                 : 'text-slate-600 hover:text-slate-900'
-            }`}
+              }`}
           >
             <FileSpreadsheet size={14} className={activeTab === 'relatorio' ? 'text-indigo-600' : 'text-slate-400'} />
             <span>Relatório Supply</span>
@@ -415,11 +439,10 @@ export const SupplyLojasPage: React.FC = () => {
       {/* FEEDBACK DE UPLOAD */}
       {uploadFeedback && (
         <div
-          className={`p-3 rounded-xl border flex items-center justify-between text-xs font-medium animate-in fade-in duration-200 ${
-            uploadFeedback.type === 'success'
+          className={`p-3 rounded-xl border flex items-center justify-between text-xs font-medium animate-in fade-in duration-200 ${uploadFeedback.type === 'success'
               ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
               : 'bg-rose-50 border-rose-200 text-rose-800'
-          }`}
+            }`}
         >
           <div className="flex items-center gap-2">
             {uploadFeedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
@@ -491,22 +514,20 @@ export const SupplyLojasPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setPivotStatus('LOJA SEM FISICO')}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                    pivotStatus === 'LOJA SEM FISICO'
+                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${pivotStatus === 'LOJA SEM FISICO'
                       ? 'bg-rose-600 text-white shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                    }`}
                 >
                   LOJA SEM FISICO
                 </button>
                 <button
                   type="button"
                   onClick={() => setPivotStatus('LOJA COM FISICO')}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                    pivotStatus === 'LOJA COM FISICO'
+                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${pivotStatus === 'LOJA COM FISICO'
                       ? 'bg-emerald-600 text-white shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                    }`}
                 >
                   LOJA COM FISICO
                 </button>
@@ -541,6 +562,21 @@ export const SupplyLojasPage: React.FC = () => {
                   <option value="ESTOQUE_DESC">Maior Estoque CD 994</option>
                   <option value="ESTOQUE_ASC">Menor Estoque CD 994</option>
                   <option value="LOJAS_DESC">Maior Volume Lojas</option>
+                </select>
+              </div>
+
+              {/* Filtro por Regional (Thiago vs Outros Regionais) */}
+              <div className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
+                <Building2 size={13} className="text-indigo-600" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase">Regional:</span>
+                <select
+                  value={selectedRegional}
+                  onChange={(e) => setSelectedRegional(e.target.value as RegionalOption)}
+                  className="bg-transparent text-xs font-black text-slate-900 outline-hidden cursor-pointer"
+                >
+                  <option value="TODOS">Todos os Regionais (45 lojas)</option>
+                  <option value="Thiago">Thiago (32 lojas)</option>
+                  <option value="Outros Regionais">Outros Regionais (13 lojas)</option>
                 </select>
               </div>
             </div>
@@ -584,12 +620,13 @@ export const SupplyLojasPage: React.FC = () => {
           <div className="flex items-center justify-between text-[11px] text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
             <div className="flex items-center gap-4 font-semibold">
               <span>Métrica Ativa: <strong className="text-blue-700">{selectedMetric}</strong></span>
+              <span>Regional: <strong className={selectedRegional === 'Thiago' ? 'text-indigo-700' : selectedRegional === 'Outros Regionais' ? 'text-amber-700' : 'text-slate-800'}>{selectedRegional}</strong></span>
               <span>CD Origem: <strong>994</strong></span>
               <span>Linhas: <strong>{pivotLinhasData.length}</strong></span>
-              <span>Filiais Mapeadas: <strong>{filiaisList.length}</strong></span>
+              <span>Lojas Exibidas: <strong className="text-slate-900">{filiaisList.length} de 45</strong></span>
             </div>
             <div className="text-[10px] text-slate-400">
-              * Clique em [+] para expandir os SKUs ou utilize os seletores de métrica e classificação acima
+              * Clique em [+] para expandir os SKUs ou utilize os seletores de regional, métrica e classificação acima
             </div>
           </div>
 
@@ -840,11 +877,10 @@ export const SupplyLojasPage: React.FC = () => {
               {/* Botão de Upload da Planilha Supply.xlsx */}
               <label
                 htmlFor="supply-file-upload"
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white shadow-xs transition-all cursor-pointer ${
-                  isUploading
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white shadow-xs transition-all cursor-pointer ${isUploading
                     ? 'bg-slate-400 cursor-wait'
                     : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95'
-                }`}
+                  }`}
                 title="Sincronizar banco com nova planilha Supply.xlsx"
               >
                 {isUploading ? (
@@ -942,11 +978,10 @@ export const SupplyLojasPage: React.FC = () => {
                       </td>
                       <td className="py-2 px-2.5 text-center font-sans">
                         <span
-                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
-                            item.status_estoque?.includes('SEM FISICO')
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${item.status_estoque?.includes('SEM FISICO')
                               ? 'bg-rose-50 text-rose-700 border-rose-200'
                               : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          }`}
+                            }`}
                         >
                           {item.status_estoque || '-'}
                         </span>
