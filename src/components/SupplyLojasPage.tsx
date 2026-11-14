@@ -818,32 +818,32 @@ export const SupplyLojasPage: React.FC = () => {
           </div>
 
           {/* TABELA DINÂMICA (MATRIZ PIVOT COM SCROLL HORIZONTAL) */}
-          <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs max-h-[70vh] bg-slate-50/20">
-            <table className="text-left border-collapse text-[10px] whitespace-nowrap min-w-full inline-table">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs max-h-[70vh] bg-white">
+            <table className="text-left border-collapse text-[10px] whitespace-nowrap table-auto">
               <thead className="sticky top-0 z-30 bg-slate-100 shadow-xs border-b border-slate-300 select-none">
                 <tr className="text-[9.5px] font-black uppercase text-slate-700">
-                  <th className="py-2 px-2 sticky left-0 z-40 bg-slate-100 border-r border-slate-200 w-[220px] min-w-[220px]">
+                  <th className="py-2 px-2.5 border-r border-slate-200">
                     DESCLINHA / PRODUTO
                   </th>
-                  <th className="py-2 px-2 text-center sticky left-[220px] z-40 bg-slate-100 border-r border-slate-200 w-[90px] min-w-[90px]">
+                  <th className="py-2 px-2 text-center border-r border-slate-200">
                     CÓD. PRODUTO
                   </th>
-                  <th className="py-2 px-3 sticky left-[310px] z-40 bg-slate-100 border-r border-slate-200 w-[200px] min-w-[200px]">
+                  <th className="py-2 px-3 border-r border-slate-200">
                     DESCRIÇÃO
                   </th>
-                  <th className="py-2 px-2 text-right sticky left-[510px] z-40 bg-blue-100/90 text-blue-900 border-r border-slate-300 w-[90px] min-w-[90px]">
+                  <th className="py-2 px-2.5 text-right bg-blue-100/90 text-blue-900 border-r border-slate-300">
                     {cdColumnLabel}
                   </th>
 
                   {/* Colunas Dinâmicas de Cada Filial */}
                   {filiaisList.map(fil => (
-                    <th key={fil} className="py-2 px-2.5 text-center border-r border-slate-200 w-12 min-w-12 text-[9px] font-bold">
+                    <th key={fil} className="py-2 px-2 text-center border-r border-slate-200 text-[9px] font-bold">
                       {fil}
                     </th>
                   ))}
 
                   {/* Coluna Total Geral da Linha */}
-                  <th className="py-2 px-3 text-center bg-slate-200/90 text-slate-900 font-black w-24 min-w-24">
+                  <th className="py-2 px-3 text-center bg-slate-200/90 text-slate-900 font-black">
                     Total Geral
                   </th>
                 </tr>
@@ -858,11 +858,11 @@ export const SupplyLojasPage: React.FC = () => {
                       {/* LINHA PAI: DESCLINHA (Categoria do Produto) */}
                       <tr className="bg-slate-50/90 hover:bg-slate-100/80 transition-colors font-bold text-slate-900 border-t border-slate-200">
                         {/* Nome da Linha com Botão Expandir/Recolher */}
-                        <td className="py-1.5 px-2 sticky left-0 z-20 bg-slate-50 border-r border-slate-200">
+                        <td className="py-1.5 px-2.5 border-r border-slate-200">
                           <button
                             type="button"
                             onClick={() => toggleLinha(l.linha)}
-                            className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-600 transition-colors cursor-pointer w-full"
+                            className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-600 transition-colors cursor-pointer"
                           >
                             <span className="w-4 h-4 rounded bg-white border border-slate-300 text-slate-700 flex items-center justify-center text-[10px] font-black shrink-0">
                               {isExpanded ? '-' : '+'}
@@ -872,17 +872,17 @@ export const SupplyLojasPage: React.FC = () => {
                         </td>
 
                         {/* Cód. Produto */}
-                        <td className="py-1.5 px-2 text-center sticky left-[220px] z-20 bg-slate-50 border-r border-slate-200 text-slate-400">
+                        <td className="py-1.5 px-2 text-center border-r border-slate-200 text-slate-400">
                           -
                         </td>
 
                         {/* Descrição */}
-                        <td className="py-1.5 px-3 sticky left-[310px] z-20 bg-slate-50 border-r border-slate-200 text-slate-500 font-sans text-[10px]">
+                        <td className="py-1.5 px-3 border-r border-slate-200 text-slate-500 font-sans text-[10px]">
                           {l.skusList.length} itens cadastrados
                         </td>
 
                         {/* Estoque Consolidado do CD 994 na Métrica Selecionada */}
-                        <td className="py-1.5 px-2 text-right sticky left-[510px] z-20 bg-blue-50/80 text-blue-900 border-r border-slate-300 font-black">
+                        <td className="py-1.5 px-2.5 text-right bg-blue-50/80 text-blue-900 border-r border-slate-300 font-black">
                           {l.totalCd994.toLocaleString('pt-BR')}
                         </td>
 
@@ -901,7 +901,7 @@ export const SupplyLojasPage: React.FC = () => {
                         })}
 
                         {/* Total Geral da Linha */}
-                        <td className="py-1.5 px-2 text-center bg-slate-100 text-slate-900 font-bold">
+                        <td className="py-1.5 px-3 text-center bg-slate-100 text-slate-900 font-bold">
                           {l.totalLojas.toLocaleString('pt-BR')}
                         </td>
                       </tr>
@@ -910,22 +910,22 @@ export const SupplyLojasPage: React.FC = () => {
                       {isExpanded && l.skusList.map(s => (
                         <tr key={s.codProd} className="bg-white hover:bg-blue-50/40 transition-colors text-slate-700 text-[9.5px]">
                           {/* Nome da Linha */}
-                          <td className="py-1 px-2 pl-7 sticky left-0 z-10 bg-white border-r border-slate-200 text-slate-400 text-[9px] truncate">
+                          <td className="py-1 px-2.5 pl-6 border-r border-slate-200 text-slate-400 text-[9px] truncate">
                             &bull; {l.linha}
                           </td>
 
                           {/* CÓDIGO DO PRODUTO */}
-                          <td className="py-1 px-2 text-center font-bold text-blue-700 sticky left-[220px] z-10 bg-white border-r border-slate-200">
+                          <td className="py-1 px-2 text-center font-bold text-blue-700 border-r border-slate-200">
                             {s.codProd}
                           </td>
 
                           {/* DESCRIÇÃO DO PRODUTO */}
-                          <td className="py-1 px-3 font-sans text-slate-800 truncate max-w-[200px] sticky left-[310px] z-10 bg-white border-r border-slate-200" title={s.desc}>
+                          <td className="py-1 px-3 font-sans text-slate-800 truncate max-w-sm border-r border-slate-200" title={s.desc}>
                             {s.desc}
                           </td>
 
                           {/* ESTOQUE DO SKU NO CD 994 */}
-                          <td className="py-1 px-2 text-right sticky left-[510px] z-10 bg-blue-50/40 text-blue-800 font-bold border-r border-slate-300">
+                          <td className="py-1 px-2.5 text-right bg-blue-50/40 text-blue-800 font-bold border-r border-slate-300">
                             {s.valCd994.toLocaleString('pt-BR')}
                           </td>
 
@@ -946,7 +946,7 @@ export const SupplyLojasPage: React.FC = () => {
                           })}
 
                           {/* Total do SKU em todas as lojas */}
-                          <td className="py-1 px-2 text-center bg-slate-50 font-bold text-slate-700">
+                          <td className="py-1 px-3 text-center bg-slate-50 font-bold text-slate-700">
                             {s.totalLojas.toLocaleString('pt-BR')}
                           </td>
                         </tr>
@@ -959,16 +959,16 @@ export const SupplyLojasPage: React.FC = () => {
               {/* RODAPÉ: TOTAL GERAL (994 TOTAL / TOTAL GERAL) */}
               <tfoot className="sticky bottom-0 z-30 bg-slate-200/95 font-black text-[10px] text-slate-900 border-t-2 border-slate-300 select-none">
                 <tr>
-                  <td className="py-2 px-2 sticky left-0 z-40 bg-slate-200 border-r border-slate-300">
+                  <td className="py-2 px-2.5 border-r border-slate-300">
                     994 Total / Total Geral
                   </td>
-                  <td className="py-2 px-2 text-center sticky left-[220px] z-40 bg-slate-200 border-r border-slate-300">
+                  <td className="py-2 px-2 text-center border-r border-slate-300">
                     -
                   </td>
-                  <td className="py-2 px-3 sticky left-[310px] z-40 bg-slate-200 border-r border-slate-300">
+                  <td className="py-2 px-3 border-r border-slate-300">
                     Total Consolidado
                   </td>
-                  <td className="py-2 px-2 text-right sticky left-[510px] z-40 bg-blue-200 text-blue-950 font-black border-r border-slate-400">
+                  <td className="py-2 px-2.5 text-right bg-blue-200 text-blue-950 font-black border-r border-slate-400">
                     {pivotGrandTotals.grandCd994.toLocaleString('pt-BR')}
                   </td>
 
@@ -980,7 +980,7 @@ export const SupplyLojasPage: React.FC = () => {
                   ))}
 
                   {/* Soma de Todas as Filiais */}
-                  <td className="py-2 px-2 text-center bg-slate-300 text-slate-950 font-black">
+                  <td className="py-2 px-3 text-center bg-slate-300 text-slate-950 font-black">
                     {pivotGrandTotals.grandLojas.toLocaleString('pt-BR')}
                   </td>
                 </tr>
