@@ -1895,15 +1895,15 @@ const EstoqueCategoriasCard: React.FC<{
                     <th className="py-1.5 px-1.5 text-center font-bold">m³</th>
                     {bloqueioFaixa === 'TODOS' ? (
                       <>
-                        <th className="py-1.5 px-1.5 text-right font-bold text-emerald-700">0D</th>
-                        <th className="py-1.5 px-1.5 text-right font-bold text-emerald-700">7D</th>
-                        <th className="py-1.5 px-1.5 text-right font-bold text-amber-700">30D</th>
-                        <th className="py-1.5 px-1.5 text-right font-bold text-amber-700">90D</th>
-                        <th className="py-1.5 px-1.5 text-right font-bold text-rose-700">120D</th>
-                        <th className="py-1.5 px-1.5 text-right font-bold text-rose-800">+120D</th>
+                        <th className="py-1.5 px-1.5 text-center font-bold text-emerald-700">0D</th>
+                        <th className="py-1.5 px-1.5 text-center font-bold text-emerald-700">7D</th>
+                        <th className="py-1.5 px-1.5 text-center font-bold text-amber-700">30D</th>
+                        <th className="py-1.5 px-1.5 text-center font-bold text-amber-700">90D</th>
+                        <th className="py-1.5 px-1.5 text-center font-bold text-rose-700">120D</th>
+                        <th className="py-1.5 px-1.5 text-center font-bold text-rose-800">+120D</th>
                       </>
                     ) : null}
-                    <th className="py-1.5 px-1.5 text-right font-bold text-emerald-800">
+                    <th className="py-1.5 px-1.5 text-center font-bold text-emerald-800">
                       {bloqueioFaixa === 'TODOS' ? 'Valor TT' : `Valor (${bloqueioFaixa})`}
                     </th>
                     <th className="py-1.5 px-1.5 text-center font-bold text-amber-800" title="% sobre o Valor Total Bloqueado">
@@ -1944,15 +1944,15 @@ const EstoqueCategoriasCard: React.FC<{
                           <td className="py-1.5 px-1.5 text-center text-slate-700">{m.cubagem.toFixed(1)}</td>
                           {bloqueioFaixa === 'TODOS' ? (
                             <>
-                              <td className="py-1.5 px-1.5 text-right">{getValorFaixaBadge(m.faixas['0 DIAS'], '0D')}</td>
-                              <td className="py-1.5 px-1.5 text-right">{getValorFaixaBadge(m.faixas['7 DIAS'], '7D')}</td>
-                              <td className="py-1.5 px-1.5 text-right">{getValorFaixaBadge(m.faixas['30 DIAS'], '30D')}</td>
-                              <td className="py-1.5 px-1.5 text-right">{getValorFaixaBadge(m.faixas['90 DIAS'], '90D')}</td>
-                              <td className="py-1.5 px-1.5 text-right">{getValorFaixaBadge(m.faixas['120 DIAS'], '120D')}</td>
-                              <td className="py-1.5 px-1.5 text-right">{getValorFaixaBadge(m.faixas['ACIMA DE 120 DIAS'], '+120D')}</td>
+                              <td className="py-1.5 px-1.5 text-center">{getValorFaixaBadge(m.faixas['0 DIAS'], '0D')}</td>
+                              <td className="py-1.5 px-1.5 text-center">{getValorFaixaBadge(m.faixas['7 DIAS'], '7D')}</td>
+                              <td className="py-1.5 px-1.5 text-center">{getValorFaixaBadge(m.faixas['30 DIAS'], '30D')}</td>
+                              <td className="py-1.5 px-1.5 text-center">{getValorFaixaBadge(m.faixas['90 DIAS'], '90D')}</td>
+                              <td className="py-1.5 px-1.5 text-center">{getValorFaixaBadge(m.faixas['120 DIAS'], '120D')}</td>
+                              <td className="py-1.5 px-1.5 text-center">{getValorFaixaBadge(m.faixas['ACIMA DE 120 DIAS'], '+120D')}</td>
                             </>
                           ) : null}
-                          <td className="py-1.5 px-1.5 text-right font-bold">
+                          <td className="py-1.5 px-1.5 text-center font-bold">
                             <span className={m.valorExibido >= 100_000 ? 'text-emerald-900 font-black bg-emerald-100/90 px-1.5 py-0.5 rounded border border-emerald-300' : m.valorExibido >= 20_000 ? 'text-emerald-800 font-extrabold bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200' : 'text-emerald-700 font-bold'}>
                               {formatCurrencyCompact(m.valorExibido)}
                             </span>
@@ -2020,27 +2020,27 @@ const EstoqueCategoriasCard: React.FC<{
                     <td className="py-1.5 px-1.5 text-center font-mono text-slate-800">{totalGeralBloqueios.cubagem.toFixed(1)}</td>
                     {bloqueioFaixa === 'TODOS' && bloqueiosData ? (
                       <>
-                        <td className="py-1.5 px-1.5 text-right font-mono text-emerald-700">
+                        <td className="py-1.5 px-1.5 text-center font-mono text-emerald-700">
                           {formatCurrencyCompact(motivosFiltrados.reduce((acc, m) => acc + (m.faixas['0 DIAS'] || 0), 0))}
                         </td>
-                        <td className="py-1.5 px-1.5 text-right font-mono text-emerald-700">
+                        <td className="py-1.5 px-1.5 text-center font-mono text-emerald-700">
                           {formatCurrencyCompact(motivosFiltrados.reduce((acc, m) => acc + (m.faixas['7 DIAS'] || 0), 0))}
                         </td>
-                        <td className="py-1.5 px-1.5 text-right font-mono text-amber-700">
+                        <td className="py-1.5 px-1.5 text-center font-mono text-amber-700">
                           {formatCurrencyCompact(motivosFiltrados.reduce((acc, m) => acc + (m.faixas['30 DIAS'] || 0), 0))}
                         </td>
-                        <td className="py-1.5 px-1.5 text-right font-mono text-amber-700">
+                        <td className="py-1.5 px-1.5 text-center font-mono text-amber-700">
                           {formatCurrencyCompact(motivosFiltrados.reduce((acc, m) => acc + (m.faixas['90 DIAS'] || 0), 0))}
                         </td>
-                        <td className="py-1.5 px-1.5 text-right font-mono text-rose-700">
+                        <td className="py-1.5 px-1.5 text-center font-mono text-rose-700">
                           {formatCurrencyCompact(motivosFiltrados.reduce((acc, m) => acc + (m.faixas['120 DIAS'] || 0), 0))}
                         </td>
-                        <td className="py-1.5 px-1.5 text-right font-mono text-rose-800">
+                        <td className="py-1.5 px-1.5 text-center font-mono text-rose-800">
                           {formatCurrencyCompact(motivosFiltrados.reduce((acc, m) => acc + (m.faixas['ACIMA DE 120 DIAS'] || 0), 0))}
                         </td>
                       </>
                     ) : null}
-                    <td className="py-1.5 px-1.5 text-right font-mono text-emerald-800 font-black">
+                    <td className="py-1.5 px-1.5 text-center font-mono text-emerald-800 font-black">
                       {formatCurrencyCompact(totalGeralBloqueios.valor)}
                     </td>
                     <td className="py-1.5 px-1.5 text-center font-mono text-amber-800 font-bold">
