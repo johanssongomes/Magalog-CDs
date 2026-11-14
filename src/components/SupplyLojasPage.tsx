@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   LayoutDashboard,
   FileSpreadsheet,
@@ -9,6 +9,7 @@ import {
   UploadCloud,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Filter,
   CheckCircle2,
   AlertCircle,
@@ -17,7 +18,9 @@ import {
   Expand,
   Shrink,
   ArrowUpDown,
-  Boxes
+  Boxes,
+  Check,
+  X
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -63,11 +66,51 @@ export const SupplyLojasPage: React.FC = () => {
   const [pivotStatus, setPivotStatus] = useState<string>('LOJA SEM FISICO')
   const [selectedMetric, setSelectedMetric] = useState<EstoqueTipoMetric>('FISICO')
   const [selectedRegional, setSelectedRegional] = useState<RegionalOption>('TODOS')
+  const [selectedFiliais, setSelectedFiliais] = useState<number[]>([]) // Filtro múltiplo de Lojas
+  const [selectedLinhas, setSelectedLinhas] = useState<string[]>([])     // Filtro múltiplo de Linhas
+  const [isLojasDropdownOpen, setIsLojasDropdownOpen] = useState(false)
+  const [isLinhasDropdownOpen, setIsLinhasDropdownOpen] = useState(false)
+  const lojasDropdownRef = useRef<HTMLDivElement>(null)
+  const linhasDropdownRef = useRef<HTMLDivElement>(null)
   const [orderBy, setOrderBy] = useState<OrderByOption>('LINHA_ASC')
   const [pivotSearch, setPivotSearch] = useState<string>('')
   const [expandedLinhas, setExpandedLinhas] = useState<Record<string, boolean>>({
     'TB - TABLET': true
   })
+
+  // Fechar dropdowns ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (lojasDropdownRef.current && !lojasDropdownRef.current.contains(event.target as Node)) {
+        setIsLojasDropdownOpen(false)
+      }
+      if (linhasDropdownRef.current && !linhasDropdownRef.current.contains(event.target as Node)) {
+        setIsLinhasDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Lista de todas as Linhas disponíveis na base para o filtro múltiplo
+  const allLinhasAvailable = useMemo(() => {
+    const currentStatusObj = (initialPivotData.summary as any)[pivotStatus] || {}
+    return Object.keys(currentStatusObj).sort((a, b) => a.localeCompare(b))
+  }, [pivotStatus])
+
+  // Alternar seleção de filial no filtro múltiplo
+  const toggleFilialSelection = (fil: number) => {
+    setSelectedFiliais(prev =>
+      prev.includes(fil) ? prev.filter(f => f !== fil) : [...prev, fil]
+    )
+  }
+
+  // Alternar seleção de linha no filtro múltiplo
+  const toggleLinhaSelection = (linha: string) => {
+    setSelectedLinhas(prev =>
+      prev.includes(linha) ? prev.filter(l => l !== linha) : [...prev, linha]
+    )
+  }
 
   // Alternar expansão de uma linha específica
   const toggleLinha = (linha: string) => {
@@ -87,12 +130,17 @@ export const SupplyLojasPage: React.FC = () => {
     setExpandedLinhas(newExpanded)
   }
 
-  // Lista de filiais filtradas por Regional
+  // Lista de filiais filtradas por Regional e Filtro Múltiplo de Lojas
   const filiaisList = useMemo(() => {
-    const all = initialPivotData.filiais as number[]
-    if (selectedRegional === 'TODOS') return all
-    return all.filter(f => REGIONAL_FILIAIS_MAP[f] === selectedRegional)
-  }, [selectedRegional])
+    let list = initialPivotData.filiais as number[]
+    if (selectedRegional !== 'TODOS') {
+      list = list.filter(f => REGIONAL_FILIAIS_MAP[f] === selectedRegional)
+    }
+    if (selectedFiliais.length > 0) {
+      list = list.filter(f => selectedFiliais.includes(f))
+    }
+    return list
+  }, [selectedRegional, selectedFiliais])
 
   const metricIdx = METRIC_INDEX[selectedMetric]
 
@@ -134,6 +182,11 @@ export const SupplyLojasPage: React.FC = () => {
     }> = []
 
     Object.entries(currentStatusObj).forEach(([linha, lData]) => {
+      // Se houver filtro múltiplo de Linha ativo, ignorar as outras linhas
+      if (selectedLinhas.length > 0 && !selectedLinhas.includes(linha)) {
+        return
+      }
+
       const allSkusRaw = Object.values(lData.skus)
 
       const filteredRaw = query
@@ -208,7 +261,7 @@ export const SupplyLojasPage: React.FC = () => {
     }
 
     return result
-  }, [pivotStatus, selectedMetric, orderBy, pivotSearch, filiaisList, metricIdx])
+  }, [pivotStatus, selectedMetric, orderBy, pivotSearch, filiaisList, metricIdx, selectedLinhas])
 
   // Total Geral da Matriz
   const pivotGrandTotals = useMemo(() => {
@@ -571,13 +624,147 @@ export const SupplyLojasPage: React.FC = () => {
                 <span className="text-[10px] font-bold text-slate-500 uppercase">Regional:</span>
                 <select
                   value={selectedRegional}
-                  onChange={(e) => setSelectedRegional(e.target.value as RegionalOption)}
+                  onChange={(e) => {
+                    setSelectedRegional(e.target.value as RegionalOption)
+                    setSelectedFiliais([]) // Reseta seleção customizada de filiais ao mudar regional
+                  }}
                   className="bg-transparent text-xs font-black text-slate-900 outline-hidden cursor-pointer"
                 >
                   <option value="TODOS">Todos os Regionais (45 lojas)</option>
                   <option value="Thiago">Thiago (32 lojas)</option>
                   <option value="Outros Regionais">Outros Regionais (13 lojas)</option>
                 </select>
+              </div>
+
+              {/* FILTRO 1: MÚLTIPLA SELEÇÃO DE LOJAS */}
+              <div className="relative" ref={lojasDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsLojasDropdownOpen(prev => !prev)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                    selectedFiliais.length > 0
+                      ? 'bg-blue-50 border-blue-300 text-blue-900'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                  title="Filtro de Lojas com múltipla seleção"
+                >
+                  <Store size={13} className={selectedFiliais.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
+                  <span>
+                    {selectedFiliais.length === 0
+                      ? 'Lojas: Todas'
+                      : `Lojas (${selectedFiliais.length})`}
+                  </span>
+                  <ChevronDown size={12} className={`transition-transform ${isLojasDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isLojasDropdownOpen && (
+                  <div className="absolute left-0 mt-1.5 w-60 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100 text-[11px]">
+                      <span className="font-black text-slate-800">Filtrar Lojas</span>
+                      {selectedFiliais.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFiliais([])}
+                          className="text-[10px] font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
+                        >
+                          Limpar ({selectedFiliais.length})
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-52 overflow-y-auto space-y-0.5 pr-1">
+                      {((selectedRegional === 'TODOS'
+                        ? initialPivotData.filiais as number[]
+                        : (initialPivotData.filiais as number[]).filter(f => REGIONAL_FILIAIS_MAP[f] === selectedRegional)
+                      )).map(fil => {
+                        const isChecked = selectedFiliais.includes(fil)
+                        const reg = REGIONAL_FILIAIS_MAP[fil]
+                        return (
+                          <label
+                            key={fil}
+                            onClick={() => toggleFilialSelection(fil)}
+                            className={`flex items-center justify-between px-2 py-1 rounded-lg text-xs cursor-pointer select-none transition-colors ${
+                              isChecked ? 'bg-blue-50 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] ${
+                                isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
+                              }`}>
+                                {isChecked && <Check size={10} strokeWidth={3} />}
+                              </div>
+                              <span>Filial {fil}</span>
+                            </div>
+                            <span className="text-[9px] font-normal text-slate-400">
+                              {reg === 'Thiago' ? 'Thiago' : 'Outros'}
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* FILTRO 2: MÚLTIPLA SELEÇÃO DE LINHAS (CATEGORIAS) */}
+              <div className="relative" ref={linhasDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsLinhasDropdownOpen(prev => !prev)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                    selectedLinhas.length > 0
+                      ? 'bg-amber-50 border-amber-300 text-amber-900'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                  title="Filtro de Linhas com múltipla seleção"
+                >
+                  <Filter size={13} className={selectedLinhas.length > 0 ? 'text-amber-600' : 'text-slate-500'} />
+                  <span>
+                    {selectedLinhas.length === 0
+                      ? 'Linhas: Todas'
+                      : `Linhas (${selectedLinhas.length})`}
+                  </span>
+                  <ChevronDown size={12} className={`transition-transform ${isLinhasDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isLinhasDropdownOpen && (
+                  <div className="absolute left-0 mt-1.5 w-68 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100 text-[11px]">
+                      <span className="font-black text-slate-800">Filtrar Categorias / Linhas</span>
+                      {selectedLinhas.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedLinhas([])}
+                          className="text-[10px] font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
+                        >
+                          Limpar ({selectedLinhas.length})
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-52 overflow-y-auto space-y-0.5 pr-1">
+                      {allLinhasAvailable.map(linha => {
+                        const isChecked = selectedLinhas.includes(linha)
+                        return (
+                          <label
+                            key={linha}
+                            onClick={() => toggleLinhaSelection(linha)}
+                            className={`flex items-center gap-2 px-2 py-1 rounded-lg text-xs cursor-pointer select-none transition-colors ${
+                              isChecked ? 'bg-amber-50 text-amber-950 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                            }`}
+                          >
+                            <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] shrink-0 ${
+                              isChecked ? 'bg-amber-600 border-amber-600 text-white' : 'border-slate-300 bg-white'
+                            }`}>
+                              {isChecked && <Check size={10} strokeWidth={3} />}
+                            </div>
+                            <span className="truncate">{linha}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
