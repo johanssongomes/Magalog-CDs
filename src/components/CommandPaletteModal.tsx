@@ -23,7 +23,8 @@ import {
   ChevronRight,
   CalendarDays,
   Calendar,
-  User
+  User,
+  Store
 } from 'lucide-react'
 
 export interface NavigationTarget {
@@ -57,6 +58,15 @@ const ALL_NAVIGATION_TARGETS: NavigationTarget[] = [
     tabId: 'performance',
     icon: <Zap size={18} className="text-amber-500" />,
     keywords: ['performance', 'desempenho', 'produtividade', 'metas', 'diario']
+  },
+  {
+    id: 'nav-supply-lojas',
+    title: 'Supply Lojas',
+    subtitle: 'Gestão Logística e Abastecimento de Lojas',
+    category: 'Módulos Principais',
+    tabId: 'supply-lojas',
+    icon: <Store size={18} className="text-blue-500" />,
+    keywords: ['supply', 'lojas', 'suprimentos', 'abastecimento', 'loja', 'filiais']
   },
   {
     id: 'nav-catalog',

@@ -21,7 +21,8 @@ import {
   Activity,
   CalendarDays,
   Bell,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Store
 } from 'lucide-react'
 import { useAuth } from '../lib/authContext'
 import { OnlineUsersModal } from './OnlineUsersModal'
@@ -58,6 +59,12 @@ export const navItems: NavItem[] = [
     label: 'Performance',
     description: 'Monitoramento de Desempenho e Indicadores Diários do CD',
     icon: <Zap size={20} />
+  },
+  {
+    id: 'supply-lojas',
+    label: 'Supply Lojas',
+    description: 'Gestão Logística e Abastecimento de Lojas',
+    icon: <Store size={20} />
   },
   {
     id: 'catalog',
