@@ -9,22 +9,30 @@ import {
   UploadCloud,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
   Filter,
   CheckCircle2,
   AlertCircle,
   Building2,
   Sparkles,
-  Layers,
-  SlidersHorizontal,
   Expand,
-  Shrink
+  Shrink,
+  ArrowUpDown,
+  Boxes
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import { getSupplyLojasReport, getSupplyFiltersMeta, type SupplyItem } from '../lib/supplyService'
 import initialPivotData from '../data/supply_pivot_summary.json'
+
+type EstoqueTipoMetric = 'FISICO' | 'LOGICO' | 'TRANSITO' | 'ESTOQUE'
+type OrderByOption = 'LINHA_ASC' | 'ESTOQUE_DESC' | 'ESTOQUE_ASC' | 'LOJAS_DESC'
+
+const METRIC_INDEX: Record<EstoqueTipoMetric, number> = {
+  FISICO: 0,
+  LOGICO: 1,
+  TRANSITO: 2,
+  ESTOQUE: 3
+}
 
 export const SupplyLojasPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'painel' | 'relatorio'>('painel')
@@ -33,6 +41,8 @@ export const SupplyLojasPage: React.FC = () => {
   // ESTADOS DO PAINEL SUPPLY (TABELA DINÂMICA / PIVOT)
   // -------------------------------------------------------------
   const [pivotStatus, setPivotStatus] = useState<string>('LOJA SEM FISICO')
+  const [selectedMetric, setSelectedMetric] = useState<EstoqueTipoMetric>('FISICO')
+  const [orderBy, setOrderBy] = useState<OrderByOption>('LINHA_ASC')
   const [pivotSearch, setPivotSearch] = useState<string>('')
   const [expandedLinhas, setExpandedLinhas] = useState<Record<string, boolean>>({
     'TB - TABLET': true
@@ -48,7 +58,7 @@ export const SupplyLojasPage: React.FC = () => {
 
   // Expandir ou recolher todas as linhas
   const toggleAllLinhas = (expand: boolean) => {
-    const currentStatusObj = initialPivotData.summary[pivotStatus as keyof typeof initialPivotData.summary] || {}
+    const currentStatusObj = (initialPivotData.summary as any)[pivotStatus] || {}
     const newExpanded: Record<string, boolean> = {}
     Object.keys(currentStatusObj).forEach(k => {
       newExpanded[k] = expand
@@ -56,79 +66,139 @@ export const SupplyLojasPage: React.FC = () => {
     setExpandedLinhas(newExpanded)
   }
 
-  // Dados filtrados do Pivot
   const filiaisList = useMemo(() => initialPivotData.filiais as number[], [])
-  
+  const metricIdx = METRIC_INDEX[selectedMetric]
+
+  // Rótulo da coluna do CD
+  const cdColumnLabel = useMemo(() => {
+    switch (selectedMetric) {
+      case 'FISICO': return 'FISICO_994'
+      case 'LOGICO': return 'LOGICO_994'
+      case 'TRANSITO': return 'TRANSITO_994'
+      case 'ESTOQUE': return 'ESTOQUE_994'
+    }
+  }, [selectedMetric])
+
+  // Processamento e ordenação da matriz dinâmica
   const pivotLinhasData = useMemo(() => {
-    const currentStatusObj = (initialPivotData.summary[pivotStatus as keyof typeof initialPivotData.summary] || {}) as Record<
+    const currentStatusObj = ((initialPivotData.summary as any)[pivotStatus] || {}) as Record<
       string,
-      { totalFisico994: number; filiaisTotais: Record<string, number>; skus: Record<string, { codProd: string; codDf: string; desc: string; fisico994: number; filiais: Record<string, number> }> }
+      {
+        t994: Record<string, number>
+        fTot: Record<string, Record<string, number>>
+        skus: Record<string, { c: string; d: string; n: string; m9: Record<string, number>; fil: Record<string, number[]> }>
+      }
     >
 
     const query = pivotSearch.trim().toLowerCase()
     const result: Array<{
       linha: string
-      totalFisico994: number
-      filiaisTotais: Record<string, number>
-      skusList: Array<{ codProd: string; codDf: string; desc: string; fisico994: number; filiais: Record<string, number> }>
+      totalCd994: number
+      totalLojas: number
+      filiaisTotais: Record<number, number>
+      skusList: Array<{
+        codProd: string
+        codDf: string
+        desc: string
+        valCd994: number
+        totalLojas: number
+        filiaisVals: Record<number, number>
+      }>
     }> = []
 
     Object.entries(currentStatusObj).forEach(([linha, lData]) => {
-      const allSkus = Object.values(lData.skus)
+      const allSkusRaw = Object.values(lData.skus)
       
-      const filteredSkus = query
-        ? allSkus.filter(s =>
+      const filteredRaw = query
+        ? allSkusRaw.filter(s =>
             linha.toLowerCase().includes(query) ||
-            s.codProd.toLowerCase().includes(query) ||
-            s.desc.toLowerCase().includes(query) ||
-            s.codDf.toLowerCase().includes(query)
+            s.c.toLowerCase().includes(query) ||
+            s.n.toLowerCase().includes(query) ||
+            s.d.toLowerCase().includes(query)
           )
-        : allSkus
+        : allSkusRaw
 
-      if (filteredSkus.length > 0) {
-        // Quando há filtro de busca ativo, os totais da linha pai e filiais
-        // devem somar EXCLUSIVAMENTE os itens filtrados, e não o total geral estático
-        let calculatedFisico994 = 0
-        const calculatedFiliaisTotais: Record<string, number> = {}
+      if (filteredRaw.length > 0) {
+        let calculatedCd994 = 0
+        let calculatedTotalLojas = 0
+        const calculatedFiliaisTotais: Record<number, number> = {}
+        filiaisList.forEach(f => { calculatedFiliaisTotais[f] = 0 })
 
-        if (query) {
-          filteredSkus.forEach(s => {
-            calculatedFisico994 += s.fisico994
-            Object.entries(s.filiais).forEach(([f, val]) => {
-              calculatedFiliaisTotais[f] = (calculatedFiliaisTotais[f] || 0) + val
-            })
+        const formattedSkus = filteredRaw.map(s => {
+          const valCd = s.m9[selectedMetric] || 0
+          const filVals: Record<number, number> = {}
+          let skuTotalLojas = 0
+
+          filiaisList.forEach(f => {
+            const arr = s.fil[f]
+            const v = arr ? arr[metricIdx] || 0 : 0
+            filVals[f] = v
+            skuTotalLojas += v
+            calculatedFiliaisTotais[f] += v
           })
-        } else {
-          calculatedFisico994 = lData.totalFisico994
-          Object.assign(calculatedFiliaisTotais, lData.filiaisTotais)
+
+          calculatedCd994 += valCd
+          calculatedTotalLojas += skuTotalLojas
+
+          return {
+            codProd: s.c,
+            codDf: s.d,
+            desc: s.n,
+            valCd994: valCd,
+            totalLojas: skuTotalLojas,
+            filiaisVals: filVals
+          }
+        })
+
+        // Ordenar os SKUs dentro da linha se ordenado por estoque
+        if (orderBy === 'ESTOQUE_DESC') {
+          formattedSkus.sort((a, b) => b.valCd994 - a.valCd994)
+        } else if (orderBy === 'ESTOQUE_ASC') {
+          formattedSkus.sort((a, b) => a.valCd994 - b.valCd994)
+        } else if (orderBy === 'LOJAS_DESC') {
+          formattedSkus.sort((a, b) => b.totalLojas - a.totalLojas)
         }
 
         result.push({
           linha,
-          totalFisico994: calculatedFisico994,
+          totalCd994: calculatedCd994,
+          totalLojas: calculatedTotalLojas,
           filiaisTotais: calculatedFiliaisTotais,
-          skusList: filteredSkus
+          skusList: formattedSkus
         })
       }
     })
 
-    return result.sort((a, b) => a.linha.localeCompare(b.linha))
-  }, [pivotStatus, pivotSearch])
+    // Classificação das Linhas
+    if (orderBy === 'ESTOQUE_DESC') {
+      result.sort((a, b) => b.totalCd994 - a.totalCd994)
+    } else if (orderBy === 'ESTOQUE_ASC') {
+      result.sort((a, b) => a.totalCd994 - b.totalCd994)
+    } else if (orderBy === 'LOJAS_DESC') {
+      result.sort((a, b) => b.totalLojas - a.totalLojas)
+    } else {
+      result.sort((a, b) => a.linha.localeCompare(b.linha))
+    }
+
+    return result
+  }, [pivotStatus, selectedMetric, orderBy, pivotSearch, filiaisList, metricIdx])
 
   // Total Geral da Matriz
   const pivotGrandTotals = useMemo(() => {
-    let grand994 = 0
+    let grandCd994 = 0
+    let grandLojas = 0
     const grandFiliais: Record<number, number> = {}
     filiaisList.forEach(f => { grandFiliais[f] = 0 })
 
     pivotLinhasData.forEach(l => {
-      grand994 += l.totalFisico994
+      grandCd994 += l.totalCd994
+      grandLojas += l.totalLojas
       filiaisList.forEach(f => {
         grandFiliais[f] += (l.filiaisTotais[f] || 0)
       })
     })
 
-    return { grand994, grandFiliais }
+    return { grandCd994, grandLojas, grandFiliais }
   }, [pivotLinhasData, filiaisList])
 
   // -------------------------------------------------------------
@@ -162,7 +232,6 @@ export const SupplyLojasPage: React.FC = () => {
     loadMeta()
   }, [])
 
-  // Carregar dados da tabela com debounce de busca
   const loadData = useCallback(async (p: number = page, search: string = searchTerm) => {
     setIsLoading(true)
     try {
@@ -413,13 +482,11 @@ export const SupplyLojasPage: React.FC = () => {
       {/* ======================================================== */}
       {activeTab === 'painel' && (
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-4 sm:p-5 space-y-3">
-          {/* Barra Superior: Filtro STATUS_ESTOQUE, Busca e Ações de Expansão */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
-            {/* Esquerda: Filtro de Status do Estoque */}
+          {/* Barra Superior: Filtro STATUS_ESTOQUE, Métricas, Ordenação, Busca e Expansão */}
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 pb-3 border-b border-slate-100">
+            {/* Esquerda: Filtro de Status + Tipo de Estoque (Métrica) */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
-                STATUS_ESTOQUE:
-              </span>
+              {/* Status do Estoque */}
               <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
                 <button
                   type="button"
@@ -443,6 +510,38 @@ export const SupplyLojasPage: React.FC = () => {
                 >
                   LOJA COM FISICO
                 </button>
+              </div>
+
+              {/* Classificação / Métrica de Estoque (Físico, Lógico, Trânsito, Total) */}
+              <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs">
+                <Boxes size={13} className="text-blue-500" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase">Métrica:</span>
+                <select
+                  value={selectedMetric}
+                  onChange={(e) => setSelectedMetric(e.target.value as EstoqueTipoMetric)}
+                  className="bg-transparent text-xs font-bold text-slate-800 outline-hidden cursor-pointer"
+                >
+                  <option value="FISICO">Estoque Físico</option>
+                  <option value="LOGICO">Estoque Lógico</option>
+                  <option value="TRANSITO">Em Trânsito</option>
+                  <option value="ESTOQUE">Estoque Geral (Total)</option>
+                </select>
+              </div>
+
+              {/* Opção de Classificação / Ordenação */}
+              <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs">
+                <ArrowUpDown size={12} className="text-amber-500" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase">Classificar:</span>
+                <select
+                  value={orderBy}
+                  onChange={(e) => setOrderBy(e.target.value as OrderByOption)}
+                  className="bg-transparent text-xs font-bold text-slate-800 outline-hidden cursor-pointer"
+                >
+                  <option value="LINHA_ASC">Categoria (A-Z)</option>
+                  <option value="ESTOQUE_DESC">Maior Estoque CD 994</option>
+                  <option value="ESTOQUE_ASC">Menor Estoque CD 994</option>
+                  <option value="LOJAS_DESC">Maior Volume Lojas</option>
+                </select>
               </div>
             </div>
 
@@ -484,13 +583,13 @@ export const SupplyLojasPage: React.FC = () => {
           {/* Subtítulo Informativo de Cabeçalho da Matriz */}
           <div className="flex items-center justify-between text-[11px] text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
             <div className="flex items-center gap-4 font-semibold">
-              <span>Soma de FISICO</span>
-              <span>CODFIL: <strong>994</strong></span>
-              <span>Linhas Visíveis: <strong>{pivotLinhasData.length}</strong></span>
+              <span>Métrica Ativa: <strong className="text-blue-700">{selectedMetric}</strong></span>
+              <span>CD Origem: <strong>994</strong></span>
+              <span>Linhas: <strong>{pivotLinhasData.length}</strong></span>
               <span>Filiais Mapeadas: <strong>{filiaisList.length}</strong></span>
             </div>
             <div className="text-[10px] text-slate-400">
-              * Clique em [+] para expandir os SKUs de cada categoria de produto
+              * Clique em [+] para expandir os SKUs ou utilize os seletores de métrica e classificação acima
             </div>
           </div>
 
@@ -508,8 +607,8 @@ export const SupplyLojasPage: React.FC = () => {
                   <th className="py-2 px-3 sticky left-[310px] z-40 bg-slate-100 border-r border-slate-200 min-w-[200px]">
                     DESCRIÇÃO
                   </th>
-                  <th className="py-2 px-2 text-right sticky left-[510px] z-40 bg-blue-100/90 text-blue-900 border-r border-slate-300 min-w-[85px]">
-                    FISICO_994
+                  <th className="py-2 px-2 text-right sticky left-[510px] z-40 bg-blue-100/90 text-blue-900 border-r border-slate-300 min-w-[90px]">
+                    {cdColumnLabel}
                   </th>
 
                   {/* Colunas Dinâmicas de Cada Filial */}
@@ -548,7 +647,7 @@ export const SupplyLojasPage: React.FC = () => {
                           </button>
                         </td>
 
-                        {/* Cód. Produto (Vazio na linha de total da categoria) */}
+                        {/* Cód. Produto */}
                         <td className="py-1.5 px-2 text-center sticky left-[220px] z-20 bg-slate-50 border-r border-slate-200 text-slate-400">
                           -
                         </td>
@@ -558,9 +657,9 @@ export const SupplyLojasPage: React.FC = () => {
                           {l.skusList.length} itens cadastrados
                         </td>
 
-                        {/* FISICO_994 Consolidado da Categoria */}
+                        {/* Estoque Consolidado do CD 994 na Métrica Selecionada */}
                         <td className="py-1.5 px-2 text-right sticky left-[510px] z-20 bg-blue-50/80 text-blue-900 border-r border-slate-300 font-black">
-                          {l.totalFisico994.toLocaleString('pt-BR')}
+                          {l.totalCd994.toLocaleString('pt-BR')}
                         </td>
 
                         {/* Valores por Filial na Categoria */}
@@ -579,59 +678,55 @@ export const SupplyLojasPage: React.FC = () => {
 
                         {/* Total Geral da Linha */}
                         <td className="py-1.5 px-2 text-center bg-slate-100 text-slate-900 font-bold">
-                          {Object.values(l.filiaisTotais).reduce((acc, v) => acc + v, 0).toLocaleString('pt-BR')}
+                          {l.totalLojas.toLocaleString('pt-BR')}
                         </td>
                       </tr>
 
-                      {/* ITENS FILHOS: SKUS DA LINHA (Apenas se estiver expandido) */}
-                      {isExpanded && l.skusList.map(s => {
-                        const totalSkuLoja = Object.values(s.filiais).reduce((acc, v) => acc + v, 0)
+                      {/* ITENS FILHOS: SKUS DA LINHA */}
+                      {isExpanded && l.skusList.map(s => (
+                        <tr key={s.codProd} className="bg-white hover:bg-blue-50/40 transition-colors text-slate-700 text-[9.5px]">
+                          {/* Nome da Linha */}
+                          <td className="py-1 px-2 pl-7 sticky left-0 z-10 bg-white border-r border-slate-200 text-slate-400 text-[9px] truncate">
+                            &bull; {l.linha}
+                          </td>
 
-                        return (
-                          <tr key={s.codProd} className="bg-white hover:bg-blue-50/40 transition-colors text-slate-700 text-[9.5px]">
-                            {/* Nome da Linha (Indentado) */}
-                            <td className="py-1 px-2 pl-7 sticky left-0 z-10 bg-white border-r border-slate-200 text-slate-400 text-[9px] truncate">
-                              &bull; {l.linha}
-                            </td>
+                          {/* CÓDIGO DO PRODUTO */}
+                          <td className="py-1 px-2 text-center font-bold text-blue-700 sticky left-[220px] z-10 bg-white border-r border-slate-200">
+                            {s.codProd}
+                          </td>
 
-                            {/* CÓDIGO DO PRODUTO */}
-                            <td className="py-1 px-2 text-center font-bold text-blue-700 sticky left-[220px] z-10 bg-white border-r border-slate-200">
-                              {s.codProd}
-                            </td>
+                          {/* DESCRIÇÃO DO PRODUTO */}
+                          <td className="py-1 px-3 font-sans text-slate-800 truncate max-w-[200px] sticky left-[310px] z-10 bg-white border-r border-slate-200" title={s.desc}>
+                            {s.desc}
+                          </td>
 
-                            {/* DESCRIÇÃO DO PRODUTO */}
-                            <td className="py-1 px-3 font-sans text-slate-800 truncate max-w-[200px] sticky left-[310px] z-10 bg-white border-r border-slate-200" title={s.desc}>
-                              {s.desc}
-                            </td>
+                          {/* ESTOQUE DO SKU NO CD 994 */}
+                          <td className="py-1 px-2 text-right sticky left-[510px] z-10 bg-blue-50/40 text-blue-800 font-bold border-r border-slate-300">
+                            {s.valCd994.toLocaleString('pt-BR')}
+                          </td>
 
-                            {/* FISICO_994 DO SKU */}
-                            <td className="py-1 px-2 text-right sticky left-[510px] z-10 bg-blue-50/40 text-blue-800 font-bold border-r border-slate-300">
-                              {s.fisico994.toLocaleString('pt-BR')}
-                            </td>
+                          {/* VALOR DE CADA FILIAL PARA O SKU */}
+                          {filiaisList.map(fil => {
+                            const val = s.filiaisVals[fil] || 0
+                            return (
+                              <td key={fil} className="py-1 px-2 text-center border-r border-slate-100 text-[9px]">
+                                {val > 0 ? (
+                                  <span className="font-bold text-slate-900 bg-amber-100 px-1 py-0.2 rounded">
+                                    {val}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-300 font-light">0</span>
+                                )}
+                              </td>
+                            )
+                          })}
 
-                            {/* FISICO DE CADA FILIAL PARA O SKU */}
-                            {filiaisList.map(fil => {
-                              const val = s.filiais[fil] || 0
-                              return (
-                                <td key={fil} className="py-1 px-2 text-center border-r border-slate-100 text-[9px]">
-                                  {val > 0 ? (
-                                    <span className="font-bold text-slate-900 bg-amber-100 px-1 py-0.2 rounded">
-                                      {val}
-                                    </span>
-                                  ) : (
-                                    <span className="text-slate-300 font-light">0</span>
-                                  )}
-                                </td>
-                              )
-                            })}
-
-                            {/* Total do SKU em todas as lojas */}
-                            <td className="py-1 px-2 text-center bg-slate-50 font-bold text-slate-700">
-                              {totalSkuLoja.toLocaleString('pt-BR')}
-                            </td>
-                          </tr>
-                        )
-                      })}
+                          {/* Total do SKU em todas as lojas */}
+                          <td className="py-1 px-2 text-center bg-slate-50 font-bold text-slate-700">
+                            {s.totalLojas.toLocaleString('pt-BR')}
+                          </td>
+                        </tr>
+                      ))}
                     </React.Fragment>
                   )
                 })}
@@ -650,7 +745,7 @@ export const SupplyLojasPage: React.FC = () => {
                     Total Consolidado
                   </td>
                   <td className="py-2 px-2 text-right sticky left-[510px] z-40 bg-blue-200 text-blue-950 font-black border-r border-slate-400">
-                    {pivotGrandTotals.grand994.toLocaleString('pt-BR')}
+                    {pivotGrandTotals.grandCd994.toLocaleString('pt-BR')}
                   </td>
 
                   {/* Totais de Cada Filial */}
@@ -662,7 +757,7 @@ export const SupplyLojasPage: React.FC = () => {
 
                   {/* Soma de Todas as Filiais */}
                   <td className="py-2 px-2 text-center bg-slate-300 text-slate-950 font-black">
-                    {Object.values(pivotGrandTotals.grandFiliais).reduce((acc, v) => acc + v, 0).toLocaleString('pt-BR')}
+                    {pivotGrandTotals.grandLojas.toLocaleString('pt-BR')}
                   </td>
                 </tr>
               </tfoot>
