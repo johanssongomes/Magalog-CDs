@@ -85,11 +85,28 @@ export const SupplyLojasPage: React.FC = () => {
           )
         : allSkus
 
-      if (filteredSkus.length > 0 || linha.toLowerCase().includes(query)) {
+      if (filteredSkus.length > 0) {
+        // Quando há filtro de busca ativo, os totais da linha pai e filiais
+        // devem somar EXCLUSIVAMENTE os itens filtrados, e não o total geral estático
+        let calculatedFisico994 = 0
+        const calculatedFiliaisTotais: Record<string, number> = {}
+
+        if (query) {
+          filteredSkus.forEach(s => {
+            calculatedFisico994 += s.fisico994
+            Object.entries(s.filiais).forEach(([f, val]) => {
+              calculatedFiliaisTotais[f] = (calculatedFiliaisTotais[f] || 0) + val
+            })
+          })
+        } else {
+          calculatedFisico994 = lData.totalFisico994
+          Object.assign(calculatedFiliaisTotais, lData.filiaisTotais)
+        }
+
         result.push({
           linha,
-          totalFisico994: lData.totalFisico994,
-          filiaisTotais: lData.filiaisTotais,
+          totalFisico994: calculatedFisico994,
+          filiaisTotais: calculatedFiliaisTotais,
           skusList: filteredSkus
         })
       }
