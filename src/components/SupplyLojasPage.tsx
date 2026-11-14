@@ -831,7 +831,7 @@ export const SupplyLojasPage: React.FC = () => {
                   <th className="py-2 px-3 border-r border-slate-200">
                     DESCRIÇÃO
                   </th>
-                  <th className="py-2 px-2.5 text-right bg-blue-100/90 text-blue-900 border-r border-slate-300">
+                  <th className="py-2 px-3 text-center bg-blue-100/90 text-blue-900 border-r border-slate-300 font-black text-[11px] min-w-20">
                     {cdColumnLabel}
                   </th>
 
@@ -882,7 +882,7 @@ export const SupplyLojasPage: React.FC = () => {
                         </td>
 
                         {/* Estoque Consolidado do CD 994 na Métrica Selecionada */}
-                        <td className="py-1.5 px-2.5 text-right bg-blue-50/80 text-blue-900 border-r border-slate-300 font-black">
+                        <td className="py-1.5 px-3 text-center bg-blue-50/80 text-blue-900 border-r border-slate-300 font-black text-xs">
                           {l.totalCd994.toLocaleString('pt-BR')}
                         </td>
 
@@ -925,7 +925,7 @@ export const SupplyLojasPage: React.FC = () => {
                           </td>
 
                           {/* ESTOQUE DO SKU NO CD 994 */}
-                          <td className="py-1 px-2.5 text-right bg-blue-50/40 text-blue-800 font-bold border-r border-slate-300">
+                          <td className="py-1 px-3 text-center bg-blue-50/40 text-blue-900 font-black text-[11px] border-r border-slate-300">
                             {s.valCd994.toLocaleString('pt-BR')}
                           </td>
 
@@ -968,7 +968,7 @@ export const SupplyLojasPage: React.FC = () => {
                   <td className="py-2 px-3 border-r border-slate-300">
                     Total Consolidado
                   </td>
-                  <td className="py-2 px-2.5 text-right bg-blue-200 text-blue-950 font-black border-r border-slate-400">
+                  <td className="py-2 px-3 text-center bg-blue-200 text-blue-950 font-black text-xs border-r border-slate-400">
                     {pivotGrandTotals.grandCd994.toLocaleString('pt-BR')}
                   </td>
 
