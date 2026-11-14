@@ -818,32 +818,32 @@ export const SupplyLojasPage: React.FC = () => {
           </div>
 
           {/* TABELA DINÂMICA (MATRIZ PIVOT COM SCROLL HORIZONTAL) */}
-          <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs max-h-[70vh]">
-            <table className="w-full text-left border-collapse text-[10px] whitespace-nowrap">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs max-h-[70vh] bg-slate-50/20">
+            <table className="text-left border-collapse text-[10px] whitespace-nowrap min-w-full inline-table">
               <thead className="sticky top-0 z-30 bg-slate-100 shadow-xs border-b border-slate-300 select-none">
                 <tr className="text-[9.5px] font-black uppercase text-slate-700">
-                  <th className="py-2 px-2 sticky left-0 z-40 bg-slate-100 border-r border-slate-200 min-w-[220px]">
+                  <th className="py-2 px-2 sticky left-0 z-40 bg-slate-100 border-r border-slate-200 w-[220px] min-w-[220px]">
                     DESCLINHA / PRODUTO
                   </th>
-                  <th className="py-2 px-2 text-center sticky left-[220px] z-40 bg-slate-100 border-r border-slate-200 min-w-[90px]">
+                  <th className="py-2 px-2 text-center sticky left-[220px] z-40 bg-slate-100 border-r border-slate-200 w-[90px] min-w-[90px]">
                     CÓD. PRODUTO
                   </th>
-                  <th className="py-2 px-3 sticky left-[310px] z-40 bg-slate-100 border-r border-slate-200 min-w-[200px]">
+                  <th className="py-2 px-3 sticky left-[310px] z-40 bg-slate-100 border-r border-slate-200 w-[200px] min-w-[200px]">
                     DESCRIÇÃO
                   </th>
-                  <th className="py-2 px-2 text-right sticky left-[510px] z-40 bg-blue-100/90 text-blue-900 border-r border-slate-300 min-w-[90px]">
+                  <th className="py-2 px-2 text-right sticky left-[510px] z-40 bg-blue-100/90 text-blue-900 border-r border-slate-300 w-[90px] min-w-[90px]">
                     {cdColumnLabel}
                   </th>
 
                   {/* Colunas Dinâmicas de Cada Filial */}
                   {filiaisList.map(fil => (
-                    <th key={fil} className="py-2 px-2 text-center border-r border-slate-200 min-w-[38px] text-[9px] font-bold">
+                    <th key={fil} className="py-2 px-2.5 text-center border-r border-slate-200 w-12 min-w-12 text-[9px] font-bold">
                       {fil}
                     </th>
                   ))}
 
                   {/* Coluna Total Geral da Linha */}
-                  <th className="py-2 px-2 text-center bg-slate-200/90 text-slate-900 font-black min-w-[70px]">
+                  <th className="py-2 px-3 text-center bg-slate-200/90 text-slate-900 font-black w-24 min-w-24">
                     Total Geral
                   </th>
                 </tr>
