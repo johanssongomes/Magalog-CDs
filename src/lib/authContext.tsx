@@ -126,6 +126,10 @@ export const AVAILABLE_SUBPAGES: { id: string; pageId: string; label: string }[]
   { id: 'sub-settings-p3', pageId: 'settings', label: 'Central • Métricas de Turno' },
   { id: 'sub-settings-p4', pageId: 'settings', label: 'Central • Auditoria' },
   { id: 'sub-settings-p5', pageId: 'settings', label: 'Central • Parâmetros & Configurações' },
+  // Supply Lojas
+  { id: 'sub-supply-painel', pageId: 'supply-lojas', label: 'Supply • Painel Supply' },
+  { id: 'sub-supply-dashboard', pageId: 'supply-lojas', label: 'Supply • Dashboard' },
+  { id: 'sub-supply-relatorio', pageId: 'supply-lojas', label: 'Supply • Relatório Supply' },
   // Agenda & Reuniões
   { id: 'sub-agenda-overview', pageId: 'agenda', label: 'Agenda • Visão Geral' },
   { id: 'sub-agenda-calendar', pageId: 'agenda', label: 'Agenda • Calendário' },
