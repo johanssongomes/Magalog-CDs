@@ -26,6 +26,7 @@ import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import { getSupplyLojasReport, getSupplyFiltersMeta, type SupplyItem } from '../lib/supplyService'
 import initialPivotData from '../data/supply_pivot_summary.json'
+import { SupplyDashboardOverview } from './SupplyDashboardOverview'
 
 type EstoqueTipoMetric = 'FISICO' | 'LOGICO' | 'TRANSITO' | 'ESTOQUE'
 type OrderByOption = 'LINHA_ASC' | 'ESTOQUE_DESC' | 'ESTOQUE_ASC' | 'LOJAS_DESC'
@@ -513,42 +514,15 @@ export const SupplyLojasPage: React.FC = () => {
       {/* ABA 1: SUPPLY DASHBOARD */}
       {/* ======================================================== */}
       {activeTab === 'dashboard' && (
-        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-8 sm:p-14 text-center">
-          <div className="max-w-md mx-auto flex flex-col items-center">
-            <div className="w-16 h-16 rounded-3xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shadow-sm mb-4">
-              <LayoutDashboard size={32} />
-            </div>
-
-            <h2 className="text-lg font-black text-slate-900 tracking-tight mb-1">
-              Supply Dashboard
-            </h2>
-            <p className="text-xs font-semibold text-slate-500 mb-6">
-              Esta aba está reservada para os painéis executivos, gráficos de ruptura, KPIs por filial e distribuição de estoque que montaremos com base nos dados do Relatório Supply.
-            </p>
-
-            <div className="w-full grid grid-cols-2 gap-3 text-left">
-              <div className="p-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60">
-                <div className="flex items-center gap-1.5 text-slate-700 font-bold text-xs mb-1">
-                  <Building2 size={13} className="text-blue-500" />
-                  <span>Visão por Filial</span>
-                </div>
-                <p className="text-[11px] text-slate-400 leading-snug">
-                  Indicadores de lojas sem físico, nível de atendimento e abastecimento.
-                </p>
-              </div>
-
-              <div className="p-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60">
-                <div className="flex items-center gap-1.5 text-slate-700 font-bold text-xs mb-1">
-                  <Sparkles size={13} className="text-amber-500" />
-                  <span>Curvas &amp; Status</span>
-                </div>
-                <p className="text-[11px] text-slate-400 leading-snug">
-                  Gráficos de dispersão por linha de produto (BR, EL, UD, etc.) e valores de estoque.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SupplyDashboardOverview
+          onNavigateToPainel={(status, linha) => {
+            setPivotStatus(status)
+            if (linha) {
+              setSelectedLinhas([linha])
+            }
+            setActiveTab('painel')
+          }}
+        />
       )}
 
       {/* ======================================================== */}
