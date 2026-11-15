@@ -74,9 +74,7 @@ export const SupplyLojasPage: React.FC = () => {
   const linhasDropdownRef = useRef<HTMLDivElement>(null)
   const [orderBy, setOrderBy] = useState<OrderByOption>('LINHA_ASC')
   const [pivotSearch, setPivotSearch] = useState<string>('')
-  const [expandedLinhas, setExpandedLinhas] = useState<Record<string, boolean>>({
-    'TB - TABLET': true
-  })
+  const [expandedLinhas, setExpandedLinhas] = useState<Record<string, boolean>>({})
 
   // Fechar dropdowns ao clicar fora
   useEffect(() => {

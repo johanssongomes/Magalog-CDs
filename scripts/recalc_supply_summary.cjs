@@ -87,3 +87,4 @@ const output = {
 fs.writeFileSync(outputPath, JSON.stringify(output));
 console.log(`Pivot summary gerado com sucesso em: ${outputPath}`);
 console.log(`Tamanho final: ${Math.round(fs.statSync(outputPath).size / 1024)} KB`);
+
