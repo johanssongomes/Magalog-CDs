@@ -18,6 +18,7 @@ import initialNovMatrix from '../data/pmt_nov_2026_matrix.json'
 import initialEstoqueCategoria from '../data/estoque_categoria_summary.json'
 import { getAderenciaData, type AderenciaDataState } from '../lib/aderenciaService'
 import { getPmtDailyMatrixFromSupabase, type PmtDailyMatrixResponse } from '../lib/pmtService'
+import { SAMPLE_RECEBIMENTO_DATA, type RecebimentoItem, CSV_URL } from './PmtRecebimentoPage'
 
 // =====================================================================
 // Painel visual (dados estáticos / mock) — integração de números futura
@@ -3534,6 +3535,115 @@ export const DashboardPage: React.FC = () => {
     }
   }, [])
 
+  // Estado de Recebimento PMT integrado
+  const [recebimentoData, setRecebimentoData] = useState<RecebimentoItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_pmt_recebimento_data')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch { }
+    return SAMPLE_RECEBIMENTO_DATA
+  })
+
+  // Carrega e sincroniza automaticamente dados de recebimento (do Google Sheets se disponível)
+  useEffect(() => {
+    let isMounted = true
+    const loadRecebimento = async () => {
+      try {
+        const res = await fetch(CSV_URL)
+        if (res.ok) {
+          const csvText = await res.text()
+          if (!csvText.includes('<!DOCTYPE html>') && !csvText.includes('accounts.google.com')) {
+            const lines = csvText.split('\n')
+            const parsedItems: RecebimentoItem[] = []
+            for (let i = 1; i < lines.length; i++) {
+              const line = lines[i].trim()
+              if (!line) continue
+              const cols = line.split(',').map(c => c.replace(/^"|"$/g, '').trim())
+              if (cols.length < 8) continue
+              parsedItems.push({
+                id: `rcv-${i}-${cols[6] || i}`,
+                portaria: cols[1] || 'Não Chegou',
+                tmpMed: cols[2] || '',
+                inicio: cols[3] || '',
+                fim: cols[4] || '',
+                tempo: cols[5] || '',
+                agenda: cols[6] || '',
+                doca: cols[7] || '',
+                statusGeral: cols[8] || 'EM ANDAMENTO',
+                conferente: cols[9] || '',
+                equipe: cols[10] || '',
+                fornecedor: cols[11] || 'FORNECEDOR',
+                categoria: cols[12] || '',
+                sku: Number(cols[13]) || 0,
+                volume: Number(cols[14]) || 0,
+                reslog: Number(cols[15]) || 0,
+                cubagem: Number(cols[16]) || 0,
+                data: cols[17] || ''
+              })
+            }
+            if (isMounted && parsedItems.length > 0) {
+              setRecebimentoData(parsedItems)
+              localStorage.setItem('magalog_pmt_recebimento_data', JSON.stringify(parsedItems))
+            }
+          }
+        }
+      } catch {
+        // Usa o estado padrão/localStorage
+      }
+    }
+    loadRecebimento()
+    return () => { isMounted = false }
+  }, [])
+
+  // Métricas agregadas do PMT Recebimento (Opção 1 - Cockpit Executivo)
+  const pmtRecebimentoStats = useMemo(() => {
+    const list = recebimentoData || []
+    const totalAgendas = list.length
+    const finalizadas = list.filter(r => (r.statusGeral || '').toUpperCase() === 'FINALIZADA').length
+    const emAndamento = list.filter(r => {
+      const st = (r.statusGeral || '').toUpperCase()
+      return st === 'EM ANDAMENTO' || st === 'AGUARDANDO DESCARGA'
+    }).length
+    const noShow = list.filter(r => (r.statusGeral || '').toUpperCase() === 'NO SHOW').length
+    const outrasPendentes = Math.max(0, totalAgendas - finalizadas - noShow)
+
+    const chegaram = list.filter(r => (r.portaria || '').toLowerCase().includes('chegou') && !(r.portaria || '').toLowerCase().includes('não')).length
+    const naoChegaram = totalAgendas - chegaram
+    const taxaChegada = totalAgendas > 0 ? ((chegaram / totalAgendas) * 100).toFixed(0) : '0'
+
+    const totalVolume = list.reduce((acc, r) => acc + (Number(r.volume) || 0), 0)
+    const volumeDescarregado = list
+      .filter(r => (r.statusGeral || '').toUpperCase() === 'FINALIZADA')
+      .reduce((acc, r) => acc + (Number(r.volume) || 0), 0)
+
+    const totalCubagem = list.reduce((acc, r) => acc + (Number(r.cubagem) || 0), 0)
+    const cubagemDescarregada = list
+      .filter(r => (r.statusGeral || '').toUpperCase() === 'FINALIZADA')
+      .reduce((acc, r) => acc + (Number(r.cubagem) || 0), 0)
+
+    // Divergências / Reslog
+    const totalReslog = list.reduce((acc, r) => acc + (Number(r.reslog) || 0), 0)
+
+    return {
+      totalAgendas,
+      finalizadas,
+      emAndamento,
+      noShow,
+      outrasPendentes,
+      chegaram,
+      naoChegaram,
+      taxaChegada,
+      totalVolume,
+      volumeDescarregado,
+      totalCubagem,
+      cubagemDescarregada,
+      totalReslog
+    }
+  }, [recebimentoData])
+
   const alerts = [
     { icon: <CheckCircle2 size={15} />, tone: 'bg-emerald-50 border-emerald-200 text-emerald-700', title: 'NS de Saída acima da meta', desc: '97,8% | Meta > 97%', time: 'Hoje 15:45' },
     { icon: <AlertTriangle size={15} />, tone: 'bg-amber-50 border-amber-200 text-amber-700', title: 'Ocupação do CD em atenção', desc: '97% | Monitorar capacidade', time: 'Hoje 14:50' },
@@ -3808,23 +3918,127 @@ export const DashboardPage: React.FC = () => {
 
       {/* Linha inferior */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-        <Card className="p-4 xl:col-span-5">
-          <CardTitle icon={<Package size={16} />} title="Fluxo Operacional" />
+        {/* PMT Recebimento - Cockpit Executivo de Entrada */}
+        <Card className="p-4 xl:col-span-5 border-blue-200/80 bg-gradient-to-b from-white to-blue-50/20">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+              <span className="p-1 rounded-md bg-blue-100 text-blue-700">
+                <Truck size={16} />
+              </span>
+              <span>PMT Recebimento</span>
+              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100/90 text-blue-800 border border-blue-200">
+                Entrada & Docas
+              </span>
+            </h3>
+            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+              {pmtRecebimentoStats.totalAgendas} Agendas no Ciclo
+            </span>
+          </div>
+
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {fluxo.map(f => (
-              <div key={f.title} className="space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <span className={`p-1.5 rounded-lg ${f.tone}`}>{f.icon}</span>
-                  <span className="text-xs font-bold text-slate-700">{f.title}</span>
-                </div>
-                <p className="text-2xl font-black text-slate-900 leading-tight">{f.value}</p>
-                {f.unit && <p className="text-[11px] text-slate-500 -mt-1">{f.unit}</p>}
-                <div className="text-[11px] pt-1 border-t border-slate-100">
-                  <p><span className="font-bold text-slate-800">{f.a[0]}</span> <span className="text-slate-500">{f.a[1]}</span></p>
-                  <p><span className="font-bold text-rose-600">{f.b[0]}</span> <span className="text-slate-500">{f.b[1]}</span></p>
-                </div>
+            {/* Bloco 1: Agendamentos & Conclusão */}
+            <div className="space-y-1.5 p-2 rounded-lg bg-white border border-slate-200/80 shadow-2xs">
+              <div className="flex items-center gap-1.5">
+                <span className="p-1.5 rounded-lg text-blue-600 bg-blue-50">
+                  <CalendarDays size={14} />
+                </span>
+                <span className="text-xs font-bold text-slate-700">Agendas</span>
               </div>
-            ))}
+              <p className="text-2xl font-black text-slate-900 leading-tight">
+                {pmtRecebimentoStats.totalAgendas}
+              </p>
+              <p className="text-[10.5px] text-slate-500 -mt-1 font-medium">Programadas</p>
+              <div className="text-[10.5px] pt-1.5 border-t border-slate-100 space-y-0.5">
+                <p className="flex justify-between">
+                  <span className="text-slate-500">Concluídas:</span>
+                  <span className="font-bold text-emerald-700">{pmtRecebimentoStats.finalizadas}</span>
+                </p>
+                <p className="flex justify-between">
+                  <span className="text-slate-500">Em curso:</span>
+                  <span className="font-bold text-amber-600">{pmtRecebimentoStats.emAndamento}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Bloco 2: Portaria & Taxa de Chegada */}
+            <div className="space-y-1.5 p-2 rounded-lg bg-white border border-slate-200/80 shadow-2xs">
+              <div className="flex items-center gap-1.5">
+                <span className="p-1.5 rounded-lg text-emerald-600 bg-emerald-50">
+                  <ShieldCheck size={14} />
+                </span>
+                <span className="text-xs font-bold text-slate-700">Portaria</span>
+              </div>
+              <p className="text-2xl font-black text-emerald-700 leading-tight">
+                {pmtRecebimentoStats.taxaChegada}%
+              </p>
+              <p className="text-[10.5px] text-slate-500 -mt-1 font-medium">Taxa de Chegada</p>
+              <div className="text-[10.5px] pt-1.5 border-t border-slate-100 space-y-0.5">
+                <p className="flex justify-between">
+                  <span className="text-slate-500">No CD / Chegou:</span>
+                  <span className="font-bold text-slate-800">{pmtRecebimentoStats.chegaram}</span>
+                </p>
+                <p className="flex justify-between">
+                  <span className="text-slate-500">No Show:</span>
+                  <span className={`font-bold ${pmtRecebimentoStats.noShow > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                    {pmtRecebimentoStats.noShow}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {/* Bloco 3: Volumetria de Peças */}
+            <div className="space-y-1.5 p-2 rounded-lg bg-white border border-slate-200/80 shadow-2xs">
+              <div className="flex items-center gap-1.5">
+                <span className="p-1.5 rounded-lg text-amber-600 bg-amber-50">
+                  <Boxes size={14} />
+                </span>
+                <span className="text-xs font-bold text-slate-700">Volume</span>
+              </div>
+              <p className="text-2xl font-black text-slate-900 leading-tight">
+                {pmtRecebimentoStats.totalVolume.toLocaleString('pt-BR')}
+              </p>
+              <p className="text-[10.5px] text-slate-500 -mt-1 font-medium">Peças Programadas</p>
+              <div className="text-[10.5px] pt-1.5 border-t border-slate-100 space-y-0.5">
+                <p className="flex justify-between">
+                  <span className="text-slate-500">Descarregado:</span>
+                  <span className="font-bold text-emerald-700">
+                    {pmtRecebimentoStats.volumeDescarregado.toLocaleString('pt-BR')}
+                  </span>
+                </p>
+                <p className="flex justify-between">
+                  <span className="text-slate-500">A Descarregar:</span>
+                  <span className="font-bold text-amber-700">
+                    {Math.max(0, pmtRecebimentoStats.totalVolume - pmtRecebimentoStats.volumeDescarregado).toLocaleString('pt-BR')}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {/* Bloco 4: Cubagem & Qualidade (Reslog) */}
+            <div className="space-y-1.5 p-2 rounded-lg bg-white border border-slate-200/80 shadow-2xs">
+              <div className="flex items-center gap-1.5">
+                <span className="p-1.5 rounded-lg text-purple-600 bg-purple-50">
+                  <Layers size={14} />
+                </span>
+                <span className="text-xs font-bold text-slate-700">Cubagem</span>
+              </div>
+              <p className="text-2xl font-black text-purple-900 leading-tight">
+                {pmtRecebimentoStats.totalCubagem.toFixed(1)} <span className="text-xs font-bold text-slate-500">m³</span>
+              </p>
+              <p className="text-[10.5px] text-slate-500 -mt-1 font-medium">Capacidade / Entrada</p>
+              <div className="text-[10.5px] pt-1.5 border-t border-slate-100 space-y-0.5">
+                <p className="flex justify-between">
+                  <span className="text-slate-500">Concluído:</span>
+                  <span className="font-bold text-emerald-700">{pmtRecebimentoStats.cubagemDescarregada.toFixed(1)} m³</span>
+                </p>
+                <p className="flex justify-between">
+                  <span className="text-slate-500">Divergência:</span>
+                  <span className={`font-bold ${pmtRecebimentoStats.totalReslog > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                    {pmtRecebimentoStats.totalReslog} pçs
+                  </span>
+                </p>
+              </div>
+            </div>
           </div>
         </Card>
 

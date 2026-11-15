@@ -56,7 +56,7 @@ export interface ItemAgendamento {
 }
 
 // Dados iniciais e de fallback (extraídos do print do sistema real)
-const SAMPLE_RECEBIMENTO_DATA: RecebimentoItem[] = [
+export const SAMPLE_RECEBIMENTO_DATA: RecebimentoItem[] = [
   {
     id: '1',
     portaria: 'Não Chegou',
@@ -440,12 +440,12 @@ const STATUS_PRIORITY: Record<string, number> = {
   'NO SHOW': 7
 }
 
-const SHEET_SPREADSHEET_ID = '1s2cnuSCOFFnyFLc7s80eFH1oiGm1LHfGaJxO2dsioRI'
-const SHEET_GID = '585841890'
-const GOOGLE_SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`
-const ITENS_AG_JSON_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent('Itens Ag')}`
-const ITENS_AG_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('Itens Ag')}`
+export const SHEET_SPREADSHEET_ID = '1s2cnuSCOFFnyFLc7s80eFH1oiGm1LHfGaJxO2dsioRI'
+export const SHEET_GID = '585841890'
+export const GOOGLE_SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`
+export const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`
+export const ITENS_AG_JSON_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent('Itens Ag')}`
+export const ITENS_AG_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('Itens Ag')}`
 
 // Componente Dropdown com Suporte a Múltipla Seleção e Busca
 interface MultiSelectDropdownProps {

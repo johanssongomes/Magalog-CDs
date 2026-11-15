@@ -453,8 +453,8 @@ export const SupplyLojasPage: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('dashboard')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'dashboard'
-                ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
-                : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+              : 'text-slate-600 hover:text-slate-900'
               }`}
           >
             <LayoutDashboard size={14} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-slate-400'} />
@@ -465,8 +465,8 @@ export const SupplyLojasPage: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('painel')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'painel'
-                ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
-                : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+              : 'text-slate-600 hover:text-slate-900'
               }`}
           >
             <TableIcon size={14} className={activeTab === 'painel' ? 'text-amber-600' : 'text-slate-400'} />
@@ -477,8 +477,8 @@ export const SupplyLojasPage: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('relatorio')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'relatorio'
-                ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
-                : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+              : 'text-slate-600 hover:text-slate-900'
               }`}
           >
             <FileSpreadsheet size={14} className={activeTab === 'relatorio' ? 'text-indigo-600' : 'text-slate-400'} />
@@ -491,8 +491,8 @@ export const SupplyLojasPage: React.FC = () => {
       {uploadFeedback && (
         <div
           className={`p-3 rounded-xl border flex items-center justify-between text-xs font-medium animate-in fade-in duration-200 ${uploadFeedback.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-rose-50 border-rose-200 text-rose-800'
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            : 'bg-rose-50 border-rose-200 text-rose-800'
             }`}
         >
           <div className="flex items-center gap-2">
@@ -566,8 +566,8 @@ export const SupplyLojasPage: React.FC = () => {
                   type="button"
                   onClick={() => setPivotStatus('LOJA SEM FISICO')}
                   className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${pivotStatus === 'LOJA SEM FISICO'
-                      ? 'bg-rose-600 text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-rose-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
                     }`}
                 >
                   LOJA SEM FISICO
@@ -576,8 +576,8 @@ export const SupplyLojasPage: React.FC = () => {
                   type="button"
                   onClick={() => setPivotStatus('LOJA COM FISICO')}
                   className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${pivotStatus === 'LOJA COM FISICO'
-                      ? 'bg-emerald-600 text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
                     }`}
                 >
                   LOJA COM FISICO
@@ -639,11 +639,10 @@ export const SupplyLojasPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsLojasDropdownOpen(prev => !prev)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
-                    selectedFiliais.length > 0
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${selectedFiliais.length > 0
                       ? 'bg-blue-50 border-blue-300 text-blue-900'
                       : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
+                    }`}
                   title="Filtro de Lojas com múltipla seleção"
                 >
                   <Store size={13} className={selectedFiliais.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
@@ -681,14 +680,12 @@ export const SupplyLojasPage: React.FC = () => {
                           <label
                             key={fil}
                             onClick={() => toggleFilialSelection(fil)}
-                            className={`flex items-center justify-between px-2 py-1 rounded-lg text-xs cursor-pointer select-none transition-colors ${
-                              isChecked ? 'bg-blue-50 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
-                            }`}
+                            className={`flex items-center justify-between px-2 py-1 rounded-lg text-xs cursor-pointer select-none transition-colors ${isChecked ? 'bg-blue-50 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                              }`}
                           >
                             <div className="flex items-center gap-2">
-                              <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] ${
-                                isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
-                              }`}>
+                              <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] ${isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
+                                }`}>
                                 {isChecked && <Check size={10} strokeWidth={3} />}
                               </div>
                               <span>Filial {fil}</span>
@@ -709,11 +706,10 @@ export const SupplyLojasPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsLinhasDropdownOpen(prev => !prev)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
-                    selectedLinhas.length > 0
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${selectedLinhas.length > 0
                       ? 'bg-amber-50 border-amber-300 text-amber-900'
                       : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
+                    }`}
                   title="Filtro de Linhas com múltipla seleção"
                 >
                   <Filter size={13} className={selectedLinhas.length > 0 ? 'text-amber-600' : 'text-slate-500'} />
@@ -747,13 +743,11 @@ export const SupplyLojasPage: React.FC = () => {
                           <label
                             key={linha}
                             onClick={() => toggleLinhaSelection(linha)}
-                            className={`flex items-center gap-2 px-2 py-1 rounded-lg text-xs cursor-pointer select-none transition-colors ${
-                              isChecked ? 'bg-amber-50 text-amber-950 font-bold' : 'hover:bg-slate-50 text-slate-700'
-                            }`}
+                            className={`flex items-center gap-2 px-2 py-1 rounded-lg text-xs cursor-pointer select-none transition-colors ${isChecked ? 'bg-amber-50 text-amber-950 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                              }`}
                           >
-                            <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] shrink-0 ${
-                              isChecked ? 'bg-amber-600 border-amber-600 text-white' : 'border-slate-300 bg-white'
-                            }`}>
+                            <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] shrink-0 ${isChecked ? 'bg-amber-600 border-amber-600 text-white' : 'border-slate-300 bg-white'
+                              }`}>
                               {isChecked && <Check size={10} strokeWidth={3} />}
                             </div>
                             <span className="truncate">{linha}</span>
@@ -1063,8 +1057,8 @@ export const SupplyLojasPage: React.FC = () => {
               <label
                 htmlFor="supply-file-upload"
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white shadow-xs transition-all cursor-pointer ${isUploading
-                    ? 'bg-slate-400 cursor-wait'
-                    : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95'
+                  ? 'bg-slate-400 cursor-wait'
+                  : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95'
                   }`}
                 title="Sincronizar banco com nova planilha Supply.xlsx"
               >
@@ -1164,8 +1158,8 @@ export const SupplyLojasPage: React.FC = () => {
                       <td className="py-2 px-2.5 text-center font-sans">
                         <span
                           className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${item.status_estoque?.includes('SEM FISICO')
-                              ? 'bg-rose-50 text-rose-700 border-rose-200'
-                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             }`}
                         >
                           {item.status_estoque || '-'}
