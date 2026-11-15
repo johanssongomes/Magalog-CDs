@@ -620,6 +620,185 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   )
 }
 
+export const parseRecebimentoRows = (csvOrRows: string | any[][]): RecebimentoItem[] => {
+  try {
+    let rows: string[][] = []
+    if (typeof csvOrRows === 'string') {
+      const lines = csvOrRows.split('\n')
+      rows = lines.map(line => {
+        const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g
+        const matches: string[] = []
+        let m: RegExpExecArray | null
+        while ((m = regex.exec(line)) !== null) {
+          let val = m[1] || ''
+          if (val.startsWith('"') && val.endsWith('"')) {
+            val = val.substring(1, val.length - 1).replace(/""/g, '"')
+          }
+          matches.push(val.trim())
+          if (m.index === regex.lastIndex) regex.lastIndex++
+        }
+        return matches
+      })
+    } else {
+      rows = csvOrRows as string[][]
+    }
+
+    if (rows.length < 2) return []
+
+    // Localiza linha de cabeçalho
+    let headerIdx = -1
+    for (let i = 0; i < Math.min(rows.length, 20); i++) {
+      const rowStr = rows[i].map(c => String(c || '')).join(' ').toUpperCase()
+      if (rowStr.includes('PORTARIA') && (rowStr.includes('STATUS GERAL') || rowStr.includes('AGENDA') || rowStr.includes('FORNECEDOR'))) {
+        headerIdx = i
+        break
+      }
+    }
+
+    if (headerIdx === -1) {
+      headerIdx = 0
+    }
+
+    const headers = rows[headerIdx].map(h => String(h || '').toUpperCase().trim())
+    const colMap: Record<string, number> = {}
+
+    headers.forEach((h, idx) => {
+      if (h === 'PORTARIA' || h.startsWith('PORTARIA')) colMap['portaria'] = idx
+      if (h === 'STATUS GERAL' || h.includes('STATUS GERAL') || h === 'STATUS') colMap['statusGeral'] = idx
+      if (h === 'CONFERENTE' || h.includes('CONFERENTE')) colMap['conferente'] = idx
+      if (h === 'EQUIPE' || h.includes('EQUIPE')) colMap['equipe'] = idx
+      if (h === 'DOCA' || h.includes('DOCA')) colMap['doca'] = idx
+      if (h.includes('TMP MED') || h.includes('TMP. MED') || h.includes('TEMPO MEDIO') || h.includes('TMP_MED') || h === 'TMP MED') colMap['tmpMed'] = idx
+      if (h === 'INICIO' || h === 'INÍCIO' || h.includes('INICIO') || h.includes('INÍCIO')) colMap['inicio'] = idx
+      if (h === 'FIM' || h.includes('FIM')) colMap['fim'] = idx
+      if (h === 'TEMPO' || h === 'TEMPO TOTAL' || h.includes('TEMPO')) {
+        if (!colMap['tempo'] && !h.includes('MED')) colMap['tempo'] = idx
+      }
+      if (h === 'AGENDA') {
+        colMap['agenda'] = idx
+      } else if (h.includes('AGENDA') && colMap['agenda'] === undefined) {
+        colMap['agenda'] = idx
+      }
+      if (h === 'DATA' || h.includes('DATA')) colMap['data'] = idx
+      if (h === 'VEICULO' || h.includes('VEICULO')) colMap['veiculo'] = idx
+      if (h === 'FORNECEDOR' || h.includes('FORNECEDOR')) colMap['fornecedor'] = idx
+      if (h === 'CATEGORIA' || h.includes('CATEGORIA') || h.includes('CATEG')) colMap['categoria'] = idx
+      if (h === 'SKU' || h.includes('SKU') || h === 'QTD SKU' || h === 'SKUS') colMap['sku'] = idx
+      if (h === 'VOLUME' || h.includes('VOLUME') || h === 'VOLUMES' || h === 'PECAS' || h === 'PEÇAS' || h.includes('QTD')) {
+        if (colMap['volume'] === undefined) colMap['volume'] = idx
+      }
+      if (h === 'CUBAGEM' || h.includes('CUBAGEM') || h === 'M3' || h === 'M³' || h.includes('CUB')) colMap['cubagem'] = idx
+      if (h === 'RESLOG' || h.includes('RESLOG') || h.includes('DIVERG') || h.includes('DIF')) colMap['reslog'] = idx
+    })
+
+    colMap['portaria'] = colMap['portaria'] ?? 1
+    colMap['statusGeral'] = colMap['statusGeral'] ?? 2
+    colMap['conferente'] = colMap['conferente'] ?? 3
+    colMap['equipe'] = colMap['equipe'] ?? 4
+    colMap['doca'] = colMap['doca'] ?? 5
+    colMap['tmpMed'] = colMap['tmpMed'] ?? 6
+    colMap['inicio'] = colMap['inicio'] ?? 7
+    colMap['fim'] = colMap['fim'] ?? 8
+    colMap['tempo'] = colMap['tempo'] ?? 9
+    colMap['agenda'] = colMap['agenda'] ?? 11
+    colMap['data'] = colMap['data'] ?? 12
+    colMap['fornecedor'] = colMap['fornecedor'] ?? 14
+    colMap['reslog'] = colMap['reslog'] ?? 17
+    colMap['volume'] = colMap['volume'] ?? 18
+    colMap['sku'] = colMap['sku'] ?? 19
+    colMap['categoria'] = colMap['categoria'] ?? 22
+    colMap['cubagem'] = colMap['cubagem'] ?? 24
+
+    const parsedItems: RecebimentoItem[] = []
+    for (let i = headerIdx + 1; i < rows.length; i++) {
+      const row = rows[i]
+      if (!row || row.length === 0) continue
+
+      const getVal = (colKey: string) => {
+        const idx = colMap[colKey]
+        if (idx === undefined || idx < 0 || idx >= row.length) return ''
+        return String(row[idx] ?? '').trim()
+      }
+
+      const statusGeral = getVal('statusGeral').toUpperCase()
+      const agenda = getVal('agenda')
+      const fornecedor = getVal('fornecedor')
+      const portaria = getVal('portaria') || (statusGeral === 'NO SHOW' ? 'Não Chegou' : 'Chegou')
+
+      if (!agenda || agenda === '-' || agenda === '#N/D' || agenda.toLowerCase() === 'null') {
+        continue
+      }
+      if (!statusGeral && !fornecedor) continue
+
+      const parseNum = (colKey: string, defaultVal: number = 0) => {
+        const raw = getVal(colKey)
+        if (!raw) return defaultVal
+        const clean = raw.replace(/\./g, '').replace(',', '.')
+        const n = parseFloat(clean)
+        return isNaN(n) ? defaultVal : n
+      }
+
+      let dataFormatada = getVal('data')
+      if (dataFormatada && !isNaN(Number(dataFormatada)) && Number(dataFormatada) > 30000) {
+        const d = new Date((Number(dataFormatada) - 25569) * 86400 * 1000)
+        const dd = String(d.getUTCDate()).padStart(2, '0')
+        const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
+        const yyyy = d.getUTCFullYear()
+        dataFormatada = `${dd}/${mm}/${yyyy}`
+      }
+
+      let categoriaVal = getVal('categoria')
+      if (!categoriaVal || categoriaVal === 'GERAL') {
+        const fornUpper = fornecedor.toUpperCase()
+        if (fornUpper.includes('ELECTROLUX') || fornUpper.includes('MIDEA') || fornUpper.includes('WHIRLPOOL') || fornUpper.includes('CLIMAZON')) {
+          categoriaVal = 'ELETRO PESADO'
+        } else if (fornUpper.includes('COLCH') || fornUpper.includes('UMAFLEX') || fornUpper.includes('PLUMATEX') || fornUpper.includes('GAZIN') || fornUpper.includes('COMFORT')) {
+          categoriaVal = 'COLCHÃO/ ESTOFADOS'
+        } else if (fornUpper.includes('MAGAZINE LUIZA')) {
+          categoriaVal = 'TRANSFERÊNCIA'
+        } else if (fornUpper.includes('SAMSUNG') || fornUpper.includes('TCL') || fornUpper.includes('SEMP')) {
+          categoriaVal = 'ELETRÔNICOS'
+        } else if (fornUpper.includes('ITATIAIA') || fornUpper.includes('MK BR')) {
+          categoriaVal = 'PORTATEIS'
+        } else {
+          categoriaVal = 'GERAL'
+        }
+      }
+
+      const skuNum = Math.max(0, Math.round(parseNum('sku', 1)))
+      const volumeNum = Math.max(0, Math.round(parseNum('volume', 0)))
+      const cubagemNum = Number(parseNum('cubagem', 0).toFixed(2))
+      const reslogNum = Math.round(parseNum('reslog', 0))
+
+      parsedItems.push({
+        id: `item-${i}-${agenda}`,
+        portaria: portaria,
+        tmpMed: getVal('tmpMed'),
+        inicio: getVal('inicio'),
+        fim: getVal('fim'),
+        tempo: getVal('tempo'),
+        agenda: agenda,
+        doca: getVal('doca'),
+        statusGeral: statusGeral || 'EM ANDAMENTO',
+        conferente: getVal('conferente'),
+        equipe: getVal('equipe'),
+        fornecedor: fornecedor || 'FORNECEDOR DIVERSOS',
+        categoria: categoriaVal,
+        sku: skuNum,
+        volume: volumeNum,
+        reslog: reslogNum,
+        cubagem: cubagemNum,
+        data: dataFormatada || 'SEM DATA'
+      })
+    }
+
+    return parsedItems
+  } catch (e: any) {
+    console.error('Falha no parseRecebimentoRows:', e)
+    return []
+  }
+}
+
 export const PmtRecebimentoPage: React.FC = () => {
   const [data, setData] = useState<RecebimentoItem[]>(SAMPLE_RECEBIMENTO_DATA)
   const [itensAgMap, setItensAgMap] = useState<Record<string, ItemAgendamento[]>>({})
@@ -813,224 +992,13 @@ export const PmtRecebimentoPage: React.FC = () => {
     })
   }
 
-  // Parse CSV ou Planilha Excel
+// Parse CSV ou Planilha Excel
+
+
+  // Parse e definição de dados no estado
   const parseAndSetData = (csvOrRows: string | any[][]) => {
     try {
-      let rows: string[][] = []
-      if (typeof csvOrRows === 'string') {
-        const lines = csvOrRows.split('\n')
-        rows = lines.map(line => {
-          // split simples preservando aspas
-          const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g
-          const matches: string[] = []
-          let m: RegExpExecArray | null
-          while ((m = regex.exec(line)) !== null) {
-            let val = m[1] || ''
-            if (val.startsWith('"') && val.endsWith('"')) {
-              val = val.substring(1, val.length - 1).replace(/""/g, '"')
-            }
-            matches.push(val.trim())
-            if (m.index === regex.lastIndex) regex.lastIndex++
-          }
-          return matches
-        })
-      } else {
-        rows = csvOrRows as string[][]
-      }
-
-      if (rows.length < 2) return
-
-      // Localiza linha de cabeçalho
-      let headerIdx = -1
-      for (let i = 0; i < Math.min(rows.length, 20); i++) {
-        const rowStr = rows[i].map(c => String(c || '')).join(' ').toUpperCase()
-        if (rowStr.includes('PORTARIA') && (rowStr.includes('STATUS GERAL') || rowStr.includes('AGENDA') || rowStr.includes('FORNECEDOR'))) {
-          headerIdx = i
-          break
-        }
-      }
-
-      if (headerIdx === -1) {
-        headerIdx = 0
-      }
-
-      const headers = rows[headerIdx].map(h => String(h || '').toUpperCase().trim())
-      console.log('Cabeçalhos encontrados na linha', headerIdx, headers)
-      const colMap: Record<string, number> = {}
-
-      headers.forEach((h, idx) => {
-        // PORTARIA
-        if (h === 'PORTARIA' || h.startsWith('PORTARIA')) colMap['portaria'] = idx
-        // STATUS GERAL
-        if (h === 'STATUS GERAL' || h.includes('STATUS GERAL') || h === 'STATUS') colMap['statusGeral'] = idx
-        // CONFERENTE
-        if (h === 'CONFERENTE' || h.includes('CONFERENTE')) colMap['conferente'] = idx
-        // EQUIPE
-        if (h === 'EQUIPE' || h.includes('EQUIPE')) colMap['equipe'] = idx
-        // DOCA
-        if (h === 'DOCA' || h.includes('DOCA')) colMap['doca'] = idx
-        // TMP MED
-        if (h.includes('TMP MED') || h.includes('TMP. MED') || h.includes('TEMPO MEDIO') || h.includes('TMP_MED') || h === 'TMP MED') colMap['tmpMed'] = idx
-        // INICIO
-        if (h === 'INICIO' || h === 'INÍCIO' || h.includes('INICIO') || h.includes('INÍCIO')) colMap['inicio'] = idx
-        // FIM
-        if (h === 'FIM' || h.includes('FIM')) colMap['fim'] = idx
-        // TEMPO
-        if (h === 'TEMPO' || h === 'TEMPO TOTAL' || h.includes('TEMPO')) {
-          if (!colMap['tempo'] && !h.includes('MED')) colMap['tempo'] = idx
-        }
-        // AGENDA (evita D&F AGENDA ou prioriza AGENDA direta)
-        if (h === 'AGENDA') {
-          colMap['agenda'] = idx
-        } else if (h.includes('AGENDA') && colMap['agenda'] === undefined) {
-          colMap['agenda'] = idx
-        }
-        // DATA
-        if (h === 'DATA' || h.includes('DATA')) colMap['data'] = idx
-        // VEICULO
-        if (h === 'VEICULO' || h.includes('VEICULO')) colMap['veiculo'] = idx
-        // FORNECEDOR
-        if (h === 'FORNECEDOR' || h.includes('FORNECEDOR')) colMap['fornecedor'] = idx
-        // CATEGORIA
-        if (h === 'CATEGORIA' || h.includes('CATEGORIA') || h.includes('CATEG')) colMap['categoria'] = idx
-        // SKU
-        if (h === 'SKU' || h.includes('SKU') || h === 'QTD SKU' || h === 'SKUS') colMap['sku'] = idx
-        // VOLUME
-        if (h === 'VOLUME' || h.includes('VOLUME') || h === 'VOLUMES' || h === 'PECAS' || h === 'PEÇAS' || h.includes('QTD')) {
-          if (colMap['volume'] === undefined) colMap['volume'] = idx
-        }
-        // CUBAGEM
-        if (h === 'CUBAGEM' || h.includes('CUBAGEM') || h === 'M3' || h === 'M³' || h.includes('CUB')) colMap['cubagem'] = idx
-        // RESLOG
-        if (h === 'RESLOG' || h.includes('RESLOG') || h.includes('DIVERG') || h.includes('DIF')) colMap['reslog'] = idx
-      })
-
-      // Fallback e mapeamento exato das posições reais da aba 99• FORNECEDOR:
-      // B: PORTARIA (col 1)
-      // C: STATUS GERAL (col 2)
-      // D: CONFERENTE (col 3)
-      // E: EQUIPE (col 4)
-      // F: DOCA (col 5)
-      // G: TMP MED (col 6)
-      // H: INICIO (col 7)
-      // I: FIM (col 8)
-      // J: TEMPO (col 9)
-      // K: D&F (col 10)
-      // L: AGENDA (col 11)
-      // M: DATA (col 12)
-      // N: VEICULO (col 13)
-      // O: FORNECEDOR (col 14)
-      // P: TRANSP (col 15)
-      // Q: STATUS_LUIZA GOL (col 16)
-      // R: RESLOG (col 17)
-      // S: VOLUME (col 18)
-      // T: SKU (col 19)
-      // W: CATEGORIA (col 22)
-      // Y: CUBAGEM (col 24)
-      colMap['portaria'] = colMap['portaria'] ?? 1
-      colMap['statusGeral'] = colMap['statusGeral'] ?? 2
-      colMap['conferente'] = colMap['conferente'] ?? 3
-      colMap['equipe'] = colMap['equipe'] ?? 4
-      colMap['doca'] = colMap['doca'] ?? 5
-      colMap['tmpMed'] = colMap['tmpMed'] ?? 6
-      colMap['inicio'] = colMap['inicio'] ?? 7
-      colMap['fim'] = colMap['fim'] ?? 8
-      colMap['tempo'] = colMap['tempo'] ?? 9
-      colMap['agenda'] = colMap['agenda'] ?? 11
-      colMap['data'] = colMap['data'] ?? 12
-      colMap['fornecedor'] = colMap['fornecedor'] ?? 14
-      colMap['reslog'] = colMap['reslog'] ?? 17
-      colMap['volume'] = colMap['volume'] ?? 18
-      colMap['sku'] = colMap['sku'] ?? 19
-      colMap['categoria'] = colMap['categoria'] ?? 22
-      colMap['cubagem'] = colMap['cubagem'] ?? 24
-
-      const parsedItems: RecebimentoItem[] = []
-      for (let i = headerIdx + 1; i < rows.length; i++) {
-        const row = rows[i]
-        if (!row || row.length === 0) continue
-
-        const getVal = (colKey: string) => {
-          const idx = colMap[colKey]
-          if (idx === undefined || idx < 0 || idx >= row.length) return ''
-          return String(row[idx] ?? '').trim()
-        }
-
-        const statusGeral = getVal('statusGeral').toUpperCase()
-        const agenda = getVal('agenda')
-        const fornecedor = getVal('fornecedor')
-        const portaria = getVal('portaria') || (statusGeral === 'NO SHOW' ? 'Não Chegou' : 'Chegou')
-
-        // Se não tiver número de agenda preenchido na planilha, ignora a linha (não exibe no painel)
-        if (!agenda || agenda === '-' || agenda === '#N/D' || agenda.toLowerCase() === 'null') {
-          continue
-        }
-
-        if (!statusGeral && !fornecedor) continue
-
-        const parseNum = (colKey: string, defaultVal: number = 0) => {
-          const raw = getVal(colKey)
-          if (!raw) return defaultVal
-          const clean = raw.replace(/\./g, '').replace(',', '.')
-          const n = parseFloat(clean)
-          return isNaN(n) ? defaultVal : n
-        }
-
-        // Formata data caso venha como serial do Excel (ex: 46327)
-        let dataFormatada = getVal('data')
-        if (dataFormatada && !isNaN(Number(dataFormatada)) && Number(dataFormatada) > 30000) {
-          const d = new Date((Number(dataFormatada) - 25569) * 86400 * 1000)
-          const dd = String(d.getUTCDate()).padStart(2, '0')
-          const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
-          const yyyy = d.getUTCFullYear()
-          dataFormatada = `${dd}/${mm}/${yyyy}`
-        }
-
-        let categoriaVal = getVal('categoria')
-        if (!categoriaVal || categoriaVal === 'GERAL') {
-          const fornUpper = fornecedor.toUpperCase()
-          if (fornUpper.includes('ELECTROLUX') || fornUpper.includes('MIDEA') || fornUpper.includes('WHIRLPOOL') || fornUpper.includes('CLIMAZON')) {
-            categoriaVal = 'ELETRO PESADO'
-          } else if (fornUpper.includes('COLCH') || fornUpper.includes('UMAFLEX') || fornUpper.includes('PLUMATEX') || fornUpper.includes('GAZIN') || fornUpper.includes('COMFORT')) {
-            categoriaVal = 'COLCHÃO/ ESTOFADOS'
-          } else if (fornUpper.includes('MAGAZINE LUIZA')) {
-            categoriaVal = 'TRANSFERÊNCIA'
-          } else if (fornUpper.includes('SAMSUNG') || fornUpper.includes('TCL') || fornUpper.includes('SEMP')) {
-            categoriaVal = 'ELETRÔNICOS'
-          } else if (fornUpper.includes('ITATIAIA') || fornUpper.includes('MK BR')) {
-            categoriaVal = 'PORTATEIS'
-          } else {
-            categoriaVal = 'GERAL'
-          }
-        }
-
-        const skuNum = Math.max(0, Math.round(parseNum('sku', 1)))
-        const volumeNum = Math.max(0, Math.round(parseNum('volume', 0)))
-        const cubagemNum = Number(parseNum('cubagem', 0).toFixed(2))
-        const reslogNum = Math.round(parseNum('reslog', 0))
-
-        parsedItems.push({
-          id: `item-${i}-${agenda}`,
-          portaria: portaria,
-          tmpMed: getVal('tmpMed'),
-          inicio: getVal('inicio'),
-          fim: getVal('fim'),
-          tempo: getVal('tempo'),
-          agenda: agenda,
-          doca: getVal('doca'),
-          statusGeral: statusGeral || 'EM ANDAMENTO',
-          conferente: getVal('conferente'),
-          equipe: getVal('equipe'),
-          fornecedor: fornecedor || 'FORNECEDOR DIVERSOS',
-          categoria: categoriaVal,
-          sku: skuNum,
-          volume: volumeNum,
-          reslog: reslogNum,
-          cubagem: cubagemNum,
-          data: dataFormatada || (datesList[0] || 'SEM DATA')
-        })
-      }
-
+      const parsedItems = parseRecebimentoRows(csvOrRows)
       if (parsedItems.length > 0) {
         setData(parsedItems)
         localStorage.setItem('magalog_pmt_recebimento_data', JSON.stringify(parsedItems))
@@ -1040,8 +1008,6 @@ export const PmtRecebimentoPage: React.FC = () => {
       setImportNotice(`Falha no processamento: ${e.message}`)
     }
   }
-
-  // Importar arquivo do computador (XLSX ou CSV)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return

@@ -18,7 +18,7 @@ import initialNovMatrix from '../data/pmt_nov_2026_matrix.json'
 import initialEstoqueCategoria from '../data/estoque_categoria_summary.json'
 import { getAderenciaData, type AderenciaDataState } from '../lib/aderenciaService'
 import { getPmtDailyMatrixFromSupabase, type PmtDailyMatrixResponse } from '../lib/pmtService'
-import { SAMPLE_RECEBIMENTO_DATA, type RecebimentoItem, CSV_URL } from './PmtRecebimentoPage'
+import { SAMPLE_RECEBIMENTO_DATA, type RecebimentoItem, CSV_URL, parseRecebimentoRows } from './PmtRecebimentoPage'
 
 // =====================================================================
 // Painel visual (dados estáticos / mock) — integração de números futura
@@ -1829,10 +1829,10 @@ const EstoqueCategoriasCard: React.FC<{
                 <div className="flex items-center gap-1">
                   <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">Qualidade:</span>
                   <span className={`text-[10px] font-black font-mono px-1 py-0.2 rounded border ${qualidadeGpoStats.qualidadeEstoquePct >= 99.95
-                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                      : qualidadeGpoStats.qualidadeEstoquePct >= 99.85
-                        ? 'bg-amber-100 text-amber-900 border-amber-300'
-                        : 'bg-rose-100 text-rose-800 border-rose-300'
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : qualidadeGpoStats.qualidadeEstoquePct >= 99.85
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : 'bg-rose-100 text-rose-800 border-rose-300'
                     }`}>
                     {qualidadeGpoStats.qualidadeEstoquePct.toFixed(2)}%
                   </span>
@@ -3547,6 +3547,32 @@ export const DashboardPage: React.FC = () => {
     return SAMPLE_RECEBIMENTO_DATA
   })
 
+  // Lista de datas disponíveis no PMT Recebimento (ordenadas de forma decrescente)
+  const recebimentoDatasDisponiveis = useMemo(() => {
+    const set = new Set<string>()
+    recebimentoData.forEach(d => {
+      const dt = (d.data || '').trim()
+      if (dt && dt !== 'SEM DATA') set.add(dt)
+    })
+    return Array.from(set).sort((a, b) => {
+      const [d1, m1, y1] = a.split('/').map(Number)
+      const [d2, m2, y2] = b.split('/').map(Number)
+      const dateA = new Date(y1 || 2026, (m1 || 1) - 1, d1 || 1).getTime()
+      const dateB = new Date(y2 || 2026, (m2 || 1) - 1, d2 || 1).getTime()
+      return dateB - dateA // mais recentes primeiro
+    })
+  }, [recebimentoData])
+
+  // Data selecionada no filtro de recebimento (padrão: data mais recente ou 'TODOS')
+  const [selectedRecebimentoData, setSelectedRecebimentoData] = useState<string>('')
+
+  // Define a data mais recente automaticamente ao carregar
+  useEffect(() => {
+    if (recebimentoDatasDisponiveis.length > 0 && !selectedRecebimentoData) {
+      setSelectedRecebimentoData(recebimentoDatasDisponiveis[0])
+    }
+  }, [recebimentoDatasDisponiveis, selectedRecebimentoData])
+
   // Carrega e sincroniza automaticamente dados de recebimento (do Google Sheets se disponível)
   useEffect(() => {
     let isMounted = true
@@ -3556,34 +3582,7 @@ export const DashboardPage: React.FC = () => {
         if (res.ok) {
           const csvText = await res.text()
           if (!csvText.includes('<!DOCTYPE html>') && !csvText.includes('accounts.google.com')) {
-            const lines = csvText.split('\n')
-            const parsedItems: RecebimentoItem[] = []
-            for (let i = 1; i < lines.length; i++) {
-              const line = lines[i].trim()
-              if (!line) continue
-              const cols = line.split(',').map(c => c.replace(/^"|"$/g, '').trim())
-              if (cols.length < 8) continue
-              parsedItems.push({
-                id: `rcv-${i}-${cols[6] || i}`,
-                portaria: cols[1] || 'Não Chegou',
-                tmpMed: cols[2] || '',
-                inicio: cols[3] || '',
-                fim: cols[4] || '',
-                tempo: cols[5] || '',
-                agenda: cols[6] || '',
-                doca: cols[7] || '',
-                statusGeral: cols[8] || 'EM ANDAMENTO',
-                conferente: cols[9] || '',
-                equipe: cols[10] || '',
-                fornecedor: cols[11] || 'FORNECEDOR',
-                categoria: cols[12] || '',
-                sku: Number(cols[13]) || 0,
-                volume: Number(cols[14]) || 0,
-                reslog: Number(cols[15]) || 0,
-                cubagem: Number(cols[16]) || 0,
-                data: cols[17] || ''
-              })
-            }
+            const parsedItems = parseRecebimentoRows(csvText)
             if (isMounted && parsedItems.length > 0) {
               setRecebimentoData(parsedItems)
               localStorage.setItem('magalog_pmt_recebimento_data', JSON.stringify(parsedItems))
@@ -3598,9 +3597,13 @@ export const DashboardPage: React.FC = () => {
     return () => { isMounted = false }
   }, [])
 
-  // Métricas agregadas do PMT Recebimento (Opção 1 - Cockpit Executivo)
+  // Métricas agregadas do PMT Recebimento filtradas pelo dia selecionado
   const pmtRecebimentoStats = useMemo(() => {
-    const list = recebimentoData || []
+    const rawList = recebimentoData || []
+    const list = selectedRecebimentoData && selectedRecebimentoData !== 'TODOS'
+      ? rawList.filter(r => (r.data || '').trim() === selectedRecebimentoData)
+      : rawList
+
     const totalAgendas = list.length
     const finalizadas = list.filter(r => (r.statusGeral || '').toUpperCase() === 'FINALIZADA').length
     const emAndamento = list.filter(r => {
@@ -3642,7 +3645,7 @@ export const DashboardPage: React.FC = () => {
       cubagemDescarregada,
       totalReslog
     }
-  }, [recebimentoData])
+  }, [recebimentoData, selectedRecebimentoData])
 
   const alerts = [
     { icon: <CheckCircle2 size={15} />, tone: 'bg-emerald-50 border-emerald-200 text-emerald-700', title: 'NS de Saída acima da meta', desc: '97,8% | Meta > 97%', time: 'Hoje 15:45' },
@@ -3920,7 +3923,7 @@ export const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
         {/* PMT Recebimento - Cockpit Executivo de Entrada */}
         <Card className="p-4 xl:col-span-5 border-blue-200/80 bg-gradient-to-b from-white to-blue-50/20">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
               <span className="p-1 rounded-md bg-blue-100 text-blue-700">
                 <Truck size={16} />
@@ -3930,9 +3933,31 @@ export const DashboardPage: React.FC = () => {
                 Entrada & Docas
               </span>
             </h3>
-            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-              {pmtRecebimentoStats.totalAgendas} Agendas no Ciclo
-            </span>
+
+            {/* Seletor de Data / Calendário */}
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-2 py-1 rounded-lg shadow-2xs">
+              <CalendarDays size={13} className="text-blue-600 shrink-0" />
+              <label htmlFor="recebimento-date-select" className="text-[10px] font-bold text-slate-500 uppercase tracking-tight shrink-0">
+                Data:
+              </label>
+              <select
+                id="recebimento-date-select"
+                value={selectedRecebimentoData}
+                onChange={(e) => setSelectedRecebimentoData(e.target.value)}
+                className="text-xs font-bold text-slate-800 bg-transparent outline-none cursor-pointer pr-1"
+                title="Filtrar recebimento por data"
+              >
+                {recebimentoDatasDisponiveis.map(dt => (
+                  <option key={dt} value={dt}>
+                    {dt}
+                  </option>
+                ))}
+                <option value="TODOS">Todas as Datas ({recebimentoData.length})</option>
+              </select>
+              <span className="text-[10px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200 ml-1">
+                {pmtRecebimentoStats.totalAgendas} ag
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
