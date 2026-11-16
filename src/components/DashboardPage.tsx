@@ -3644,9 +3644,43 @@ export const DashboardPage: React.FC = () => {
     const cubagemDescarregada = list
       .filter(r => (r.statusGeral || '').toUpperCase() === 'FINALIZADA')
       .reduce((acc, r) => acc + (Number(r.cubagem) || 0), 0)
+    const cubagemEmAndamento = list
+      .filter(r => {
+        const st = (r.statusGeral || '').toUpperCase()
+        return st === 'EM ANDAMENTO' || st === 'AGUARDANDO DESCARGA'
+      })
+      .reduce((acc, r) => acc + (Number(r.cubagem) || 0), 0)
+    const cubagemDiaSeguinte = list
+      .filter(r => (r.statusGeral || '').toUpperCase().includes('DIA SEGUINTE'))
+      .reduce((acc, r) => acc + (Number(r.cubagem) || 0), 0)
+    const cubagemDevolvida = list
+      .filter(r => (r.statusGeral || '').toUpperCase().includes('DEVOLVIDA'))
+      .reduce((acc, r) => acc + (Number(r.cubagem) || 0), 0)
+    const cubagemNoShow = list
+      .filter(r => (r.statusGeral || '').toUpperCase() === 'NO SHOW')
+      .reduce((acc, r) => acc + (Number(r.cubagem) || 0), 0)
+
+    // Volumes (peças) por status
+    const volumeEmAndamento = list
+      .filter(r => {
+        const st = (r.statusGeral || '').toUpperCase()
+        return st === 'EM ANDAMENTO' || st === 'AGUARDANDO DESCARGA'
+      })
+      .reduce((acc, r) => acc + (Number(r.volume) || 0), 0)
+    const volumeDiaSeguinte = list
+      .filter(r => (r.statusGeral || '').toUpperCase().includes('DIA SEGUINTE'))
+      .reduce((acc, r) => acc + (Number(r.volume) || 0), 0)
+    const volumeDevolvido = list
+      .filter(r => (r.statusGeral || '').toUpperCase().includes('DEVOLVIDA'))
+      .reduce((acc, r) => acc + (Number(r.volume) || 0), 0)
+    const volumeNoShow = list
+      .filter(r => (r.statusGeral || '').toUpperCase() === 'NO SHOW')
+      .reduce((acc, r) => acc + (Number(r.volume) || 0), 0)
 
     // Reserva de Cliente / Reslog
     const totalReslog = list.reduce((acc, r) => acc + (Number(r.reslog) || 0), 0)
+
+    const percNoShow = totalAgendas > 0 ? ((noShow / totalAgendas) * 100).toFixed(0) : '0'
 
     return {
       totalAgendas,
@@ -3659,10 +3693,19 @@ export const DashboardPage: React.FC = () => {
       chegaram,
       naoChegaram,
       taxaChegada,
+      percNoShow,
       totalVolume,
       volumeDescarregado,
+      volumeEmAndamento,
+      volumeDiaSeguinte,
+      volumeDevolvido,
+      volumeNoShow,
       totalCubagem,
       cubagemDescarregada,
+      cubagemEmAndamento,
+      cubagemDiaSeguinte,
+      cubagemDevolvida,
+      cubagemNoShow,
       totalReslog
     }
   }, [recebimentoData, selectedRecebimentoData])
@@ -4043,7 +4086,7 @@ export const DashboardPage: React.FC = () => {
                 <p className="flex justify-between">
                   <span className="text-slate-500">No Show:</span>
                   <span className={`font-bold ${pmtRecebimentoStats.noShow > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
-                    {pmtRecebimentoStats.noShow}
+                    {pmtRecebimentoStats.noShow} <span className="text-[9.5px] font-normal text-slate-500">({pmtRecebimentoStats.percNoShow}%)</span>
                   </span>
                 </p>
               </div>
@@ -4063,11 +4106,43 @@ export const DashboardPage: React.FC = () => {
               <p className="text-[10.5px] text-slate-500 -mt-1 font-medium">Peças Programadas</p>
               <div className="text-[10.5px] pt-1.5 border-t border-slate-100 space-y-0.5">
                 <p className="flex justify-between">
-                  <span className="text-slate-500">Descarregado:</span>
+                  <span className="text-slate-500">Concluído:</span>
                   <span className="font-bold text-emerald-700">
                     {pmtRecebimentoStats.volumeDescarregado.toLocaleString('pt-BR')}
                   </span>
                 </p>
+                {pmtRecebimentoStats.volumeEmAndamento > 0 && (
+                  <p className="flex justify-between">
+                    <span className="text-slate-500">Em curso:</span>
+                    <span className="font-bold text-amber-600">
+                      {pmtRecebimentoStats.volumeEmAndamento.toLocaleString('pt-BR')}
+                    </span>
+                  </p>
+                )}
+                {pmtRecebimentoStats.volumeDiaSeguinte > 0 && (
+                  <p className="flex justify-between">
+                    <span className="text-slate-500">Dia seguinte:</span>
+                    <span className="font-bold text-indigo-600">
+                      {pmtRecebimentoStats.volumeDiaSeguinte.toLocaleString('pt-BR')}
+                    </span>
+                  </p>
+                )}
+                {pmtRecebimentoStats.volumeDevolvido > 0 && (
+                  <p className="flex justify-between">
+                    <span className="text-slate-500">Devolvida:</span>
+                    <span className="font-bold text-rose-600">
+                      {pmtRecebimentoStats.volumeDevolvido.toLocaleString('pt-BR')}
+                    </span>
+                  </p>
+                )}
+                {pmtRecebimentoStats.volumeNoShow > 0 && (
+                  <p className="flex justify-between">
+                    <span className="text-slate-500">No Show:</span>
+                    <span className="font-bold text-rose-500">
+                      {pmtRecebimentoStats.volumeNoShow.toLocaleString('pt-BR')}
+                    </span>
+                  </p>
+                )}
                 <p className="flex justify-between">
                   <span className="text-slate-500">A Descarregar:</span>
                   <span className="font-bold text-amber-700">
@@ -4077,7 +4152,7 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Bloco 4: Cubagem & Qualidade (Reslog) */}
+            {/* Bloco 4: Cubagem & Status */}
             <div className="space-y-1.5 p-2 rounded-lg bg-white border border-slate-200/80 shadow-2xs">
               <div className="flex items-center gap-1.5">
                 <span className="p-1.5 rounded-lg text-purple-600 bg-purple-50">
@@ -4094,6 +4169,30 @@ export const DashboardPage: React.FC = () => {
                   <span className="text-slate-500">Concluído:</span>
                   <span className="font-bold text-emerald-700">{pmtRecebimentoStats.cubagemDescarregada.toFixed(1)} m³</span>
                 </p>
+                {pmtRecebimentoStats.cubagemEmAndamento > 0 && (
+                  <p className="flex justify-between">
+                    <span className="text-slate-500">Em curso:</span>
+                    <span className="font-bold text-amber-600">{pmtRecebimentoStats.cubagemEmAndamento.toFixed(1)} m³</span>
+                  </p>
+                )}
+                {pmtRecebimentoStats.cubagemDiaSeguinte > 0 && (
+                  <p className="flex justify-between">
+                    <span className="text-slate-500">Dia seguinte:</span>
+                    <span className="font-bold text-indigo-600">{pmtRecebimentoStats.cubagemDiaSeguinte.toFixed(1)} m³</span>
+                  </p>
+                )}
+                {pmtRecebimentoStats.cubagemDevolvida > 0 && (
+                  <p className="flex justify-between">
+                    <span className="text-slate-500">Devolvida:</span>
+                    <span className="font-bold text-rose-600">{pmtRecebimentoStats.cubagemDevolvida.toFixed(1)} m³</span>
+                  </p>
+                )}
+                {pmtRecebimentoStats.cubagemNoShow > 0 && (
+                  <p className="flex justify-between">
+                    <span className="text-slate-500">No Show:</span>
+                    <span className="font-bold text-rose-500">{pmtRecebimentoStats.cubagemNoShow.toFixed(1)} m³</span>
+                  </p>
+                )}
                 <p className="flex justify-between">
                   <span className="text-slate-500">Res. Cliente:</span>
                   <span className={`font-bold ${pmtRecebimentoStats.totalReslog > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>
