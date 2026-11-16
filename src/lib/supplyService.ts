@@ -6,7 +6,7 @@ export interface SupplyItem {
   codigo_produto: string
   codproddf: string
   descricao: string
-  
+
   // CD 994
   fisico_994: number
   tecnico_994: number
@@ -15,7 +15,7 @@ export interface SupplyItem {
   logico_994: number
   transito_994: number
   estoque_994: number
-  
+
   // Loja Destino
   filial: number
   fisico: number
@@ -25,7 +25,7 @@ export interface SupplyItem {
   logico: number
   transito: number
   estoque_loja: number
-  
+
   // Financeiro e Linha
   cmup: number
   valor_estoque_994: number
@@ -74,8 +74,17 @@ export async function getSupplyLojasReport(params: SupplyQueryParams): Promise<S
   }
 
   if (params.search && params.search.trim()) {
-    const term = params.search.trim()
-    query = query.or(`codigo_produto.ilike.%${term}%,descricao.ilike.%${term}%,codproddf.ilike.%${term}%`)
+    const terms = params.search
+      .split(/[,;\n]+/)
+      .map(t => t.trim())
+      .filter(Boolean)
+
+    if (terms.length > 0) {
+      const orConditions = terms.map(term =>
+        `codigo_produto.ilike.%${term}%,descricao.ilike.%${term}%,codproddf.ilike.%${term}%`
+      ).join(',')
+      query = query.or(orConditions)
+    }
   }
 
   query = query.order('id', { ascending: true }).range(from, to)

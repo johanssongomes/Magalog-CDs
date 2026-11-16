@@ -164,7 +164,11 @@ export const SupplyLojasPage: React.FC = () => {
       }
     >
 
-    const query = pivotSearch.trim().toLowerCase()
+    const terms = pivotSearch
+      .split(/[,;\n]+/)
+      .map(t => t.trim().toLowerCase())
+      .filter(Boolean)
+
     const result: Array<{
       linha: string
       totalCd994: number
@@ -188,13 +192,20 @@ export const SupplyLojasPage: React.FC = () => {
 
       const allSkusRaw = Object.values(lData.skus)
 
-      const filteredRaw = query
-        ? allSkusRaw.filter(s =>
-          linha.toLowerCase().includes(query) ||
-          s.c.toLowerCase().includes(query) ||
-          s.n.toLowerCase().includes(query) ||
-          s.d.toLowerCase().includes(query)
-        )
+      const filteredRaw = terms.length > 0
+        ? allSkusRaw.filter(s => {
+          const lLower = linha.toLowerCase()
+          const cLower = s.c.toLowerCase()
+          const nLower = s.n.toLowerCase()
+          const dLower = s.d.toLowerCase()
+          // O item atende se der match com pelo menos um dos termos pesquisados (separados por vírgula)
+          return terms.some(term =>
+            lLower.includes(term) ||
+            cLower.includes(term) ||
+            nLower.includes(term) ||
+            dLower.includes(term)
+          )
+        })
         : allSkusRaw
 
       if (filteredRaw.length > 0) {
@@ -733,11 +744,11 @@ export const SupplyLojasPage: React.FC = () => {
 
             {/* Busca Rápida e Botões Expandir/Recolher logo ao lado dos filtros */}
             <div className="flex items-center gap-1.5 ml-1">
-              <div className="relative w-56">
+              <div className="relative w-64">
                 <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Filtrar Linha, SKU ou Descrição..."
+                  placeholder="SKUs (separados por vírgula), Linha..."
                   value={pivotSearch}
                   onChange={(e) => setPivotSearch(e.target.value)}
                   className="w-full pl-8 pr-3 py-1 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-slate-400"
