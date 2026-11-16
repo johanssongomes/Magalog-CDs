@@ -3566,10 +3566,20 @@ export const DashboardPage: React.FC = () => {
   // Data selecionada no filtro de recebimento (padrão: data mais recente ou 'TODOS')
   const [selectedRecebimentoData, setSelectedRecebimentoData] = useState<string>('')
 
-  // Define a data mais recente automaticamente ao carregar
+  // Define a data atual (hoje) se existir nas datas disponíveis; caso contrário, a mais recente
   useEffect(() => {
     if (recebimentoDatasDisponiveis.length > 0 && !selectedRecebimentoData) {
-      setSelectedRecebimentoData(recebimentoDatasDisponiveis[0])
+      const today = new Date()
+      const d = String(today.getDate()).padStart(2, '0')
+      const m = String(today.getMonth() + 1).padStart(2, '0')
+      const y = today.getFullYear()
+      const todayStr = `${d}/${m}/${y}`
+
+      if (recebimentoDatasDisponiveis.includes(todayStr)) {
+        setSelectedRecebimentoData(todayStr)
+      } else {
+        setSelectedRecebimentoData(recebimentoDatasDisponiveis[0])
+      }
     }
   }, [recebimentoDatasDisponiveis, selectedRecebimentoData])
 
