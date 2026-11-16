@@ -531,213 +531,210 @@ export const SupplyLojasPage: React.FC = () => {
       {activeTab === 'painel' && (
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-4 sm:p-5 space-y-3">
           {/* Barra Superior: Filtro STATUS_ESTOQUE, Métricas, Ordenação, Busca e Expansão */}
-          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 pb-3 border-b border-slate-100">
-            {/* Esquerda: Filtro de Status + Tipo de Estoque (Métrica) */}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Status do Estoque */}
-              <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setPivotStatus('LOJA SEM FISICO')}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${pivotStatus === 'LOJA SEM FISICO'
-                    ? 'bg-rose-600 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                >
-                  LOJA SEM FISICO
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPivotStatus('LOJA COM FISICO')}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${pivotStatus === 'LOJA COM FISICO'
-                    ? 'bg-emerald-600 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                >
-                  LOJA COM FISICO
-                </button>
-              </div>
+          <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-slate-100">
+            {/* Status do Estoque */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setPivotStatus('LOJA SEM FISICO')}
+                className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${pivotStatus === 'LOJA SEM FISICO'
+                  ? 'bg-rose-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+                  }`}
+              >
+                LOJA SEM FISICO
+              </button>
+              <button
+                type="button"
+                onClick={() => setPivotStatus('LOJA COM FISICO')}
+                className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${pivotStatus === 'LOJA COM FISICO'
+                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+                  }`}
+              >
+                LOJA COM FISICO
+              </button>
+            </div>
 
-              {/* Classificação / Métrica de Estoque (Físico, Lógico, Trânsito, Total) */}
-              <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs">
-                <Boxes size={13} className="text-blue-500" />
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Métrica:</span>
-                <select
-                  value={selectedMetric}
-                  onChange={(e) => setSelectedMetric(e.target.value as EstoqueTipoMetric)}
-                  className="bg-transparent text-xs font-bold text-slate-800 outline-hidden cursor-pointer"
-                >
-                  <option value="FISICO">Estoque Físico</option>
-                  <option value="LOGICO">Estoque Lógico</option>
-                  <option value="TRANSITO">Em Trânsito</option>
-                  <option value="ESTOQUE">Estoque Geral (Total)</option>
-                </select>
-              </div>
+            {/* Classificação / Métrica de Estoque (Físico, Lógico, Trânsito, Total) */}
+            <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs">
+              <Boxes size={13} className="text-blue-500" />
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Métrica:</span>
+              <select
+                value={selectedMetric}
+                onChange={(e) => setSelectedMetric(e.target.value as EstoqueTipoMetric)}
+                className="bg-transparent text-xs font-bold text-slate-800 outline-hidden cursor-pointer"
+              >
+                <option value="FISICO">Estoque Físico</option>
+                <option value="LOGICO">Estoque Lógico</option>
+                <option value="TRANSITO">Em Trânsito</option>
+                <option value="ESTOQUE">Estoque Geral (Total)</option>
+              </select>
+            </div>
 
-              {/* Opção de Classificação / Ordenação */}
-              <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs">
-                <ArrowUpDown size={12} className="text-amber-500" />
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Classificar:</span>
-                <select
-                  value={orderBy}
-                  onChange={(e) => setOrderBy(e.target.value as OrderByOption)}
-                  className="bg-transparent text-xs font-bold text-slate-800 outline-hidden cursor-pointer"
-                >
-                  <option value="LINHA_ASC">Categoria (A-Z)</option>
-                  <option value="ESTOQUE_DESC">Maior Estoque CD 994</option>
-                  <option value="ESTOQUE_ASC">Menor Estoque CD 994</option>
-                  <option value="LOJAS_DESC">Maior Volume Lojas</option>
-                </select>
-              </div>
+            {/* Opção de Classificação / Ordenação */}
+            <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs">
+              <ArrowUpDown size={12} className="text-amber-500" />
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Classificar:</span>
+              <select
+                value={orderBy}
+                onChange={(e) => setOrderBy(e.target.value as OrderByOption)}
+                className="bg-transparent text-xs font-bold text-slate-800 outline-hidden cursor-pointer"
+              >
+                <option value="LINHA_ASC">Categoria (A-Z)</option>
+                <option value="ESTOQUE_DESC">Maior Estoque CD 994</option>
+                <option value="ESTOQUE_ASC">Menor Estoque CD 994</option>
+                <option value="LOJAS_DESC">Maior Volume Lojas</option>
+              </select>
+            </div>
 
-              {/* Filtro por Regional (Thiago vs Outros Regionais) */}
-              <div className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
-                <Building2 size={13} className="text-indigo-600" />
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Regional:</span>
-                <select
-                  value={selectedRegional}
-                  onChange={(e) => {
-                    setSelectedRegional(e.target.value as RegionalOption)
-                    setSelectedFiliais([]) // Reseta seleção customizada de filiais ao mudar regional
-                  }}
-                  className="bg-transparent text-xs font-black text-slate-900 outline-hidden cursor-pointer"
-                >
-                  <option value="TODOS">Todos os Regionais (45 lojas)</option>
-                  <option value="Thiago">Thiago (32 lojas)</option>
-                  <option value="Outros Regionais">Outros Regionais (13 lojas)</option>
-                </select>
-              </div>
+            {/* Filtro por Regional (Thiago vs Outros Regionais) */}
+            <div className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
+              <Building2 size={13} className="text-indigo-600" />
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Regional:</span>
+              <select
+                value={selectedRegional}
+                onChange={(e) => {
+                  setSelectedRegional(e.target.value as RegionalOption)
+                  setSelectedFiliais([]) // Reseta seleção customizada de filiais ao mudar regional
+                }}
+                className="bg-transparent text-xs font-black text-slate-900 outline-hidden cursor-pointer"
+              >
+                <option value="TODOS">Todos os Regionais (45 lojas)</option>
+                <option value="Thiago">Thiago (32 lojas)</option>
+                <option value="Outros Regionais">Outros Regionais (13 lojas)</option>
+              </select>
+            </div>
 
-              {/* FILTRO 1: MÚLTIPLA SELEÇÃO DE LOJAS */}
-              <div className="relative" ref={lojasDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsLojasDropdownOpen(prev => !prev)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${selectedFiliais.length > 0
-                      ? 'bg-blue-50 border-blue-300 text-blue-900'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  title="Filtro de Lojas com múltipla seleção"
-                >
-                  <Store size={13} className={selectedFiliais.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
-                  <span>
-                    {selectedFiliais.length === 0
-                      ? 'Lojas: Todas'
-                      : `Lojas (${selectedFiliais.length})`}
-                  </span>
-                  <ChevronDown size={12} className={`transition-transform ${isLojasDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
+            {/* FILTRO 1: MÚLTIPLA SELEÇÃO DE LOJAS */}
+            <div className="relative" ref={lojasDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsLojasDropdownOpen(prev => !prev)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${selectedFiliais.length > 0
+                    ? 'bg-blue-50 border-blue-300 text-blue-900'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                title="Filtro de Lojas com múltipla seleção"
+              >
+                <Store size={13} className={selectedFiliais.length > 0 ? 'text-blue-600' : 'text-slate-500'} />
+                <span>
+                  {selectedFiliais.length === 0
+                    ? 'Lojas: Todas'
+                    : `Lojas (${selectedFiliais.length})`}
+                </span>
+                <ChevronDown size={12} className={`transition-transform ${isLojasDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-                {isLojasDropdownOpen && (
-                  <div className="absolute left-0 mt-1.5 w-60 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100 text-[11px]">
-                      <span className="font-black text-slate-800">Filtrar Lojas</span>
-                      {selectedFiliais.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedFiliais([])}
-                          className="text-[10px] font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
-                        >
-                          Limpar ({selectedFiliais.length})
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="max-h-52 overflow-y-auto space-y-0.5 pr-1">
-                      {((selectedRegional === 'TODOS'
-                        ? initialPivotData.filiais as number[]
-                        : (initialPivotData.filiais as number[]).filter(f => REGIONAL_FILIAIS_MAP[f] === selectedRegional)
-                      )).map(fil => {
-                        const isChecked = selectedFiliais.includes(fil)
-                        const reg = REGIONAL_FILIAIS_MAP[fil]
-                        return (
-                          <label
-                            key={fil}
-                            onClick={() => toggleFilialSelection(fil)}
-                            className={`flex items-center justify-between px-2 py-1 rounded-lg text-xs cursor-pointer select-none transition-colors ${isChecked ? 'bg-blue-50 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
-                              }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] ${isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
-                                }`}>
-                                {isChecked && <Check size={10} strokeWidth={3} />}
-                              </div>
-                              <span>Filial {fil}</span>
-                            </div>
-                            <span className="text-[9px] font-normal text-slate-400">
-                              {reg === 'Thiago' ? 'Thiago' : 'Outros'}
-                            </span>
-                          </label>
-                        )
-                      })}
-                    </div>
+              {isLojasDropdownOpen && (
+                <div className="absolute left-0 mt-1.5 w-60 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100 text-[11px]">
+                    <span className="font-black text-slate-800">Filtrar Lojas</span>
+                    {selectedFiliais.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFiliais([])}
+                        className="text-[10px] font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
+                      >
+                        Limpar ({selectedFiliais.length})
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* FILTRO 2: MÚLTIPLA SELEÇÃO DE LINHAS (CATEGORIAS) */}
-              <div className="relative" ref={linhasDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsLinhasDropdownOpen(prev => !prev)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${selectedLinhas.length > 0
-                      ? 'bg-amber-50 border-amber-300 text-amber-900'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  title="Filtro de Linhas com múltipla seleção"
-                >
-                  <Filter size={13} className={selectedLinhas.length > 0 ? 'text-amber-600' : 'text-slate-500'} />
-                  <span>
-                    {selectedLinhas.length === 0
-                      ? 'Linhas: Todas'
-                      : `Linhas (${selectedLinhas.length})`}
-                  </span>
-                  <ChevronDown size={12} className={`transition-transform ${isLinhasDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {isLinhasDropdownOpen && (
-                  <div className="absolute left-0 mt-1.5 w-68 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100 text-[11px]">
-                      <span className="font-black text-slate-800">Filtrar Categorias / Linhas</span>
-                      {selectedLinhas.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedLinhas([])}
-                          className="text-[10px] font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
+                  <div className="max-h-52 overflow-y-auto space-y-0.5 pr-1">
+                    {((selectedRegional === 'TODOS'
+                      ? initialPivotData.filiais as number[]
+                      : (initialPivotData.filiais as number[]).filter(f => REGIONAL_FILIAIS_MAP[f] === selectedRegional)
+                    )).map(fil => {
+                      const isChecked = selectedFiliais.includes(fil)
+                      const reg = REGIONAL_FILIAIS_MAP[fil]
+                      return (
+                        <label
+                          key={fil}
+                          onClick={() => toggleFilialSelection(fil)}
+                          className={`flex items-center justify-between px-2 py-1 rounded-lg text-xs cursor-pointer select-none transition-colors ${isChecked ? 'bg-blue-50 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                            }`}
                         >
-                          Limpar ({selectedLinhas.length})
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="max-h-52 overflow-y-auto space-y-0.5 pr-1">
-                      {allLinhasAvailable.map(linha => {
-                        const isChecked = selectedLinhas.includes(linha)
-                        return (
-                          <label
-                            key={linha}
-                            onClick={() => toggleLinhaSelection(linha)}
-                            className={`flex items-center gap-2 px-2 py-1 rounded-lg text-xs cursor-pointer select-none transition-colors ${isChecked ? 'bg-amber-50 text-amber-950 font-bold' : 'hover:bg-slate-50 text-slate-700'
-                              }`}
-                          >
-                            <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] shrink-0 ${isChecked ? 'bg-amber-600 border-amber-600 text-white' : 'border-slate-300 bg-white'
+                          <div className="flex items-center gap-2">
+                            <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] ${isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
                               }`}>
                               {isChecked && <Check size={10} strokeWidth={3} />}
                             </div>
-                            <span className="truncate">{linha}</span>
-                          </label>
-                        )
-                      })}
-                    </div>
+                            <span>Filial {fil}</span>
+                          </div>
+                          <span className="text-[9px] font-normal text-slate-400">
+                            {reg === 'Thiago' ? 'Thiago' : 'Outros'}
+                          </span>
+                        </label>
+                      )
+                    })}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
-            {/* Direita: Busca Rápida e Botões Expandir/Recolher */}
-            <div className="flex items-center gap-2">
-              <div className="relative w-64">
-                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            {/* FILTRO 2: MÚLTIPLA SELEÇÃO DE LINHAS (CATEGORIAS) */}
+            <div className="relative" ref={linhasDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsLinhasDropdownOpen(prev => !prev)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${selectedLinhas.length > 0
+                    ? 'bg-amber-50 border-amber-300 text-amber-900'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                title="Filtro de Linhas com múltipla seleção"
+              >
+                <Filter size={13} className={selectedLinhas.length > 0 ? 'text-amber-600' : 'text-slate-500'} />
+                <span>
+                  {selectedLinhas.length === 0
+                    ? 'Linhas: Todas'
+                    : `Linhas (${selectedLinhas.length})`}
+                </span>
+                <ChevronDown size={12} className={`transition-transform ${isLinhasDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isLinhasDropdownOpen && (
+                <div className="absolute left-0 mt-1.5 w-68 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100 text-[11px]">
+                    <span className="font-black text-slate-800">Filtrar Categorias / Linhas</span>
+                    {selectedLinhas.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLinhas([])}
+                        className="text-[10px] font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
+                      >
+                        Limpar ({selectedLinhas.length})
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-52 overflow-y-auto space-y-0.5 pr-1">
+                    {allLinhasAvailable.map(linha => {
+                      const isChecked = selectedLinhas.includes(linha)
+                      return (
+                        <label
+                          key={linha}
+                          onClick={() => toggleLinhaSelection(linha)}
+                          className={`flex items-center gap-2 px-2 py-1 rounded-lg text-xs cursor-pointer select-none transition-colors ${isChecked ? 'bg-amber-50 text-amber-950 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                            }`}
+                        >
+                          <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] shrink-0 ${isChecked ? 'bg-amber-600 border-amber-600 text-white' : 'border-slate-300 bg-white'
+                            }`}>
+                            {isChecked && <Check size={10} strokeWidth={3} />}
+                          </div>
+                          <span className="truncate">{linha}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Busca Rápida e Botões Expandir/Recolher logo ao lado dos filtros */}
+            <div className="flex items-center gap-1.5 ml-1">
+              <div className="relative w-56">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Filtrar Linha, SKU ou Descrição..."
@@ -750,7 +747,7 @@ export const SupplyLojasPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => toggleAllLinhas(true)}
-                className="px-2 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                className="px-2 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
                 title="Expandir todas as linhas"
               >
                 <Expand size={12} />
@@ -760,7 +757,7 @@ export const SupplyLojasPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => toggleAllLinhas(false)}
-                className="px-2 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                className="px-2 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
                 title="Recolher todas as linhas"
               >
                 <Shrink size={12} />
