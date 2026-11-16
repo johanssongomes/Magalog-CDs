@@ -3610,8 +3610,16 @@ export const DashboardPage: React.FC = () => {
       const st = (r.statusGeral || '').toUpperCase()
       return st === 'EM ANDAMENTO' || st === 'AGUARDANDO DESCARGA'
     }).length
+    const diaSeguinte = list.filter(r => {
+      const st = (r.statusGeral || '').toUpperCase()
+      return st.includes('DIA SEGUINTE')
+    }).length
+    const devolvidas = list.filter(r => {
+      const st = (r.statusGeral || '').toUpperCase()
+      return st.includes('DEVOLVIDA')
+    }).length
     const noShow = list.filter(r => (r.statusGeral || '').toUpperCase() === 'NO SHOW').length
-    const outrasPendentes = Math.max(0, totalAgendas - finalizadas - noShow)
+    const outrasPendentes = Math.max(0, totalAgendas - finalizadas - emAndamento - diaSeguinte - devolvidas - noShow)
 
     const chegaram = list.filter(r => (r.portaria || '').toLowerCase().includes('chegou') && !(r.portaria || '').toLowerCase().includes('não')).length
     const naoChegaram = totalAgendas - chegaram
@@ -3634,6 +3642,8 @@ export const DashboardPage: React.FC = () => {
       totalAgendas,
       finalizadas,
       emAndamento,
+      diaSeguinte,
+      devolvidas,
       noShow,
       outrasPendentes,
       chegaram,
@@ -3982,6 +3992,24 @@ export const DashboardPage: React.FC = () => {
                   <span className="text-slate-500">Em curso:</span>
                   <span className="font-bold text-amber-600">{pmtRecebimentoStats.emAndamento}</span>
                 </p>
+                {pmtRecebimentoStats.diaSeguinte > 0 && (
+                  <p className="flex justify-between">
+                    <span className="text-slate-500">Dia seguinte:</span>
+                    <span className="font-bold text-indigo-600">{pmtRecebimentoStats.diaSeguinte}</span>
+                  </p>
+                )}
+                {pmtRecebimentoStats.devolvidas > 0 && (
+                  <p className="flex justify-between">
+                    <span className="text-slate-500">Devolvida:</span>
+                    <span className="font-bold text-rose-600">{pmtRecebimentoStats.devolvidas}</span>
+                  </p>
+                )}
+                {pmtRecebimentoStats.outrasPendentes > 0 && (
+                  <p className="flex justify-between">
+                    <span className="text-slate-500">Outras:</span>
+                    <span className="font-bold text-slate-600">{pmtRecebimentoStats.outrasPendentes}</span>
+                  </p>
+                )}
               </div>
             </div>
 

@@ -612,8 +612,8 @@ export const SupplyLojasPage: React.FC = () => {
                 type="button"
                 onClick={() => setIsLojasDropdownOpen(prev => !prev)}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${selectedFiliais.length > 0
-                    ? 'bg-blue-50 border-blue-300 text-blue-900'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  ? 'bg-blue-50 border-blue-300 text-blue-900'
+                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                   }`}
                 title="Filtro de Lojas com múltipla seleção"
               >
@@ -679,8 +679,8 @@ export const SupplyLojasPage: React.FC = () => {
                 type="button"
                 onClick={() => setIsLinhasDropdownOpen(prev => !prev)}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${selectedLinhas.length > 0
-                    ? 'bg-amber-50 border-amber-300 text-amber-900'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  ? 'bg-amber-50 border-amber-300 text-amber-900'
+                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                   }`}
                 title="Filtro de Linhas com múltipla seleção"
               >
