@@ -114,24 +114,32 @@ export async function getSupplyFiltersMeta() {
       .select('status_estoque')
       .limit(1000)
 
-    const { data: filiaisData } = await supabase
-      .from('supply_lojas')
-      .select('filial')
-      .limit(1000)
-
     const statusSet = new Set<string>()
     statusData?.forEach(s => { if (s.status_estoque) statusSet.add(s.status_estoque) })
 
-    const filialSet = new Set<number>()
-    filiaisData?.forEach(f => { if (f.filial) filialSet.add(f.filial) })
+    // Lista fixa completa das 45 filiais atendidas pelo CD 994
+    const ALL_FILIAIS = [
+      662, 710, 727, 734, 736, 740, 742, 743, 745, 746, 751, 752, 755, 757, 761,
+      765, 778, 785, 802, 809, 820, 835, 840, 842, 846, 847, 857, 871, 872, 873,
+      984, 1206, 1207, 1217, 1223, 1236, 1341, 1344, 1345, 1347, 1349, 1363, 1376,
+      1386, 1411
+    ]
 
     return {
       statusList: Array.from(statusSet).sort(),
-      filiaisList: Array.from(filialSet).sort((a, b) => a - b)
+      filiaisList: ALL_FILIAIS
     }
   } catch (err) {
     console.error('Erro ao buscar metadados de filtros:', err)
-    return { statusList: [], filiaisList: [] }
+    return {
+      statusList: [],
+      filiaisList: [
+        662, 710, 727, 734, 736, 740, 742, 743, 745, 746, 751, 752, 755, 757, 761,
+        765, 778, 785, 802, 809, 820, 835, 840, 842, 846, 847, 857, 871, 872, 873,
+        984, 1206, 1207, 1217, 1223, 1236, 1341, 1344, 1345, 1347, 1349, 1363, 1376,
+        1386, 1411
+      ]
+    }
   }
 }
 
