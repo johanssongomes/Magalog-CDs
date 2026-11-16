@@ -3645,7 +3645,7 @@ export const DashboardPage: React.FC = () => {
       .filter(r => (r.statusGeral || '').toUpperCase() === 'FINALIZADA')
       .reduce((acc, r) => acc + (Number(r.cubagem) || 0), 0)
 
-    // Divergências / Reslog
+    // Reserva de Cliente / Reslog
     const totalReslog = list.reduce((acc, r) => acc + (Number(r.reslog) || 0), 0)
 
     return {
@@ -4095,8 +4095,8 @@ export const DashboardPage: React.FC = () => {
                   <span className="font-bold text-emerald-700">{pmtRecebimentoStats.cubagemDescarregada.toFixed(1)} m³</span>
                 </p>
                 <p className="flex justify-between">
-                  <span className="text-slate-500">Divergência:</span>
-                  <span className={`font-bold ${pmtRecebimentoStats.totalReslog > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                  <span className="text-slate-500">Res. Cliente:</span>
+                  <span className={`font-bold ${pmtRecebimentoStats.totalReslog > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>
                     {pmtRecebimentoStats.totalReslog} pçs
                   </span>
                 </p>
