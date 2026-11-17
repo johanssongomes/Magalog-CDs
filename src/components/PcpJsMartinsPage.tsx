@@ -1779,26 +1779,26 @@ export const PcpJsMartinsPage: React.FC = () => {
                             <span className="text-[8px] opacity-80">▾</span>
                           </div>
                         </th>
-                        <th className="py-1 px-2 text-right italic font-bold w-12">
-                          <div className="flex items-center justify-end gap-0.5">
+                        <th className="py-1 px-2 text-center italic font-bold w-14">
+                          <div className="flex items-center justify-center gap-0.5">
                             <span>PEDIDO</span>
                             <span className="text-[8px] opacity-80">▾</span>
                           </div>
                         </th>
-                        <th className="py-1 px-2 text-right italic font-bold w-16">
+                        <th className="py-1 px-2 text-center italic font-bold w-18">
                           <span>QUANTIDADE</span>
                         </th>
-                        <th className="py-1 px-2 text-center italic font-bold w-16">
+                        <th className="py-1 px-2 text-center italic font-bold w-18">
                           <span>CUBAGEM</span>
                         </th>
-                        <th className="py-1 px-2 text-right italic font-bold w-24">
-                          <div className="flex items-center justify-end gap-0.5">
+                        <th className="py-1 px-2 text-center italic font-bold w-26">
+                          <div className="flex items-center justify-center gap-0.5">
                             <span>VALOR$</span>
                             <span className="text-[8px] opacity-80">▾</span>
                           </div>
                         </th>
-                        <th className="py-1 px-2 text-right italic font-bold w-12">
-                          <span>Peso</span>
+                        <th className="py-1 px-2 text-center italic font-bold w-14">
+                          <span>PESO</span>
                         </th>
                       </tr>
                     </thead>
@@ -1833,27 +1833,27 @@ export const PcpJsMartinsPage: React.FC = () => {
                                   <span>{dest.destino}</span>
                                 </div>
                               </td>
-                              <td className="py-0.5 px-2 text-right font-medium text-white text-[10.5px] whitespace-nowrap">
+                              <td className="py-0.5 px-2 text-center font-medium text-white text-[10.5px] whitespace-nowrap">
                                 {dest.pedidosCount.toLocaleString('pt-BR')}
                               </td>
-                              <td className="py-0.5 px-2 text-right font-medium text-white text-[10.5px] whitespace-nowrap">
+                              <td className="py-0.5 px-2 text-center font-medium text-white text-[10.5px] whitespace-nowrap">
                                 {Math.round(dest.quantidade).toLocaleString('pt-BR')}
                               </td>
-                              <td className="py-0.5 px-2 text-right text-[10.5px] whitespace-nowrap">
-                                <div className="inline-flex items-center justify-end w-full">
+                              <td className="py-0.5 px-2 text-center text-[10.5px] whitespace-nowrap">
+                                <div className="inline-flex items-center justify-center w-full">
                                   {renderCubSemaforo(dest.cubagem)}
                                   <span className="font-sans font-medium text-white">
                                     {dest.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
                               </td>
-                              <td className="py-0.5 px-2 text-right text-[10.5px] whitespace-nowrap text-white font-medium">
-                                <div className="flex items-center justify-between gap-1.5">
+                              <td className="py-0.5 px-2 text-center text-[10.5px] whitespace-nowrap text-white font-medium">
+                                <div className="inline-flex items-center justify-center gap-1 w-full">
                                   <span className="text-[#99ccee] text-[9px]">R$</span>
                                   <span>{dest.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 </div>
                               </td>
-                              <td className="py-0.5 px-2 text-right text-[10.5px] text-white font-medium whitespace-nowrap">
+                              <td className="py-0.5 px-2 text-center text-[10.5px] text-white font-medium whitespace-nowrap">
                                 {Math.round(dest.pesoTotal).toLocaleString('pt-BR')}
                               </td>
                             </tr>
@@ -1864,29 +1864,29 @@ export const PcpJsMartinsPage: React.FC = () => {
                             <td colSpan={2} className="py-0.5 px-2 tracking-wide uppercase text-[10.5px] font-black whitespace-nowrap">
                               {group.regiao} TOTAL
                             </td>
-                            <td className="py-0.5 px-2 text-right text-[10.5px] font-black text-white whitespace-nowrap">
+                            <td className="py-0.5 px-2 text-center text-[10.5px] font-black text-white whitespace-nowrap">
                               {group.totalPedidos.toLocaleString('pt-BR')}
                             </td>
-                            <td className="py-0.5 px-2 text-right text-[10.5px] font-black text-white whitespace-nowrap">
+                            <td className="py-0.5 px-2 text-center text-[10.5px] font-black text-white whitespace-nowrap">
                               {Math.round(group.totalQtd).toLocaleString('pt-BR')}
                             </td>
-                            <td className="py-0.5 px-2 text-right text-[10.5px] whitespace-nowrap font-black">
-                              <div className="inline-flex items-center justify-end w-full">
+                            <td className="py-0.5 px-2 text-center text-[10.5px] whitespace-nowrap font-black">
+                              <div className="inline-flex items-center justify-center w-full">
                                 {renderCubSemaforo(group.totalCub)}
                                 <span className="text-white">
                                   {group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                               </div>
                             </td>
-                            <td className="py-0.5 px-2 text-right text-[10.5px] whitespace-nowrap font-black">
-                              <div className="flex items-center justify-between gap-1.5">
+                            <td className="py-0.5 px-2 text-center text-[10.5px] whitespace-nowrap font-black">
+                              <div className="inline-flex items-center justify-center gap-1 w-full">
                                 <span className="text-white text-[9px]">R$</span>
                                 <span className="text-white">
                                   {group.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                               </div>
                             </td>
-                            <td className="py-0.5 px-2 text-right text-[10.5px] font-black text-white whitespace-nowrap">
+                            <td className="py-0.5 px-2 text-center text-[10.5px] font-black text-white whitespace-nowrap">
                               {Math.round(group.totalPeso).toLocaleString('pt-BR')}
                             </td>
                           </tr>
@@ -1898,22 +1898,22 @@ export const PcpJsMartinsPage: React.FC = () => {
                         <td colSpan={2} className="py-1 px-2 uppercase tracking-wider whitespace-nowrap">
                           Total Geral
                         </td>
-                        <td className="py-1 px-2 text-right text-white whitespace-nowrap">
+                        <td className="py-1 px-2 text-center text-white whitespace-nowrap">
                           {geralPedidos.toLocaleString('pt-BR')}
                         </td>
-                        <td className="py-1 px-2 text-right text-white whitespace-nowrap">
+                        <td className="py-1 px-2 text-center text-white whitespace-nowrap">
                           {Math.round(geralQtd).toLocaleString('pt-BR')}
                         </td>
-                        <td className="py-1 px-2 text-right whitespace-nowrap">
+                        <td className="py-1 px-2 text-center whitespace-nowrap">
                           {geralCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
-                        <td className="py-1 px-2 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-between gap-1.5">
+                        <td className="py-1 px-2 text-center whitespace-nowrap">
+                          <div className="inline-flex items-center justify-center gap-1 w-full">
                             <span className="text-white text-[9px]">R$</span>
                             <span>{geralValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                         </td>
-                        <td className="py-1 px-2 text-right text-white whitespace-nowrap">
+                        <td className="py-1 px-2 text-center text-white whitespace-nowrap">
                           {Math.round(geralPeso).toLocaleString('pt-BR')}
                         </td>
                       </tr>
