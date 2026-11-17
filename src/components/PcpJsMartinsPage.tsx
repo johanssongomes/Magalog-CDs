@@ -309,13 +309,25 @@ export const PcpJsMartinsPage: React.FC = () => {
         // Vincula dinamicamente a modalidade, destino e região calculadas
         const enriched = res.data.map(item => {
           const cod = (item.codmodal || '').trim().toUpperCase()
-          const rotaKey = String(item.descricaorota || item.filentrega || '').trim().toUpperCase()
-          const rotaInfo = rotaMap[rotaKey] || rotaMap[String(item.filentrega || '')] || { destino: '-', regiao: '-' }
+          const modalidadeCalc = modalMap[cod] || item.descricaomodal || '-'
+          const isAba = modalidadeCalc.trim().toUpperCase() === 'ABA'
+
+          let rotaInfo = { destino: '-', regiao: '-' }
+          const filEntregaKey = String(item.filentrega || '').trim().toUpperCase()
+          const rotaKey = String(item.descricaorota || '').trim().toUpperCase()
+
+          if (isAba) {
+            // Prioridade máxima para FILENTREGA se Modalidade for ABA
+            rotaInfo = rotaMap[filEntregaKey] || rotaMap[rotaKey] || { destino: '-', regiao: '-' }
+          } else {
+            // Outras modalidades priorizam a rota
+            rotaInfo = rotaMap[rotaKey] || rotaMap[filEntregaKey] || { destino: '-', regiao: '-' }
+          }
 
           return {
             ...item,
-            modalidade_calc: modalMap[cod] || item.descricaomodal || '-',
-            destino_calc: rotaInfo.destino !== '-' ? rotaInfo.destino : (item.descricaorota || `Filial ${item.filentrega}`),
+            modalidade_calc: modalidadeCalc,
+            destino_calc: rotaInfo.destino !== '-' ? rotaInfo.destino : (item.descricaorota || (item.filentrega ? `Filial ${item.filentrega}` : '-')),
             regiao_calc: rotaInfo.regiao !== '-' ? rotaInfo.regiao : 'INTERIOR'
           }
         })
@@ -349,15 +361,25 @@ export const PcpJsMartinsPage: React.FC = () => {
         const from = (p - 1) * pageSize
         const slice = filtered.slice(from, from + pageSize).map((r: any, idx) => {
           const cod = String(r.codmodal || r.CODMODAL || '').trim().toUpperCase()
-          const rotaKey = String(r.descricaorota || r.DESCRICAOROTA || r.filentrega || r.FILENTREGA || '').trim().toUpperCase()
-          const rotaInfo = rotaMap[rotaKey] || rotaMap[String(r.filentrega || r.FILENTREGA || '')] || { destino: '-', regiao: '-' }
+          const modalidadeCalc = modalMap[cod] || String(r.descricaomodal || r.DESCRICAOMODAL || '-')
+          const isAba = modalidadeCalc.trim().toUpperCase() === 'ABA'
+
+          let rotaInfo = { destino: '-', regiao: '-' }
+          const filEntregaKey = String(r.filentrega || r.FILENTREGA || '').trim().toUpperCase()
+          const rotaKey = String(r.descricaorota || r.DESCRICAOROTA || '').trim().toUpperCase()
+
+          if (isAba) {
+            rotaInfo = rotaMap[filEntregaKey] || rotaMap[rotaKey] || { destino: '-', regiao: '-' }
+          } else {
+            rotaInfo = rotaMap[rotaKey] || rotaMap[filEntregaKey] || { destino: '-', regiao: '-' }
+          }
 
           return {
             id: idx + from + 1,
             filorig: Number(r.filorig || r.FILORIG) || 994,
             codfil: Number(r.codfil || r.CODFIL) || 994,
             filentrega: Number(r.filentrega || r.FILENTREGA) || 0,
-            destino_calc: rotaInfo.destino !== '-' ? rotaInfo.destino : (r.descricaorota || r.DESCRICAOROTA || `Filial ${r.filentrega || r.FILENTREGA}`),
+            destino_calc: rotaInfo.destino !== '-' ? rotaInfo.destino : (r.descricaorota || r.DESCRICAOROTA || (r.filentrega || r.FILENTREGA ? `Filial ${r.filentrega || r.FILENTREGA}` : '-')),
             regiao_calc: rotaInfo.regiao !== '-' ? rotaInfo.regiao : 'INTERIOR',
             numlote: String(r.numlote || r.NUMLOTE || ''),
             fllibfat: String(r.fllibfat || r.FLLIBFAT || ''),
@@ -649,8 +671,8 @@ export const PcpJsMartinsPage: React.FC = () => {
     if (col.key === 'status_operacao') {
       return (
         <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase whitespace-nowrap ${val === 'EM PROCESSO'
-            ? 'bg-amber-100 text-amber-800 border border-amber-200'
-            : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+          ? 'bg-amber-100 text-amber-800 border border-amber-200'
+          : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
           }`}>
           {val}
         </span>
@@ -712,8 +734,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
-                    ? 'bg-white text-blue-700 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  ? 'bg-white text-blue-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                   }`}
               >
                 {tab.icon}
@@ -727,8 +749,8 @@ export const PcpJsMartinsPage: React.FC = () => {
       {/* FEEDBACK DE UPLOAD */}
       {uploadFeedback && (
         <div className={`p-3 rounded-xl border text-xs font-medium flex items-center justify-between gap-2 animate-in fade-in ${uploadFeedback.type === 'success'
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-            : 'bg-rose-50 border-rose-200 text-rose-800'
+          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          : 'bg-rose-50 border-rose-200 text-rose-800'
           }`}>
           <div className="flex items-center gap-2">
             {uploadFeedback.type === 'success' ? <CheckCircle2 size={16} className="text-emerald-600 shrink-0" /> : <AlertCircle size={16} className="text-rose-600 shrink-0" />}
@@ -757,11 +779,10 @@ export const PcpJsMartinsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveSubParam('rotas')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeSubParam === 'rotas'
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${activeSubParam === 'rotas'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 <Truck size={13} />
                 <span>Filiais / Rotas & Regiões ({filialRotaParams.length})</span>
@@ -770,11 +791,10 @@ export const PcpJsMartinsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveSubParam('modal')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeSubParam === 'modal'
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${activeSubParam === 'modal'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 <Layers size={13} />
                 <span>Modalidade ({modalParams.length})</span>
@@ -921,12 +941,11 @@ export const PcpJsMartinsPage: React.FC = () => {
                                     <option value="ABASTECIMENTO CDs">ABASTECIMENTO CDs</option>
                                   </select>
                                 ) : (
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                    param.regiao === 'CAPITAL' ? 'bg-cyan-100 text-cyan-800' :
-                                    param.regiao === 'METROPOLITANA' ? 'bg-indigo-100 text-indigo-800' :
-                                    param.regiao === 'INTERIOR' ? 'bg-emerald-100 text-emerald-800' :
-                                    'bg-amber-100 text-amber-800'
-                                  }`}>
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${param.regiao === 'CAPITAL' ? 'bg-cyan-100 text-cyan-800' :
+                                      param.regiao === 'METROPOLITANA' ? 'bg-indigo-100 text-indigo-800' :
+                                        param.regiao === 'INTERIOR' ? 'bg-emerald-100 text-emerald-800' :
+                                          'bg-amber-100 text-amber-800'
+                                    }`}>
                                     {param.regiao}
                                   </span>
                                 )}
@@ -1106,9 +1125,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                                   />
                                 ) : (
                                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${param.modalidade === 'RODOVIARIO' ? 'bg-blue-100 text-blue-800' :
-                                      param.modalidade === 'ABA' ? 'bg-emerald-100 text-emerald-800' :
-                                        param.modalidade === 'COURRIER' ? 'bg-amber-100 text-amber-800' :
-                                          'bg-purple-100 text-purple-800'
+                                    param.modalidade === 'ABA' ? 'bg-emerald-100 text-emerald-800' :
+                                      param.modalidade === 'COURRIER' ? 'bg-amber-100 text-amber-800' :
+                                        'bg-purple-100 text-purple-800'
                                     }`}>
                                     {param.modalidade}
                                   </span>
@@ -1296,8 +1315,8 @@ export const PcpJsMartinsPage: React.FC = () => {
               <label
                 htmlFor="pcp-file-upload"
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all cursor-pointer shadow-2xs ${isUploading
-                    ? 'bg-blue-400 cursor-not-allowed'
-                    : 'bg-emerald-600 hover:bg-emerald-700'
+                  ? 'bg-blue-400 cursor-not-allowed'
+                  : 'bg-emerald-600 hover:bg-emerald-700'
                   }`}
                 title="Atualizar base a partir de PCP J'S MARTINS.xlsx"
               >
@@ -1362,10 +1381,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                           <td
                             key={col.key}
                             className={`py-2 px-3 border-r border-slate-100 ${col.align === 'right'
-                                ? 'text-right font-mono'
-                                : col.align === 'center'
-                                  ? 'text-center'
-                                  : 'text-left'
+                              ? 'text-right font-mono'
+                              : col.align === 'center'
+                                ? 'text-center'
+                                : 'text-left'
                               } ${col.key === 'item' || col.key === 'numpedven' ? 'font-mono font-bold text-slate-900' : ''
                               } ${col.key === 'descricao' ? 'font-medium text-slate-800' : 'text-slate-600'
                               } ${col.key === 'vltotal' ? 'font-bold text-emerald-700' : ''
@@ -1435,12 +1454,23 @@ export const PcpJsMartinsPage: React.FC = () => {
         // Enriquecer e filtrar a base conforme filtros da aba Planejamento
         const enrichedFiltered = allRows.map((r: any) => {
           const cod = String(r.codmodal || r.CODMODAL || '').trim().toUpperCase()
-          const rotaKey = String(r.descricaorota || r.DESCRICAOROTA || r.filentrega || r.FILENTREGA || '').trim().toUpperCase()
-          const rotaInfo = rotaMap[rotaKey] || rotaMap[String(r.filentrega || r.FILENTREGA || '')] || { destino: '-', regiao: '-' }
-          
-          const regiao = rotaInfo.regiao !== '-' ? rotaInfo.regiao : 'INTERIOR'
-          const destino = rotaInfo.destino !== '-' ? rotaInfo.destino : (r.descricaorota || r.DESCRICAOROTA || (r.filentrega ? `Filial ${r.filentrega}` : 'OUTROS'))
           const modalidade = modalMap[cod] || String(r.descricaomodal || r.DESCRICAOMODAL || '-')
+          const isAba = modalidade.trim().toUpperCase() === 'ABA'
+
+          let rotaInfo = { destino: '-', regiao: '-' }
+          const filEntregaKey = String(r.filentrega || r.FILENTREGA || '').trim().toUpperCase()
+          const rotaKey = String(r.descricaorota || r.DESCRICAOROTA || '').trim().toUpperCase()
+
+          if (isAba) {
+            // Se modalidade for ABA, busca com prioridade máxima pelo código da FILENTREGA no cadastro
+            rotaInfo = rotaMap[filEntregaKey] || rotaMap[rotaKey] || { destino: '-', regiao: '-' }
+          } else {
+            // Outras modalidades buscam pela rota cadastrada primeiro
+            rotaInfo = rotaMap[rotaKey] || rotaMap[filEntregaKey] || { destino: '-', regiao: '-' }
+          }
+
+          const regiao = rotaInfo.regiao !== '-' ? rotaInfo.regiao : 'INTERIOR'
+          const destino = rotaInfo.destino !== '-' ? rotaInfo.destino : (r.descricaorota || r.DESCRICAOROTA || (r.filentrega || r.FILENTREGA ? `Filial ${r.filentrega || r.FILENTREGA}` : 'OUTROS'))
           const statusOperacao = String(r.status_operacao || r.STATUS_OPERACAO || '')
           const linha = String(r.linha || r.LINHA || '')
 
@@ -1789,9 +1819,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                           {group.destinos.map((dest, idx) => (
                             <tr
                               key={dest.destino}
-                              className={`transition-colors divide-x divide-[#003866] hover:bg-[#1a4a7a] ${
-                                idx % 2 === 0 ? 'bg-[#183d63]' : 'bg-[#133353]'
-                              }`}
+                              className={`transition-colors divide-x divide-[#003866] hover:bg-[#1a4a7a] ${idx % 2 === 0 ? 'bg-[#183d63]' : 'bg-[#133353]'
+                                }`}
                             >
                               <td className="py-0.5 px-2 text-[#99bbdd] text-[10px] whitespace-nowrap">
                                 {idx === 0 ? group.regiao : ''}
