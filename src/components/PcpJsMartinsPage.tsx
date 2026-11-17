@@ -32,7 +32,7 @@ import {
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
-import { getPcpItemsReport, type PcpItem } from '../lib/pcpService'
+import { getPcpItemsReport, getAllPcpSummaryItems, type PcpItem } from '../lib/pcpService'
 import initialSampleRows from '../data/pcp_initial_sample.json'
 import { INITIAL_MODAL_PARAMS, type ModalParamItem } from '../data/pcp_modal_params'
 import { INITIAL_FILIAL_ROTA_PARAMS, type FilialRotaParamItem } from '../data/pcp_filial_rotas_params'
@@ -292,6 +292,36 @@ export const PcpJsMartinsPage: React.FC = () => {
     }
     return (initialSampleRows as any[]) || []
   }
+
+  // Base completa de registros para o Planejamento (Supabase ou LocalStorage)
+  const [fullPlanningData, setFullPlanningData] = useState<PcpItem[]>([])
+  const [isLoadingPlanning, setIsLoadingPlanning] = useState<boolean>(false)
+
+  // Carregar todos os dados completos para o planejamento
+  const loadPlanningData = useCallback(async () => {
+    setIsLoadingPlanning(true)
+    try {
+      const dbRows = await getAllPcpSummaryItems()
+      if (dbRows && dbRows.length > 0) {
+        setFullPlanningData(dbRows)
+      } else {
+        const local = getLocalData()
+        setFullPlanningData(local)
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar dados consolidados do planejamento:', e)
+      const local = getLocalData()
+      setFullPlanningData(local)
+    } finally {
+      setIsLoadingPlanning(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'planejamento') {
+      loadPlanningData()
+    }
+  }, [activeTab, loadPlanningData])
 
   // Buscar dados com aplicação da coluna auxiliar Modalidade
   const loadData = useCallback(async (p: number = page, search: string = searchTerm) => {
@@ -1439,8 +1469,8 @@ export const PcpJsMartinsPage: React.FC = () => {
       {/* ABA 1: PLANEJAMENTO (VISÃO RESUMO DESTINOS & REGIÕES COM FILTROS)   */}
       {/* ------------------------------------------------------------------ */}
       {activeTab === 'planejamento' && (() => {
-        // Obter toda a base local de registros
-        const allRows = getLocalData()
+        // Obter toda a base consolidada de registros (do Supabase ou cache local)
+        const allRows = fullPlanningData.length > 0 ? fullPlanningData : getLocalData()
 
         // Opções únicas para os filtros
         const uniqueRegioes = ['TODOS', 'CAPITAL', 'METROPOLITANA', 'INTERIOR', 'ABASTECIMENTO CDs']

@@ -134,6 +134,44 @@ export async function getPcpItemsReport(params: PcpQueryParams): Promise<PcpQuer
   }
 }
 
+// Obter agregação de todos os itens do Supabase para o Planejamento
+export async function getAllPcpSummaryItems(): Promise<PcpItem[]> {
+  try {
+    const allData: PcpItem[] = []
+    const batchSize = 1000
+    let from = 0
+    let hasMore = true
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('pcp_js_martins')
+        .select('filentrega,codmodal,descricaomodal,descricaorota,status_operacao,linha,numpedven,qtcomp,fisico,qtped,cub_tot,vltotal,pesoliq')
+        .range(from, from + batchSize - 1)
+
+      if (error) {
+        console.warn('Erro ao buscar dados agregados do Supabase:', error.message)
+        break
+      }
+
+      if (data && data.length > 0) {
+        allData.push(...(data as any))
+        if (data.length < batchSize) {
+          hasMore = false
+        } else {
+          from += batchSize
+        }
+      } else {
+        hasMore = false
+      }
+    }
+
+    return allData
+  } catch (err) {
+    console.error('Falha em getAllPcpSummaryItems:', err)
+    return []
+  }
+}
+
 // Obter filtros únicos de PCP
 export async function getPcpFiltersMeta() {
   try {
