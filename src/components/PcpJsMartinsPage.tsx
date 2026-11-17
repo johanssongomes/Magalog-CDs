@@ -682,7 +682,7 @@ export const PcpJsMartinsPage: React.FC = () => {
   }, [filialRotaParams, searchRotaParam])
 
   return (
-    <div className="p-4 sm:p-6 space-y-5 max-w-[1900px] mx-auto animate-in fade-in duration-300">
+    <div className="w-full space-y-4 animate-in fade-in duration-300">
       {/* Header Superior */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200">
         <div className="flex items-center gap-3">
@@ -1709,9 +1709,9 @@ export const PcpJsMartinsPage: React.FC = () => {
             {/* ------------------------------------------------------------ */}
             {/* CORPO: CANTO ESQUERDO (TABELA FORMATO OFICIAL) + LADO DIREITO */}
             {/* ------------------------------------------------------------ */}
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start w-full">
               {/* CANTO ESQUERDO (TABELA EXATAMENTE COMO NO PRINT DO USUÁRIO) */}
-              <div className="xl:col-span-6 2xl:col-span-5 bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden flex flex-col">
+              <div className="xl:col-span-7 2xl:col-span-6 bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden flex flex-col w-full">
                 <div className="px-4 py-3 bg-[#1e3a5f] text-white flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet size={16} className="text-cyan-300" />
@@ -1723,17 +1723,17 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </div>
 
                 {/* Tabela estilizada em tons de azul escuro idêntica ao print */}
-                <div className="overflow-x-auto max-h-[720px] overflow-y-auto">
-                  <table className="w-full text-[11px] border-collapse font-sans text-slate-100">
-                    <thead className="sticky top-0 z-20 bg-[#162d4a] text-cyan-200 uppercase text-[10px] font-black tracking-wider border-b border-blue-900">
+                <div className="overflow-x-auto max-h-[780px] overflow-y-auto w-full">
+                  <table className="w-full text-[11.5px] border-collapse font-sans text-slate-100">
+                    <thead className="sticky top-0 z-20 bg-[#162d4a] text-cyan-200 uppercase text-[10.5px] font-black tracking-wider border-b border-blue-900 shadow-sm">
                       <tr>
-                        <th className="py-2 px-2 text-left border-r border-blue-900/60 w-32">REGIÃO</th>
-                        <th className="py-2 px-2 text-left border-r border-blue-900/60">DESTINO</th>
-                        <th className="py-2 px-2 text-right border-r border-blue-900/60 w-14">PEDIDO</th>
-                        <th className="py-2 px-2 text-right border-r border-blue-900/60 w-16">QUANTIDADE</th>
-                        <th className="py-2 px-2 text-right border-r border-blue-900/60 w-20">CUBAGEM</th>
-                        <th className="py-2 px-2 text-right border-r border-blue-900/60 w-24">VALOR R$</th>
-                        <th className="py-2 px-2 text-right w-16">PESO</th>
+                        <th className="py-2.5 px-3 text-left border-r border-blue-900/60 w-32">REGIÃO</th>
+                        <th className="py-2.5 px-3 text-left border-r border-blue-900/60">DESTINO</th>
+                        <th className="py-2.5 px-3 text-right border-r border-blue-900/60 w-16">PEDIDO</th>
+                        <th className="py-2.5 px-3 text-right border-r border-blue-900/60 w-20">QUANTIDADE</th>
+                        <th className="py-2.5 px-3 text-right border-r border-blue-900/60 w-24">CUBAGEM</th>
+                        <th className="py-2.5 px-3 text-right border-r border-blue-900/60 w-28">VALOR R$</th>
+                        <th className="py-2.5 px-3 text-right w-20">PESO</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-blue-950/40 text-slate-100">
@@ -1741,9 +1741,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                         <React.Fragment key={group.regiao}>
                           {/* Cabeçalho da Região */}
                           <tr className="bg-[#1b365d] text-cyan-200 font-black border-y border-blue-900">
-                            <td colSpan={7} className="py-1.5 px-3 uppercase tracking-wide flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-xs bg-cyan-400 inline-block"></span>
-                              {group.regiao}
+                            <td colSpan={7} className="py-2 px-3 uppercase tracking-wide flex items-center gap-1.5">
+                              <span className="w-2.5 h-2.5 rounded-xs bg-cyan-400 inline-block shadow-xs"></span>
+                              <span className="font-extrabold tracking-wide">{group.regiao}</span>
                             </td>
                           </tr>
 
@@ -1755,31 +1755,31 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 idx % 2 === 0 ? 'bg-[#22426d]' : 'bg-[#1e3b63]'
                               }`}
                             >
-                              <td className="py-1 px-2 text-slate-400 border-r border-blue-900/30 truncate max-w-[110px]">
+                              <td className="py-1.5 px-3 text-slate-400 border-r border-blue-900/30 truncate font-semibold">
                                 {idx === 0 ? group.regiao : ''}
                               </td>
-                              <td className="py-1 px-2 font-medium text-slate-100 border-r border-blue-900/30 truncate max-w-[220px]" title={dest.destino}>
-                                <div className="flex items-center gap-1.5">
+                              <td className="py-1.5 px-3 font-semibold text-slate-100 border-r border-blue-900/30" title={dest.destino}>
+                                <div className="flex items-center gap-2">
                                   <span className="w-1.5 h-1.5 rounded-full bg-cyan-400/80 shrink-0"></span>
                                   <span className="truncate">{dest.destino}</span>
                                 </div>
                               </td>
-                              <td className="py-1 px-2 text-right border-r border-blue-900/30 font-semibold text-slate-200">
+                              <td className="py-1.5 px-3 text-right border-r border-blue-900/30 font-semibold text-slate-200">
                                 {dest.pedidosCount.toLocaleString('pt-BR')}
                               </td>
-                              <td className="py-1 px-2 text-right border-r border-blue-900/30 text-slate-200">
+                              <td className="py-1.5 px-3 text-right border-r border-blue-900/30 text-slate-200">
                                 {Math.round(dest.quantidade).toLocaleString('pt-BR')}
                               </td>
-                              <td className="py-1 px-2 text-right border-r border-blue-900/30 font-mono text-cyan-200 whitespace-nowrap">
+                              <td className="py-1.5 px-3 text-right border-r border-blue-900/30 font-mono text-cyan-200 whitespace-nowrap">
                                 <div className="inline-flex items-center justify-end">
                                   {renderCubSemaforo(dest.cubagem)}
                                   <span>{dest.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 </div>
                               </td>
-                              <td className="py-1 px-2 text-right border-r border-blue-900/30 font-mono text-emerald-300 whitespace-nowrap">
+                              <td className="py-1.5 px-3 text-right border-r border-blue-900/30 font-mono text-emerald-300 whitespace-nowrap font-medium">
                                 {dest.valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                               </td>
-                              <td className="py-1 px-2 text-right font-mono text-slate-300">
+                              <td className="py-1.5 px-3 text-right font-mono text-slate-300">
                                 {Math.round(dest.pesoTotal).toLocaleString('pt-BR')}
                               </td>
                             </tr>
@@ -1787,25 +1787,25 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                           {/* Subtotal da Região */}
                           <tr className="bg-[#153155] text-cyan-300 font-black border-y-2 border-blue-800">
-                            <td colSpan={2} className="py-2 px-3 tracking-wide">
+                            <td colSpan={2} className="py-2.5 px-3 tracking-wide">
                               {group.regiao} TOTAL
                             </td>
-                            <td className="py-2 px-2 text-right border-r border-blue-900/40 text-white">
+                            <td className="py-2.5 px-3 text-right border-r border-blue-900/40 text-white font-bold">
                               {group.totalPedidos.toLocaleString('pt-BR')}
                             </td>
-                            <td className="py-2 px-2 text-right border-r border-blue-900/40 text-white">
+                            <td className="py-2.5 px-3 text-right border-r border-blue-900/40 text-white font-bold">
                               {Math.round(group.totalQtd).toLocaleString('pt-BR')}
                             </td>
-                            <td className="py-2 px-2 text-right border-r border-blue-900/40 font-mono text-cyan-200 whitespace-nowrap">
+                            <td className="py-2.5 px-3 text-right border-r border-blue-900/40 font-mono text-cyan-200 whitespace-nowrap font-bold">
                               <div className="inline-flex items-center justify-end">
                                 {renderCubSemaforo(group.totalCub)}
                                 <span>{group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                               </div>
                             </td>
-                            <td className="py-2 px-2 text-right border-r border-blue-900/40 font-mono text-emerald-300 whitespace-nowrap">
+                            <td className="py-2.5 px-3 text-right border-r border-blue-900/40 font-mono text-emerald-300 whitespace-nowrap font-bold">
                               {group.totalValor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                             </td>
-                            <td className="py-2 px-2 text-right font-mono text-white">
+                            <td className="py-2.5 px-3 text-right font-mono text-white font-bold">
                               {Math.round(group.totalPeso).toLocaleString('pt-BR')}
                             </td>
                           </tr>
@@ -1814,22 +1814,22 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                       {/* Total Geral Consolidado */}
                       <tr className="bg-[#0b1d33] text-amber-300 font-black text-xs border-t-2 border-amber-500/50">
-                        <td colSpan={2} className="py-2.5 px-3 uppercase tracking-wider">
+                        <td colSpan={2} className="py-3 px-3 uppercase tracking-wider">
                           Total Geral
                         </td>
-                        <td className="py-2.5 px-2 text-right text-white">
+                        <td className="py-3 px-3 text-right text-white">
                           {geralPedidos.toLocaleString('pt-BR')}
                         </td>
-                        <td className="py-2.5 px-2 text-right text-white">
+                        <td className="py-3 px-3 text-right text-white">
                           {Math.round(geralQtd).toLocaleString('pt-BR')}
                         </td>
-                        <td className="py-2.5 px-2 text-right font-mono text-cyan-200 whitespace-nowrap">
+                        <td className="py-3 px-3 text-right font-mono text-cyan-200 whitespace-nowrap">
                           {geralCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
-                        <td className="py-2.5 px-2 text-right font-mono text-emerald-300 whitespace-nowrap">
+                        <td className="py-3 px-3 text-right font-mono text-emerald-300 whitespace-nowrap">
                           {geralValor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </td>
-                        <td className="py-2.5 px-2 text-right font-mono text-white">
+                        <td className="py-3 px-3 text-right font-mono text-white">
                           {Math.round(geralPeso).toLocaleString('pt-BR')}
                         </td>
                       </tr>
@@ -1839,7 +1839,7 @@ export const PcpJsMartinsPage: React.FC = () => {
               </div>
 
               {/* LADO DIREITO: ÁREA RESERVADA PARA GRÁFICOS, ONDAS E CRONOGRAMAS */}
-              <div className="xl:col-span-6 2xl:col-span-7 space-y-4">
+              <div className="xl:col-span-5 2xl:col-span-6 space-y-4 w-full">
                 {/* Cards Rápidos de Visão Geral */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
