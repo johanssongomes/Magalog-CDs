@@ -328,16 +328,16 @@ interface PerformanceChartProps {
 const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
 
-  const W = 520, H = 216, padL = 46, padB = 44, padT = 24
+  const W = 540, H = 224, padL = 46, padB = 44, padT = 30
   const innerW = W - padL - 12
   const innerH = H - padB - padT
 
-  // Encontrar valor máximo para escala Y com folga de 28% para caber marcadores e valores confortavelmente
+  // Encontrar valor máximo para escala Y com folga de 35% para caber marcadores e valores confortavelmente sem colisão
   const maxVal = Math.max(
     ...data.map(d => Math.max(d.faturado, d.liberado, d.capacidade, d.pmtPlanejado || 0)),
     10
   )
-  const maxY = Math.ceil((maxVal * 1.28) / 100) * 100 || 1000
+  const maxY = Math.ceil((maxVal * 1.35) / 100) * 100 || 1000
 
   const y = (v: number) => padT + innerH - (Math.min(Math.max(v, 0), maxY) / maxY) * innerH
   const step = innerW / Math.max(data.length, 1)
@@ -492,7 +492,7 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
 
               {/* Barra Faturado (Azul com Cantos Arredondados e Gradiente) */}
               <rect
-                x={cx - bw - 1}
+                x={cx - bw - 1.5}
                 y={yFat}
                 width={bw}
                 height={hFat}
@@ -501,23 +501,44 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
                 className="transition-all"
               />
 
-              {/* Rótulo Faturado (posicionado com folga limpa acima da barra) */}
-              {d.faturado > 0 && (
-                <text
-                  x={cx - bw / 2 - 1}
-                  y={yFat - 3}
-                  fontSize="7.5"
-                  textAnchor="middle"
-                  fill="#1d4ed8"
-                  fontWeight="700"
-                >
-                  {textFat}
-                </text>
-              )}
+              {/* Rótulo Faturado com Badge Suave para Evitar Qualquer Colisão */}
+              {d.faturado > 0 && (() => {
+                // Se a barra for alta o suficiente (ex: > 28px), o valor pode ficar dentro no topo, ou com badge contrastante acima
+                const isNearPmt = Math.abs(yFat - yPmt) < 22
+                const isNearLib = Math.abs(yFat - yLib) < 14
+                const labelY = (isNearPmt || yFat < padT + 16) ? Math.min(yFat + 10, yZero - 4) : yFat - 4
+                const isInside = (isNearPmt || yFat < padT + 16) && hFat > 16
+
+                return (
+                  <g pointerEvents="none">
+                    {!isInside && (
+                      <rect
+                        x={cx - bw - 1.5 - (textFat.length > 3 ? 1 : 0)}
+                        y={labelY - 7}
+                        width={bw + (textFat.length > 3 ? 2 : 0)}
+                        height={8.5}
+                        rx="2"
+                        fill="#eff6ff"
+                        fillOpacity="0.92"
+                      />
+                    )}
+                    <text
+                      x={cx - bw / 2 - 1.5}
+                      y={labelY}
+                      fontSize="7.5"
+                      textAnchor="middle"
+                      fill={isInside ? "#ffffff" : "#1d4ed8"}
+                      fontWeight="800"
+                    >
+                      {textFat}
+                    </text>
+                  </g>
+                )
+              })()}
 
               {/* Barra Liberado (Verde com Cantos Arredondados e Gradiente) */}
               <rect
-                x={cx + 1}
+                x={cx + 1.5}
                 y={yLib}
                 width={bw}
                 height={hLib}
@@ -526,23 +547,42 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
                 className="transition-all"
               />
 
-              {/* Rótulo Liberado (posicionado com folga limpa acima da barra) */}
-              {d.liberado > 0 && (
-                <text
-                  x={cx + bw / 2 + 1}
-                  y={yLib - 3}
-                  fontSize="7.5"
-                  textAnchor="middle"
-                  fill="#15803d"
-                  fontWeight="700"
-                >
-                  {textLib}
-                </text>
-              )}
+              {/* Rótulo Liberado com Badge Suave para Evitar Qualquer Colisão */}
+              {d.liberado > 0 && (() => {
+                const isNearPmt = Math.abs(yLib - yPmt) < 22
+                const labelY = (isNearPmt || yLib < padT + 16) ? Math.min(yLib + 10, yZero - 4) : yLib - 4
+                const isInside = (isNearPmt || yLib < padT + 16) && hLib > 16
+
+                return (
+                  <g pointerEvents="none">
+                    {!isInside && (
+                      <rect
+                        x={cx + 1.5 - (textLib.length > 3 ? 1 : 0)}
+                        y={labelY - 7}
+                        width={bw + (textLib.length > 3 ? 2 : 0)}
+                        height={8.5}
+                        rx="2"
+                        fill="#f0fdf4"
+                        fillOpacity="0.92"
+                      />
+                    )}
+                    <text
+                      x={cx + bw / 2 + 1.5}
+                      y={labelY}
+                      fontSize="7.5"
+                      textAnchor="middle"
+                      fill={isInside ? "#ffffff" : "#15803d"}
+                      fontWeight="800"
+                    >
+                      {textLib}
+                    </text>
+                  </g>
+                )
+              })()}
 
               {/* Marcador do PMT Planejado (Design Elegante e Limpo) */}
               {(d.pmtPlanejado || 0) > 0 && (
-                <g filter="url(#softShadow)">
+                <g filter="url(#softShadow)" pointerEvents="none">
                   {/* Círculo Principal Estilo Apple */}
                   <circle
                     cx={cx}
@@ -553,24 +593,24 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ data, metric }) => 
                     strokeWidth="2"
                     className="transition-all duration-200"
                   />
-                  {/* Pílula / Badge do valor do PMT para não colidir com o texto das barras */}
-                  <g transform={`translate(${cx}, ${yPmt - 14})`}>
+                  {/* Pílula / Badge do valor do PMT com offset inteligente */}
+                  <g transform={`translate(${cx}, ${yPmt > padT + 20 ? yPmt - 13 : yPmt + 13})`}>
                     <rect
                       x="-13"
                       y="-4.5"
                       width="26"
-                      height="11"
+                      height="10.5"
                       rx="3.5"
                       fill="#ffffff"
-                      stroke="#cbd5e1"
+                      stroke="#94a3b8"
                       strokeWidth="0.8"
                     />
                     <text
                       x="0"
-                      y="3.5"
-                      fontSize="7"
+                      y="3.2"
+                      fontSize="6.8"
                       textAnchor="middle"
-                      fill="#334155"
+                      fill="#1e293b"
                       fontWeight="800"
                     >
                       {textPmt}
