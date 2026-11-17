@@ -238,24 +238,53 @@ export const SupplyLojasPage: React.FC = () => {
             totalLojas: skuTotalLojas,
             filiaisVals: filVals
           }
+        }).filter(s => {
+          // Quando estiver na visão 'LOJA COM FISICO' e houver lojas filtradas,
+          // exibir apenas os itens que realmente possuem estoque nas lojas selecionadas
+          if (pivotStatus === 'LOJA COM FISICO' && filiaisList.length < (initialPivotData.filiais as number[]).length) {
+            return s.totalLojas > 0
+          }
+          // Quando estiver na visão 'LOJA SEM FISICO' e houver lojas filtradas,
+          // exibir apenas os itens onde as lojas selecionadas estão sem estoque (totalLojas === 0)
+          if (pivotStatus === 'LOJA SEM FISICO' && filiaisList.length < (initialPivotData.filiais as number[]).length) {
+            return s.totalLojas === 0
+          }
+          return true
         })
 
-        // Ordenar os SKUs dentro da linha se ordenado por estoque
-        if (orderBy === 'ESTOQUE_DESC') {
-          formattedSkus.sort((a, b) => b.valCd994 - a.valCd994)
-        } else if (orderBy === 'ESTOQUE_ASC') {
-          formattedSkus.sort((a, b) => a.valCd994 - b.valCd994)
-        } else if (orderBy === 'LOJAS_DESC') {
-          formattedSkus.sort((a, b) => b.totalLojas - a.totalLojas)
+        // Se após filtrar por lojas selecionadas sobrarem SKUs, inclui a linha no resultado
+        if (formattedSkus.length > 0) {
+          // Recalcular totais da linha com base nos SKUs visíveis para a loja filtrada
+          let realCd994 = 0
+          let realTotalLojas = 0
+          const realFiliaisTotais: Record<number, number> = {}
+          filiaisList.forEach(f => { realFiliaisTotais[f] = 0 })
+
+          formattedSkus.forEach(s => {
+            realCd994 += s.valCd994
+            realTotalLojas += s.totalLojas
+            filiaisList.forEach(f => {
+              realFiliaisTotais[f] += (s.filiaisVals[f] || 0)
+            })
+          })
+
+          // Ordenar os SKUs dentro da linha se ordenado por estoque
+          if (orderBy === 'ESTOQUE_DESC') {
+            formattedSkus.sort((a, b) => b.valCd994 - a.valCd994)
+          } else if (orderBy === 'ESTOQUE_ASC') {
+            formattedSkus.sort((a, b) => a.valCd994 - b.valCd994)
+          } else if (orderBy === 'LOJAS_DESC') {
+            formattedSkus.sort((a, b) => b.totalLojas - a.totalLojas)
+          }
+
+          result.push({
+            linha,
+            totalCd994: realCd994,
+            totalLojas: realTotalLojas,
+            filiaisTotais: realFiliaisTotais,
+            skusList: formattedSkus
+          })
         }
-
-        result.push({
-          linha,
-          totalCd994: calculatedCd994,
-          totalLojas: calculatedTotalLojas,
-          filiaisTotais: calculatedFiliaisTotais,
-          skusList: formattedSkus
-        })
       }
     })
 
