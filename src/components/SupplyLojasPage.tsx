@@ -148,7 +148,7 @@ export const SupplyLojasPage: React.FC = () => {
     switch (selectedMetric) {
       case 'FISICO': return 'FISICO_994'
       case 'LOGICO': return 'LOGICO_994'
-      case 'TRANSITO': return 'TRANSITO_994'
+      case 'TRANSITO': return 'ESTOQUE_994'
       case 'ESTOQUE': return 'ESTOQUE_994'
     }
   }, [selectedMetric])
@@ -215,7 +215,7 @@ export const SupplyLojasPage: React.FC = () => {
         filiaisList.forEach(f => { calculatedFiliaisTotais[f] = 0 })
 
         const formattedSkus = filteredRaw.map(s => {
-          const valCd = s.m9[selectedMetric] || 0
+          const valCd = (selectedMetric === 'TRANSITO' ? (s.m9['ESTOQUE'] || s.m9['FISICO'] || 0) : (s.m9[selectedMetric] || 0))
           const filVals: Record<number, number> = {}
           let skuTotalLojas = 0
 
