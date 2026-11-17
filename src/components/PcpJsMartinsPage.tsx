@@ -35,12 +35,15 @@ import { supabase } from '../lib/supabase'
 import { getPcpItemsReport, type PcpItem } from '../lib/pcpService'
 import initialSampleRows from '../data/pcp_initial_sample.json'
 import { INITIAL_MODAL_PARAMS, type ModalParamItem } from '../data/pcp_modal_params'
+import { INITIAL_FILIAL_ROTA_PARAMS, type FilialRotaParamItem } from '../data/pcp_filial_rotas_params'
 
 // Definição das 53 Colunas Oficiais da Planilha PCP J'S MARTINS.xlsx + Coluna Auxiliar Dinâmica
 export const PCP_COLUMNS: Array<{ key: keyof PcpItem; label: string; width?: string; align?: 'left' | 'center' | 'right'; type?: 'num' | 'cur' | 'date' | 'str' }> = [
   { key: 'filorig', label: 'FILORIG', width: 'w-20', align: 'center' },
   { key: 'codfil', label: 'CODFIL', width: 'w-20', align: 'center' },
   { key: 'filentrega', label: 'FILENTREGA', width: 'w-24', align: 'center' },
+  { key: 'destino_calc', label: 'DESTINO (AUX)', width: 'w-48' },
+  { key: 'regiao_calc', label: 'REGIÃO (AUX)', width: 'w-32', align: 'center' },
   { key: 'numlote', label: 'NUMLOTE', width: 'w-24' },
   { key: 'fllibfat', label: 'FLLIBFAT', width: 'w-20', align: 'center' },
   { key: 'tpnota', label: 'TPNOTA', width: 'w-20', align: 'center' },
@@ -97,9 +100,10 @@ export const PCP_COLUMNS: Array<{ key: keyof PcpItem; label: string; width?: str
 
 export const PcpJsMartinsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'planejamento' | 'programacao' | 'controle' | 'cadastros'>('controle')
+  const [activeSubParam, setActiveSubParam] = useState<'modal' | 'rotas'>('rotas')
 
   // --------------------------------------------------------------------------
-  // ESTADOS DA ABA CADASTROS AUXILIARES (DE-PARA DE MODAIS & PARÂMETROS)
+  // ESTADOS DA ABA CADASTROS AUXILIARES (DE-PARA DE MODAIS & ROTAS)
   // --------------------------------------------------------------------------
   const [modalParams, setModalParams] = useState<ModalParamItem[]>(() => {
     try {
@@ -114,7 +118,20 @@ export const PcpJsMartinsPage: React.FC = () => {
     return INITIAL_MODAL_PARAMS
   })
 
-  // Mapa rápido de consulta: CODMODAL -> MODALIDADE
+  const [filialRotaParams, setFilialRotaParams] = useState<FilialRotaParamItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_pcp_filial_rotas_params')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar parâmetros locais de rotas:', e)
+    }
+    return INITIAL_FILIAL_ROTA_PARAMS
+  })
+
+  // Mapas rápidos de consulta
   const modalMap = useMemo(() => {
     const map: Record<string, string> = {}
     modalParams.forEach(p => {
@@ -124,18 +141,43 @@ export const PcpJsMartinsPage: React.FC = () => {
     return map
   }, [modalParams])
 
-  // Estados de formulário da aba Cadastros Auxiliares
+  const rotaMap = useMemo(() => {
+    const map: Record<string, { destino: string; regiao: string }> = {}
+    filialRotaParams.forEach(p => {
+      const k = (p.filialRota || '').trim().toUpperCase()
+      if (k) map[k] = { destino: p.destino, regiao: p.regiao.trim().toUpperCase() }
+    })
+    return map
+  }, [filialRotaParams])
+
+  // Estados de formulário da aba Cadastros Auxiliares (Modal)
   const [newCodModal, setNewCodModal] = useState('')
   const [newModalidade, setNewModalidade] = useState('')
   const [searchParam, setSearchParam] = useState('')
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editingModalidade, setEditingModalidade] = useState('')
 
-  // Sincronizar parâmetros com Supabase / LocalStorage
+  // Estados de formulário da aba Cadastros Auxiliares (Filiais/Rotas)
+  const [newFilialRota, setNewFilialRota] = useState('')
+  const [newDestino, setNewDestino] = useState('')
+  const [newRegiao, setNewRegiao] = useState('INTERIOR')
+  const [searchRotaParam, setSearchRotaParam] = useState('')
+  const [editingRotaIndex, setEditingRotaIndex] = useState<number | null>(null)
+  const [editingRotaDestino, setEditingRotaDestino] = useState('')
+  const [editingRotaRegiao, setEditingRotaRegiao] = useState('')
+
+  // Sincronizar parâmetros
   const saveModalParams = (list: ModalParamItem[]) => {
     setModalParams(list)
     try {
       localStorage.setItem('magalog_pcp_modal_params', JSON.stringify(list))
+    } catch { }
+  }
+
+  const saveFilialRotaParams = (list: FilialRotaParamItem[]) => {
+    setFilialRotaParams(list)
+    try {
+      localStorage.setItem('magalog_pcp_filial_rotas_params', JSON.stringify(list))
     } catch { }
   }
 
@@ -170,6 +212,45 @@ export const PcpJsMartinsPage: React.FC = () => {
     saveModalParams(updated)
     setEditingIndex(null)
     setEditingModalidade('')
+  }
+
+  const handleAddRotaParam = () => {
+    const rot = newFilialRota.trim()
+    const des = newDestino.trim()
+    const reg = newRegiao.trim().toUpperCase()
+    if (!rot || !des) return
+
+    const existingIdx = filialRotaParams.findIndex(p => p.filialRota.toUpperCase() === rot.toUpperCase())
+    let updated: FilialRotaParamItem[]
+    if (existingIdx >= 0) {
+      updated = [...filialRotaParams]
+      updated[existingIdx] = { filialRota: rot, destino: des, regiao: reg }
+    } else {
+      updated = [{ filialRota: rot, destino: des, regiao: reg }, ...filialRotaParams]
+    }
+
+    saveFilialRotaParams(updated)
+    setNewFilialRota('')
+    setNewDestino('')
+  }
+
+  const handleDeleteRotaParam = (rot: string) => {
+    const updated = filialRotaParams.filter(p => p.filialRota.toUpperCase() !== rot.toUpperCase())
+    saveFilialRotaParams(updated)
+  }
+
+  const handleSaveRotaEdit = (idx: number) => {
+    if (!editingRotaDestino.trim()) return
+    const updated = [...filialRotaParams]
+    updated[idx] = {
+      ...updated[idx],
+      destino: editingRotaDestino.trim(),
+      regiao: editingRotaRegiao.trim().toUpperCase()
+    }
+    saveFilialRotaParams(updated)
+    setEditingRotaIndex(null)
+    setEditingRotaDestino('')
+    setEditingRotaRegiao('')
   }
 
   // --------------------------------------------------------------------------
@@ -218,12 +299,17 @@ export const PcpJsMartinsPage: React.FC = () => {
       })
 
       if (res.count > 0) {
-        // Vincula dinamicamente a modalidade auxiliar calculada
+        // Vincula dinamicamente a modalidade, destino e região calculadas
         const enriched = res.data.map(item => {
           const cod = (item.codmodal || '').trim().toUpperCase()
+          const rotaKey = String(item.descricaorota || item.filentrega || '').trim().toUpperCase()
+          const rotaInfo = rotaMap[rotaKey] || rotaMap[String(item.filentrega || '')] || { destino: '-', regiao: '-' }
+
           return {
             ...item,
-            modalidade_calc: modalMap[cod] || item.descricaomodal || '-'
+            modalidade_calc: modalMap[cod] || item.descricaomodal || '-',
+            destino_calc: rotaInfo.destino !== '-' ? rotaInfo.destino : (item.descricaorota || `Filial ${item.filentrega}`),
+            regiao_calc: rotaInfo.regiao !== '-' ? rotaInfo.regiao : 'INTERIOR'
           }
         })
         setItems(enriched)
@@ -256,11 +342,16 @@ export const PcpJsMartinsPage: React.FC = () => {
         const from = (p - 1) * pageSize
         const slice = filtered.slice(from, from + pageSize).map((r: any, idx) => {
           const cod = String(r.codmodal || r.CODMODAL || '').trim().toUpperCase()
+          const rotaKey = String(r.descricaorota || r.DESCRICAOROTA || r.filentrega || r.FILENTREGA || '').trim().toUpperCase()
+          const rotaInfo = rotaMap[rotaKey] || rotaMap[String(r.filentrega || r.FILENTREGA || '')] || { destino: '-', regiao: '-' }
+
           return {
             id: idx + from + 1,
             filorig: Number(r.filorig || r.FILORIG) || 994,
             codfil: Number(r.codfil || r.CODFIL) || 994,
             filentrega: Number(r.filentrega || r.FILENTREGA) || 0,
+            destino_calc: rotaInfo.destino !== '-' ? rotaInfo.destino : (r.descricaorota || r.DESCRICAOROTA || `Filial ${r.filentrega || r.FILENTREGA}`),
+            regiao_calc: rotaInfo.regiao !== '-' ? rotaInfo.regiao : 'INTERIOR',
             numlote: String(r.numlote || r.NUMLOTE || ''),
             fllibfat: String(r.fllibfat || r.FLLIBFAT || ''),
             tpnota: Number(r.tpnota || r.TPNOTA) || 0,
@@ -525,6 +616,29 @@ export const PcpJsMartinsPage: React.FC = () => {
       )
     }
 
+    if (col.key === 'regiao_calc') {
+      const reg = String(val).toUpperCase()
+      let color = 'bg-slate-100 text-slate-700 border-slate-200'
+      if (reg === 'CAPITAL') color = 'bg-cyan-100 text-cyan-800 border-cyan-200'
+      if (reg === 'METROPOLITANA') color = 'bg-indigo-100 text-indigo-800 border-indigo-200'
+      if (reg === 'INTERIOR') color = 'bg-emerald-100 text-emerald-800 border-emerald-200'
+      if (reg.includes('ABASTECIMENTO')) color = 'bg-amber-100 text-amber-800 border-amber-200'
+
+      return (
+        <span className={`px-2 py-0.5 rounded-md text-[9.5px] font-black uppercase whitespace-nowrap border ${color}`}>
+          {reg}
+        </span>
+      )
+    }
+
+    if (col.key === 'destino_calc') {
+      return (
+        <span className="font-semibold text-slate-800">
+          {String(val)}
+        </span>
+      )
+    }
+
     if (col.key === 'status_operacao') {
       return (
         <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase whitespace-nowrap ${val === 'EM PROCESSO'
@@ -539,7 +653,7 @@ export const PcpJsMartinsPage: React.FC = () => {
     return String(val)
   }
 
-  // Filtragem dos parâmetros da tabela de De-Para
+  // Filtragem dos parâmetros da tabela de De-Para (Modal)
   const filteredParams = useMemo(() => {
     if (!searchParam.trim()) return modalParams
     const q = searchParam.trim().toLowerCase()
@@ -548,6 +662,17 @@ export const PcpJsMartinsPage: React.FC = () => {
       p.modalidade.toLowerCase().includes(q)
     )
   }, [modalParams, searchParam])
+
+  // Filtragem dos parâmetros da tabela de De-Para (Filiais/Rotas)
+  const filteredRotaParams = useMemo(() => {
+    if (!searchRotaParam.trim()) return filialRotaParams
+    const q = searchRotaParam.trim().toLowerCase()
+    return filialRotaParams.filter(p =>
+      p.filialRota.toLowerCase().includes(q) ||
+      p.destino.toLowerCase().includes(q) ||
+      p.regiao.toLowerCase().includes(q)
+    )
+  }, [filialRotaParams, searchRotaParam])
 
   return (
     <div className="p-4 sm:p-6 space-y-5 max-w-[1900px] mx-auto animate-in fade-in duration-300">
@@ -617,202 +742,425 @@ export const PcpJsMartinsPage: React.FC = () => {
                 <Settings2 size={18} className="text-blue-600" /> Parâmetros de Colunas Auxiliares
               </h2>
               <p className="text-xs text-slate-500">
-                Cadastre e edite as regras de De-Para. Conforme o <strong>CODMODAL</strong> informado na base, a <strong>MODALIDADE</strong> correspondente é atribuída automaticamente no relatório.
+                Cadastre e edite as regras de De-Para. Os parâmetros alimentam automaticamente as colunas auxiliares calculadas (<strong>MODALIDADE</strong>, <strong>DESTINO</strong> e <strong>REGIÃO</strong>) em todo o sistema.
               </p>
             </div>
-            <div className="px-3 py-1 bg-white rounded-xl border border-blue-200 text-xs font-bold text-blue-700 shadow-2xs whitespace-nowrap">
-              {modalParams.length} Regras Cadastradas
+            {/* SUB-ABAS DE CADASTRO */}
+            <div className="flex items-center p-1 bg-white rounded-xl border border-blue-200 shadow-2xs gap-1">
+              <button
+                type="button"
+                onClick={() => setActiveSubParam('rotas')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeSubParam === 'rotas'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <Truck size={13} />
+                <span>Filiais / Rotas & Regiões ({filialRotaParams.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveSubParam('modal')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeSubParam === 'modal'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <Layers size={13} />
+                <span>Modalidade ({modalParams.length})</span>
+              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* CARD 1: FORMULÁRIO DE CADASTRO RÁPIDO */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4 h-fit">
-              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
-                <Plus size={16} className="text-emerald-600" /> Novo Parâmetro (Modalidade)
-              </h3>
+          {/* SUBPÁGINA 1: FILIAIS / ROTAS & REGIÕES */}
+          {activeSubParam === 'rotas' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* FORMULÁRIO DE CADASTRO RÁPIDO ROTAS */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4 h-fit">
+                <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <Plus size={16} className="text-emerald-600" /> Nova Regra (Filial/Rota $\rightarrow$ Região)
+                </h3>
 
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
-                    Código do Modal (CODMODAL)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: RD1, EAL, CD0..."
-                    value={newCodModal}
-                    onChange={(e) => setNewCodModal(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500 font-mono uppercase"
-                  />
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                      Filial / Rota
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 710, 994-EC1 CE SOBRAL..."
+                      value={newFilialRota}
+                      onChange={(e) => setNewFilialRota(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                      Destino / Descrição
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 710-Fortaleza QUA - SAB, SOBRAL..."
+                      value={newDestino}
+                      onChange={(e) => setNewDestino(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500 font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                      Região
+                    </label>
+                    <select
+                      value={newRegiao}
+                      onChange={(e) => setNewRegiao(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500 font-bold bg-white cursor-pointer uppercase"
+                    >
+                      <option value="INTERIOR">INTERIOR</option>
+                      <option value="CAPITAL">CAPITAL</option>
+                      <option value="METROPOLITANA">METROPOLITANA</option>
+                      <option value="ABASTECIMENTO CDs">ABASTECIMENTO CDs</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddRotaParam}
+                    disabled={!newFilialRota.trim() || !newDestino.trim()}
+                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Save size={14} />
+                    <span>Salvar Parâmetro de Rota</span>
+                  </button>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
-                    Modalidade Atribuída
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: RODOVIARIO, ABA, COURRIER..."
-                    value={newModalidade}
-                    onChange={(e) => setNewModalidade(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500 font-bold uppercase"
-                  />
-                  <div className="flex gap-1.5 mt-2 flex-wrap">
-                    {['RODOVIARIO', 'ABA', 'COURRIER', 'TRANSFERENCIA'].map(sug => (
-                      <button
-                        key={sug}
-                        type="button"
-                        onClick={() => setNewModalidade(sug)}
-                        className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
-                      >
-                        + {sug}
-                      </button>
-                    ))}
+              {/* TABELA DE GERENCIAMENTO DE FILIAIS/ROTAS */}
+              <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900">Mapeamento (Filial/Rotas $\rightarrow$ Destino & Região)</h3>
+                    <p className="text-xs text-slate-500">Total de {filialRotaParams.length} regras cadastradas.</p>
+                  </div>
+
+                  <div className="relative w-full sm:w-64">
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Filtrar filial, destino ou região..."
+                      value={searchRotaParam}
+                      onChange={(e) => setSearchRotaParam(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                    />
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleAddParam}
-                  disabled={!newCodModal.trim() || !newModalidade.trim()}
-                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Save size={14} />
-                  <span>Salvar Regra de Modalidade</span>
-                </button>
-              </div>
-
-              {/* CARD DE INFORMAÇÕES DE NOVOS CAMPOS FUTUROS */}
-              <div className="pt-3 border-t border-slate-100 space-y-2">
-                <span className="text-[10.5px] font-bold text-slate-500 flex items-center gap-1">
-                  <Sliders size={13} className="text-indigo-600" /> Próximos Parâmetros Auxiliares
-                </span>
-                <p className="text-[11px] text-slate-400">
-                  Novas regras de agregação (ex: Faixa de Prazos, Linha Ajustada, Prioridades de Expedição) poderão ser criadas aqui conforme sua definição.
-                </p>
-              </div>
-            </div>
-
-            {/* CARD 2 E 3: TABELA DE GERENCIAMENTO E EDIÇÃO DOS PARÂMETROS */}
-            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col">
-              <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
-                <div>
-                  <h3 className="text-sm font-black text-slate-900">Tabela de Mapeamento (CODMODAL $\rightarrow$ MODALIDADE)</h3>
-                  <p className="text-xs text-slate-500">Edite os valores em linha ou adicione novos códigos.</p>
-                </div>
-
-                <div className="relative w-full sm:w-64">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Filtrar código ou modalidade..."
-                    value={searchParam}
-                    onChange={(e) => setSearchParam(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="overflow-x-auto max-h-[500px]">
-                <table className="w-full text-xs text-left border-collapse">
-                  <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-slate-500 text-[10.5px] font-bold uppercase">
-                    <tr>
-                      <th className="py-2.5 px-4 w-12 text-center">#</th>
-                      <th className="py-2.5 px-4">CODMODAL</th>
-                      <th className="py-2.5 px-4">MODALIDADE</th>
-                      <th className="py-2.5 px-4 text-center w-28">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredParams.length === 0 ? (
+                <div className="overflow-x-auto max-h-[520px]">
+                  <table className="w-full text-xs text-left border-collapse">
+                    <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-slate-500 text-[10.5px] font-bold uppercase">
                       <tr>
-                        <td colSpan={4} className="py-8 text-center text-slate-400">
-                          Nenhum parâmetro encontrado.
-                        </td>
+                        <th className="py-2.5 px-4 w-12 text-center">#</th>
+                        <th className="py-2.5 px-4">Filial / Rota</th>
+                        <th className="py-2.5 px-4">Destino</th>
+                        <th className="py-2.5 px-4 text-center">Região</th>
+                        <th className="py-2.5 px-4 text-center w-24">Ações</th>
                       </tr>
-                    ) : (
-                      filteredParams.map((param, idx) => {
-                        const isEditing = editingIndex === idx
-                        return (
-                          <tr key={param.codmodal} className="hover:bg-slate-50/60 transition-colors">
-                            <td className="py-2.5 px-4 text-center text-slate-400 font-mono text-[10px]">
-                              {idx + 1}
-                            </td>
-                            <td className="py-2.5 px-4 font-mono font-bold text-blue-700">
-                              {param.codmodal}
-                            </td>
-                            <td className="py-2.5 px-4 font-semibold text-slate-800">
-                              {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={editingModalidade}
-                                  onChange={(e) => setEditingModalidade(e.target.value.toUpperCase())}
-                                  className="px-2 py-0.5 text-xs border border-blue-400 rounded focus:outline-hidden font-bold"
-                                  autoFocus
-                                />
-                              ) : (
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${param.modalidade === 'RODOVIARIO' ? 'bg-blue-100 text-blue-800' :
-                                    param.modalidade === 'ABA' ? 'bg-emerald-100 text-emerald-800' :
-                                      param.modalidade === 'COURRIER' ? 'bg-amber-100 text-amber-800' :
-                                        'bg-purple-100 text-purple-800'
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredRotaParams.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-8 text-center text-slate-400">
+                            Nenhum parâmetro de rota encontrado.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredRotaParams.map((param, idx) => {
+                          const isEditing = editingRotaIndex === idx
+                          return (
+                            <tr key={`${param.filialRota}-${idx}`} className="hover:bg-slate-50/60 transition-colors">
+                              <td className="py-2.5 px-4 text-center text-slate-400 font-mono text-[10px]">
+                                {idx + 1}
+                              </td>
+                              <td className="py-2.5 px-4 font-mono font-bold text-slate-900 truncate max-w-[200px]" title={param.filialRota}>
+                                {param.filialRota}
+                              </td>
+                              <td className="py-2.5 px-4 font-medium text-slate-800">
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    value={editingRotaDestino}
+                                    onChange={(e) => setEditingRotaDestino(e.target.value)}
+                                    className="px-2 py-0.5 text-xs border border-blue-400 rounded focus:outline-hidden font-medium w-full"
+                                    autoFocus
+                                  />
+                                ) : (
+                                  param.destino
+                                )}
+                              </td>
+                              <td className="py-2.5 px-4 text-center">
+                                {isEditing ? (
+                                  <select
+                                    value={editingRotaRegiao}
+                                    onChange={(e) => setEditingRotaRegiao(e.target.value)}
+                                    className="px-2 py-0.5 text-xs border border-blue-400 rounded focus:outline-hidden font-bold"
+                                  >
+                                    <option value="INTERIOR">INTERIOR</option>
+                                    <option value="CAPITAL">CAPITAL</option>
+                                    <option value="METROPOLITANA">METROPOLITANA</option>
+                                    <option value="ABASTECIMENTO CDs">ABASTECIMENTO CDs</option>
+                                  </select>
+                                ) : (
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                    param.regiao === 'CAPITAL' ? 'bg-cyan-100 text-cyan-800' :
+                                    param.regiao === 'METROPOLITANA' ? 'bg-indigo-100 text-indigo-800' :
+                                    param.regiao === 'INTERIOR' ? 'bg-emerald-100 text-emerald-800' :
+                                    'bg-amber-100 text-amber-800'
                                   }`}>
-                                  {param.modalidade}
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-2.5 px-4 text-center">
-                              {isEditing ? (
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSaveEdit(idx)}
-                                    className="p-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
-                                    title="Salvar alteração"
-                                  >
-                                    <Save size={13} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingIndex(null)}
-                                    className="p-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
-                                    title="Cancelar"
-                                  >
-                                    <X size={13} />
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setEditingIndex(idx)
-                                      setEditingModalidade(param.modalidade)
-                                    }}
-                                    className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
-                                    title="Editar modalidade"
-                                  >
-                                    <Edit2 size={13} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteParam(param.codmodal)}
-                                    className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
-                                    title="Excluir regra"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      })
-                    )}
-                  </tbody>
-                </table>
+                                    {param.regiao}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-4 text-center">
+                                {isEditing ? (
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveRotaEdit(idx)}
+                                      className="p-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                                      title="Salvar alteração"
+                                    >
+                                      <Save size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingRotaIndex(null)}
+                                      className="p-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
+                                      title="Cancelar"
+                                    >
+                                      <X size={13} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingRotaIndex(idx)
+                                        setEditingRotaDestino(param.destino)
+                                        setEditingRotaRegiao(param.regiao)
+                                      }}
+                                      className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
+                                      title="Editar parâmetro"
+                                    >
+                                      <Edit2 size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteRotaParam(param.filialRota)}
+                                      className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                                      title="Excluir regra"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* SUBPÁGINA 2: MODALIDADES */}
+          {activeSubParam === 'modal' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* CARD 1: FORMULÁRIO DE CADASTRO RÁPIDO */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4 h-fit">
+                <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <Plus size={16} className="text-emerald-600" /> Novo Parâmetro (Modalidade)
+                </h3>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                      Código do Modal (CODMODAL)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: RD1, EAL, CD0..."
+                      value={newCodModal}
+                      onChange={(e) => setNewCodModal(e.target.value.toUpperCase())}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500 font-mono uppercase"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                      Modalidade Atribuída
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: RODOVIARIO, ABA, COURRIER..."
+                      value={newModalidade}
+                      onChange={(e) => setNewModalidade(e.target.value.toUpperCase())}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500 font-bold uppercase"
+                    />
+                    <div className="flex gap-1.5 mt-2 flex-wrap">
+                      {['RODOVIARIO', 'ABA', 'COURRIER', 'TRANSFERENCIA'].map(sug => (
+                        <button
+                          key={sug}
+                          type="button"
+                          onClick={() => setNewModalidade(sug)}
+                          className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
+                        >
+                          + {sug}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddParam}
+                    disabled={!newCodModal.trim() || !newModalidade.trim()}
+                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Save size={14} />
+                    <span>Salvar Regra de Modalidade</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* CARD 2 E 3: TABELA DE GERENCIAMENTO E EDIÇÃO DOS PARÂMETROS */}
+              <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900">Tabela de Mapeamento (CODMODAL $\rightarrow$ MODALIDADE)</h3>
+                    <p className="text-xs text-slate-500">Edite os valores em linha ou adicione novos códigos.</p>
+                  </div>
+
+                  <div className="relative w-full sm:w-64">
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Filtrar código ou modalidade..."
+                      value={searchParam}
+                      onChange={(e) => setSearchParam(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto max-h-[500px]">
+                  <table className="w-full text-xs text-left border-collapse">
+                    <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-slate-500 text-[10.5px] font-bold uppercase">
+                      <tr>
+                        <th className="py-2.5 px-4 w-12 text-center">#</th>
+                        <th className="py-2.5 px-4">CODMODAL</th>
+                        <th className="py-2.5 px-4">MODALIDADE</th>
+                        <th className="py-2.5 px-4 text-center w-28">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredParams.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-slate-400">
+                            Nenhum parâmetro encontrado.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredParams.map((param, idx) => {
+                          const isEditing = editingIndex === idx
+                          return (
+                            <tr key={param.codmodal} className="hover:bg-slate-50/60 transition-colors">
+                              <td className="py-2.5 px-4 text-center text-slate-400 font-mono text-[10px]">
+                                {idx + 1}
+                              </td>
+                              <td className="py-2.5 px-4 font-mono font-bold text-blue-700">
+                                {param.codmodal}
+                              </td>
+                              <td className="py-2.5 px-4 font-semibold text-slate-800">
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    value={editingModalidade}
+                                    onChange={(e) => setEditingModalidade(e.target.value.toUpperCase())}
+                                    className="px-2 py-0.5 text-xs border border-blue-400 rounded focus:outline-hidden font-bold"
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${param.modalidade === 'RODOVIARIO' ? 'bg-blue-100 text-blue-800' :
+                                      param.modalidade === 'ABA' ? 'bg-emerald-100 text-emerald-800' :
+                                        param.modalidade === 'COURRIER' ? 'bg-amber-100 text-amber-800' :
+                                          'bg-purple-100 text-purple-800'
+                                    }`}>
+                                    {param.modalidade}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-4 text-center">
+                                {isEditing ? (
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveEdit(idx)}
+                                      className="p-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                                      title="Salvar alteração"
+                                    >
+                                      <Save size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingIndex(null)}
+                                      className="p-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
+                                      title="Cancelar"
+                                    >
+                                      <X size={13} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingIndex(idx)
+                                        setEditingModalidade(param.modalidade)
+                                      }}
+                                      className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
+                                      title="Editar modalidade"
+                                    >
+                                      <Edit2 size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteParam(param.codmodal)}
+                                      className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                                      title="Excluir regra"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

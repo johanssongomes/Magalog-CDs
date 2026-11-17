@@ -56,6 +56,8 @@ export interface PcpItem {
   dt_hr_libfat?: string
   faixa_dias_reduzida?: string
   modalidade_calc?: string // Coluna auxiliar dinâmica baseada no CODMODAL
+  destino_calc?: string    // Coluna auxiliar dinâmica baseada em Filial/Rotas
+  regiao_calc?: string     // Coluna auxiliar dinâmica baseada em Filial/Rotas
   created_at?: string
 }
 
