@@ -69,6 +69,15 @@ const ALL_NAVIGATION_TARGETS: NavigationTarget[] = [
     keywords: ['supply', 'lojas', 'suprimentos', 'abastecimento', 'loja', 'filiais']
   },
   {
+    id: 'nav-pcp-js-martins',
+    title: "PCP J'S Martins",
+    subtitle: 'Planejamento, Controle e Programação da Produção & Logística',
+    category: 'Módulos Principais',
+    tabId: 'pcp-js-martins',
+    icon: <Store size={18} className="text-indigo-500" />,
+    keywords: ['pcp', 'js martins', 'planejamento', 'programacao', 'controle', 'capacidade', 's&op']
+  },
+  {
     id: 'nav-catalog',
     title: 'Equipamentos',
     subtitle: 'Gestão, controle e manutenção de equipamentos dos CDs',

@@ -22,7 +22,8 @@ import {
   CalendarDays,
   Bell,
   SlidersHorizontal,
-  Store
+  Store,
+  Cpu
 } from 'lucide-react'
 import { useAuth } from '../lib/authContext'
 import { OnlineUsersModal } from './OnlineUsersModal'
@@ -65,6 +66,12 @@ export const navItems: NavItem[] = [
     label: 'Supply Lojas',
     description: 'Gestão Logística e Abastecimento de Lojas',
     icon: <Store size={20} />
+  },
+  {
+    id: 'pcp-js-martins',
+    label: "PCP J'S Martins",
+    description: 'Planejamento, Controle e Programação da Produção & Logística',
+    icon: <Cpu size={20} />
   },
   {
     id: 'catalog',

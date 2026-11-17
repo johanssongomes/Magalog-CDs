@@ -130,6 +130,10 @@ export const AVAILABLE_SUBPAGES: { id: string; pageId: string; label: string }[]
   { id: 'sub-supply-painel', pageId: 'supply-lojas', label: 'Supply • Painel Supply' },
   { id: 'sub-supply-dashboard', pageId: 'supply-lojas', label: 'Supply • Dashboard' },
   { id: 'sub-supply-relatorio', pageId: 'supply-lojas', label: 'Supply • Relatório Supply' },
+  // PCP J'S Martins
+  { id: 'sub-pcp-planejamento', pageId: 'pcp-js-martins', label: "PCP • Planejamento" },
+  { id: 'sub-pcp-programacao', pageId: 'pcp-js-martins', label: "PCP • Programação" },
+  { id: 'sub-pcp-controle', pageId: 'pcp-js-martins', label: "PCP • Controle & Acompanhamento" },
   // Agenda & Reuniões
   { id: 'sub-agenda-overview', pageId: 'agenda', label: 'Agenda • Visão Geral' },
   { id: 'sub-agenda-calendar', pageId: 'agenda', label: 'Agenda • Calendário' },
@@ -143,25 +147,25 @@ export const AVAILABLE_SUBPAGES: { id: string; pageId: string; label: string }[]
 export const getDefaultPagesForCargo = (cargo: string): string[] => {
   const c = (cargo || '').trim().toUpperCase()
   if (c === 'ADMIN' || c === 'ADMINISTRADOR' || c.startsWith('ADMIN ') || c.endsWith(' ADMIN') || c.includes('DIRETOR')) {
-    return ['dashboard', 'performance', 'supply-lojas', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'settings', 'links', 'users']
+    return ['dashboard', 'performance', 'supply-lojas', 'pcp-js-martins', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'settings', 'links', 'users']
   }
   if (c.includes('GERENTE')) {
-    return ['dashboard', 'performance', 'supply-lojas', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'links']
+    return ['dashboard', 'performance', 'supply-lojas', 'pcp-js-martins', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'links']
   }
   if (c.includes('COORDENADOR')) {
-    return ['dashboard', 'performance', 'supply-lojas', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'links']
+    return ['dashboard', 'performance', 'supply-lojas', 'pcp-js-martins', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'links']
   }
   if (c.includes('SUPERVISOR')) {
-    return ['dashboard', 'performance', 'supply-lojas', 'catalog', 'pmts', 'agenda', 'inventory', 'links']
+    return ['dashboard', 'performance', 'supply-lojas', 'pcp-js-martins', 'catalog', 'pmts', 'agenda', 'inventory', 'links']
   }
   if (c.includes('LIDER') || c.includes('LÍDER')) {
-    return ['dashboard', 'performance', 'supply-lojas', 'catalog', 'agenda', 'inventory', 'links']
+    return ['dashboard', 'performance', 'supply-lojas', 'pcp-js-martins', 'catalog', 'agenda', 'inventory', 'links']
   }
   if (c.includes('ANALISTA') || c.includes('CONSULTOR')) {
-    return ['dashboard', 'performance', 'supply-lojas', 'pmts', 'agenda', 'inventory', 'links']
+    return ['dashboard', 'performance', 'supply-lojas', 'pcp-js-martins', 'pmts', 'agenda', 'inventory', 'links']
   }
   // Conferentes, Operadores, Assistentes, Médicos, etc.
-  return ['dashboard', 'performance', 'supply-lojas', 'agenda', 'inventory', 'links']
+  return ['dashboard', 'performance', 'supply-lojas', 'pcp-js-martins', 'agenda', 'inventory', 'links']
 }
 
 // Subpáginas padrão por cargo (apenas das páginas às quais o cargo tem acesso)
@@ -171,13 +175,13 @@ export const getDefaultSubpagesForCargo = (cargo: string): string[] => {
 }
 
 export const DEFAULT_ROLE_PAGES: Record<string, string[]> = {
-  admin: ['dashboard', 'performance', 'supply-lojas', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'settings', 'links', 'users'],
-  gerente: ['dashboard', 'performance', 'supply-lojas', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'links'],
-  coordenador: ['dashboard', 'performance', 'supply-lojas', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'links'],
-  supervisor: ['dashboard', 'performance', 'supply-lojas', 'catalog', 'pmts', 'agenda', 'inventory', 'links'],
-  lider: ['dashboard', 'performance', 'supply-lojas', 'catalog', 'agenda', 'inventory', 'links'],
-  bp: ['dashboard', 'performance', 'supply-lojas', 'pmts', 'agenda', 'inventory', 'links'],
-  colaborador: ['dashboard', 'performance', 'supply-lojas', 'agenda', 'inventory', 'links']
+  admin: ['dashboard', 'performance', 'supply-lojas', 'pcp-js-martins', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'settings', 'links', 'users'],
+  gerente: ['dashboard', 'performance', 'supply-lojas', 'pcp-js-martins', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'links'],
+  coordenador: ['dashboard', 'performance', 'supply-lojas', 'pcp-js-martins', 'catalog', 'pmts', 'agenda', 'budget', 'inventory', 'links'],
+  supervisor: ['dashboard', 'performance', 'supply-lojas', 'pcp-js-martins', 'catalog', 'pmts', 'agenda', 'inventory', 'links'],
+  lider: ['dashboard', 'performance', 'supply-lojas', 'pcp-js-martins', 'catalog', 'agenda', 'inventory', 'links'],
+  bp: ['dashboard', 'performance', 'supply-lojas', 'pcp-js-martins', 'pmts', 'agenda', 'inventory', 'links'],
+  colaborador: ['dashboard', 'performance', 'supply-lojas', 'pcp-js-martins', 'agenda', 'inventory', 'links']
 }
 
 export const mapCargoToValidRole = (cargo: string): string => {

@@ -3,6 +3,7 @@ import { Sidebar, navItems } from './components/Sidebar'
 import { BlankPage } from './components/BlankPage'
 import { PerformancePage } from './components/PerformancePage'
 import { SupplyLojasPage } from './components/SupplyLojasPage'
+import { PcpJsMartinsPage } from './components/PcpJsMartinsPage'
 import { DashboardPage } from './components/DashboardPage'
 import { EquipmentsPage } from './components/EquipmentsPage'
 import { BankHoursPage } from './components/BankHoursPage'
@@ -177,6 +178,7 @@ function AppContent() {
               {activeTab === 'catalog' && <EquipmentsPage />}
               {activeTab === 'performance' && <PerformancePage />}
               {activeTab === 'supply-lojas' && <SupplyLojasPage />}
+              {activeTab === 'pcp-js-martins' && <PcpJsMartinsPage />}
               {activeTab === 'budget' && <BudgetManagementPage />}
               {activeTab === 'inventory' && <BankHoursPage />}
               {(activeTab === 'pmts' || activeTab === 'reports') && <PmtsPage />}
@@ -185,7 +187,7 @@ function AppContent() {
               {activeTab === 'agenda' && <CorporateAgendaPage />}
               {activeTab === 'users' && <UsersManagementPage />}
               {activeTab === 'profile' && <ProfilePage />}
-              {activeTab !== 'dashboard' && activeTab !== 'catalog' && activeTab !== 'performance' && activeTab !== 'supply-lojas' && activeTab !== 'budget' && activeTab !== 'inventory' && activeTab !== 'pmts' && activeTab !== 'reports' && activeTab !== 'settings' && activeTab !== 'central-operacional' && activeTab !== 'links' && activeTab !== 'agenda' && activeTab !== 'users' && activeTab !== 'profile' && (
+              {activeTab !== 'dashboard' && activeTab !== 'catalog' && activeTab !== 'performance' && activeTab !== 'supply-lojas' && activeTab !== 'pcp-js-martins' && activeTab !== 'budget' && activeTab !== 'inventory' && activeTab !== 'pmts' && activeTab !== 'reports' && activeTab !== 'settings' && activeTab !== 'central-operacional' && activeTab !== 'links' && activeTab !== 'agenda' && activeTab !== 'users' && activeTab !== 'profile' && (
                 <BlankPage 
                   title={activeItem.label} 
                   description={`Esta é a ${activeItem.description}. Você pode preencher este espaço com componentes, listas e formulários conforme desenvolver a aplicação.`} 

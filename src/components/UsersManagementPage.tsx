@@ -49,13 +49,15 @@ import {
   Download,
   Loader2,
   FolderOpen,
-  Store
+  Store,
+  Cpu
 } from 'lucide-react'
 
 const AVAILABLE_PAGES = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} /> },
   { id: 'performance', label: 'Performance', icon: <Zap size={14} /> },
   { id: 'supply-lojas', label: 'Supply Lojas', icon: <Store size={14} /> },
+  { id: 'pcp-js-martins', label: "PCP J'S Martins", icon: <Cpu size={14} /> },
   { id: 'catalog', label: 'Equipamentos', icon: <FolderKanban size={14} /> },
   { id: 'pmts', label: 'Gestão 360°', icon: <BarChart3 size={14} /> },
   { id: 'agenda', label: 'Agenda & Reuniões', icon: <CalendarDays size={14} /> },
