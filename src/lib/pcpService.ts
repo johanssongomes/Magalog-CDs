@@ -39,12 +39,20 @@ export interface PcpItem {
   descricaomodal?: string
   status_operacao?: string
   operacao?: string
+  dtalter?: string
   cub_tot?: number
   pesoliq?: number
   precounit?: number
   vltotal?: number
   qtped?: number
+  flag_estorno_caixa?: string
+  n?: string
+  turnoagendado?: string
   dtentregaagendada?: string
+  cod_vendedor?: string
+  prazo_entrega?: string
+  data_entrega_prevista?: string
+  cep_entrega?: string
   dt_hr_libfat?: string
   faixa_dias_reduzida?: string
   created_at?: string

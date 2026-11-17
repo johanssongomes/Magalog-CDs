@@ -27,6 +27,63 @@ import { supabase } from '../lib/supabase'
 import { getPcpItemsReport, type PcpItem } from '../lib/pcpService'
 import initialSampleRows from '../data/pcp_initial_sample.json'
 
+// Definição das 53 Colunas Oficiais da Planilha PCP J'S MARTINS.xlsx
+export const PCP_COLUMNS: Array<{ key: keyof PcpItem; label: string; width?: string; align?: 'left' | 'center' | 'right'; type?: 'num' | 'cur' | 'date' | 'str' }> = [
+  { key: 'filorig', label: 'FILORIG', width: 'w-20', align: 'center' },
+  { key: 'codfil', label: 'CODFIL', width: 'w-20', align: 'center' },
+  { key: 'filentrega', label: 'FILENTREGA', width: 'w-24', align: 'center' },
+  { key: 'numlote', label: 'NUMLOTE', width: 'w-24' },
+  { key: 'fllibfat', label: 'FLLIBFAT', width: 'w-20', align: 'center' },
+  { key: 'tpnota', label: 'TPNOTA', width: 'w-20', align: 'center' },
+  { key: 'numpedven', label: 'NUMPEDVEN', width: 'w-28' },
+  { key: 'numpedcomp', label: 'NUMPEDCOMP', width: 'w-28' },
+  { key: 'dtpedido', label: 'DTPEDIDO', width: 'w-24' },
+  { key: 'dtentrega', label: 'DTENTREGA', width: 'w-24' },
+  { key: 'dtlibfat', label: 'DTLIBFAT', width: 'w-24' },
+  { key: 'preventrega', label: 'PREVENTREGA', width: 'w-24' },
+  { key: 'item', label: 'ITEM', width: 'w-24' },
+  { key: 'ibm', label: 'IBM', width: 'w-28' },
+  { key: 'descricao', label: 'DESCRICAO', width: 'min-w-[260px]' },
+  { key: 'ref', label: 'REF', width: 'w-28' },
+  { key: 'fantasia', label: 'FANTASIA', width: 'w-36' },
+  { key: 'qtcomp', label: 'QTCOMP', width: 'w-20', align: 'right', type: 'num' },
+  { key: 'fisico', label: 'FISICO', width: 'w-20', align: 'right', type: 'num' },
+  { key: 'resfis', label: 'RESFIS', width: 'w-20', align: 'right', type: 'num' },
+  { key: 'logico', label: 'LOGICO', width: 'w-20', align: 'right', type: 'num' },
+  { key: 'reslog', label: 'RESLOG', width: 'w-20', align: 'right', type: 'num' },
+  { key: 'tecnico', label: 'TECNICO', width: 'w-20', align: 'right', type: 'num' },
+  { key: 'futuro', label: 'FUTURO', width: 'w-20', align: 'right', type: 'num' },
+  { key: 'transito', label: 'TRANSITO', width: 'w-20', align: 'right', type: 'num' },
+  { key: 'status', label: 'STATUS', width: 'w-24' },
+  { key: 'situacao', label: 'SITUACAO', width: 'w-28' },
+  { key: 'linha', label: 'LINHA', width: 'w-44' },
+  { key: 'linha_ajustada', label: 'LINHA_AJUSTADA', width: 'w-44' },
+  { key: 'nucleo', label: 'NUCLEO', width: 'w-32' },
+  { key: 'familia', label: 'FAMILIA', width: 'w-32' },
+  { key: 'codrota', label: 'CODROTA', width: 'w-24' },
+  { key: 'descricaorota', label: 'DESCRICAOROTA', width: 'w-48' },
+  { key: 'codmodal', label: 'CODMODAL', width: 'w-24' },
+  { key: 'descricaomodal', label: 'DESCRICAOMODAL', width: 'w-36' },
+  { key: 'status_operacao', label: 'STATUS_OPERACAO', width: 'w-32', align: 'center' },
+  { key: 'operacao', label: 'OPERACAO', width: 'w-28' },
+  { key: 'dtalter', label: 'DTALTER', width: 'w-24' },
+  { key: 'cub_tot', label: 'CUB_TOT', width: 'w-24', align: 'right', type: 'num' },
+  { key: 'pesoliq', label: 'PESOLIQ', width: 'w-24', align: 'right', type: 'num' },
+  { key: 'precounit', label: 'PRECOUNIT', width: 'w-24', align: 'right', type: 'cur' },
+  { key: 'vltotal', label: 'VLTOTAL', width: 'w-28', align: 'right', type: 'cur' },
+  { key: 'qtped', label: 'QTPED', width: 'w-20', align: 'right', type: 'num' },
+  { key: 'flag_estorno_caixa', label: 'FLAG_ESTORNO_CAIXA', width: 'w-28' },
+  { key: 'n', label: 'N', width: 'w-16', align: 'center' },
+  { key: 'turnoagendado', label: 'TURNOAGENDADO', width: 'w-24', align: 'center' },
+  { key: 'dtentregaagendada', label: 'DTENTREGAAGENDADA', width: 'w-28' },
+  { key: 'cod_vendedor', label: 'COD_VENDEDOR', width: 'w-24' },
+  { key: 'prazo_entrega', label: 'PRAZO_ENTREGA', width: 'w-24' },
+  { key: 'data_entrega_prevista', label: 'DATA_ENTREGA_PREVISTA', width: 'w-28' },
+  { key: 'cep_entrega', label: 'CEP_ENTREGA', width: 'w-24' },
+  { key: 'dt_hr_libfat', label: 'DT_HR_LIBFAT', width: 'w-28' },
+  { key: 'faixa_dias_reduzida', label: 'FAIXA_DIAS_REDUZIDA', width: 'w-28' }
+]
+
 export const PcpJsMartinsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'planejamento' | 'programacao' | 'controle'>('controle')
 
@@ -106,24 +163,59 @@ export const PcpJsMartinsPage: React.FC = () => {
         const from = (p - 1) * pageSize
         const slice = filtered.slice(from, from + pageSize).map((r: any, idx) => ({
           id: idx + from + 1,
-          item: String(r.item || r.ITEM || ''),
-          descricao: String(r.descricao || r.DESCRICAO || ''),
-          ibm: String(r.ibm || r.IBM || ''),
-          fantasia: String(r.fantasia || r.FANTASIA || ''),
-          filentrega: Number(r.filentrega || r.FILENTREGA) || 0,
           filorig: Number(r.filorig || r.FILORIG) || 994,
-          status_operacao: String(r.status_operacao || r.STATUS_OPERACAO || 'EM PROCESSO'),
-          linha: String(r.linha || r.LINHA || ''),
+          codfil: Number(r.codfil || r.CODFIL) || 994,
+          filentrega: Number(r.filentrega || r.FILENTREGA) || 0,
+          numlote: String(r.numlote || r.NUMLOTE || ''),
+          fllibfat: String(r.fllibfat || r.FLLIBFAT || ''),
+          tpnota: Number(r.tpnota || r.TPNOTA) || 0,
           numpedven: String(r.numpedven || r.NUMPEDVEN || ''),
-          cub_tot: Number(r.cub_tot || r.CUB_TOT) || 0,
-          vltotal: Number(r.vltotal || r.VLTOTAL) || 0,
+          numpedcomp: String(r.numpedcomp || r.NUMPEDCOMP || ''),
+          dtpedido: String(r.dtpedido || r.DTPEDIDO || ''),
+          dtentrega: String(r.dtentrega || r.DTENTREGA || ''),
+          dtlibfat: String(r.dtlibfat || r.DTLIBFAT || ''),
+          preventrega: String(r.preventrega || r.PREVENTREGA || ''),
+          item: String(r.item || r.ITEM || ''),
+          ibm: String(r.ibm || r.IBM || ''),
+          descricao: String(r.descricao || r.DESCRICAO || ''),
+          ref: String(r.ref || r.REF || ''),
+          fantasia: String(r.fantasia || r.FANTASIA || ''),
+          qtcomp: Number(r.qtcomp || r.QTCOMP) || 0,
           fisico: Number(r.fisico || r.FISICO) || 0,
+          resfis: Number(r.resfis || r.RESFIS) || 0,
           logico: Number(r.logico || r.LOGICO) || 0,
           reslog: Number(r.reslog || r.RESLOG) || 0,
+          tecnico: Number(r.tecnico || r.TECNICO) || 0,
+          futuro: Number(r.futuro || r.FUTURO) || 0,
           transito: Number(r.transito || r.TRANSITO) || 0,
-          precounit: Number(r.precounit || r.PRECOUNIT) || 0,
+          status: String(r.status || r.STATUS || ''),
+          situacao: String(r.situacao || r.SITUACAO || ''),
+          linha: String(r.linha || r.LINHA || ''),
+          linha_ajustada: String(r.linha_ajustada || r.LINHA_AJUSTADA || ''),
+          nucleo: String(r.nucleo || r.NUCLEO || ''),
+          familia: String(r.familia || r.FAMILIA || ''),
+          codrota: String(r.codrota || r.CODROTA || ''),
+          descricaorota: String(r.descricaorota || r.DESCRICAOROTA || ''),
+          codmodal: String(r.codmodal || r.CODMODAL || ''),
+          descricaomodal: String(r.descricaomodal || r.DESCRICAOMODAL || ''),
+          status_operacao: String(r.status_operacao || r.STATUS_OPERACAO || 'EM PROCESSO'),
+          operacao: String(r.operacao || r.OPERACAO || ''),
+          dtalter: String(r.dtalter || r.DTALTER || ''),
+          cub_tot: Number(r.cub_tot || r.CUB_TOT) || 0,
           pesoliq: Number(r.pesoliq || r.PESOLIQ) || 0,
-          dtentrega: String(r.dtentrega || r.DTENTREGA || '')
+          precounit: Number(r.precounit || r.PRECOUNIT) || 0,
+          vltotal: Number(r.vltotal || r.VLTOTAL) || 0,
+          qtped: Number(r.qtped || r.QTPED) || 0,
+          flag_estorno_caixa: String(r.flag_estorno_caixa || r.FLAG_ESTORNO_CAIXA || ''),
+          n: String(r.n || r.N || ''),
+          turnoagendado: String(r.turnoagendado || r.TURNOAGENDADO || ''),
+          dtentregaagendada: String(r.dtentregaagendada || r.DTENTREGAAGENDADA || ''),
+          cod_vendedor: String(r.cod_vendedor || r.COD_VENDEDOR || ''),
+          prazo_entrega: String(r.prazo_entrega || r.PRAZO_ENTREGA || ''),
+          data_entrega_prevista: String(r.data_entrega_prevista || r.DATA_ENTREGA_PREVISTA || ''),
+          cep_entrega: String(r.cep_entrega || r.CEP_ENTREGA || ''),
+          dt_hr_libfat: String(r.dt_hr_libfat || r.DT_HR_LIBFAT || ''),
+          faixa_dias_reduzida: String(r.faixa_dias_reduzida || r.FAIXA_DIAS_REDUZIDA || '')
         }))
         setItems(slice)
       }
@@ -222,12 +314,20 @@ export const PcpJsMartinsPage: React.FC = () => {
         descricaomodal: r.DESCRICAOMODAL ? String(r.DESCRICAOMODAL) : null,
         status_operacao: r.STATUS_OPERACAO ? String(r.STATUS_OPERACAO) : 'EM PROCESSO',
         operacao: r.OPERACAO ? String(r.OPERACAO) : null,
+        dtalter: r.DTALTER ? String(r.DTALTER) : null,
         cub_tot: Number(r.CUB_TOT) || 0,
         pesoliq: Number(r.PESOLIQ) || 0,
         precounit: Number(r.PRECOUNIT) || 0,
         vltotal: Number(r.VLTOTAL) || 0,
         qtped: Number(r.QTPED) || 0,
+        flag_estorno_caixa: r.FLAG_ESTORNO_CAIXA ? String(r.FLAG_ESTORNO_CAIXA) : null,
+        n: r.N ? String(r.N) : null,
+        turnoagendado: r.TURNOAGENDADO ? String(r.TURNOAGENDADO) : null,
         dtentregaagendada: r.DTENTREGAAGENDADA ? String(r.DTENTREGAAGENDADA) : null,
+        cod_vendedor: r.COD_VENDEDOR ? String(r.COD_VENDEDOR) : null,
+        prazo_entrega: r.PRAZO_ENTREGA ? String(r.PRAZO_ENTREGA) : null,
+        data_entrega_prevista: r.DATA_ENTREGA_PREVISTA ? String(r.DATA_ENTREGA_PREVISTA) : null,
+        cep_entrega: r.CEP_ENTREGA ? String(r.CEP_ENTREGA) : null,
         dt_hr_libfat: r.DT_HR_LIBFAT ? String(r.DT_HR_LIBFAT) : null,
         faixa_dias_reduzida: r.FAIXA_DIAS_REDUZIDA ? String(r.FAIXA_DIAS_REDUZIDA) : null
       }))
@@ -283,7 +383,7 @@ export const PcpJsMartinsPage: React.FC = () => {
     {
       id: 'controle',
       label: 'Controle & Acompanhamento',
-      subtitle: 'Banco de Dados Operacional (PCP J\'S MARTINS.xlsx)',
+      subtitle: 'Banco de Dados Operacional (53 Colunas • PCP J\'S MARTINS.xlsx)',
       icon: <Database size={15} />
     }
   ] as const
@@ -291,8 +391,38 @@ export const PcpJsMartinsPage: React.FC = () => {
   const currentTabInfo = tabs.find(t => t.id === activeTab) || tabs[0]
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
+  // Renderizador formatado de célula
+  const renderCell = (row: PcpItem, col: typeof PCP_COLUMNS[number]) => {
+    const val = (row as any)[col.key]
+    if (val === null || val === undefined || val === '') return '-'
+
+    if (col.type === 'num') {
+      const num = Number(val)
+      return isNaN(num) ? String(val) : num.toLocaleString('pt-BR')
+    }
+
+    if (col.type === 'cur') {
+      const num = Number(val)
+      return isNaN(num) ? String(val) : `R$ ${num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    }
+
+    if (col.key === 'status_operacao') {
+      return (
+        <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase whitespace-nowrap ${
+          val === 'EM PROCESSO'
+            ? 'bg-amber-100 text-amber-800 border border-amber-200'
+            : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+        }`}>
+          {val}
+        </span>
+      )
+    }
+
+    return String(val)
+  }
+
   return (
-    <div className="p-4 sm:p-6 space-y-5 max-w-[1700px] mx-auto animate-in fade-in duration-300">
+    <div className="p-4 sm:p-6 space-y-5 max-w-[1900px] mx-auto animate-in fade-in duration-300">
       {/* Header Superior */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200">
         <div className="flex items-center gap-3">
@@ -303,7 +433,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-black text-slate-900 tracking-tight">PCP J'S Martins</h1>
               <span className="px-2 py-0.5 text-[10.5px] font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-full flex items-center gap-1">
-                <Database size={11} /> Base Operacional
+                <Database size={11} /> 53 Colunas Operacionais
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">
@@ -321,10 +451,11 @@ export const PcpJsMartinsPage: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  isActive
                     ? 'bg-white text-blue-700 shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                  }`}
+                }`}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
@@ -336,10 +467,11 @@ export const PcpJsMartinsPage: React.FC = () => {
 
       {/* FEEDBACK DE UPLOAD */}
       {uploadFeedback && (
-        <div className={`p-3 rounded-xl border text-xs font-medium flex items-center justify-between gap-2 animate-in fade-in ${uploadFeedback.type === 'success'
+        <div className={`p-3 rounded-xl border text-xs font-medium flex items-center justify-between gap-2 animate-in fade-in ${
+          uploadFeedback.type === 'success'
             ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
             : 'bg-rose-50 border-rose-200 text-rose-800'
-          }`}>
+        }`}>
           <div className="flex items-center gap-2">
             {uploadFeedback.type === 'success' ? <CheckCircle2 size={16} className="text-emerald-600 shrink-0" /> : <AlertCircle size={16} className="text-rose-600 shrink-0" />}
             <span>{uploadFeedback.message}</span>
@@ -349,7 +481,7 @@ export const PcpJsMartinsPage: React.FC = () => {
       )}
 
       {/* ------------------------------------------------------------------ */}
-      {/* ABA 3: CONTROLE & ACOMPANHAMENTO (BASE DE DADOS PCP J'S MARTINS)   */}
+      {/* ABA 3: CONTROLE & ACOMPANHAMENTO (BASE DE DADOS COM AS 53 COLUNAS) */}
       {/* ------------------------------------------------------------------ */}
       {activeTab === 'controle' ? (
         <div className="space-y-4">
@@ -453,6 +585,11 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </select>
               </div>
 
+              {/* Indicador de 53 colunas */}
+              <div className="hidden sm:flex items-center px-2 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold">
+                53 Colunas Exibidas
+              </div>
+
               {/* Botão Recarregar */}
               <button
                 type="button"
@@ -467,10 +604,11 @@ export const PcpJsMartinsPage: React.FC = () => {
               {/* Botão de Upload / Importar PCP J'S MARTINS.xlsx */}
               <label
                 htmlFor="pcp-file-upload"
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all cursor-pointer shadow-2xs ${isUploading
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all cursor-pointer shadow-2xs ${
+                  isUploading
                     ? 'bg-blue-400 cursor-not-allowed'
                     : 'bg-emerald-600 hover:bg-emerald-700'
-                  }`}
+                }`}
                 title="Atualizar base a partir de PCP J'S MARTINS.xlsx"
               >
                 <UploadCloud size={14} />
@@ -487,82 +625,71 @@ export const PcpJsMartinsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* TABELA DE DADOS DA BASE */}
+          {/* TABELA DE DADOS DA BASE COM TODAS AS 53 COLUNAS */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
-            <div className="overflow-x-auto max-h-[600px]">
-              <table className="w-full text-[11px] text-left border-collapse">
-                <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold tracking-wider z-10">
+            <div className="overflow-x-auto max-h-[620px] scrollbar-thin">
+              <table className="w-full text-[11px] text-left border-collapse whitespace-nowrap">
+                <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold tracking-wider z-10 shadow-2xs">
                   <tr>
-                    <th className="py-2.5 px-3">Origem</th>
-                    <th className="py-2.5 px-3">Filial Entrega</th>
-                    <th className="py-2.5 px-3">Pedido Venda</th>
-                    <th className="py-2.5 px-3">Item / SKU</th>
-                    <th className="py-2.5 px-3 min-w-[240px]">Descrição do Produto</th>
-                    <th className="py-2.5 px-3">Fornecedor / Fantasia</th>
-                    <th className="py-2.5 px-3 text-center">Status Operação</th>
-                    <th className="py-2.5 px-3">Linha</th>
-                    <th className="py-2.5 px-3 text-right">Físico</th>
-                    <th className="py-2.5 px-3 text-right">Lógico</th>
-                    <th className="py-2.5 px-3 text-right">Res. Cliente</th>
-                    <th className="py-2.5 px-3 text-right">Trânsito</th>
-                    <th className="py-2.5 px-3 text-right">Cubagem (m³)</th>
-                    <th className="py-2.5 px-3 text-right">Valor Total (R$)</th>
+                    <th className="py-2.5 px-3 bg-slate-100 text-slate-700 text-center w-12 sticky left-0 z-20 border-r border-slate-200">
+                      #
+                    </th>
+                    {PCP_COLUMNS.map((col, cIdx) => (
+                      <th
+                        key={col.key}
+                        className={`py-2.5 px-3 ${col.width || ''} ${
+                          col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
+                        } border-r border-slate-200/60 hover:bg-slate-100 transition-colors`}
+                        title={`Coluna ${cIdx + 1}: ${col.label}`}
+                      >
+                        <span className="text-slate-400 font-normal mr-1 text-[9px]">#{cIdx + 1}</span>
+                        {col.label}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={14} className="py-12 text-center text-slate-400">
-                        <RefreshCw size={24} className="animate-spin mx-auto mb-2 text-blue-600" />
+                      <td colSpan={PCP_COLUMNS.length + 1} className="py-14 text-center text-slate-400">
+                        <RefreshCw size={26} className="animate-spin mx-auto mb-2 text-blue-600" />
                         Carregando registros da base PCP...
                       </td>
                     </tr>
                   ) : items.length === 0 ? (
                     <tr>
-                      <td colSpan={14} className="py-12 text-center text-slate-400">
+                      <td colSpan={PCP_COLUMNS.length + 1} className="py-14 text-center text-slate-400">
                         Nenhum registro encontrado para os filtros selecionados.
                       </td>
                     </tr>
                   ) : (
                     items.map((row, idx) => (
                       <tr key={row.id || idx} className="hover:bg-blue-50/40 transition-colors">
-                        <td className="py-2 px-3 font-semibold text-slate-700">CD {row.filorig || 994}</td>
-                        <td className="py-2 px-3 font-bold text-blue-600">Filial {row.filentrega}</td>
-                        <td className="py-2 px-3 font-mono font-medium text-slate-800">{row.numpedven || '-'}</td>
-                        <td className="py-2 px-3 font-mono font-bold text-slate-900">{row.item}</td>
-                        <td className="py-2 px-3 font-medium text-slate-800 truncate max-w-[280px]" title={row.descricao}>
-                          {row.descricao}
+                        <td className="py-2 px-2.5 text-center font-mono text-[10px] text-slate-400 bg-slate-50/80 sticky left-0 z-10 border-r border-slate-200">
+                          {(page - 1) * pageSize + idx + 1}
                         </td>
-                        <td className="py-2 px-3 text-slate-600 truncate max-w-[160px]" title={row.fantasia}>
-                          {row.fantasia || '-'}
-                        </td>
-                        <td className="py-2 px-3 text-center">
-                          <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase ${row.status_operacao === 'EM PROCESSO'
-                              ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                              : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
-                            }`}>
-                            {row.status_operacao || 'EM PROCESSO'}
-                          </span>
-                        </td>
-                        <td className="py-2 px-3 text-slate-600 truncate max-w-[140px]">{row.linha || '-'}</td>
-                        <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">
-                          {Number(row.fisico || 0).toLocaleString('pt-BR')}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono text-slate-600">
-                          {Number(row.logico || 0).toLocaleString('pt-BR')}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono font-semibold text-pink-600">
-                          {Number(row.reslog || 0).toLocaleString('pt-BR')}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono text-slate-600">
-                          {Number(row.transito || 0).toLocaleString('pt-BR')}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono text-purple-700">
-                          {Number(row.cub_tot || 0).toFixed(3)}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono font-bold text-emerald-700">
-                          R$ {Number(row.vltotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
+                        {PCP_COLUMNS.map(col => (
+                          <td
+                            key={col.key}
+                            className={`py-2 px-3 border-r border-slate-100 ${
+                              col.align === 'right'
+                                ? 'text-right font-mono'
+                                : col.align === 'center'
+                                ? 'text-center'
+                                : 'text-left'
+                            } ${
+                              col.key === 'item' || col.key === 'numpedven' ? 'font-mono font-bold text-slate-900' : ''
+                            } ${
+                              col.key === 'descricao' ? 'font-medium text-slate-800' : 'text-slate-600'
+                            } ${
+                              col.key === 'vltotal' ? 'font-bold text-emerald-700' : ''
+                            } ${
+                              col.key === 'cub_tot' ? 'font-semibold text-purple-700' : ''
+                            }`}
+                          >
+                            {renderCell(row, col)}
+                          </td>
+                        ))}
                       </tr>
                     ))
                   )}
@@ -574,7 +701,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center justify-between p-3 border-t border-slate-200 text-xs text-slate-500 gap-3">
               <div>
                 Exibindo <span className="font-bold text-slate-800">{items.length}</span> de{' '}
-                <span className="font-bold text-slate-800">{totalCount.toLocaleString('pt-BR')}</span> registros
+                <span className="font-bold text-slate-800">{totalCount.toLocaleString('pt-BR')}</span> registros (com todas as 53 colunas originais)
               </div>
 
               <div className="flex items-center gap-2">
