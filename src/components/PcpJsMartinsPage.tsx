@@ -1732,8 +1732,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Tabela estilizada ultra-compacta fiel ao Excel, sem scroll horizontal e com nomes totalmente visíveis */}
-                <div className="max-h-[780px] overflow-y-auto overflow-x-hidden w-full">
+                {/* Tabela estilizada ultra-compacta fiel ao Excel, sem barra de rolagem interna e com nomes totalmente visíveis */}
+                <div className="w-full">
                   <table className="w-full border-collapse font-sans text-white select-none text-[10.5px] table-auto">
                     <thead className="sticky top-0 z-20 bg-[#006699] text-white uppercase text-[9.5px] font-black tracking-wider border-b border-[#0d3b66]">
                       <tr className="divide-x divide-[#004c73]">
