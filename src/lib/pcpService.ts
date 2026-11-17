@@ -55,6 +55,7 @@ export interface PcpItem {
   cep_entrega?: string
   dt_hr_libfat?: string
   faixa_dias_reduzida?: string
+  modalidade_calc?: string // Coluna auxiliar dinâmica baseada no CODMODAL
   created_at?: string
 }
 

@@ -20,14 +20,23 @@ import {
   AlertCircle,
   Truck,
   Boxes,
-  Package
+  Package,
+  Settings2,
+  Plus,
+  Trash2,
+  Edit2,
+  Save,
+  X,
+  Sliders,
+  HelpCircle
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import { getPcpItemsReport, type PcpItem } from '../lib/pcpService'
 import initialSampleRows from '../data/pcp_initial_sample.json'
+import { INITIAL_MODAL_PARAMS, type ModalParamItem } from '../data/pcp_modal_params'
 
-// Definição das 53 Colunas Oficiais da Planilha PCP J'S MARTINS.xlsx
+// Definição das 53 Colunas Oficiais da Planilha PCP J'S MARTINS.xlsx + Coluna Auxiliar Dinâmica
 export const PCP_COLUMNS: Array<{ key: keyof PcpItem; label: string; width?: string; align?: 'left' | 'center' | 'right'; type?: 'num' | 'cur' | 'date' | 'str' }> = [
   { key: 'filorig', label: 'FILORIG', width: 'w-20', align: 'center' },
   { key: 'codfil', label: 'CODFIL', width: 'w-20', align: 'center' },
@@ -63,6 +72,8 @@ export const PCP_COLUMNS: Array<{ key: keyof PcpItem; label: string; width?: str
   { key: 'codrota', label: 'CODROTA', width: 'w-24' },
   { key: 'descricaorota', label: 'DESCRICAOROTA', width: 'w-48' },
   { key: 'codmodal', label: 'CODMODAL', width: 'w-24' },
+  // COLUNA AUXILIAR DINÂMICA ALIMENTADA PELA ABA DE CADASTROS
+  { key: 'modalidade_calc', label: 'MODALIDADE (AUX)', width: 'w-36', align: 'center' },
   { key: 'descricaomodal', label: 'DESCRICAOMODAL', width: 'w-36' },
   { key: 'status_operacao', label: 'STATUS_OPERACAO', width: 'w-32', align: 'center' },
   { key: 'operacao', label: 'OPERACAO', width: 'w-28' },
@@ -85,7 +96,81 @@ export const PCP_COLUMNS: Array<{ key: keyof PcpItem; label: string; width?: str
 ]
 
 export const PcpJsMartinsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'planejamento' | 'programacao' | 'controle'>('controle')
+  const [activeTab, setActiveTab] = useState<'planejamento' | 'programacao' | 'controle' | 'cadastros'>('controle')
+
+  // --------------------------------------------------------------------------
+  // ESTADOS DA ABA CADASTROS AUXILIARES (DE-PARA DE MODAIS & PARÂMETROS)
+  // --------------------------------------------------------------------------
+  const [modalParams, setModalParams] = useState<ModalParamItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_pcp_modal_params')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar parâmetros locais de modal:', e)
+    }
+    return INITIAL_MODAL_PARAMS
+  })
+
+  // Mapa rápido de consulta: CODMODAL -> MODALIDADE
+  const modalMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    modalParams.forEach(p => {
+      const k = (p.codmodal || '').trim().toUpperCase()
+      if (k) map[k] = (p.modalidade || '').trim().toUpperCase()
+    })
+    return map
+  }, [modalParams])
+
+  // Estados de formulário da aba Cadastros Auxiliares
+  const [newCodModal, setNewCodModal] = useState('')
+  const [newModalidade, setNewModalidade] = useState('')
+  const [searchParam, setSearchParam] = useState('')
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [editingModalidade, setEditingModalidade] = useState('')
+
+  // Sincronizar parâmetros com Supabase / LocalStorage
+  const saveModalParams = (list: ModalParamItem[]) => {
+    setModalParams(list)
+    try {
+      localStorage.setItem('magalog_pcp_modal_params', JSON.stringify(list))
+    } catch { }
+  }
+
+  const handleAddParam = () => {
+    const cod = newCodModal.trim().toUpperCase()
+    const mod = newModalidade.trim().toUpperCase()
+    if (!cod || !mod) return
+
+    const existingIdx = modalParams.findIndex(p => p.codmodal.toUpperCase() === cod)
+    let updated: ModalParamItem[]
+    if (existingIdx >= 0) {
+      updated = [...modalParams]
+      updated[existingIdx] = { codmodal: cod, modalidade: mod }
+    } else {
+      updated = [{ codmodal: cod, modalidade: mod }, ...modalParams]
+    }
+
+    saveModalParams(updated)
+    setNewCodModal('')
+    setNewModalidade('')
+  }
+
+  const handleDeleteParam = (cod: string) => {
+    const updated = modalParams.filter(p => p.codmodal.toUpperCase() !== cod.toUpperCase())
+    saveModalParams(updated)
+  }
+
+  const handleSaveEdit = (idx: number) => {
+    if (!editingModalidade.trim()) return
+    const updated = [...modalParams]
+    updated[idx] = { ...updated[idx], modalidade: editingModalidade.trim().toUpperCase() }
+    saveModalParams(updated)
+    setEditingIndex(null)
+    setEditingModalidade('')
+  }
 
   // --------------------------------------------------------------------------
   // ESTADOS DA ABA CONTROLE & ACOMPANHAMENTO (TABELA BASE DO BANCO DE DADOS)
@@ -120,7 +205,7 @@ export const PcpJsMartinsPage: React.FC = () => {
     return (initialSampleRows as any[]) || []
   }
 
-  // Buscar dados
+  // Buscar dados com aplicação da coluna auxiliar Modalidade
   const loadData = useCallback(async (p: number = page, search: string = searchTerm) => {
     setIsLoading(true)
     try {
@@ -133,7 +218,15 @@ export const PcpJsMartinsPage: React.FC = () => {
       })
 
       if (res.count > 0) {
-        setItems(res.data)
+        // Vincula dinamicamente a modalidade auxiliar calculada
+        const enriched = res.data.map(item => {
+          const cod = (item.codmodal || '').trim().toUpperCase()
+          return {
+            ...item,
+            modalidade_calc: modalMap[cod] || item.descricaomodal || '-'
+          }
+        })
+        setItems(enriched)
         setTotalCount(res.count)
       } else {
         // Fallback para cache local / amostra
@@ -161,62 +254,66 @@ export const PcpJsMartinsPage: React.FC = () => {
 
         setTotalCount(filtered.length)
         const from = (p - 1) * pageSize
-        const slice = filtered.slice(from, from + pageSize).map((r: any, idx) => ({
-          id: idx + from + 1,
-          filorig: Number(r.filorig || r.FILORIG) || 994,
-          codfil: Number(r.codfil || r.CODFIL) || 994,
-          filentrega: Number(r.filentrega || r.FILENTREGA) || 0,
-          numlote: String(r.numlote || r.NUMLOTE || ''),
-          fllibfat: String(r.fllibfat || r.FLLIBFAT || ''),
-          tpnota: Number(r.tpnota || r.TPNOTA) || 0,
-          numpedven: String(r.numpedven || r.NUMPEDVEN || ''),
-          numpedcomp: String(r.numpedcomp || r.NUMPEDCOMP || ''),
-          dtpedido: String(r.dtpedido || r.DTPEDIDO || ''),
-          dtentrega: String(r.dtentrega || r.DTENTREGA || ''),
-          dtlibfat: String(r.dtlibfat || r.DTLIBFAT || ''),
-          preventrega: String(r.preventrega || r.PREVENTREGA || ''),
-          item: String(r.item || r.ITEM || ''),
-          ibm: String(r.ibm || r.IBM || ''),
-          descricao: String(r.descricao || r.DESCRICAO || ''),
-          ref: String(r.ref || r.REF || ''),
-          fantasia: String(r.fantasia || r.FANTASIA || ''),
-          qtcomp: Number(r.qtcomp || r.QTCOMP) || 0,
-          fisico: Number(r.fisico || r.FISICO) || 0,
-          resfis: Number(r.resfis || r.RESFIS) || 0,
-          logico: Number(r.logico || r.LOGICO) || 0,
-          reslog: Number(r.reslog || r.RESLOG) || 0,
-          tecnico: Number(r.tecnico || r.TECNICO) || 0,
-          futuro: Number(r.futuro || r.FUTURO) || 0,
-          transito: Number(r.transito || r.TRANSITO) || 0,
-          status: String(r.status || r.STATUS || ''),
-          situacao: String(r.situacao || r.SITUACAO || ''),
-          linha: String(r.linha || r.LINHA || ''),
-          linha_ajustada: String(r.linha_ajustada || r.LINHA_AJUSTADA || ''),
-          nucleo: String(r.nucleo || r.NUCLEO || ''),
-          familia: String(r.familia || r.FAMILIA || ''),
-          codrota: String(r.codrota || r.CODROTA || ''),
-          descricaorota: String(r.descricaorota || r.DESCRICAOROTA || ''),
-          codmodal: String(r.codmodal || r.CODMODAL || ''),
-          descricaomodal: String(r.descricaomodal || r.DESCRICAOMODAL || ''),
-          status_operacao: String(r.status_operacao || r.STATUS_OPERACAO || 'EM PROCESSO'),
-          operacao: String(r.operacao || r.OPERACAO || ''),
-          dtalter: String(r.dtalter || r.DTALTER || ''),
-          cub_tot: Number(r.cub_tot || r.CUB_TOT) || 0,
-          pesoliq: Number(r.pesoliq || r.PESOLIQ) || 0,
-          precounit: Number(r.precounit || r.PRECOUNIT) || 0,
-          vltotal: Number(r.vltotal || r.VLTOTAL) || 0,
-          qtped: Number(r.qtped || r.QTPED) || 0,
-          flag_estorno_caixa: String(r.flag_estorno_caixa || r.FLAG_ESTORNO_CAIXA || ''),
-          n: String(r.n || r.N || ''),
-          turnoagendado: String(r.turnoagendado || r.TURNOAGENDADO || ''),
-          dtentregaagendada: String(r.dtentregaagendada || r.DTENTREGAAGENDADA || ''),
-          cod_vendedor: String(r.cod_vendedor || r.COD_VENDEDOR || ''),
-          prazo_entrega: String(r.prazo_entrega || r.PRAZO_ENTREGA || ''),
-          data_entrega_prevista: String(r.data_entrega_prevista || r.DATA_ENTREGA_PREVISTA || ''),
-          cep_entrega: String(r.cep_entrega || r.CEP_ENTREGA || ''),
-          dt_hr_libfat: String(r.dt_hr_libfat || r.DT_HR_LIBFAT || ''),
-          faixa_dias_reduzida: String(r.faixa_dias_reduzida || r.FAIXA_DIAS_REDUZIDA || '')
-        }))
+        const slice = filtered.slice(from, from + pageSize).map((r: any, idx) => {
+          const cod = String(r.codmodal || r.CODMODAL || '').trim().toUpperCase()
+          return {
+            id: idx + from + 1,
+            filorig: Number(r.filorig || r.FILORIG) || 994,
+            codfil: Number(r.codfil || r.CODFIL) || 994,
+            filentrega: Number(r.filentrega || r.FILENTREGA) || 0,
+            numlote: String(r.numlote || r.NUMLOTE || ''),
+            fllibfat: String(r.fllibfat || r.FLLIBFAT || ''),
+            tpnota: Number(r.tpnota || r.TPNOTA) || 0,
+            numpedven: String(r.numpedven || r.NUMPEDVEN || ''),
+            numpedcomp: String(r.numpedcomp || r.NUMPEDCOMP || ''),
+            dtpedido: String(r.dtpedido || r.DTPEDIDO || ''),
+            dtentrega: String(r.dtentrega || r.DTENTREGA || ''),
+            dtlibfat: String(r.dtlibfat || r.DTLIBFAT || ''),
+            preventrega: String(r.preventrega || r.PREVENTREGA || ''),
+            item: String(r.item || r.ITEM || ''),
+            ibm: String(r.ibm || r.IBM || ''),
+            descricao: String(r.descricao || r.DESCRICAO || ''),
+            ref: String(r.ref || r.REF || ''),
+            fantasia: String(r.fantasia || r.FANTASIA || ''),
+            qtcomp: Number(r.qtcomp || r.QTCOMP) || 0,
+            fisico: Number(r.fisico || r.FISICO) || 0,
+            resfis: Number(r.resfis || r.RESFIS) || 0,
+            logico: Number(r.logico || r.LOGICO) || 0,
+            reslog: Number(r.reslog || r.RESLOG) || 0,
+            tecnico: Number(r.tecnico || r.TECNICO) || 0,
+            futuro: Number(r.futuro || r.FUTURO) || 0,
+            transito: Number(r.transito || r.TRANSITO) || 0,
+            status: String(r.status || r.STATUS || ''),
+            situacao: String(r.situacao || r.SITUACAO || ''),
+            linha: String(r.linha || r.LINHA || ''),
+            linha_ajustada: String(r.linha_ajustada || r.LINHA_AJUSTADA || ''),
+            nucleo: String(r.nucleo || r.NUCLEO || ''),
+            familia: String(r.familia || r.FAMILIA || ''),
+            codrota: String(r.codrota || r.CODROTA || ''),
+            descricaorota: String(r.descricaorota || r.DESCRICAOROTA || ''),
+            codmodal: cod,
+            modalidade_calc: modalMap[cod] || String(r.descricaomodal || r.DESCRICAOMODAL || '-'),
+            descricaomodal: String(r.descricaomodal || r.DESCRICAOMODAL || ''),
+            status_operacao: String(r.status_operacao || r.STATUS_OPERACAO || 'EM PROCESSO'),
+            operacao: String(r.operacao || r.OPERACAO || ''),
+            dtalter: String(r.dtalter || r.DTALTER || ''),
+            cub_tot: Number(r.cub_tot || r.CUB_TOT) || 0,
+            pesoliq: Number(r.pesoliq || r.PESOLIQ) || 0,
+            precounit: Number(r.precounit || r.PRECOUNIT) || 0,
+            vltotal: Number(r.vltotal || r.VLTOTAL) || 0,
+            qtped: Number(r.qtped || r.QTPED) || 0,
+            flag_estorno_caixa: String(r.flag_estorno_caixa || r.FLAG_ESTORNO_CAIXA || ''),
+            n: String(r.n || r.N || ''),
+            turnoagendado: String(r.turnoagendado || r.TURNOAGENDADO || ''),
+            dtentregaagendada: String(r.dtentregaagendada || r.DTENTREGAAGENDADA || ''),
+            cod_vendedor: String(r.cod_vendedor || r.COD_VENDEDOR || ''),
+            prazo_entrega: String(r.prazo_entrega || r.PRAZO_ENTREGA || ''),
+            data_entrega_prevista: String(r.data_entrega_prevista || r.DATA_ENTREGA_PREVISTA || ''),
+            cep_entrega: String(r.cep_entrega || r.CEP_ENTREGA || ''),
+            dt_hr_libfat: String(r.dt_hr_libfat || r.DT_HR_LIBFAT || ''),
+            faixa_dias_reduzida: String(r.faixa_dias_reduzida || r.FAIXA_DIAS_REDUZIDA || '')
+          }
+        })
         setItems(slice)
       }
     } catch (err) {
@@ -224,7 +321,7 @@ export const PcpJsMartinsPage: React.FC = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [page, pageSize, selectedStatusOperacao, selectedFilEntrega, searchTerm])
+  }, [page, pageSize, selectedStatusOperacao, selectedFilEntrega, searchTerm, modalMap])
 
   useEffect(() => {
     if (activeTab === 'controle') {
@@ -280,20 +377,20 @@ export const PcpJsMartinsPage: React.FC = () => {
         filorig: Number(r.FILORIG) || 994,
         codfil: Number(r.CODFIL) || 994,
         filentrega: Number(r.FILENTREGA) || null,
-        numlote: r.NUMLOTE ? String(r.NUMLOTE) : null,
-        fllibfat: r.FLLIBFAT ? String(r.FLLIBFAT) : null,
+        numlote: r.NUMLOTE !== undefined ? String(r.NUMLOTE) : null,
+        fllibfat: r.FLLIBFAT !== undefined ? String(r.FLLIBFAT) : null,
         tpnota: Number(r.TPNOTA) || null,
-        numpedven: r.NUMPEDVEN ? String(r.NUMPEDVEN) : null,
-        numpedcomp: r.NUMPEDCOMP ? String(r.NUMPEDCOMP) : null,
-        dtpedido: r.DTPEDIDO ? String(r.DTPEDIDO) : null,
-        dtentrega: r.DTENTREGA ? String(r.DTENTREGA) : null,
-        dtlibfat: r.DTLIBFAT ? String(r.DTLIBFAT) : null,
-        preventrega: r.PREVENTREGA ? String(r.PREVENTREGA) : null,
+        numpedven: r.NUMPEDVEN !== undefined ? String(r.NUMPEDVEN) : null,
+        numpedcomp: r.NUMPEDCOMP !== undefined ? String(r.NUMPEDCOMP) : null,
+        dtpedido: r.DTPEDIDO !== undefined ? String(r.DTPEDIDO) : null,
+        dtentrega: r.DTENTREGA !== undefined ? String(r.DTENTREGA) : null,
+        dtlibfat: r.DTLIBFAT !== undefined ? String(r.DTLIBFAT) : null,
+        preventrega: r.PREVENTREGA !== undefined ? String(r.PREVENTREGA) : null,
         item: String(r.ITEM || ''),
-        ibm: r.IBM ? String(r.IBM) : null,
+        ibm: r.IBM !== undefined ? String(r.IBM) : null,
         descricao: String(r.DESCRICAO || ''),
-        ref: r.REF ? String(r.REF) : null,
-        fantasia: r.FANTASIA ? String(r.FANTASIA) : null,
+        ref: r.REF !== undefined ? String(r.REF) : null,
+        fantasia: r.FANTASIA !== undefined ? String(r.FANTASIA) : null,
         qtcomp: Number(r.QTCOMP) || 0,
         fisico: Number(r.FISICO) || 0,
         resfis: Number(r.RESFIS) || 0,
@@ -302,34 +399,34 @@ export const PcpJsMartinsPage: React.FC = () => {
         tecnico: Number(r.TECNICO) || 0,
         futuro: Number(r.FUTURO) || 0,
         transito: Number(r.TRANSITO) || 0,
-        status: r.STATUS ? String(r.STATUS) : null,
-        situacao: r.SITUACAO ? String(r.SITUACAO) : null,
-        linha: r.LINHA ? String(r.LINHA) : null,
-        linha_ajustada: r.LINHA_AJUSTADA ? String(r.LINHA_AJUSTADA) : null,
-        nucleo: r.NUCLEO ? String(r.NUCLEO) : null,
-        familia: r.FAMILIA ? String(r.FAMILIA) : null,
-        codrota: r.CODROTA ? String(r.CODROTA) : null,
-        descricaorota: r.DESCRICAOROTA ? String(r.DESCRICAOROTA) : null,
-        codmodal: r.CODMODAL ? String(r.CODMODAL) : null,
-        descricaomodal: r.DESCRICAOMODAL ? String(r.DESCRICAOMODAL) : null,
+        status: r.STATUS !== undefined ? String(r.STATUS) : null,
+        situacao: r.SITUACAO !== undefined ? String(r.SITUACAO) : null,
+        linha: r.LINHA !== undefined ? String(r.LINHA) : null,
+        linha_ajustada: r.LINHA_AJUSTADA !== undefined ? String(r.LINHA_AJUSTADA) : null,
+        nucleo: r.NUCLEO !== undefined ? String(r.NUCLEO) : null,
+        familia: r.FAMILIA !== undefined ? String(r.FAMILIA) : null,
+        codrota: r.CODROTA !== undefined ? String(r.CODROTA) : null,
+        descricaorota: r.DESCRICAOROTA !== undefined ? String(r.DESCRICAOROTA) : null,
+        codmodal: r.CODMODAL !== undefined ? String(r.CODMODAL) : null,
+        descricaomodal: r.DESCRICAOMODAL !== undefined ? String(r.DESCRICAOMODAL) : null,
         status_operacao: r.STATUS_OPERACAO ? String(r.STATUS_OPERACAO) : 'EM PROCESSO',
-        operacao: r.OPERACAO ? String(r.OPERACAO) : null,
-        dtalter: r.DTALTER ? String(r.DTALTER) : null,
+        operacao: r.OPERACAO !== undefined ? String(r.OPERACAO) : null,
+        dtalter: r.DTALTER !== undefined ? String(r.DTALTER) : null,
         cub_tot: Number(r.CUB_TOT) || 0,
         pesoliq: Number(r.PESOLIQ) || 0,
         precounit: Number(r.PRECOUNIT) || 0,
         vltotal: Number(r.VLTOTAL) || 0,
         qtped: Number(r.QTPED) || 0,
-        flag_estorno_caixa: r.FLAG_ESTORNO_CAIXA ? String(r.FLAG_ESTORNO_CAIXA) : null,
-        n: r.N ? String(r.N) : null,
-        turnoagendado: r.TURNOAGENDADO ? String(r.TURNOAGENDADO) : null,
-        dtentregaagendada: r.DTENTREGAAGENDADA ? String(r.DTENTREGAAGENDADA) : null,
-        cod_vendedor: r.COD_VENDEDOR ? String(r.COD_VENDEDOR) : null,
-        prazo_entrega: r.PRAZO_ENTREGA ? String(r.PRAZO_ENTREGA) : null,
-        data_entrega_prevista: r.DATA_ENTREGA_PREVISTA ? String(r.DATA_ENTREGA_PREVISTA) : null,
-        cep_entrega: r.CEP_ENTREGA ? String(r.CEP_ENTREGA) : null,
-        dt_hr_libfat: r.DT_HR_LIBFAT ? String(r.DT_HR_LIBFAT) : null,
-        faixa_dias_reduzida: r.FAIXA_DIAS_REDUZIDA ? String(r.FAIXA_DIAS_REDUZIDA) : null
+        flag_estorno_caixa: r.FLAG_ESTORNO_CAIXA !== undefined ? String(r.FLAG_ESTORNO_CAIXA) : null,
+        n: r.N !== undefined ? String(r.N) : null,
+        turnoagendado: r.TURNOAGENDADO !== undefined ? String(r.TURNOAGENDADO) : null,
+        dtentregaagendada: r.DTENTREGAAGENDADA !== undefined ? String(r.DTENTREGAAGENDADA) : null,
+        cod_vendedor: r.COD_VENDEDOR !== undefined ? String(r.COD_VENDEDOR) : null,
+        prazo_entrega: r.PRAZO_ENTREGA !== undefined ? String(r.PRAZO_ENTREGA) : null,
+        data_entrega_prevista: r.DATA_ENTREGA_PREVISTA !== undefined ? String(r.DATA_ENTREGA_PREVISTA) : null,
+        cep_entrega: r.CEP_ENTREGA !== undefined ? String(r.CEP_ENTREGA) : null,
+        dt_hr_libfat: r.DT_HR_LIBFAT !== undefined ? String(r.DT_HR_LIBFAT) : null,
+        faixa_dias_reduzida: r.FAIXA_DIAS_REDUZIDA !== undefined ? String(r.FAIXA_DIAS_REDUZIDA) : null
       }))
 
       try {
@@ -367,6 +464,7 @@ export const PcpJsMartinsPage: React.FC = () => {
     }
   }
 
+  // 4 ABAS DA PÁGINA PCP J'S MARTINS
   const tabs = [
     {
       id: 'planejamento',
@@ -383,8 +481,14 @@ export const PcpJsMartinsPage: React.FC = () => {
     {
       id: 'controle',
       label: 'Controle & Acompanhamento',
-      subtitle: 'Banco de Dados Operacional (53 Colunas • PCP J\'S MARTINS.xlsx)',
+      subtitle: 'Banco de Dados Operacional (53 Colunas + Coluna Auxiliar)',
       icon: <Database size={15} />
+    },
+    {
+      id: 'cadastros',
+      label: 'Cadastros Auxiliares',
+      subtitle: 'Parâmetros de De-Para (Modalidade, Linhas e Regras de Negócio)',
+      icon: <Settings2 size={15} />
     }
   ] as const
 
@@ -406,13 +510,27 @@ export const PcpJsMartinsPage: React.FC = () => {
       return isNaN(num) ? String(val) : `R$ ${num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     }
 
+    if (col.key === 'modalidade_calc') {
+      const mod = String(val).toUpperCase()
+      let color = 'bg-slate-100 text-slate-700 border-slate-200'
+      if (mod === 'RODOVIARIO') color = 'bg-blue-100 text-blue-800 border-blue-200'
+      if (mod === 'ABA') color = 'bg-emerald-100 text-emerald-800 border-emerald-200'
+      if (mod === 'COURRIER') color = 'bg-amber-100 text-amber-800 border-amber-200'
+      if (mod === 'TRANSFERENCIA') color = 'bg-purple-100 text-purple-800 border-purple-200'
+
+      return (
+        <span className={`px-2 py-0.5 rounded-md text-[9.5px] font-black uppercase whitespace-nowrap border ${color}`}>
+          {mod}
+        </span>
+      )
+    }
+
     if (col.key === 'status_operacao') {
       return (
-        <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase whitespace-nowrap ${
-          val === 'EM PROCESSO'
+        <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase whitespace-nowrap ${val === 'EM PROCESSO'
             ? 'bg-amber-100 text-amber-800 border border-amber-200'
             : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
-        }`}>
+          }`}>
           {val}
         </span>
       )
@@ -420,6 +538,16 @@ export const PcpJsMartinsPage: React.FC = () => {
 
     return String(val)
   }
+
+  // Filtragem dos parâmetros da tabela de De-Para
+  const filteredParams = useMemo(() => {
+    if (!searchParam.trim()) return modalParams
+    const q = searchParam.trim().toLowerCase()
+    return modalParams.filter(p =>
+      p.codmodal.toLowerCase().includes(q) ||
+      p.modalidade.toLowerCase().includes(q)
+    )
+  }, [modalParams, searchParam])
 
   return (
     <div className="p-4 sm:p-6 space-y-5 max-w-[1900px] mx-auto animate-in fade-in duration-300">
@@ -433,7 +561,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-black text-slate-900 tracking-tight">PCP J'S Martins</h1>
               <span className="px-2 py-0.5 text-[10.5px] font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-full flex items-center gap-1">
-                <Database size={11} /> 53 Colunas Operacionais
+                <Database size={11} /> Base Operacional & Cadastros
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">
@@ -442,8 +570,8 @@ export const PcpJsMartinsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Seletor de Abas */}
-        <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs gap-1">
+        {/* Seletor de 4 Abas */}
+        <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs gap-1 flex-wrap sm:flex-nowrap">
           {tabs.map(tab => {
             const isActive = activeTab === tab.id
             return (
@@ -451,11 +579,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  isActive
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
                     ? 'bg-white text-blue-700 shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                }`}
+                  }`}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
@@ -467,11 +594,10 @@ export const PcpJsMartinsPage: React.FC = () => {
 
       {/* FEEDBACK DE UPLOAD */}
       {uploadFeedback && (
-        <div className={`p-3 rounded-xl border text-xs font-medium flex items-center justify-between gap-2 animate-in fade-in ${
-          uploadFeedback.type === 'success'
+        <div className={`p-3 rounded-xl border text-xs font-medium flex items-center justify-between gap-2 animate-in fade-in ${uploadFeedback.type === 'success'
             ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
             : 'bg-rose-50 border-rose-200 text-rose-800'
-        }`}>
+          }`}>
           <div className="flex items-center gap-2">
             {uploadFeedback.type === 'success' ? <CheckCircle2 size={16} className="text-emerald-600 shrink-0" /> : <AlertCircle size={16} className="text-rose-600 shrink-0" />}
             <span>{uploadFeedback.message}</span>
@@ -481,9 +607,219 @@ export const PcpJsMartinsPage: React.FC = () => {
       )}
 
       {/* ------------------------------------------------------------------ */}
-      {/* ABA 3: CONTROLE & ACOMPANHAMENTO (BASE DE DADOS COM AS 53 COLUNAS) */}
+      {/* ABA 4: CADASTROS AUXILIARES (DE-PARA DE PARÂMETROS E REGRAS)       */}
       {/* ------------------------------------------------------------------ */}
-      {activeTab === 'controle' ? (
+      {activeTab === 'cadastros' && (
+        <div className="space-y-5 animate-in fade-in duration-300">
+          <div className="bg-linear-to-r from-blue-50 to-indigo-50/50 p-4 rounded-2xl border border-blue-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Settings2 size={18} className="text-blue-600" /> Parâmetros de Colunas Auxiliares
+              </h2>
+              <p className="text-xs text-slate-500">
+                Cadastre e edite as regras de De-Para. Conforme o <strong>CODMODAL</strong> informado na base, a <strong>MODALIDADE</strong> correspondente é atribuída automaticamente no relatório.
+              </p>
+            </div>
+            <div className="px-3 py-1 bg-white rounded-xl border border-blue-200 text-xs font-bold text-blue-700 shadow-2xs whitespace-nowrap">
+              {modalParams.length} Regras Cadastradas
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* CARD 1: FORMULÁRIO DE CADASTRO RÁPIDO */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4 h-fit">
+              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
+                <Plus size={16} className="text-emerald-600" /> Novo Parâmetro (Modalidade)
+              </h3>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                    Código do Modal (CODMODAL)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: RD1, EAL, CD0..."
+                    value={newCodModal}
+                    onChange={(e) => setNewCodModal(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500 font-mono uppercase"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                    Modalidade Atribuída
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: RODOVIARIO, ABA, COURRIER..."
+                    value={newModalidade}
+                    onChange={(e) => setNewModalidade(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500 font-bold uppercase"
+                  />
+                  <div className="flex gap-1.5 mt-2 flex-wrap">
+                    {['RODOVIARIO', 'ABA', 'COURRIER', 'TRANSFERENCIA'].map(sug => (
+                      <button
+                        key={sug}
+                        type="button"
+                        onClick={() => setNewModalidade(sug)}
+                        className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
+                      >
+                        + {sug}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddParam}
+                  disabled={!newCodModal.trim() || !newModalidade.trim()}
+                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Save size={14} />
+                  <span>Salvar Regra de Modalidade</span>
+                </button>
+              </div>
+
+              {/* CARD DE INFORMAÇÕES DE NOVOS CAMPOS FUTUROS */}
+              <div className="pt-3 border-t border-slate-100 space-y-2">
+                <span className="text-[10.5px] font-bold text-slate-500 flex items-center gap-1">
+                  <Sliders size={13} className="text-indigo-600" /> Próximos Parâmetros Auxiliares
+                </span>
+                <p className="text-[11px] text-slate-400">
+                  Novas regras de agregação (ex: Faixa de Prazos, Linha Ajustada, Prioridades de Expedição) poderão ser criadas aqui conforme sua definição.
+                </p>
+              </div>
+            </div>
+
+            {/* CARD 2 E 3: TABELA DE GERENCIAMENTO E EDIÇÃO DOS PARÂMETROS */}
+            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col">
+              <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">Tabela de Mapeamento (CODMODAL $\rightarrow$ MODALIDADE)</h3>
+                  <p className="text-xs text-slate-500">Edite os valores em linha ou adicione novos códigos.</p>
+                </div>
+
+                <div className="relative w-full sm:w-64">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Filtrar código ou modalidade..."
+                    value={searchParam}
+                    onChange={(e) => setSearchParam(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="overflow-x-auto max-h-[500px]">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-slate-500 text-[10.5px] font-bold uppercase">
+                    <tr>
+                      <th className="py-2.5 px-4 w-12 text-center">#</th>
+                      <th className="py-2.5 px-4">CODMODAL</th>
+                      <th className="py-2.5 px-4">MODALIDADE</th>
+                      <th className="py-2.5 px-4 text-center w-28">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredParams.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="py-8 text-center text-slate-400">
+                          Nenhum parâmetro encontrado.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredParams.map((param, idx) => {
+                        const isEditing = editingIndex === idx
+                        return (
+                          <tr key={param.codmodal} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-2.5 px-4 text-center text-slate-400 font-mono text-[10px]">
+                              {idx + 1}
+                            </td>
+                            <td className="py-2.5 px-4 font-mono font-bold text-blue-700">
+                              {param.codmodal}
+                            </td>
+                            <td className="py-2.5 px-4 font-semibold text-slate-800">
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={editingModalidade}
+                                  onChange={(e) => setEditingModalidade(e.target.value.toUpperCase())}
+                                  className="px-2 py-0.5 text-xs border border-blue-400 rounded focus:outline-hidden font-bold"
+                                  autoFocus
+                                />
+                              ) : (
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${param.modalidade === 'RODOVIARIO' ? 'bg-blue-100 text-blue-800' :
+                                    param.modalidade === 'ABA' ? 'bg-emerald-100 text-emerald-800' :
+                                      param.modalidade === 'COURRIER' ? 'bg-amber-100 text-amber-800' :
+                                        'bg-purple-100 text-purple-800'
+                                  }`}>
+                                  {param.modalidade}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-4 text-center">
+                              {isEditing ? (
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveEdit(idx)}
+                                    className="p-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                                    title="Salvar alteração"
+                                  >
+                                    <Save size={13} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingIndex(null)}
+                                    className="p-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
+                                    title="Cancelar"
+                                  >
+                                    <X size={13} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingIndex(idx)
+                                      setEditingModalidade(param.modalidade)
+                                    }}
+                                    className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
+                                    title="Editar modalidade"
+                                  >
+                                    <Edit2 size={13} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteParam(param.codmodal)}
+                                    className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                                    title="Excluir regra"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* ABA 3: CONTROLE & ACOMPANHAMENTO (BASE DE DADOS COM 53 COLS + AUX) */}
+      {/* ------------------------------------------------------------------ */}
+      {activeTab === 'controle' && (
         <div className="space-y-4">
           {/* CARDS DE RESUMO DA BASE */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -585,9 +921,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </select>
               </div>
 
-              {/* Indicador de 53 colunas */}
+              {/* Indicador de 53 colunas + Auxiliar */}
               <div className="hidden sm:flex items-center px-2 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold">
-                53 Colunas Exibidas
+                53 Colunas + Coluna Auxiliar Ativa
               </div>
 
               {/* Botão Recarregar */}
@@ -604,11 +940,10 @@ export const PcpJsMartinsPage: React.FC = () => {
               {/* Botão de Upload / Importar PCP J'S MARTINS.xlsx */}
               <label
                 htmlFor="pcp-file-upload"
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all cursor-pointer shadow-2xs ${
-                  isUploading
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all cursor-pointer shadow-2xs ${isUploading
                     ? 'bg-blue-400 cursor-not-allowed'
                     : 'bg-emerald-600 hover:bg-emerald-700'
-                }`}
+                  }`}
                 title="Atualizar base a partir de PCP J'S MARTINS.xlsx"
               >
                 <UploadCloud size={14} />
@@ -625,7 +960,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* TABELA DE DADOS DA BASE COM TODAS AS 53 COLUNAS */}
+          {/* TABELA DE DADOS DA BASE COM AS 53 COLUNAS + COLUNA AUXILIAR */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
             <div className="overflow-x-auto max-h-[620px] scrollbar-thin">
               <table className="w-full text-[11px] text-left border-collapse whitespace-nowrap">
@@ -637,9 +972,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                     {PCP_COLUMNS.map((col, cIdx) => (
                       <th
                         key={col.key}
-                        className={`py-2.5 px-3 ${col.width || ''} ${
-                          col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
-                        } border-r border-slate-200/60 hover:bg-slate-100 transition-colors`}
+                        className={`py-2.5 px-3 ${col.width || ''} ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
+                          } border-r border-slate-200/60 hover:bg-slate-100 transition-colors ${col.key === 'modalidade_calc' ? 'bg-amber-50/70 text-amber-900 border-amber-200' : ''
+                          }`}
                         title={`Coluna ${cIdx + 1}: ${col.label}`}
                       >
                         <span className="text-slate-400 font-normal mr-1 text-[9px]">#{cIdx + 1}</span>
@@ -671,21 +1006,17 @@ export const PcpJsMartinsPage: React.FC = () => {
                         {PCP_COLUMNS.map(col => (
                           <td
                             key={col.key}
-                            className={`py-2 px-3 border-r border-slate-100 ${
-                              col.align === 'right'
+                            className={`py-2 px-3 border-r border-slate-100 ${col.align === 'right'
                                 ? 'text-right font-mono'
                                 : col.align === 'center'
-                                ? 'text-center'
-                                : 'text-left'
-                            } ${
-                              col.key === 'item' || col.key === 'numpedven' ? 'font-mono font-bold text-slate-900' : ''
-                            } ${
-                              col.key === 'descricao' ? 'font-medium text-slate-800' : 'text-slate-600'
-                            } ${
-                              col.key === 'vltotal' ? 'font-bold text-emerald-700' : ''
-                            } ${
-                              col.key === 'cub_tot' ? 'font-semibold text-purple-700' : ''
-                            }`}
+                                  ? 'text-center'
+                                  : 'text-left'
+                              } ${col.key === 'item' || col.key === 'numpedven' ? 'font-mono font-bold text-slate-900' : ''
+                              } ${col.key === 'descricao' ? 'font-medium text-slate-800' : 'text-slate-600'
+                              } ${col.key === 'vltotal' ? 'font-bold text-emerald-700' : ''
+                              } ${col.key === 'cub_tot' ? 'font-semibold text-purple-700' : ''
+                              } ${col.key === 'modalidade_calc' ? 'bg-amber-50/30' : ''
+                              }`}
                           >
                             {renderCell(row, col)}
                           </td>
@@ -701,7 +1032,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center justify-between p-3 border-t border-slate-200 text-xs text-slate-500 gap-3">
               <div>
                 Exibindo <span className="font-bold text-slate-800">{items.length}</span> de{' '}
-                <span className="font-bold text-slate-800">{totalCount.toLocaleString('pt-BR')}</span> registros (com todas as 53 colunas originais)
+                <span className="font-bold text-slate-800">{totalCount.toLocaleString('pt-BR')}</span> registros (com coluna auxiliar ativa)
               </div>
 
               <div className="flex items-center gap-2">
@@ -728,8 +1059,12 @@ export const PcpJsMartinsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      ) : (
-        /* ABAS 1 E 2: EM CONSTRUÇÃO */
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* ABAS 1 E 2: EM CONSTRUÇÃO (PLANEJAMENTO & PROGRAMAÇÃO)             */}
+      {/* ------------------------------------------------------------------ */}
+      {(activeTab === 'planejamento' || activeTab === 'programacao') && (
         <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 shadow-2xs flex flex-col items-center justify-center text-center space-y-6 min-h-[460px]">
           <div className="relative">
             <div className="w-20 h-20 rounded-2xl bg-linear-to-br from-amber-50 to-orange-100 border border-amber-200 flex items-center justify-center text-amber-600 shadow-inner">
@@ -748,7 +1083,7 @@ export const PcpJsMartinsPage: React.FC = () => {
               Módulo em Desenvolvimento
             </h2>
             <p className="text-sm text-slate-500 leading-relaxed">
-              {currentTabInfo.subtitle}. Esta área consumirá diretamente a tabela da base de dados configurada na aba <strong>Controle & Acompanhamento</strong>.
+              {currentTabInfo.subtitle}. Esta área consumirá diretamente a tabela da base de dados e os parâmetros configurados na aba <strong>Cadastros Auxiliares</strong>.
             </p>
           </div>
 
@@ -767,7 +1102,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                 <Layers size={14} className="text-purple-600" />
                 <span>Planejamento Dinâmico</span>
               </div>
-              <p className="text-[11px] text-slate-500">Agrupamento por status de operação, cubagem de saída e linha de produto.</p>
+              <p className="text-[11px] text-slate-500">Agrupamento por Modalidade, status de operação, cubagem de saída e linha.</p>
             </div>
 
             <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-left space-y-1">
