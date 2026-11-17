@@ -810,8 +810,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveSubParam('rotas')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${activeSubParam === 'rotas'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                   }`}
               >
                 <Truck size={13} />
@@ -822,8 +822,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveSubParam('modal')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${activeSubParam === 'modal'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                   }`}
               >
                 <Layers size={13} />
@@ -972,9 +972,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                                   </select>
                                 ) : (
                                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${param.regiao === 'CAPITAL' ? 'bg-cyan-100 text-cyan-800' :
-                                      param.regiao === 'METROPOLITANA' ? 'bg-indigo-100 text-indigo-800' :
-                                        param.regiao === 'INTERIOR' ? 'bg-emerald-100 text-emerald-800' :
-                                          'bg-amber-100 text-amber-800'
+                                    param.regiao === 'METROPOLITANA' ? 'bg-indigo-100 text-indigo-800' :
+                                      param.regiao === 'INTERIOR' ? 'bg-emerald-100 text-emerald-800' :
+                                        'bg-amber-100 text-amber-800'
                                     }`}>
                                     {param.regiao}
                                   </span>
@@ -1653,7 +1653,7 @@ export const PcpJsMartinsPage: React.FC = () => {
 
           return (
             <span
-              className="inline-block w-3.5 h-3.5 rounded-full shrink-0 mr-1.5 shadow-inner"
+              className="inline-block w-3.5 h-3.5 rounded-full shrink-0 shadow-inner"
               style={{
                 backgroundColor: dotBg,
                 border: '1px solid rgba(0,0,0,0.4)',
@@ -1818,7 +1818,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                         <th className="py-1 px-2 text-center italic font-bold w-18">
                           <span>QUANTIDADE</span>
                         </th>
-                        <th className="py-1 px-2 text-center italic font-bold w-18">
+                        <th className="py-1 px-2 text-center italic font-bold w-24">
                           <span>CUBAGEM</span>
                         </th>
                         <th className="py-1 px-2 text-center italic font-bold w-26">
@@ -1870,9 +1870,11 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 {Math.round(dest.quantidade).toLocaleString('pt-BR')}
                               </td>
                               <td className="py-0.5 px-2 text-center text-[10.5px] whitespace-nowrap">
-                                <div className="inline-flex items-center justify-center w-full">
-                                  {renderCubSemaforo(dest.cubagem)}
-                                  <span className="font-sans font-medium text-white">
+                                <div className="grid grid-cols-[18px_1fr] items-center gap-1.5 w-[76px] mx-auto">
+                                  <div className="flex justify-center items-center">
+                                    {renderCubSemaforo(dest.cubagem)}
+                                  </div>
+                                  <span className="font-mono text-right font-medium text-white">
                                     {dest.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
@@ -1901,9 +1903,11 @@ export const PcpJsMartinsPage: React.FC = () => {
                               {Math.round(group.totalQtd).toLocaleString('pt-BR')}
                             </td>
                             <td className="py-0.5 px-2 text-center text-[10.5px] whitespace-nowrap font-black">
-                              <div className="inline-flex items-center justify-center w-full">
-                                {renderCubSemaforo(group.totalCub)}
-                                <span className="text-white">
+                              <div className="grid grid-cols-[18px_1fr] items-center gap-1.5 w-[76px] mx-auto">
+                                <div className="flex justify-center items-center">
+                                  {renderCubSemaforo(group.totalCub)}
+                                </div>
+                                <span className="font-mono text-right text-white font-black">
                                   {group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                               </div>
@@ -1935,7 +1939,14 @@ export const PcpJsMartinsPage: React.FC = () => {
                           {Math.round(geralQtd).toLocaleString('pt-BR')}
                         </td>
                         <td className="py-1 px-2 text-center whitespace-nowrap">
-                          {geralCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          <div className="grid grid-cols-[18px_1fr] items-center gap-1.5 w-[76px] mx-auto">
+                            <div className="flex justify-center items-center">
+                              {renderCubSemaforo(geralCub)}
+                            </div>
+                            <span className="font-mono text-right text-white font-black">
+                              {geralCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
                         </td>
                         <td className="py-1 px-2 text-center whitespace-nowrap">
                           <div className="inline-flex items-center justify-center gap-1 w-full">
