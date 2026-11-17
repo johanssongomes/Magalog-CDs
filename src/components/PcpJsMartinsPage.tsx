@@ -166,6 +166,13 @@ export const PcpJsMartinsPage: React.FC = () => {
   const [editingRotaDestino, setEditingRotaDestino] = useState('')
   const [editingRotaRegiao, setEditingRotaRegiao] = useState('')
 
+  // Estados dos filtros da aba Planejamento
+  const [planFilterRegiao, setPlanFilterRegiao] = useState<string>('TODOS')
+  const [planFilterModalidade, setPlanFilterModalidade] = useState<string>('TODOS')
+  const [planFilterStatusOp, setPlanFilterStatusOp] = useState<string>('TODOS')
+  const [planFilterLinha, setPlanFilterLinha] = useState<string>('TODOS')
+  const [planSearchTerm, setPlanSearchTerm] = useState<string>('')
+
   // Sincronizar parâmetros
   const saveModalParams = (list: ModalParamItem[]) => {
     setModalParams(list)
@@ -412,7 +419,7 @@ export const PcpJsMartinsPage: React.FC = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [page, pageSize, selectedStatusOperacao, selectedFilEntrega, searchTerm, modalMap])
+  }, [page, pageSize, selectedStatusOperacao, selectedFilEntrega, searchTerm, modalMap, rotaMap])
 
   useEffect(() => {
     if (activeTab === 'controle') {
@@ -1410,9 +1417,490 @@ export const PcpJsMartinsPage: React.FC = () => {
       )}
 
       {/* ------------------------------------------------------------------ */}
-      {/* ABAS 1 E 2: EM CONSTRUÇÃO (PLANEJAMENTO & PROGRAMAÇÃO)             */}
+      {/* ABA 1: PLANEJAMENTO (VISÃO RESUMO DESTINOS & REGIÕES COM FILTROS)   */}
       {/* ------------------------------------------------------------------ */}
-      {(activeTab === 'planejamento' || activeTab === 'programacao') && (
+      {activeTab === 'planejamento' && (() => {
+        // Obter toda a base local de registros
+        const allRows = getLocalData()
+
+        // Opções únicas para os filtros
+        const uniqueRegioes = ['TODOS', 'CAPITAL', 'METROPOLITANA', 'INTERIOR', 'ABASTECIMENTO CDs']
+        const uniqueModalidades = ['TODOS', ...Array.from(new Set(allRows.map(r => {
+          const cod = String(r.codmodal || r.CODMODAL || '').trim().toUpperCase()
+          return modalMap[cod] || String(r.descricaomodal || r.DESCRICAOMODAL || '')
+        }))).filter(Boolean).sort()]
+        const uniqueStatusOp = ['TODOS', ...Array.from(new Set(allRows.map(r => String(r.status_operacao || r.STATUS_OPERACAO || '')))).filter(Boolean).sort()]
+        const uniqueLinhas = ['TODOS', ...Array.from(new Set(allRows.map(r => String(r.linha || r.LINHA || '')))).filter(Boolean).sort()]
+
+        // Enriquecer e filtrar a base conforme filtros da aba Planejamento
+        const enrichedFiltered = allRows.map((r: any) => {
+          const cod = String(r.codmodal || r.CODMODAL || '').trim().toUpperCase()
+          const rotaKey = String(r.descricaorota || r.DESCRICAOROTA || r.filentrega || r.FILENTREGA || '').trim().toUpperCase()
+          const rotaInfo = rotaMap[rotaKey] || rotaMap[String(r.filentrega || r.FILENTREGA || '')] || { destino: '-', regiao: '-' }
+          
+          const regiao = rotaInfo.regiao !== '-' ? rotaInfo.regiao : 'INTERIOR'
+          const destino = rotaInfo.destino !== '-' ? rotaInfo.destino : (r.descricaorota || r.DESCRICAOROTA || (r.filentrega ? `Filial ${r.filentrega}` : 'OUTROS'))
+          const modalidade = modalMap[cod] || String(r.descricaomodal || r.DESCRICAOMODAL || '-')
+          const statusOperacao = String(r.status_operacao || r.STATUS_OPERACAO || '')
+          const linha = String(r.linha || r.LINHA || '')
+
+          return {
+            ...r,
+            calc_regiao: regiao,
+            calc_destino: destino,
+            calc_modalidade: modalidade,
+            calc_status_op: statusOperacao,
+            calc_linha: linha,
+            calc_ped: String(r.numpedven || r.NUMPEDVEN || ''),
+            calc_qtd: Number(r.qtcomp || r.QTCOMP || r.fisico || r.FISICO || r.qtped || r.QTPED) || 1,
+            calc_cub: Number(r.cub_tot || r.CUB_TOT) || 0,
+            calc_vltotal: Number(r.vltotal || r.VLTOTAL) || 0,
+            calc_peso: Number(r.pesoliq || r.PESOLIQ) || 0
+          }
+        }).filter(r => {
+          if (planFilterRegiao !== 'TODOS' && r.calc_regiao !== planFilterRegiao) return false
+          if (planFilterModalidade !== 'TODOS' && r.calc_modalidade !== planFilterModalidade) return false
+          if (planFilterStatusOp !== 'TODOS' && r.calc_status_op !== planFilterStatusOp) return false
+          if (planFilterLinha !== 'TODOS' && r.calc_linha !== planFilterLinha) return false
+          if (planSearchTerm.trim()) {
+            const term = planSearchTerm.toLowerCase()
+            const matchDest = r.calc_destino.toLowerCase().includes(term)
+            const matchReg = r.calc_regiao.toLowerCase().includes(term)
+            const matchPed = r.calc_ped.toLowerCase().includes(term)
+            if (!matchDest && !matchReg && !matchPed) return false
+          }
+          return true
+        })
+
+        // Agrupar por Região -> Destino
+        interface DestinoSummary {
+          destino: string
+          pedidosSet: Set<string>
+          pedidosCount: number
+          quantidade: number
+          cubagem: number
+          valorTotal: number
+          pesoTotal: number
+        }
+
+        interface RegiaoGroup {
+          regiao: string
+          destinos: DestinoSummary[]
+          totalPedidosSet: Set<string>
+          totalPedidos: number
+          totalQtd: number
+          totalCub: number
+          totalValor: number
+          totalPeso: number
+        }
+
+        const groupsMap = new Map<string, Map<string, DestinoSummary>>()
+
+        enrichedFiltered.forEach(row => {
+          const reg = row.calc_regiao || 'INTERIOR'
+          const dest = row.calc_destino || 'OUTROS'
+
+          if (!groupsMap.has(reg)) {
+            groupsMap.set(reg, new Map<string, DestinoSummary>())
+          }
+          const regMap = groupsMap.get(reg)!
+
+          if (!regMap.has(dest)) {
+            regMap.set(dest, {
+              destino: dest,
+              pedidosSet: new Set<string>(),
+              pedidosCount: 0,
+              quantidade: 0,
+              cubagem: 0,
+              valorTotal: 0,
+              pesoTotal: 0
+            })
+          }
+
+          const item = regMap.get(dest)!
+          if (row.calc_ped) item.pedidosSet.add(row.calc_ped)
+          item.quantidade += row.calc_qtd
+          item.cubagem += row.calc_cub
+          item.valorTotal += row.calc_vltotal
+          item.pesoTotal += row.calc_peso
+        })
+
+        // Ordem preferencial das regiões como no relatório do usuário
+        const regiaoPriority = ['CAPITAL', 'METROPOLITANA', 'INTERIOR', 'ABASTECIMENTO CDs', '#N/D']
+        const allPresentRegioes = Array.from(groupsMap.keys()).sort((a, b) => {
+          const idxA = regiaoPriority.indexOf(a)
+          const idxB = regiaoPriority.indexOf(b)
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB
+          if (idxA !== -1) return -1
+          if (idxB !== -1) return 1
+          return a.localeCompare(b)
+        })
+
+        const regiaoGroups: RegiaoGroup[] = allPresentRegioes.map(reg => {
+          const destMap = groupsMap.get(reg)!
+          const destinos = Array.from(destMap.values()).map(d => ({
+            ...d,
+            pedidosCount: d.pedidosSet.size || 1
+          })).sort((a, b) => a.destino.localeCompare(b.destino))
+
+          const totalPedidosSet = new Set<string>()
+          let totalQtd = 0
+          let totalCub = 0
+          let totalValor = 0
+          let totalPeso = 0
+
+          destinos.forEach(d => {
+            d.pedidosSet.forEach(p => totalPedidosSet.add(p))
+            totalQtd += d.quantidade
+            totalCub += d.cubagem
+            totalValor += d.valorTotal
+            totalPeso += d.pesoTotal
+          })
+
+          return {
+            regiao: reg,
+            destinos,
+            totalPedidosSet,
+            totalPedidos: totalPedidosSet.size || destinos.reduce((acc, d) => acc + d.pedidosCount, 0),
+            totalQtd,
+            totalCub,
+            totalValor,
+            totalPeso
+          }
+        })
+
+        // Totais Gerais
+        const geralPedidosSet = new Set<string>()
+        let geralQtd = 0
+        let geralCub = 0
+        let geralValor = 0
+        let geralPeso = 0
+
+        regiaoGroups.forEach(g => {
+          g.totalPedidosSet.forEach(p => geralPedidosSet.add(p))
+          geralQtd += g.totalQtd
+          geralCub += g.totalCub
+          geralValor += g.totalValor
+          geralPeso += g.totalPeso
+        })
+        const geralPedidos = geralPedidosSet.size || regiaoGroups.reduce((acc, g) => acc + g.totalPedidos, 0)
+
+        // Helper para semáforo de cubagem
+        const renderCubSemaforo = (cub: number) => {
+          let dotColor = 'bg-emerald-500 ring-emerald-300'
+          if (cub > 30) dotColor = 'bg-rose-500 ring-rose-300'
+          else if (cub > 15) dotColor = 'bg-amber-500 ring-amber-300'
+          return <span className={`inline-block w-2.5 h-2.5 rounded-full ring-2 ${dotColor} shrink-0 mr-1.5`} />
+        }
+
+        return (
+          <div className="space-y-4">
+            {/* ------------------------------------------------------------ */}
+            {/* PARTE DE CIMA: BARRA DE FILTROS RESERVADA E PRONTA           */}
+            {/* ------------------------------------------------------------ */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+                    <Sliders size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">Filtros & Parâmetros do Planejamento</h3>
+                    <p className="text-xs text-slate-500">Refine a base de dados em tempo real para cálculo de capacidade e agrupamentos</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlanFilterRegiao('TODOS')
+                      setPlanFilterModalidade('TODOS')
+                      setPlanFilterStatusOp('TODOS')
+                      setPlanFilterLinha('TODOS')
+                      setPlanSearchTerm('')
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <RefreshCw size={12} />
+                    Limpar Filtros
+                  </button>
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-100 text-blue-800 border border-blue-200">
+                    {enrichedFiltered.length.toLocaleString('pt-BR')} itens ativos
+                  </span>
+                </div>
+              </div>
+
+              {/* Controles de Filtros */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 pt-3">
+                {/* Busca Destino / Rota / Pedido */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Busca Rápida</label>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    <input
+                      type="text"
+                      value={planSearchTerm}
+                      onChange={e => setPlanSearchTerm(e.target.value)}
+                      placeholder="Destino, rota ou pedido..."
+                      className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Filtro de Região */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Região</label>
+                  <select
+                    value={planFilterRegiao}
+                    onChange={e => setPlanFilterRegiao(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white font-medium text-slate-700"
+                  >
+                    {uniqueRegioes.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Filtro de Modalidade */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Modalidade (Aux)</label>
+                  <select
+                    value={planFilterModalidade}
+                    onChange={e => setPlanFilterModalidade(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white font-medium text-slate-700"
+                  >
+                    {uniqueModalidades.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Filtro de Status Operação */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Status Operação</label>
+                  <select
+                    value={planFilterStatusOp}
+                    onChange={e => setPlanFilterStatusOp(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white font-medium text-slate-700"
+                  >
+                    {uniqueStatusOp.map(st => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Filtro de Linha */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Linha</label>
+                  <select
+                    value={planFilterLinha}
+                    onChange={e => setPlanFilterLinha(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white font-medium text-slate-700"
+                  >
+                    {uniqueLinhas.map(l => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* ------------------------------------------------------------ */}
+            {/* CORPO: CANTO ESQUERDO (TABELA FORMATO OFICIAL) + LADO DIREITO */}
+            {/* ------------------------------------------------------------ */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+              {/* CANTO ESQUERDO (TABELA EXATAMENTE COMO NO PRINT DO USUÁRIO) */}
+              <div className="xl:col-span-6 2xl:col-span-5 bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden flex flex-col">
+                <div className="px-4 py-3 bg-[#1e3a5f] text-white flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileSpreadsheet size={16} className="text-cyan-300" />
+                    <span className="text-xs font-black tracking-wider uppercase">Quadro Consolidado por Destino & Região</span>
+                  </div>
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-blue-900/60 text-cyan-200 border border-blue-400/30 font-bold">
+                    {regiaoGroups.reduce((acc, g) => acc + g.destinos.length, 0)} destinos
+                  </span>
+                </div>
+
+                {/* Tabela estilizada em tons de azul escuro idêntica ao print */}
+                <div className="overflow-x-auto max-h-[720px] overflow-y-auto">
+                  <table className="w-full text-[11px] border-collapse font-sans text-slate-100">
+                    <thead className="sticky top-0 z-20 bg-[#162d4a] text-cyan-200 uppercase text-[10px] font-black tracking-wider border-b border-blue-900">
+                      <tr>
+                        <th className="py-2 px-2 text-left border-r border-blue-900/60 w-32">REGIÃO</th>
+                        <th className="py-2 px-2 text-left border-r border-blue-900/60">DESTINO</th>
+                        <th className="py-2 px-2 text-right border-r border-blue-900/60 w-14">PEDIDO</th>
+                        <th className="py-2 px-2 text-right border-r border-blue-900/60 w-16">QUANTIDADE</th>
+                        <th className="py-2 px-2 text-right border-r border-blue-900/60 w-20">CUBAGEM</th>
+                        <th className="py-2 px-2 text-right border-r border-blue-900/60 w-24">VALOR R$</th>
+                        <th className="py-2 px-2 text-right w-16">PESO</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-blue-950/40 text-slate-100">
+                      {regiaoGroups.map((group) => (
+                        <React.Fragment key={group.regiao}>
+                          {/* Cabeçalho da Região */}
+                          <tr className="bg-[#1b365d] text-cyan-200 font-black border-y border-blue-900">
+                            <td colSpan={7} className="py-1.5 px-3 uppercase tracking-wide flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-xs bg-cyan-400 inline-block"></span>
+                              {group.regiao}
+                            </td>
+                          </tr>
+
+                          {/* Linhas de Destino */}
+                          {group.destinos.map((dest, idx) => (
+                            <tr
+                              key={dest.destino}
+                              className={`transition-colors hover:bg-[#2a4d7d]/80 ${
+                                idx % 2 === 0 ? 'bg-[#22426d]' : 'bg-[#1e3b63]'
+                              }`}
+                            >
+                              <td className="py-1 px-2 text-slate-400 border-r border-blue-900/30 truncate max-w-[110px]">
+                                {idx === 0 ? group.regiao : ''}
+                              </td>
+                              <td className="py-1 px-2 font-medium text-slate-100 border-r border-blue-900/30 truncate max-w-[220px]" title={dest.destino}>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400/80 shrink-0"></span>
+                                  <span className="truncate">{dest.destino}</span>
+                                </div>
+                              </td>
+                              <td className="py-1 px-2 text-right border-r border-blue-900/30 font-semibold text-slate-200">
+                                {dest.pedidosCount.toLocaleString('pt-BR')}
+                              </td>
+                              <td className="py-1 px-2 text-right border-r border-blue-900/30 text-slate-200">
+                                {Math.round(dest.quantidade).toLocaleString('pt-BR')}
+                              </td>
+                              <td className="py-1 px-2 text-right border-r border-blue-900/30 font-mono text-cyan-200 whitespace-nowrap">
+                                <div className="inline-flex items-center justify-end">
+                                  {renderCubSemaforo(dest.cubagem)}
+                                  <span>{dest.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                </div>
+                              </td>
+                              <td className="py-1 px-2 text-right border-r border-blue-900/30 font-mono text-emerald-300 whitespace-nowrap">
+                                {dest.valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                              </td>
+                              <td className="py-1 px-2 text-right font-mono text-slate-300">
+                                {Math.round(dest.pesoTotal).toLocaleString('pt-BR')}
+                              </td>
+                            </tr>
+                          ))}
+
+                          {/* Subtotal da Região */}
+                          <tr className="bg-[#153155] text-cyan-300 font-black border-y-2 border-blue-800">
+                            <td colSpan={2} className="py-2 px-3 tracking-wide">
+                              {group.regiao} TOTAL
+                            </td>
+                            <td className="py-2 px-2 text-right border-r border-blue-900/40 text-white">
+                              {group.totalPedidos.toLocaleString('pt-BR')}
+                            </td>
+                            <td className="py-2 px-2 text-right border-r border-blue-900/40 text-white">
+                              {Math.round(group.totalQtd).toLocaleString('pt-BR')}
+                            </td>
+                            <td className="py-2 px-2 text-right border-r border-blue-900/40 font-mono text-cyan-200 whitespace-nowrap">
+                              <div className="inline-flex items-center justify-end">
+                                {renderCubSemaforo(group.totalCub)}
+                                <span>{group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
+                            </td>
+                            <td className="py-2 px-2 text-right border-r border-blue-900/40 font-mono text-emerald-300 whitespace-nowrap">
+                              {group.totalValor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </td>
+                            <td className="py-2 px-2 text-right font-mono text-white">
+                              {Math.round(group.totalPeso).toLocaleString('pt-BR')}
+                            </td>
+                          </tr>
+                        </React.Fragment>
+                      ))}
+
+                      {/* Total Geral Consolidado */}
+                      <tr className="bg-[#0b1d33] text-amber-300 font-black text-xs border-t-2 border-amber-500/50">
+                        <td colSpan={2} className="py-2.5 px-3 uppercase tracking-wider">
+                          Total Geral
+                        </td>
+                        <td className="py-2.5 px-2 text-right text-white">
+                          {geralPedidos.toLocaleString('pt-BR')}
+                        </td>
+                        <td className="py-2.5 px-2 text-right text-white">
+                          {Math.round(geralQtd).toLocaleString('pt-BR')}
+                        </td>
+                        <td className="py-2.5 px-2 text-right font-mono text-cyan-200 whitespace-nowrap">
+                          {geralCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-2.5 px-2 text-right font-mono text-emerald-300 whitespace-nowrap">
+                          {geralValor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </td>
+                        <td className="py-2.5 px-2 text-right font-mono text-white">
+                          {Math.round(geralPeso).toLocaleString('pt-BR')}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* LADO DIREITO: ÁREA RESERVADA PARA GRÁFICOS, ONDAS E CRONOGRAMAS */}
+              <div className="xl:col-span-6 2xl:col-span-7 space-y-4">
+                {/* Cards Rápidos de Visão Geral */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Total Pedidos</span>
+                    <span className="text-xl font-black text-slate-800">{geralPedidos.toLocaleString('pt-BR')}</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">Backlog filtrado</span>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Volume Peças</span>
+                    <span className="text-xl font-black text-blue-600">{Math.round(geralQtd).toLocaleString('pt-BR')}</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">Total de unidades</span>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Cubagem (m³)</span>
+                    <span className="text-xl font-black text-purple-600">
+                      {geralCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                    </span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">Espaço cúbico</span>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Faturamento</span>
+                    <span className="text-xl font-black text-emerald-600">
+                      {geralValor.toLocaleString('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' })}
+                    </span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">Valor em carteira</span>
+                  </div>
+                </div>
+
+                {/* Painel Central Livre para Próximos Gráficos / Planejamento de Carga */}
+                <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 flex flex-col items-center justify-center text-center space-y-4 min-h-[500px]">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shadow-xs">
+                    <Layers size={30} />
+                  </div>
+                  <div className="max-w-md space-y-1.5">
+                    <h4 className="text-lg font-bold text-slate-800">Área de Visualização Gráfica & Cronogramas</h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Este lado direito está totalmente reservado para os próximos módulos: gráficos de cubagem por região, balanceamento de linhas, previsão de saída e distribuição por turnos.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                    <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                      📈 Gráfico de Distribuição
+                    </span>
+                    <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                      🚚 Planejamento de Cargas
+                    </span>
+                    <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                      ⏱️ Sequenciamento por Doca
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* ABA 2: PROGRAMAÇÃO (EM CONSTRUÇÃO)                                 */}
+      {/* ------------------------------------------------------------------ */}
+      {activeTab === 'programacao' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 shadow-2xs flex flex-col items-center justify-center text-center space-y-6 min-h-[460px]">
           <div className="relative">
             <div className="w-20 h-20 rounded-2xl bg-linear-to-br from-amber-50 to-orange-100 border border-amber-200 flex items-center justify-center text-amber-600 shadow-inner">
