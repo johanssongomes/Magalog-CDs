@@ -219,11 +219,15 @@ export const SupplyLojasPage: React.FC = () => {
           const filVals: Record<number, number> = {}
           let skuTotalLojas = 0
 
+          let skuFisicoLojas = 0
+
           filiaisList.forEach(f => {
             const arr = s.fil[f]
             const v = arr ? arr[metricIdx] || 0 : 0
+            const fVal = arr ? arr[0] || 0 : 0
             filVals[f] = v
             skuTotalLojas += v
+            skuFisicoLojas += fVal
             calculatedFiliaisTotais[f] += v
           })
 
@@ -236,18 +240,17 @@ export const SupplyLojasPage: React.FC = () => {
             desc: s.n,
             valCd994: valCd,
             totalLojas: skuTotalLojas,
+            skuFisicoLojas,
             filiaisVals: filVals
           }
         }).filter(s => {
-          // Quando estiver na visão 'LOJA COM FISICO' e houver lojas filtradas,
-          // exibir apenas os itens que realmente possuem estoque nas lojas selecionadas
+          // O status 'LOJA COM FISICO' vs 'LOJA SEM FISICO' é determinado estritamente pelo estoque FÍSICO (índice 0)
+          // das lojas selecionadas, independente de a métrica exibida ser Em Trânsito, Físico, Lógico ou Estoque Geral.
           if (pivotStatus === 'LOJA COM FISICO' && filiaisList.length < (initialPivotData.filiais as number[]).length) {
-            return s.totalLojas > 0
+            return s.skuFisicoLojas > 0
           }
-          // Quando estiver na visão 'LOJA SEM FISICO' e houver lojas filtradas,
-          // exibir apenas os itens onde as lojas selecionadas estão sem estoque (totalLojas === 0)
           if (pivotStatus === 'LOJA SEM FISICO' && filiaisList.length < (initialPivotData.filiais as number[]).length) {
-            return s.totalLojas === 0
+            return s.skuFisicoLojas === 0
           }
           return true
         })
