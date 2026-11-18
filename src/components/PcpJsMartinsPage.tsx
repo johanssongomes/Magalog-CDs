@@ -2056,27 +2056,74 @@ export const PcpJsMartinsPage: React.FC = () => {
                         const isRegiaoCollapsed = !!collapsedRegioes[group.regiao]
                         return (
                           <React.Fragment key={group.regiao}>
-                            {/* Cabeçalho de Grupo da Região (Ex: - CAPITAL com botão de expandir/recolher a região) */}
-                            <tr className="bg-slate-100/90 hover:bg-slate-200/70 transition-colors text-slate-900 font-extrabold border-y border-slate-200 select-none">
-                              <td colSpan={7} className="py-1 px-2.5 uppercase tracking-wide text-[11px]">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleRegiao(group.regiao)}
-                                  className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-700 transition-colors cursor-pointer w-full"
-                                >
-                                  <span className={`inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none mr-1 font-mono font-black shadow-2xs ${isRegiaoCollapsed
-                                    ? 'bg-blue-600 border-blue-600 text-white'
-                                    : 'border-slate-400/80 bg-white text-slate-700'
-                                    }`}>
-                                    {isRegiaoCollapsed ? '+' : '-'}
-                                  </span>
-                                  <span className="text-slate-900 font-black">{group.regiao}</span>
-                                  <span className="text-[10px] text-slate-500 font-normal lowercase ml-1">
-                                    ({group.destinos.length} destinos{isRegiaoCollapsed ? ' - clique para expandir' : ''})
-                                  </span>
-                                </button>
-                              </td>
-                            </tr>
+                            {/* Cabeçalho de Grupo da Região:
+                                - Se RECOLHIDA: fica em UMA ÚNICA LINHA já com os totais de Pedidos, Quantidade, Cubagem, Valor$ e Peso.
+                                - Se EXPANDIDA: vira uma barra de cabeçalho simples [-] REGIAO, os destinos vêm abaixo e o subtotal vem no rodapé.
+                            */}
+                            {isRegiaoCollapsed ? (
+                              <tr className="bg-slate-100/95 hover:bg-slate-200/80 transition-colors text-slate-900 font-extrabold border-y border-slate-200 divide-x divide-slate-200 select-none">
+                                <td colSpan={2} className="py-1 px-2.5 uppercase tracking-wide text-[11px] whitespace-nowrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleRegiao(group.regiao)}
+                                    className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-700 transition-colors cursor-pointer w-full"
+                                  >
+                                    <span className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none mr-1 font-mono font-black shadow-2xs bg-blue-600 border-blue-600 text-white">
+                                      +
+                                    </span>
+                                    <span className="text-slate-900 font-black">{group.regiao}</span>
+                                    <span className="text-[10px] text-slate-500 font-normal lowercase ml-1">
+                                      ({group.destinos.length} destinos - clique para expandir)
+                                    </span>
+                                  </button>
+                                </td>
+                                <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
+                                  {group.totalPedidos.toLocaleString('pt-BR')}
+                                </td>
+                                <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
+                                  {Math.round(group.totalQtd).toLocaleString('pt-BR')}
+                                </td>
+                                <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono">
+                                  <div className="grid grid-cols-[18px_1fr] items-center gap-1.5 w-[76px] mx-auto">
+                                    <div className="flex justify-center items-center">
+                                      {renderCubSemaforo(group.totalCub)}
+                                    </div>
+                                    <span className="text-right text-slate-900 font-black">
+                                      {group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono">
+                                  <div className="inline-flex items-center justify-center gap-1 w-full text-slate-900">
+                                    <span className="text-slate-500 font-normal text-[9.5px]">R$</span>
+                                    <span className="text-slate-900">
+                                      {group.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
+                                  {Math.round(group.totalPeso).toLocaleString('pt-BR')}
+                                </td>
+                              </tr>
+                            ) : (
+                              <tr className="bg-slate-100/90 hover:bg-slate-200/70 transition-colors text-slate-900 font-extrabold border-y border-slate-200 select-none">
+                                <td colSpan={7} className="py-1 px-2.5 uppercase tracking-wide text-[11px]">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleRegiao(group.regiao)}
+                                    className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-700 transition-colors cursor-pointer w-full"
+                                  >
+                                    <span className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none mr-1 font-mono font-black shadow-2xs border-slate-400/80 bg-white text-slate-700">
+                                      -
+                                    </span>
+                                    <span className="text-slate-900 font-black">{group.regiao}</span>
+                                    <span className="text-[10px] text-slate-500 font-normal lowercase ml-1">
+                                      ({group.destinos.length} destinos)
+                                    </span>
+                                  </button>
+                                </td>
+                              </tr>
+                            )}
 
                             {/* Linhas de Destino com suporte a expansão detalhada (visíveis se a região não estiver recolhida) */}
                             {!isRegiaoCollapsed && group.destinos.map((dest, idx) => {
