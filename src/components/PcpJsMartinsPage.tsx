@@ -175,9 +175,15 @@ export const PcpJsMartinsPage: React.FC = () => {
   const [planSearchTerm, setPlanSearchTerm] = useState<string>('')
   // Controle de destinos expandidos no Planejamento
   const [expandedDestinos, setExpandedDestinos] = useState<Record<string, boolean>>({})
+  // Controle de regiões recolhidas no Planejamento
+  const [collapsedRegioes, setCollapsedRegioes] = useState<Record<string, boolean>>({})
 
   const toggleDestino = (destino: string) => {
     setExpandedDestinos(prev => ({ ...prev, [destino]: !prev[destino] }))
+  }
+
+  const toggleRegiao = (regiao: string) => {
+    setCollapsedRegioes(prev => ({ ...prev, [regiao]: !prev[regiao] }))
   }
 
   // Sincronizar parâmetros
@@ -1872,139 +1878,153 @@ export const PcpJsMartinsPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-sans">
-                      {regiaoGroups.map((group) => (
-                        <React.Fragment key={group.regiao}>
-                          {/* Cabeçalho de Grupo da Região (Ex: - CAPITAL com fundo slate/blue bem suave) */}
-                          <tr className="bg-slate-100/90 text-slate-900 font-extrabold border-y border-slate-200">
-                            <td colSpan={7} className="py-1 px-2.5 uppercase tracking-wide flex items-center gap-1 text-[11px]">
-                              <span className="inline-flex items-center justify-center w-3 h-3 text-[9px] border border-slate-400/80 rounded-xs bg-white text-slate-700 leading-none mr-1.5 font-mono font-bold shadow-2xs">
-                                -
-                              </span>
-                              <span className="text-slate-900">{group.regiao}</span>
-                            </td>
-                          </tr>
-
-                          {/* Linhas de Destino com suporte a expansão detalhada */}
-                          {group.destinos.map((dest, idx) => {
-                            const isExpanded = !!expandedDestinos[dest.destino]
-                            return (
-                              <React.Fragment key={dest.destino}>
-                                <tr
-                                  className={`transition-colors divide-x divide-slate-100 hover:bg-sky-50/50 ${isExpanded ? 'bg-sky-50/40' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                                    }`}
+                      {regiaoGroups.map((group) => {
+                        const isRegiaoCollapsed = !!collapsedRegioes[group.regiao]
+                        return (
+                          <React.Fragment key={group.regiao}>
+                            {/* Cabeçalho de Grupo da Região (Ex: - CAPITAL com botão de expandir/recolher a região) */}
+                            <tr className="bg-slate-100/90 hover:bg-slate-200/70 transition-colors text-slate-900 font-extrabold border-y border-slate-200 select-none">
+                              <td colSpan={7} className="py-1 px-2.5 uppercase tracking-wide text-[11px]">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleRegiao(group.regiao)}
+                                  className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-700 transition-colors cursor-pointer w-full"
                                 >
-                                  <td className="py-1 px-2.5 text-slate-600 text-[10.5px] font-bold whitespace-nowrap">
-                                    {idx === 0 ? group.regiao : ''}
-                                  </td>
-                                  <td className="py-1 px-2.5 font-bold text-slate-800 text-[11px] whitespace-nowrap">
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleDestino(dest.destino)}
-                                      className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-600 transition-colors cursor-pointer select-none"
-                                    >
-                                      <span className={`inline-flex items-center justify-center w-3 h-3 text-[9px] border rounded-xs leading-none shrink-0 font-mono font-bold ${isExpanded ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-slate-100 text-slate-600'
-                                        }`}>
-                                        {isExpanded ? '-' : '+'}
-                                      </span>
-                                      <span className={isExpanded ? 'text-blue-700 font-extrabold' : ''}>{dest.destino}</span>
-                                    </button>
-                                  </td>
-                                  <td className="py-1 px-2 text-center font-bold text-slate-700 text-[11px] whitespace-nowrap font-mono">
-                                    {dest.pedidosCount.toLocaleString('pt-BR')}
-                                  </td>
-                                  <td className="py-1 px-2 text-center font-bold text-slate-700 text-[11px] whitespace-nowrap font-mono">
-                                    {Math.round(dest.quantidade).toLocaleString('pt-BR')}
-                                  </td>
-                                  <td className="py-1 px-2 text-center text-[11px] whitespace-nowrap font-mono">
-                                    <div className="grid grid-cols-[18px_1fr] items-center gap-1.5 w-[76px] mx-auto">
-                                      <div className="flex justify-center items-center">
-                                        {renderCubSemaforo(dest.cubagem)}
-                                      </div>
-                                      <span className="text-right font-bold text-slate-800">
-                                        {dest.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="py-1 px-2 text-center text-[11px] whitespace-nowrap font-mono">
-                                    <div className="inline-flex items-center justify-center gap-1 w-full font-bold text-slate-800">
-                                      <span className="text-slate-400 font-normal text-[9.5px]">R$</span>
-                                      <span>{dest.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    </div>
-                                  </td>
-                                  <td className="py-1 px-2 text-center text-[11px] text-slate-700 font-bold whitespace-nowrap font-mono">
-                                    {Math.round(dest.pesoTotal).toLocaleString('pt-BR')}
-                                  </td>
-                                </tr>
+                                  <span className={`inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none mr-1 font-mono font-black shadow-2xs ${isRegiaoCollapsed
+                                    ? 'bg-blue-600 border-blue-600 text-white'
+                                    : 'border-slate-400/80 bg-white text-slate-700'
+                                    }`}>
+                                    {isRegiaoCollapsed ? '+' : '-'}
+                                  </span>
+                                  <span className="text-slate-900 font-black">{group.regiao}</span>
+                                  <span className="text-[10px] text-slate-500 font-normal lowercase ml-1">
+                                    ({group.destinos.length} destinos{isRegiaoCollapsed ? ' - clique para expandir' : ''})
+                                  </span>
+                                </button>
+                              </td>
+                            </tr>
 
-                                {/* DETALHAMENTO EXPANDIDO (Hierarquia: Modalidade, Status/Lote, Pedido, Item, Descrição, Qtd, Cubagem, Valor$, Peso) */}
-                                {isExpanded && (
-                                  <tr>
-                                    <td colSpan={7} className="p-0 border-b border-sky-200">
-                                      <div className="bg-slate-50/90 border-y border-sky-100 p-2 pl-6 overflow-x-auto shadow-inner">
-                                        <table className="w-full text-[10px] border-collapse bg-white rounded-lg border border-slate-200/90 shadow-2xs">
-                                          <thead>
-                                            <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
-                                              <th className="py-1.5 px-2 text-center w-24">MODALIDADE</th>
-                                              <th className="py-1.5 px-2 text-center w-28">STATUS / LOTE</th>
-                                              <th className="py-1.5 px-2 text-center w-28">NUMPEDVEN</th>
-                                              <th className="py-1.5 px-2 text-center w-20">ITEM</th>
-                                              <th className="py-1.5 px-3 text-left">DESCRIÇÃO</th>
-                                              <th className="py-1.5 px-2 text-center w-16">QTD</th>
-                                              <th className="py-1.5 px-2 text-center w-20">CUBAGEM</th>
-                                              <th className="py-1.5 px-2 text-center w-24">VALOR$</th>
-                                              <th className="py-1.5 px-2 text-center w-14">PESO</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody className="divide-y divide-slate-100 font-sans">
-                                            {dest.detalhes.map((det, dIdx) => (
-                                              <tr key={`${det.item}-${det.numpedven}-${dIdx}`} className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100">
-                                                <td className="py-1 px-2 text-center font-bold text-slate-700">
-                                                  <span className="px-1.5 py-0.2 bg-blue-50 text-blue-800 border border-blue-200 rounded text-[9px]">
-                                                    {det.modalidade}
-                                                  </span>
-                                                </td>
-                                                <td className="py-1 px-2 text-center text-slate-600 font-medium">
-                                                  <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
-                                                    }`}>
-                                                    {det.statusOperacao}
-                                                  </span>
-                                                </td>
-                                                <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
-                                                  {det.numpedven || '-'}
-                                                </td>
-                                                <td className="py-1 px-2 text-center font-mono font-bold text-blue-700">
-                                                  {det.item || '-'}
-                                                </td>
-                                                <td className="py-1 px-3 text-slate-800 truncate max-w-xs" title={det.descricao}>
-                                                  {det.descricao || '-'}
-                                                </td>
-                                                <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
-                                                  {det.quantidade}
-                                                </td>
-                                                <td className="py-1 px-2 text-center font-mono">
-                                                  <div className="flex items-center justify-center gap-1">
-                                                    {renderCubSemaforo(det.cubagem)}
-                                                    <span className="font-bold text-slate-800">{det.cubagem.toFixed(2)}</span>
-                                                  </div>
-                                                </td>
-                                                <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
-                                                  <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
-                                                  {det.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </td>
-                                                <td className="py-1 px-2 text-center font-mono font-medium text-slate-700">
-                                                  {Math.round(det.peso)}
-                                                </td>
-                                              </tr>
-                                            ))}
-                                          </tbody>
-                                        </table>
+                            {/* Linhas de Destino com suporte a expansão detalhada (visíveis se a região não estiver recolhida) */}
+                            {!isRegiaoCollapsed && group.destinos.map((dest, idx) => {
+                              const isExpanded = !!expandedDestinos[dest.destino]
+                              return (
+                                <React.Fragment key={dest.destino}>
+                                  <tr
+                                    className={`transition-colors divide-x divide-slate-100 hover:bg-sky-50/50 ${isExpanded ? 'bg-sky-50/40' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                                      }`}
+                                  >
+                                    <td className="py-1 px-2.5 text-slate-600 text-[10.5px] font-bold whitespace-nowrap">
+                                      {idx === 0 ? group.regiao : ''}
+                                    </td>
+                                    <td className="py-1 px-2.5 font-bold text-slate-800 text-[11px] whitespace-nowrap">
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleDestino(dest.destino)}
+                                        className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-600 transition-colors cursor-pointer select-none"
+                                      >
+                                        <span className={`inline-flex items-center justify-center w-3 h-3 text-[9px] border rounded-xs leading-none shrink-0 font-mono font-bold ${isExpanded ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-slate-100 text-slate-600'
+                                          }`}>
+                                          {isExpanded ? '-' : '+'}
+                                        </span>
+                                        <span className={isExpanded ? 'text-blue-700 font-extrabold' : ''}>{dest.destino}</span>
+                                      </button>
+                                    </td>
+                                    <td className="py-1 px-2 text-center font-bold text-slate-700 text-[11px] whitespace-nowrap font-mono">
+                                      {dest.pedidosCount.toLocaleString('pt-BR')}
+                                    </td>
+                                    <td className="py-1 px-2 text-center font-bold text-slate-700 text-[11px] whitespace-nowrap font-mono">
+                                      {Math.round(dest.quantidade).toLocaleString('pt-BR')}
+                                    </td>
+                                    <td className="py-1 px-2 text-center text-[11px] whitespace-nowrap font-mono">
+                                      <div className="grid grid-cols-[18px_1fr] items-center gap-1.5 w-[76px] mx-auto">
+                                        <div className="flex justify-center items-center">
+                                          {renderCubSemaforo(dest.cubagem)}
+                                        </div>
+                                        <span className="text-right font-bold text-slate-800">
+                                          {dest.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
                                       </div>
                                     </td>
+                                    <td className="py-1 px-2 text-center text-[11px] whitespace-nowrap font-mono">
+                                      <div className="inline-flex items-center justify-center gap-1 w-full font-bold text-slate-800">
+                                        <span className="text-slate-400 font-normal text-[9.5px]">R$</span>
+                                        <span>{dest.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-1 px-2 text-center text-[11px] text-slate-700 font-bold whitespace-nowrap font-mono">
+                                      {Math.round(dest.pesoTotal).toLocaleString('pt-BR')}
+                                    </td>
                                   </tr>
-                                )}
-                              </React.Fragment>
-                            )
-                          })}
+
+                                  {/* DETALHAMENTO EXPANDIDO (Hierarquia: Modalidade, Status/Lote, Pedido, Item, Descrição, Qtd, Cubagem, Valor$, Peso) */}
+                                  {isExpanded && (
+                                    <tr>
+                                      <td colSpan={7} className="p-0 border-b border-sky-200">
+                                        <div className="bg-slate-50/90 border-y border-sky-100 p-2 pl-6 overflow-x-auto shadow-inner">
+                                          <table className="w-full text-[10px] border-collapse bg-white rounded-lg border border-slate-200/90 shadow-2xs">
+                                            <thead>
+                                              <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
+                                                <th className="py-1.5 px-2 text-center w-24">MODALIDADE</th>
+                                                <th className="py-1.5 px-2 text-center w-28">STATUS / LOTE</th>
+                                                <th className="py-1.5 px-2 text-center w-28">NUMPEDVEN</th>
+                                                <th className="py-1.5 px-2 text-center w-20">ITEM</th>
+                                                <th className="py-1.5 px-3 text-left">DESCRIÇÃO</th>
+                                                <th className="py-1.5 px-2 text-center w-16">QTD</th>
+                                                <th className="py-1.5 px-2 text-center w-20">CUBAGEM</th>
+                                                <th className="py-1.5 px-2 text-center w-24">VALOR$</th>
+                                                <th className="py-1.5 px-2 text-center w-14">PESO</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 font-sans">
+                                              {dest.detalhes.map((det, dIdx) => (
+                                                <tr key={`${det.item}-${det.numpedven}-${dIdx}`} className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100">
+                                                  <td className="py-1 px-2 text-center font-bold text-slate-700">
+                                                    <span className="px-1.5 py-0.2 bg-blue-50 text-blue-800 border border-blue-200 rounded text-[9px]">
+                                                      {det.modalidade}
+                                                    </span>
+                                                  </td>
+                                                  <td className="py-1 px-2 text-center text-slate-600 font-medium">
+                                                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
+                                                      }`}>
+                                                      {det.statusOperacao}
+                                                    </span>
+                                                  </td>
+                                                  <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                    {det.numpedven || '-'}
+                                                  </td>
+                                                  <td className="py-1 px-2 text-center font-mono font-bold text-blue-700">
+                                                    {det.item || '-'}
+                                                  </td>
+                                                  <td className="py-1 px-3 text-slate-800 truncate max-w-xs" title={det.descricao}>
+                                                    {det.descricao || '-'}
+                                                  </td>
+                                                  <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                    {det.quantidade}
+                                                  </td>
+                                                  <td className="py-1 px-2 text-center font-mono">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                      {renderCubSemaforo(det.cubagem)}
+                                                      <span className="font-bold text-slate-800">{det.cubagem.toFixed(2)}</span>
+                                                    </div>
+                                                  </td>
+                                                  <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                    <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
+                                                    {det.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                  </td>
+                                                  <td className="py-1 px-2 text-center font-mono font-medium text-slate-700">
+                                                    {Math.round(det.peso)}
+                                                  </td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
+                              )
+                            })}
 
                           {/* Subtotal da Região (Ex: CAPITAL TOTAL com fundo suave e texto destacado) */}
                           <tr className="bg-slate-100/90 text-slate-900 font-black border-y border-slate-200 divide-x divide-slate-200">
@@ -2040,7 +2060,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                             </td>
                           </tr>
                         </React.Fragment>
-                      ))}
+                      )})}
 
                       {/* Total Geral Consolidado */}
                       <tr className="bg-slate-200/90 text-slate-950 font-black text-[11px] border-t-2 border-slate-300 divide-x divide-slate-300">
