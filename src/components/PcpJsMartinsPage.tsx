@@ -173,6 +173,12 @@ export const PcpJsMartinsPage: React.FC = () => {
   const [planFilterStatusOp, setPlanFilterStatusOp] = useState<string>('TODOS')
   const [planFilterLinha, setPlanFilterLinha] = useState<string>('TODOS')
   const [planSearchTerm, setPlanSearchTerm] = useState<string>('')
+  // Controle de destinos expandidos no Planejamento
+  const [expandedDestinos, setExpandedDestinos] = useState<Record<string, boolean>>({})
+
+  const toggleDestino = (destino: string) => {
+    setExpandedDestinos(prev => ({ ...prev, [destino]: !prev[destino] }))
+  }
 
   // Sincronizar parâmetros
   const saveModalParams = (list: ModalParamItem[]) => {
@@ -1538,6 +1544,19 @@ export const PcpJsMartinsPage: React.FC = () => {
         })
 
         // Agrupar por Região -> Destino
+        interface DestinoItemDetail {
+          modalidade: string
+          statusOperacao: string
+          numlote: string
+          numpedven: string
+          item: string
+          descricao: string
+          quantidade: number
+          cubagem: number
+          valorTotal: number
+          peso: number
+        }
+
         interface DestinoSummary {
           destino: string
           pedidosSet: Set<string>
@@ -1546,6 +1565,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           cubagem: number
           valorTotal: number
           pesoTotal: number
+          detalhes: DestinoItemDetail[]
         }
 
         interface RegiaoGroup {
@@ -1578,7 +1598,8 @@ export const PcpJsMartinsPage: React.FC = () => {
               quantidade: 0,
               cubagem: 0,
               valorTotal: 0,
-              pesoTotal: 0
+              pesoTotal: 0,
+              detalhes: []
             })
           }
 
@@ -1588,6 +1609,19 @@ export const PcpJsMartinsPage: React.FC = () => {
           item.cubagem += row.calc_cub
           item.valorTotal += row.calc_vltotal
           item.pesoTotal += row.calc_peso
+
+          item.detalhes.push({
+            modalidade: row.calc_modalidade || '-',
+            statusOperacao: row.calc_status_op || row.status_operacao || row.STATUS_OPERACAO || 'EM CARTEIRA',
+            numlote: String(row.numlote || row.NUMLOTE || ''),
+            numpedven: String(row.numpedven || row.NUMPEDVEN || ''),
+            item: String(row.item || row.ITEM || ''),
+            descricao: String(row.descricao || row.DESCRICAO || ''),
+            quantidade: row.calc_qtd,
+            cubagem: row.calc_cub,
+            valorTotal: row.calc_vltotal,
+            peso: row.calc_peso
+          })
         })
 
         // Ordem preferencial das regiões como no relatório do usuário
@@ -1850,51 +1884,127 @@ export const PcpJsMartinsPage: React.FC = () => {
                             </td>
                           </tr>
 
-                          {/* Linhas de Destino com fundo branco, texto escuro nítido e bordas sutis */}
-                          {group.destinos.map((dest, idx) => (
-                            <tr
-                              key={dest.destino}
-                              className={`transition-colors divide-x divide-slate-100 hover:bg-sky-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                                }`}
-                            >
-                              <td className="py-1 px-2.5 text-slate-600 text-[10.5px] font-bold whitespace-nowrap">
-                                {idx === 0 ? group.regiao : ''}
-                              </td>
-                              <td className="py-1 px-2.5 font-bold text-slate-800 text-[11px] whitespace-nowrap">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="inline-flex items-center justify-center w-3 h-3 text-[9px] border border-slate-300 rounded-xs bg-slate-100 text-slate-600 leading-none shrink-0 font-mono font-bold">
-                                    +
-                                  </span>
-                                  <span>{dest.destino}</span>
-                                </div>
-                              </td>
-                              <td className="py-1 px-2 text-center font-bold text-slate-700 text-[11px] whitespace-nowrap font-mono">
-                                {dest.pedidosCount.toLocaleString('pt-BR')}
-                              </td>
-                              <td className="py-1 px-2 text-center font-bold text-slate-700 text-[11px] whitespace-nowrap font-mono">
-                                {Math.round(dest.quantidade).toLocaleString('pt-BR')}
-                              </td>
-                              <td className="py-1 px-2 text-center text-[11px] whitespace-nowrap font-mono">
-                                <div className="grid grid-cols-[18px_1fr] items-center gap-1.5 w-[76px] mx-auto">
-                                  <div className="flex justify-center items-center">
-                                    {renderCubSemaforo(dest.cubagem)}
-                                  </div>
-                                  <span className="text-right font-bold text-slate-800">
-                                    {dest.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="py-1 px-2 text-center text-[11px] whitespace-nowrap font-mono">
-                                <div className="inline-flex items-center justify-center gap-1 w-full font-bold text-slate-800">
-                                  <span className="text-slate-400 font-normal text-[9.5px]">R$</span>
-                                  <span>{dest.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                </div>
-                              </td>
-                              <td className="py-1 px-2 text-center text-[11px] text-slate-700 font-bold whitespace-nowrap font-mono">
-                                {Math.round(dest.pesoTotal).toLocaleString('pt-BR')}
-                              </td>
-                            </tr>
-                          ))}
+                          {/* Linhas de Destino com suporte a expansão detalhada */}
+                          {group.destinos.map((dest, idx) => {
+                            const isExpanded = !!expandedDestinos[dest.destino]
+                            return (
+                              <React.Fragment key={dest.destino}>
+                                <tr
+                                  className={`transition-colors divide-x divide-slate-100 hover:bg-sky-50/50 ${isExpanded ? 'bg-sky-50/40' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                                    }`}
+                                >
+                                  <td className="py-1 px-2.5 text-slate-600 text-[10.5px] font-bold whitespace-nowrap">
+                                    {idx === 0 ? group.regiao : ''}
+                                  </td>
+                                  <td className="py-1 px-2.5 font-bold text-slate-800 text-[11px] whitespace-nowrap">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleDestino(dest.destino)}
+                                      className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-600 transition-colors cursor-pointer select-none"
+                                    >
+                                      <span className={`inline-flex items-center justify-center w-3 h-3 text-[9px] border rounded-xs leading-none shrink-0 font-mono font-bold ${isExpanded ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-slate-100 text-slate-600'
+                                        }`}>
+                                        {isExpanded ? '-' : '+'}
+                                      </span>
+                                      <span className={isExpanded ? 'text-blue-700 font-extrabold' : ''}>{dest.destino}</span>
+                                    </button>
+                                  </td>
+                                  <td className="py-1 px-2 text-center font-bold text-slate-700 text-[11px] whitespace-nowrap font-mono">
+                                    {dest.pedidosCount.toLocaleString('pt-BR')}
+                                  </td>
+                                  <td className="py-1 px-2 text-center font-bold text-slate-700 text-[11px] whitespace-nowrap font-mono">
+                                    {Math.round(dest.quantidade).toLocaleString('pt-BR')}
+                                  </td>
+                                  <td className="py-1 px-2 text-center text-[11px] whitespace-nowrap font-mono">
+                                    <div className="grid grid-cols-[18px_1fr] items-center gap-1.5 w-[76px] mx-auto">
+                                      <div className="flex justify-center items-center">
+                                        {renderCubSemaforo(dest.cubagem)}
+                                      </div>
+                                      <span className="text-right font-bold text-slate-800">
+                                        {dest.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="py-1 px-2 text-center text-[11px] whitespace-nowrap font-mono">
+                                    <div className="inline-flex items-center justify-center gap-1 w-full font-bold text-slate-800">
+                                      <span className="text-slate-400 font-normal text-[9.5px]">R$</span>
+                                      <span>{dest.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-1 px-2 text-center text-[11px] text-slate-700 font-bold whitespace-nowrap font-mono">
+                                    {Math.round(dest.pesoTotal).toLocaleString('pt-BR')}
+                                  </td>
+                                </tr>
+
+                                {/* DETALHAMENTO EXPANDIDO (Hierarquia: Modalidade, Status/Lote, Pedido, Item, Descrição, Qtd, Cubagem, Valor$, Peso) */}
+                                {isExpanded && (
+                                  <tr>
+                                    <td colSpan={7} className="p-0 border-b border-sky-200">
+                                      <div className="bg-slate-50/90 border-y border-sky-100 p-2 pl-6 overflow-x-auto shadow-inner">
+                                        <table className="w-full text-[10px] border-collapse bg-white rounded-lg border border-slate-200/90 shadow-2xs">
+                                          <thead>
+                                            <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
+                                              <th className="py-1.5 px-2 text-center w-24">MODALIDADE</th>
+                                              <th className="py-1.5 px-2 text-center w-28">STATUS / LOTE</th>
+                                              <th className="py-1.5 px-2 text-center w-28">NUMPEDVEN</th>
+                                              <th className="py-1.5 px-2 text-center w-20">ITEM</th>
+                                              <th className="py-1.5 px-3 text-left">DESCRIÇÃO</th>
+                                              <th className="py-1.5 px-2 text-center w-16">QTD</th>
+                                              <th className="py-1.5 px-2 text-center w-20">CUBAGEM</th>
+                                              <th className="py-1.5 px-2 text-center w-24">VALOR$</th>
+                                              <th className="py-1.5 px-2 text-center w-14">PESO</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-slate-100 font-sans">
+                                            {dest.detalhes.map((det, dIdx) => (
+                                              <tr key={`${det.item}-${det.numpedven}-${dIdx}`} className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100">
+                                                <td className="py-1 px-2 text-center font-bold text-slate-700">
+                                                  <span className="px-1.5 py-0.2 bg-blue-50 text-blue-800 border border-blue-200 rounded text-[9px]">
+                                                    {det.modalidade}
+                                                  </span>
+                                                </td>
+                                                <td className="py-1 px-2 text-center text-slate-600 font-medium">
+                                                  <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
+                                                    }`}>
+                                                    {det.statusOperacao}
+                                                  </span>
+                                                </td>
+                                                <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                  {det.numpedven || '-'}
+                                                </td>
+                                                <td className="py-1 px-2 text-center font-mono font-bold text-blue-700">
+                                                  {det.item || '-'}
+                                                </td>
+                                                <td className="py-1 px-3 text-slate-800 truncate max-w-xs" title={det.descricao}>
+                                                  {det.descricao || '-'}
+                                                </td>
+                                                <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                  {det.quantidade}
+                                                </td>
+                                                <td className="py-1 px-2 text-center font-mono">
+                                                  <div className="flex items-center justify-center gap-1">
+                                                    {renderCubSemaforo(det.cubagem)}
+                                                    <span className="font-bold text-slate-800">{det.cubagem.toFixed(2)}</span>
+                                                  </div>
+                                                </td>
+                                                <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                  <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
+                                                  {det.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </td>
+                                                <td className="py-1 px-2 text-center font-mono font-medium text-slate-700">
+                                                  {Math.round(det.peso)}
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            )
+                          })}
 
                           {/* Subtotal da Região (Ex: CAPITAL TOTAL com fundo suave e texto destacado) */}
                           <tr className="bg-slate-100/90 text-slate-900 font-black border-y border-slate-200 divide-x divide-slate-200">
