@@ -35,7 +35,7 @@ import { supabase } from '../lib/supabase'
 import { getPcpItemsReport, getAllPcpSummaryItems, clearPcpPlanningCache, type PcpItem } from '../lib/pcpService'
 import initialSampleRows from '../data/pcp_initial_sample.json'
 import initialPlanningSummary from '../data/pcp_planning_summary.json'
-import { INITIAL_MODAL_PARAMS, type ModalParamItem } from '../data/pcp_modal_params'
+import { INITIAL_MODAL_PARAMS, getTipoModal, type ModalParamItem } from '../data/pcp_modal_params'
 import { INITIAL_FILIAL_ROTA_PARAMS, type FilialRotaParamItem } from '../data/pcp_filial_rotas_params'
 
 // Definição das 53 Colunas Oficiais da Planilha PCP J'S MARTINS.xlsx + Coluna Auxiliar Dinâmica
@@ -78,6 +78,7 @@ export const PCP_COLUMNS: Array<{ key: keyof PcpItem; label: string; width?: str
   { key: 'codmodal', label: 'CODMODAL', width: 'w-24' },
   // COLUNA AUXILIAR DINÂMICA ALIMENTADA PELA ABA DE CADASTROS
   { key: 'modalidade_calc', label: 'MODALIDADE (AUX)', width: 'w-36', align: 'center' },
+  { key: 'tipo_modal_calc', label: 'TIPO MODAL (AUX)', width: 'w-32', align: 'center' },
   { key: 'descricaomodal', label: 'DESCRICAOMODAL', width: 'w-36' },
   { key: 'status_operacao', label: 'STATUS_OPERACAO', width: 'w-32', align: 'center' },
   { key: 'operacao', label: 'OPERACAO', width: 'w-28' },
@@ -170,6 +171,8 @@ export const PcpJsMartinsPage: React.FC = () => {
   // Estados dos filtros da aba Planejamento
   const [planFilterRegiao, setPlanFilterRegiao] = useState<string>('TODOS')
   const [planFilterModalidade, setPlanFilterModalidade] = useState<string>('TODOS')
+  const [planFilterTipoModal, setPlanFilterTipoModal] = useState<string[]>([]) // Segmentação múltipla: ['Venda', 'Abastecimento', 'Tranfs']
+  const [isTipoModalDropdownOpen, setIsTipoModalDropdownOpen] = useState<boolean>(false)
   const [planFilterStatusOp, setPlanFilterStatusOp] = useState<string>('TODOS')
   const [planFilterLinha, setPlanFilterLinha] = useState<string>('TODOS')
   const [planSearchTerm, setPlanSearchTerm] = useState<string>('')
@@ -369,9 +372,12 @@ export const PcpJsMartinsPage: React.FC = () => {
             rotaInfo = rotaMap[rotaKey] || rotaMap[filEntregaKey] || { destino: '-', regiao: '-' }
           }
 
+          const tipoModalCalc = getTipoModal(modalidadeCalc)
+
           return {
             ...item,
             modalidade_calc: modalidadeCalc,
+            tipo_modal_calc: tipoModalCalc,
             destino_calc: rotaInfo.destino !== '-' ? rotaInfo.destino : (item.descricaorota || (item.filentrega ? `Filial ${item.filentrega}` : '-')),
             regiao_calc: rotaInfo.regiao !== '-' ? rotaInfo.regiao : 'INTERIOR'
           }
@@ -688,6 +694,20 @@ export const PcpJsMartinsPage: React.FC = () => {
       return (
         <span className={`px-2 py-0.5 rounded-md text-[9.5px] font-black uppercase whitespace-nowrap border ${color}`}>
           {mod}
+        </span>
+      )
+    }
+
+    if (col.key === 'tipo_modal_calc') {
+      const tipo = String(val)
+      let color = 'bg-slate-100 text-slate-700 border-slate-200'
+      if (tipo === 'Venda') color = 'bg-blue-100 text-blue-800 border-blue-200'
+      if (tipo === 'Abastecimento') color = 'bg-emerald-100 text-emerald-800 border-emerald-200'
+      if (tipo === 'Tranfs') color = 'bg-purple-100 text-purple-800 border-purple-200'
+
+      return (
+        <span className={`px-2 py-0.5 rounded-md text-[9.5px] font-black uppercase whitespace-nowrap border ${color}`}>
+          {tipo}
         </span>
       )
     }
@@ -1140,19 +1160,21 @@ export const PcpJsMartinsPage: React.FC = () => {
                         <th className="py-2.5 px-4 w-12 text-center">#</th>
                         <th className="py-2.5 px-4">CODMODAL</th>
                         <th className="py-2.5 px-4">MODALIDADE</th>
+                        <th className="py-2.5 px-4 text-center">TIPO MODAL</th>
                         <th className="py-2.5 px-4 text-center w-28">Ações</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {filteredParams.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="py-8 text-center text-slate-400">
+                          <td colSpan={5} className="py-8 text-center text-slate-400">
                             Nenhum parâmetro encontrado.
                           </td>
                         </tr>
                       ) : (
                         filteredParams.map((param, idx) => {
                           const isEditing = editingIndex === idx
+                          const tipoModal = getTipoModal(param.modalidade)
                           return (
                             <tr key={param.codmodal} className="hover:bg-slate-50/60 transition-colors">
                               <td className="py-2.5 px-4 text-center text-slate-400 font-mono text-[10px]">
@@ -1179,6 +1201,14 @@ export const PcpJsMartinsPage: React.FC = () => {
                                     {param.modalidade}
                                   </span>
                                 )}
+                              </td>
+                              <td className="py-2.5 px-4 text-center">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${tipoModal === 'Venda' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                  tipoModal === 'Abastecimento' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                    'bg-purple-50 text-purple-700 border border-purple-200'
+                                  }`}>
+                                  {tipoModal}
+                                </span>
                               </td>
                               <td className="py-2.5 px-4 text-center">
                                 {isEditing ? (
@@ -1520,12 +1550,14 @@ export const PcpJsMartinsPage: React.FC = () => {
           const destino = rotaInfo.destino !== '-' ? rotaInfo.destino : (r.descricaorota || r.DESCRICAOROTA || (r.filentrega || r.FILENTREGA ? `Filial ${r.filentrega || r.FILENTREGA}` : 'OUTROS'))
           const statusOperacao = String(r.status_operacao || r.STATUS_OPERACAO || '')
           const linha = String(r.linha || r.LINHA || '')
+          const tipoModal = getTipoModal(modalidade)
 
           return {
             ...r,
             calc_regiao: regiao,
             calc_destino: destino,
             calc_modalidade: modalidade,
+            calc_tipo_modal: tipoModal,
             calc_status_op: statusOperacao,
             calc_linha: linha,
             calc_ped: String(r.numpedven || r.NUMPEDVEN || ''),
@@ -1537,6 +1569,7 @@ export const PcpJsMartinsPage: React.FC = () => {
         }).filter(r => {
           if (planFilterRegiao !== 'TODOS' && r.calc_regiao !== planFilterRegiao) return false
           if (planFilterModalidade !== 'TODOS' && r.calc_modalidade !== planFilterModalidade) return false
+          if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
           if (planFilterStatusOp !== 'TODOS' && r.calc_status_op !== planFilterStatusOp) return false
           if (planFilterLinha !== 'TODOS' && r.calc_linha !== planFilterLinha) return false
           if (planSearchTerm.trim()) {
@@ -1552,6 +1585,7 @@ export const PcpJsMartinsPage: React.FC = () => {
         // Agrupar por Região -> Destino
         interface DestinoItemDetail {
           modalidade: string
+          tipoModal: string
           statusOperacao: string
           numlote: string
           numpedven: string
@@ -1618,6 +1652,7 @@ export const PcpJsMartinsPage: React.FC = () => {
 
           item.detalhes.push({
             modalidade: row.calc_modalidade || '-',
+            tipoModal: row.calc_tipo_modal || getTipoModal(row.calc_modalidade || ''),
             statusOperacao: row.calc_status_op || row.status_operacao || row.STATUS_OPERACAO || 'EM CARTEIRA',
             numlote: String(row.numlote || row.NUMLOTE || ''),
             numpedven: String(row.numpedven || row.NUMPEDVEN || ''),
@@ -1731,6 +1766,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                     onClick={() => {
                       setPlanFilterRegiao('TODOS')
                       setPlanFilterModalidade('TODOS')
+                      setPlanFilterTipoModal([])
                       setPlanFilterStatusOp('TODOS')
                       setPlanFilterLinha('TODOS')
                       setPlanSearchTerm('')
@@ -1747,7 +1783,7 @@ export const PcpJsMartinsPage: React.FC = () => {
               </div>
 
               {/* Controles de Filtros */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 pt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3 pt-3">
                 {/* Busca Destino / Rota / Pedido */}
                 <div className="space-y-1">
                   <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Busca Rápida</label>
@@ -1789,6 +1825,98 @@ export const PcpJsMartinsPage: React.FC = () => {
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </select>
+                </div>
+
+                {/* NOVO: Filtro Segmentação Múltipla de TIPO MODAL (Venda, Abastecimento, Tranfs) */}
+                <div className="space-y-1 relative">
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
+                    <span>Tipo Modal</span>
+                    {planFilterTipoModal.length > 0 && (
+                      <span className="text-[9.5px] text-blue-600 font-extrabold lowercase cursor-pointer" onClick={() => setPlanFilterTipoModal([])}>
+                        limpar
+                      </span>
+                    )}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsTipoModalDropdownOpen(prev => !prev)}
+                    className={`w-full px-2.5 py-1.5 text-xs rounded-xl border transition-all flex items-center justify-between cursor-pointer font-medium ${planFilterTipoModal.length > 0
+                      ? 'border-blue-500 bg-blue-50/60 text-blue-900 font-bold'
+                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-white'
+                      }`}
+                  >
+                    <span className="truncate">
+                      {planFilterTipoModal.length === 0
+                        ? 'TODOS'
+                        : planFilterTipoModal.length === 1
+                          ? planFilterTipoModal[0]
+                          : `${planFilterTipoModal.length} selecionados`}
+                    </span>
+                    <span className="text-[10px] text-slate-400 ml-1">▾</span>
+                  </button>
+
+                  {/* Dropdown com checkboxes para segmentação múltipla */}
+                  {isTipoModalDropdownOpen && (
+                    <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100 text-[11px] font-black text-slate-800">
+                        <span>Segmentação Tipo Modal</span>
+                        <button
+                          type="button"
+                          onClick={() => setIsTipoModalDropdownOpen(false)}
+                          className="text-slate-400 hover:text-slate-600 text-xs px-1"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="space-y-1">
+                        {['Venda', 'Abastecimento', 'Tranfs'].map(tipo => {
+                          const isChecked = planFilterTipoModal.includes(tipo)
+                          return (
+                            <label
+                              key={tipo}
+                              onClick={() => {
+                                setPlanFilterTipoModal(prev =>
+                                  prev.includes(tipo)
+                                    ? prev.filter(t => t !== tipo)
+                                    : [...prev, tipo]
+                                )
+                              }}
+                              className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer select-none transition-colors ${isChecked ? 'bg-blue-50 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                                }`}
+                            >
+                              <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] shrink-0 ${isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
+                                }`}>
+                                {isChecked && '✓'}
+                              </div>
+                              <span className="flex-1">{tipo}</span>
+                              <span className={`text-[9px] px-1 rounded uppercase font-mono ${tipo === 'Venda' ? 'bg-blue-100 text-blue-700' : tipo === 'Abastecimento' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'
+                                }`}>
+                                {tipo === 'Venda' ? 'RD/COU' : tipo === 'Abastecimento' ? 'ABA' : 'TRF'}
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 mt-2 border-t border-slate-100 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setPlanFilterTipoModal(['Venda', 'Abastecimento', 'Tranfs'])}
+                          className="text-blue-600 hover:underline font-bold"
+                        >
+                          Marcar Todos
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPlanFilterTipoModal([])}
+                          className="text-slate-500 hover:underline"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Filtro de Status Operação */}
@@ -1965,6 +2093,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                             <thead>
                                               <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
                                                 <th className="py-1.5 px-2 text-center w-24">MODALIDADE</th>
+                                                <th className="py-1.5 px-2 text-center w-24">TIPO MODAL</th>
                                                 <th className="py-1.5 px-2 text-center w-28">STATUS / LOTE</th>
                                                 <th className="py-1.5 px-2 text-center w-28">NUMPEDVEN</th>
                                                 <th className="py-1.5 px-2 text-center w-20">ITEM</th>
@@ -1981,6 +2110,14 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                   <td className="py-1 px-2 text-center font-bold text-slate-700">
                                                     <span className="px-1.5 py-0.2 bg-blue-50 text-blue-800 border border-blue-200 rounded text-[9px]">
                                                       {det.modalidade}
+                                                    </span>
+                                                  </td>
+                                                  <td className="py-1 px-2 text-center font-bold">
+                                                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${det.tipoModal === 'Venda' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                                      det.tipoModal === 'Abastecimento' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                                        'bg-purple-50 text-purple-700 border border-purple-200'
+                                                      }`}>
+                                                      {det.tipoModal}
                                                     </span>
                                                   </td>
                                                   <td className="py-1 px-2 text-center text-slate-600 font-medium">

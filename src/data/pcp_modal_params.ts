@@ -1,7 +1,21 @@
 export interface ModalParamItem {
   codmodal: string
   modalidade: string
+  tipoModal?: string
   descricao?: string
+}
+
+// Regra de de-para: Modalidade -> Tipo Modal
+export const MODALIDADE_TIPO_MAP: Record<string, string> = {
+  'RODOVIARIO': 'Venda',
+  'COURRIER': 'Venda',
+  'ABA': 'Abastecimento',
+  'TRANSFERENCIA': 'Tranfs'
+}
+
+export function getTipoModal(modalidade: string): string {
+  const mod = (modalidade || '').trim().toUpperCase()
+  return MODALIDADE_TIPO_MAP[mod] || 'Venda'
 }
 
 export const INITIAL_MODAL_PARAMS: ModalParamItem[] = [
