@@ -32,7 +32,7 @@ import {
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
-import { getPcpItemsReport, getAllPcpSummaryItems, type PcpItem } from '../lib/pcpService'
+import { getPcpItemsReport, getAllPcpSummaryItems, clearPcpPlanningCache, type PcpItem } from '../lib/pcpService'
 import initialSampleRows from '../data/pcp_initial_sample.json'
 import { INITIAL_MODAL_PARAMS, type ModalParamItem } from '../data/pcp_modal_params'
 import { INITIAL_FILIAL_ROTA_PARAMS, type FilialRotaParamItem } from '../data/pcp_filial_rotas_params'
@@ -297,11 +297,11 @@ export const PcpJsMartinsPage: React.FC = () => {
   const [fullPlanningData, setFullPlanningData] = useState<PcpItem[]>([])
   const [isLoadingPlanning, setIsLoadingPlanning] = useState<boolean>(false)
 
-  // Carregar todos os dados completos para o planejamento
-  const loadPlanningData = useCallback(async () => {
+  // Carregar todos os dados completos para o planejamento (com cache inteligente)
+  const loadPlanningData = useCallback(async (forceRefresh: boolean = false) => {
     setIsLoadingPlanning(true)
     try {
-      const dbRows = await getAllPcpSummaryItems()
+      const dbRows = await getAllPcpSummaryItems(forceRefresh)
       if (dbRows && dbRows.length > 0) {
         setFullPlanningData(dbRows)
       } else {
@@ -597,11 +597,13 @@ export const PcpJsMartinsPage: React.FC = () => {
         console.warn('Banco Supabase em fallback local:', errDb)
       }
 
+      clearPcpPlanningCache()
       setUploadFeedback({
         type: 'success',
         message: `${rawRows.length.toLocaleString('pt-BR')} registros importados com sucesso para o banco de dados!`
       })
       loadData(1, searchTerm)
+      loadPlanningData(true)
     } catch (err: any) {
       setUploadFeedback({
         type: 'error',

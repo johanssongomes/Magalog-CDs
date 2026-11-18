@@ -134,41 +134,70 @@ export async function getPcpItemsReport(params: PcpQueryParams): Promise<PcpQuer
   }
 }
 
-// Obter agregação de todos os itens do Supabase para o Planejamento
-export async function getAllPcpSummaryItems(): Promise<PcpItem[]> {
+// Obter agregação de todos os itens do Supabase para o Planejamento (com cache em memória e carregamento paralelo)
+let cachedPlanningData: PcpItem[] | null = null
+let cacheTimestamp = 0
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutos de cache em memória
+
+export function clearPcpPlanningCache() {
+  cachedPlanningData = null
+  cacheTimestamp = 0
+}
+
+export async function getAllPcpSummaryItems(forceRefresh: boolean = false): Promise<PcpItem[]> {
+  const now = Date.now()
+  if (!forceRefresh && cachedPlanningData && (now - cacheTimestamp < CACHE_TTL_MS)) {
+    return cachedPlanningData
+  }
+
   try {
-    const allData: PcpItem[] = []
     const batchSize = 1000
-    let from = 0
-    let hasMore = true
 
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('pcp_js_martins')
-        .select('filentrega,codmodal,descricaomodal,descricaorota,status_operacao,linha,numpedven,qtcomp,fisico,qtped,cub_tot,vltotal,pesoliq')
-        .range(from, from + batchSize - 1)
+    // 1. Obter total de registros para disparar requisições em paralelo
+    const { count, error: countErr } = await supabase
+      .from('pcp_js_martins')
+      .select('*', { count: 'exact', head: true })
 
-      if (error) {
-        console.warn('Erro ao buscar dados agregados do Supabase:', error.message)
-        break
-      }
+    if (countErr) {
+      console.warn('Erro ao verificar total de registros no Supabase:', countErr.message)
+      return cachedPlanningData || []
+    }
 
-      if (data && data.length > 0) {
-        allData.push(...(data as any))
-        if (data.length < batchSize) {
-          hasMore = false
-        } else {
-          from += batchSize
-        }
-      } else {
-        hasMore = false
-      }
+    const total = count || 0
+    if (total === 0) return []
+
+    const numBatches = Math.ceil(total / batchSize)
+    const promises = []
+
+    for (let b = 0; b < numBatches; b++) {
+      const from = b * batchSize
+      promises.push(
+        supabase
+          .from('pcp_js_martins')
+          .select('filentrega,codmodal,descricaomodal,descricaorota,status_operacao,linha,numpedven,qtcomp,fisico,qtped,cub_tot,vltotal,pesoliq')
+          .range(from, from + batchSize - 1)
+          .then(res => {
+            if (res.error) {
+              console.warn(`Erro no lote ${b}:`, res.error.message)
+              return []
+            }
+            return (res.data || []) as PcpItem[]
+          })
+      )
+    }
+
+    const results = await Promise.all(promises)
+    const allData = results.flat()
+
+    if (allData.length > 0) {
+      cachedPlanningData = allData
+      cacheTimestamp = Date.now()
     }
 
     return allData
   } catch (err) {
     console.error('Falha em getAllPcpSummaryItems:', err)
-    return []
+    return cachedPlanningData || []
   }
 }
 
