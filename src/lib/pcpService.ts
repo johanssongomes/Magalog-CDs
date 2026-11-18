@@ -175,7 +175,7 @@ export async function getAllPcpSummaryItems(forceRefresh: boolean = false): Prom
       promises.push(
         supabase
           .from('pcp_js_martins')
-          .select('filentrega,codmodal,descricaomodal,descricaorota,status_operacao,linha,numpedven,numlote,item,descricao,qtcomp,fisico,qtped,cub_tot,vltotal,pesoliq')
+          .select('filentrega,fllibfat,codmodal,descricaomodal,descricaorota,status_operacao,linha,numpedven,numlote,item,descricao,qtcomp,fisico,qtped,cub_tot,vltotal,pesoliq')
           .range(from, from + batchSize - 1)
           .then(res => {
             if (res.error) {

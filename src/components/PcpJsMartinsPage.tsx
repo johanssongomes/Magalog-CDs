@@ -172,7 +172,7 @@ export const PcpJsMartinsPage: React.FC = () => {
   const [planFilterRegiao, setPlanFilterRegiao] = useState<string>('TODOS')
   const [planFilterModalidade, setPlanFilterModalidade] = useState<string>('TODOS')
   const [planFilterTipoModal, setPlanFilterTipoModal] = useState<string[]>([]) // Segmentação múltipla: ['Venda', 'Abastecimento', 'Tranfs']
-  const [isTipoModalDropdownOpen, setIsTipoModalDropdownOpen] = useState<boolean>(false)
+  const [planFilterFllibfat, setPlanFilterFllibfat] = useState<string[]>([]) // Segmentação múltipla FLLIBFAT: ['S', 'N']
   const [planFilterStatusOp, setPlanFilterStatusOp] = useState<string>('TODOS')
   const [planFilterLinha, setPlanFilterLinha] = useState<string>('TODOS')
   const [planSearchTerm, setPlanSearchTerm] = useState<string>('')
@@ -1550,6 +1550,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           const destino = rotaInfo.destino !== '-' ? rotaInfo.destino : (r.descricaorota || r.DESCRICAOROTA || (r.filentrega || r.FILENTREGA ? `Filial ${r.filentrega || r.FILENTREGA}` : 'OUTROS'))
           const statusOperacao = String(r.status_operacao || r.STATUS_OPERACAO || '')
           const linha = String(r.linha || r.LINHA || '')
+          const fllibfat = String(r.fllibfat || r.FLLIBFAT || 'S').trim().toUpperCase()
           const tipoModal = getTipoModal(modalidade)
 
           return {
@@ -1558,6 +1559,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             calc_destino: destino,
             calc_modalidade: modalidade,
             calc_tipo_modal: tipoModal,
+            calc_fllibfat: fllibfat,
             calc_status_op: statusOperacao,
             calc_linha: linha,
             calc_ped: String(r.numpedven || r.NUMPEDVEN || ''),
@@ -1570,6 +1572,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           if (planFilterRegiao !== 'TODOS' && r.calc_regiao !== planFilterRegiao) return false
           if (planFilterModalidade !== 'TODOS' && r.calc_modalidade !== planFilterModalidade) return false
           if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
+          if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return false
           if (planFilterStatusOp !== 'TODOS' && r.calc_status_op !== planFilterStatusOp) return false
           if (planFilterLinha !== 'TODOS' && r.calc_linha !== planFilterLinha) return false
           if (planSearchTerm.trim()) {
@@ -1767,6 +1770,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                       setPlanFilterRegiao('TODOS')
                       setPlanFilterModalidade('TODOS')
                       setPlanFilterTipoModal([])
+                      setPlanFilterFllibfat([])
                       setPlanFilterStatusOp('TODOS')
                       setPlanFilterLinha('TODOS')
                       setPlanSearchTerm('')
@@ -1782,8 +1786,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Controles de Filtros */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3 pt-3">
+              {/* Controles de Filtros Dropdown */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 pt-3">
                 {/* Busca Destino / Rota / Pedido */}
                 <div className="space-y-1">
                   <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Busca Rápida</label>
@@ -1827,25 +1831,45 @@ export const PcpJsMartinsPage: React.FC = () => {
                   </select>
                 </div>
 
-                {/* SEGMENTAÇÃO DE DADOS: TIPO MODAL (Venda, Abastecimento, Tranfs) - DIRETO NA BARRA */}
-                <div className="space-y-1 sm:col-span-2 md:col-span-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                      <span>Segmentação Tipo Modal</span>
-                      {planFilterTipoModal.length > 0 && (
-                        <span className="text-[10px] text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded font-extrabold">
-                          {planFilterTipoModal.length} ativo{planFilterTipoModal.length > 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </label>
+                {/* Filtro de Linha */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Linha</label>
+                  <select
+                    value={planFilterLinha}
+                    onChange={e => setPlanFilterLinha(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white font-medium text-slate-700"
+                  >
+                    {uniqueLinhas.map(l => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Filtro de Status Operação */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Status Operação</label>
+                  <select
+                    value={planFilterStatusOp}
+                    onChange={e => setPlanFilterStatusOp(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white font-medium text-slate-700"
+                  >
+                    {uniqueStatusOp.map(st => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* BARRA DE SEGMENTAÇÕES DE DADOS (LOGALIZADA LOGO ACIMA DO PAINEL) */}
+              <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
+                {/* Segmentação 1: Tipo Modal */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Tipo Modal:</span>
                     {planFilterTipoModal.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setPlanFilterTipoModal([])}
-                        className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer"
-                      >
-                        Limpar
-                      </button>
+                      <span className="text-[10px] text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded font-extrabold">
+                        {planFilterTipoModal.length} ativo{planFilterTipoModal.length > 1 ? 's' : ''}
+                      </span>
                     )}
                   </div>
 
@@ -1854,7 +1878,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                       type="button"
                       onClick={() => setPlanFilterTipoModal([])}
                       className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${planFilterTipoModal.length === 0
-                        ? 'bg-slate-800 text-white shadow-2xs'
+                        ? 'bg-[#0e3b66] text-white shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                         }`}
                     >
@@ -1892,34 +1916,81 @@ export const PcpJsMartinsPage: React.FC = () => {
                       )
                     })}
                   </div>
+
+                  {planFilterTipoModal.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPlanFilterTipoModal([])}
+                      className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
+                    >
+                      Limpar
+                    </button>
+                  )}
                 </div>
 
-                {/* Filtro de Status Operação */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Status Operação</label>
-                  <select
-                    value={planFilterStatusOp}
-                    onChange={e => setPlanFilterStatusOp(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white font-medium text-slate-700"
-                  >
-                    {uniqueStatusOp.map(st => (
-                      <option key={st} value={st}>{st}</option>
-                    ))}
-                  </select>
-                </div>
+                {/* Segmentação 2: FLLIBFAT (Liberação de Faturamento) */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Lib. Faturamento (FLLIBFAT):</span>
+                    {planFilterFllibfat.length > 0 && (
+                      <span className="text-[10px] text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded font-extrabold">
+                        {planFilterFllibfat.length} ativo{planFilterFllibfat.length > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
 
-                {/* Filtro de Linha */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Linha</label>
-                  <select
-                    value={planFilterLinha}
-                    onChange={e => setPlanFilterLinha(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white font-medium text-slate-700"
-                  >
-                    {uniqueLinhas.map(l => (
-                      <option key={l} value={l}>{l}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setPlanFilterFllibfat([])}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${planFilterFllibfat.length === 0
+                        ? 'bg-[#0e3b66] text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                        }`}
+                    >
+                      Todos
+                    </button>
+
+                    {[
+                      { id: 'S', label: 'S', desc: 'Liberado', activeColor: 'bg-emerald-600 text-white' },
+                      { id: 'N', label: 'N', desc: 'Bloqueado', activeColor: 'bg-amber-600 text-white' }
+                    ].map(item => {
+                      const isSelected = planFilterFllibfat.includes(item.id)
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setPlanFilterFllibfat(prev =>
+                              prev.includes(item.id)
+                                ? prev.filter(t => t !== item.id)
+                                : [...prev, item.id]
+                            )
+                          }}
+                          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer select-none ${isSelected
+                            ? `${item.activeColor} shadow-2xs`
+                            : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                            }`}
+                        >
+                          <span className="font-extrabold">{item.label}</span>
+                          <span className={`text-[9px] px-1 py-0.2 rounded font-sans ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                            {item.desc}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {planFilterFllibfat.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPlanFilterFllibfat([])}
+                      className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
+                    >
+                      Limpar
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
