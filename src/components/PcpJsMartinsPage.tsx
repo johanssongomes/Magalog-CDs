@@ -2256,39 +2256,41 @@ export const PcpJsMartinsPage: React.FC = () => {
                               )
                             })}
 
-                            {/* Subtotal da Região (Ex: CAPITAL TOTAL com fundo suave e texto destacado) */}
-                            <tr className="bg-slate-100/90 text-slate-900 font-black border-y border-slate-200 divide-x divide-slate-200">
-                              <td colSpan={2} className="py-1 px-2.5 tracking-wide uppercase text-[10.5px] font-black whitespace-nowrap text-slate-900">
-                                {group.regiao} TOTAL
-                              </td>
-                              <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
-                                {group.totalPedidos.toLocaleString('pt-BR')}
-                              </td>
-                              <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
-                                {Math.round(group.totalQtd).toLocaleString('pt-BR')}
-                              </td>
-                              <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono">
-                                <div className="grid grid-cols-[18px_1fr] items-center gap-1.5 w-[76px] mx-auto">
-                                  <div className="flex justify-center items-center">
-                                    {renderCubSemaforo(group.totalCub)}
+                            {/* Subtotal da Região (Ex: CAPITAL TOTAL) - SÓ EXIBE SE A REGIÃO ESTIVER EXPANDIDA */}
+                            {!isRegiaoCollapsed && (
+                              <tr className="bg-slate-100/90 text-slate-900 font-black border-y border-slate-200 divide-x divide-slate-200">
+                                <td colSpan={2} className="py-1 px-2.5 tracking-wide uppercase text-[10.5px] font-black whitespace-nowrap text-slate-900">
+                                  {group.regiao} TOTAL
+                                </td>
+                                <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
+                                  {group.totalPedidos.toLocaleString('pt-BR')}
+                                </td>
+                                <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
+                                  {Math.round(group.totalQtd).toLocaleString('pt-BR')}
+                                </td>
+                                <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono">
+                                  <div className="grid grid-cols-[18px_1fr] items-center gap-1.5 w-[76px] mx-auto">
+                                    <div className="flex justify-center items-center">
+                                      {renderCubSemaforo(group.totalCub)}
+                                    </div>
+                                    <span className="text-right text-slate-900 font-black">
+                                      {group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
                                   </div>
-                                  <span className="text-right text-slate-900 font-black">
-                                    {group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono">
-                                <div className="inline-flex items-center justify-center gap-1 w-full text-slate-900">
-                                  <span className="text-slate-500 font-normal text-[9.5px]">R$</span>
-                                  <span className="text-slate-900">
-                                    {group.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
-                                {Math.round(group.totalPeso).toLocaleString('pt-BR')}
-                              </td>
-                            </tr>
+                                </td>
+                                <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono">
+                                  <div className="inline-flex items-center justify-center gap-1 w-full text-slate-900">
+                                    <span className="text-slate-500 font-normal text-[9.5px]">R$</span>
+                                    <span className="text-slate-900">
+                                      {group.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
+                                  {Math.round(group.totalPeso).toLocaleString('pt-BR')}
+                                </td>
+                              </tr>
+                            )}
                           </React.Fragment>
                         )
                       })}
