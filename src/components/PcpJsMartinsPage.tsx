@@ -1827,96 +1827,71 @@ export const PcpJsMartinsPage: React.FC = () => {
                   </select>
                 </div>
 
-                {/* NOVO: Filtro Segmentação Múltipla de TIPO MODAL (Venda, Abastecimento, Tranfs) */}
-                <div className="space-y-1 relative">
-                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
-                    <span>Tipo Modal</span>
+                {/* SEGMENTAÇÃO DE DADOS: TIPO MODAL (Venda, Abastecimento, Tranfs) - DIRETO NA BARRA */}
+                <div className="space-y-1 sm:col-span-2 md:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>Segmentação Tipo Modal</span>
+                      {planFilterTipoModal.length > 0 && (
+                        <span className="text-[10px] text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded font-extrabold">
+                          {planFilterTipoModal.length} ativo{planFilterTipoModal.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </label>
                     {planFilterTipoModal.length > 0 && (
-                      <span className="text-[9.5px] text-blue-600 font-extrabold lowercase cursor-pointer" onClick={() => setPlanFilterTipoModal([])}>
-                        limpar
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPlanFilterTipoModal([])}
+                        className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer"
+                      >
+                        Limpar
+                      </button>
                     )}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsTipoModalDropdownOpen(prev => !prev)}
-                    className={`w-full px-2.5 py-1.5 text-xs rounded-xl border transition-all flex items-center justify-between cursor-pointer font-medium ${planFilterTipoModal.length > 0
-                      ? 'border-blue-500 bg-blue-50/60 text-blue-900 font-bold'
-                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-white'
-                      }`}
-                  >
-                    <span className="truncate">
-                      {planFilterTipoModal.length === 0
-                        ? 'TODOS'
-                        : planFilterTipoModal.length === 1
-                          ? planFilterTipoModal[0]
-                          : `${planFilterTipoModal.length} selecionados`}
-                    </span>
-                    <span className="text-[10px] text-slate-400 ml-1">▾</span>
-                  </button>
+                  </div>
 
-                  {/* Dropdown com checkboxes para segmentação múltipla */}
-                  {isTipoModalDropdownOpen && (
-                    <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-100">
-                      <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100 text-[11px] font-black text-slate-800">
-                        <span>Segmentação Tipo Modal</span>
-                        <button
-                          type="button"
-                          onClick={() => setIsTipoModalDropdownOpen(false)}
-                          className="text-slate-400 hover:text-slate-600 text-xs px-1"
-                        >
-                          ✕
-                        </button>
-                      </div>
+                  <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setPlanFilterTipoModal([])}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${planFilterTipoModal.length === 0
+                        ? 'bg-slate-800 text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                        }`}
+                    >
+                      Todos
+                    </button>
 
-                      <div className="space-y-1">
-                        {['Venda', 'Abastecimento', 'Tranfs'].map(tipo => {
-                          const isChecked = planFilterTipoModal.includes(tipo)
-                          return (
-                            <label
-                              key={tipo}
-                              onClick={() => {
-                                setPlanFilterTipoModal(prev =>
-                                  prev.includes(tipo)
-                                    ? prev.filter(t => t !== tipo)
-                                    : [...prev, tipo]
-                                )
-                              }}
-                              className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer select-none transition-colors ${isChecked ? 'bg-blue-50 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
-                                }`}
-                            >
-                              <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] shrink-0 ${isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
-                                }`}>
-                                {isChecked && '✓'}
-                              </div>
-                              <span className="flex-1">{tipo}</span>
-                              <span className={`text-[9px] px-1 rounded uppercase font-mono ${tipo === 'Venda' ? 'bg-blue-100 text-blue-700' : tipo === 'Abastecimento' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'
-                                }`}>
-                                {tipo === 'Venda' ? 'RD/COU' : tipo === 'Abastecimento' ? 'ABA' : 'TRF'}
-                              </span>
-                            </label>
-                          )
-                        })}
-                      </div>
-
-                      <div className="flex items-center justify-between pt-2 mt-2 border-t border-slate-100 text-[10px]">
+                    {[
+                      { id: 'Venda', label: 'Venda', badge: 'RD/COU', activeColor: 'bg-blue-600 text-white' },
+                      { id: 'Abastecimento', label: 'Abastecimento', badge: 'ABA', activeColor: 'bg-emerald-600 text-white' },
+                      { id: 'Tranfs', label: 'Tranfs', badge: 'TRF', activeColor: 'bg-purple-600 text-white' }
+                    ].map(item => {
+                      const isSelected = planFilterTipoModal.includes(item.id)
+                      return (
                         <button
+                          key={item.id}
                           type="button"
-                          onClick={() => setPlanFilterTipoModal(['Venda', 'Abastecimento', 'Tranfs'])}
-                          className="text-blue-600 hover:underline font-bold"
+                          onClick={() => {
+                            setPlanFilterTipoModal(prev =>
+                              prev.includes(item.id)
+                                ? prev.filter(t => t !== item.id)
+                                : [...prev, item.id]
+                            )
+                          }}
+                          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer select-none ${isSelected
+                            ? `${item.activeColor} shadow-2xs`
+                            : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                            }`}
                         >
-                          Marcar Todos
+                          <span>{item.label}</span>
+                          <span className={`text-[9px] px-1 py-0.2 rounded font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                            {item.badge}
+                          </span>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setPlanFilterTipoModal([])}
-                          className="text-slate-500 hover:underline"
-                        >
-                          Limpar
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                      )
+                    })}
+                  </div>
                 </div>
 
                 {/* Filtro de Status Operação */}
@@ -2163,41 +2138,42 @@ export const PcpJsMartinsPage: React.FC = () => {
                               )
                             })}
 
-                          {/* Subtotal da Região (Ex: CAPITAL TOTAL com fundo suave e texto destacado) */}
-                          <tr className="bg-slate-100/90 text-slate-900 font-black border-y border-slate-200 divide-x divide-slate-200">
-                            <td colSpan={2} className="py-1 px-2.5 tracking-wide uppercase text-[10.5px] font-black whitespace-nowrap text-slate-900">
-                              {group.regiao} TOTAL
-                            </td>
-                            <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
-                              {group.totalPedidos.toLocaleString('pt-BR')}
-                            </td>
-                            <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
-                              {Math.round(group.totalQtd).toLocaleString('pt-BR')}
-                            </td>
-                            <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono">
-                              <div className="grid grid-cols-[18px_1fr] items-center gap-1.5 w-[76px] mx-auto">
-                                <div className="flex justify-center items-center">
-                                  {renderCubSemaforo(group.totalCub)}
+                            {/* Subtotal da Região (Ex: CAPITAL TOTAL com fundo suave e texto destacado) */}
+                            <tr className="bg-slate-100/90 text-slate-900 font-black border-y border-slate-200 divide-x divide-slate-200">
+                              <td colSpan={2} className="py-1 px-2.5 tracking-wide uppercase text-[10.5px] font-black whitespace-nowrap text-slate-900">
+                                {group.regiao} TOTAL
+                              </td>
+                              <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
+                                {group.totalPedidos.toLocaleString('pt-BR')}
+                              </td>
+                              <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
+                                {Math.round(group.totalQtd).toLocaleString('pt-BR')}
+                              </td>
+                              <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono">
+                                <div className="grid grid-cols-[18px_1fr] items-center gap-1.5 w-[76px] mx-auto">
+                                  <div className="flex justify-center items-center">
+                                    {renderCubSemaforo(group.totalCub)}
+                                  </div>
+                                  <span className="text-right text-slate-900 font-black">
+                                    {group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
                                 </div>
-                                <span className="text-right text-slate-900 font-black">
-                                  {group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono">
-                              <div className="inline-flex items-center justify-center gap-1 w-full text-slate-900">
-                                <span className="text-slate-500 font-normal text-[9.5px]">R$</span>
-                                <span className="text-slate-900">
-                                  {group.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
-                              {Math.round(group.totalPeso).toLocaleString('pt-BR')}
-                            </td>
-                          </tr>
-                        </React.Fragment>
-                      )})}
+                              </td>
+                              <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono">
+                                <div className="inline-flex items-center justify-center gap-1 w-full text-slate-900">
+                                  <span className="text-slate-500 font-normal text-[9.5px]">R$</span>
+                                  <span className="text-slate-900">
+                                    {group.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
+                                {Math.round(group.totalPeso).toLocaleString('pt-BR')}
+                              </td>
+                            </tr>
+                          </React.Fragment>
+                        )
+                      })}
 
                       {/* Total Geral Consolidado */}
                       <tr className="bg-slate-200/90 text-slate-950 font-black text-[11px] border-t-2 border-slate-300 divide-x divide-slate-300">
