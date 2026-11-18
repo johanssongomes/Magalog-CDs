@@ -173,7 +173,7 @@ export const PcpJsMartinsPage: React.FC = () => {
   const [planFilterModalidade, setPlanFilterModalidade] = useState<string>('TODOS')
   const [planFilterTipoModal, setPlanFilterTipoModal] = useState<string[]>([]) // Segmentação múltipla: ['Venda', 'Abastecimento', 'Tranfs']
   const [planFilterFllibfat, setPlanFilterFllibfat] = useState<string[]>([]) // Segmentação múltipla FLLIBFAT: ['S', 'N']
-  const [planFilterStatusOp, setPlanFilterStatusOp] = useState<string>('TODOS')
+  const [planFilterStatusOp, setPlanFilterStatusOp] = useState<string[]>([]) // Segmentação múltipla Status Operação: ['EM CARTEIRA', 'EM PROCESSO']
   const [planFilterLinha, setPlanFilterLinha] = useState<string>('TODOS')
   const [planSearchTerm, setPlanSearchTerm] = useState<string>('')
   // Controle de destinos expandidos no Planejamento
@@ -1593,7 +1593,15 @@ export const PcpJsMartinsPage: React.FC = () => {
           if (planFilterModalidade !== 'TODOS' && r.calc_modalidade !== planFilterModalidade) return false
           if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
           if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return false
-          if (planFilterStatusOp !== 'TODOS' && r.calc_status_op !== planFilterStatusOp) return false
+          if (planFilterStatusOp.length > 0) {
+            const raw = String(r.calc_status_op || '').toUpperCase()
+            const matchStatus = planFilterStatusOp.some(st => {
+              if (st === 'EM CARTEIRA') return raw.includes('CARTEIRA')
+              if (st === 'EM PROCESSO') return raw.includes('PROCESSO')
+              return raw === st
+            })
+            if (!matchStatus) return false
+          }
           if (planFilterLinha !== 'TODOS' && r.calc_linha !== planFilterLinha) return false
           if (planSearchTerm.trim()) {
             const term = planSearchTerm.toLowerCase()
@@ -1907,7 +1915,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                       setPlanFilterModalidade('TODOS')
                       setPlanFilterTipoModal([])
                       setPlanFilterFllibfat([])
-                      setPlanFilterStatusOp('TODOS')
+                      setPlanFilterStatusOp([])
                       setPlanFilterLinha('TODOS')
                       setPlanSearchTerm('')
                     }}
@@ -1923,7 +1931,7 @@ export const PcpJsMartinsPage: React.FC = () => {
               </div>
 
               {/* Controles de Filtros Dropdown */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 pt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-3">
                 {/* Busca Destino / Rota / Pedido */}
                 <div className="space-y-1">
                   <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Busca Rápida</label>
@@ -1980,91 +1988,140 @@ export const PcpJsMartinsPage: React.FC = () => {
                     ))}
                   </select>
                 </div>
-
-                {/* Filtro de Status Operação */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Status Operação</label>
-                  <select
-                    value={planFilterStatusOp}
-                    onChange={e => setPlanFilterStatusOp(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white font-medium text-slate-700"
-                  >
-                    {uniqueStatusOp.map(st => (
-                      <option key={st} value={st}>{st}</option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
               {/* BARRA DE SEGMENTAÇÕES DE DADOS (LOGALIZADA LOGO ACIMA DO PAINEL) */}
               <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
-                {/* Segmentação 1: Tipo Modal */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Tipo Modal:</span>
+                <div className="flex flex-wrap items-center gap-4">
+                  {/* Segmentação 1: Tipo Modal */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Tipo Modal:</span>
+                      {planFilterTipoModal.length > 0 && (
+                        <span className="text-[10px] text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded font-extrabold">
+                          {planFilterTipoModal.length} ativo{planFilterTipoModal.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setPlanFilterTipoModal([])}
+                        className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${planFilterTipoModal.length === 0
+                          ? 'bg-[#0e3b66] text-white shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                          }`}
+                      >
+                        Todos
+                      </button>
+
+                      {[
+                        { id: 'Venda', label: 'Venda', badge: 'RD/COU', activeColor: 'bg-blue-600 text-white' },
+                        { id: 'Abastecimento', label: 'Abastecimento', badge: 'ABA', activeColor: 'bg-emerald-600 text-white' },
+                        { id: 'Tranfs', label: 'Tranfs', badge: 'TRF', activeColor: 'bg-purple-600 text-white' }
+                      ].map(item => {
+                        const isSelected = planFilterTipoModal.includes(item.id)
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setPlanFilterTipoModal(prev =>
+                                prev.includes(item.id)
+                                  ? prev.filter(t => t !== item.id)
+                                  : [...prev, item.id]
+                              )
+                            }}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer select-none ${isSelected
+                              ? `${item.activeColor} shadow-2xs`
+                              : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                              }`}
+                          >
+                            <span>{item.label}</span>
+                            <span className={`text-[9px] px-1 py-0.2 rounded font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                              }`}>
+                              {item.badge}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+
                     {planFilterTipoModal.length > 0 && (
-                      <span className="text-[10px] text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded font-extrabold">
-                        {planFilterTipoModal.length} ativo{planFilterTipoModal.length > 1 ? 's' : ''}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPlanFilterTipoModal([])}
+                        className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
+                      >
+                        Limpar
+                      </button>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
-                    <button
-                      type="button"
-                      onClick={() => setPlanFilterTipoModal([])}
-                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${planFilterTipoModal.length === 0
-                        ? 'bg-[#0e3b66] text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                        }`}
-                    >
-                      Todos
-                    </button>
+                  {/* Segmentação 2: Status Operação */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Status Operação:</span>
+                      {planFilterStatusOp.length > 0 && (
+                        <span className="text-[10px] text-sky-700 bg-sky-100 px-1.5 py-0.2 rounded font-extrabold">
+                          {planFilterStatusOp.length} ativo{planFilterStatusOp.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
 
-                    {[
-                      { id: 'Venda', label: 'Venda', badge: 'RD/COU', activeColor: 'bg-blue-600 text-white' },
-                      { id: 'Abastecimento', label: 'Abastecimento', badge: 'ABA', activeColor: 'bg-emerald-600 text-white' },
-                      { id: 'Tranfs', label: 'Tranfs', badge: 'TRF', activeColor: 'bg-purple-600 text-white' }
-                    ].map(item => {
-                      const isSelected = planFilterTipoModal.includes(item.id)
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            setPlanFilterTipoModal(prev =>
-                              prev.includes(item.id)
-                                ? prev.filter(t => t !== item.id)
-                                : [...prev, item.id]
-                            )
-                          }}
-                          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer select-none ${isSelected
-                            ? `${item.activeColor} shadow-2xs`
-                            : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                            }`}
-                        >
-                          <span>{item.label}</span>
-                          <span className={`text-[9px] px-1 py-0.2 rounded font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
-                            }`}>
-                            {item.badge}
-                          </span>
-                        </button>
-                      )
-                    })}
+                    <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setPlanFilterStatusOp([])}
+                        className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${planFilterStatusOp.length === 0
+                          ? 'bg-[#0e3b66] text-white shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                          }`}
+                      >
+                        Todos
+                      </button>
+
+                      {[
+                        { id: 'EM CARTEIRA', label: 'Em Carteira', activeColor: 'bg-blue-600 text-white' },
+                        { id: 'EM PROCESSO', label: 'Em Processo', activeColor: 'bg-amber-600 text-white' }
+                      ].map(item => {
+                        const isSelected = planFilterStatusOp.includes(item.id)
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setPlanFilterStatusOp(prev =>
+                                prev.includes(item.id)
+                                  ? prev.filter(t => t !== item.id)
+                                  : [...prev, item.id]
+                              )
+                            }}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer select-none ${isSelected
+                              ? `${item.activeColor} shadow-2xs`
+                              : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                              }`}
+                          >
+                            <span>{item.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {planFilterStatusOp.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPlanFilterStatusOp([])}
+                        className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
+                      >
+                        Limpar
+                      </button>
+                    )}
                   </div>
-
-                  {planFilterTipoModal.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setPlanFilterTipoModal([])}
-                      className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
-                    >
-                      Limpar
-                    </button>
-                  )}
                 </div>
 
-                {/* Segmentação 2: FLLIBFAT (Liberação de Faturamento) */}
+                {/* Segmentação 3: FLLIBFAT (Liberação de Faturamento) */}
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Lib. Faturamento (FLLIBFAT):</span>
