@@ -552,8 +552,16 @@ export const PcpJsMartinsPage: React.FC = () => {
 
       setUploadProgress(`Preparando ${rawRows.length.toLocaleString('pt-BR')} registros...`)
 
-      // Salva no localStorage como cache imediato
-      localStorage.setItem('magalog_pcp_js_martins_data', JSON.stringify(rawRows))
+      // Tenta salvar no localStorage de forma segura com fallback (evita erro de cota de 5MB do navegador)
+      try {
+        localStorage.setItem('magalog_pcp_js_martins_data', JSON.stringify(rawRows))
+      } catch (storageErr) {
+        console.warn('A base completa ultrapassa o limite do localStorage do navegador (5MB). Os dados serão enviados diretamente ao banco de dados Supabase.', storageErr)
+        // Salva apenas uma amostra segura no localStorage caso o navegador tenha cota estrita
+        try {
+          localStorage.setItem('magalog_pcp_js_martins_data', JSON.stringify(rawRows.slice(0, 500)))
+        } catch { }
+      }
 
       // Envio em lotes para o Supabase (se a tabela existir)
       const mappedRows = rawRows.map(r => ({
