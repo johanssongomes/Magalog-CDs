@@ -1875,11 +1875,17 @@ export const PcpJsMartinsPage: React.FC = () => {
         })
         const geralPedidos = geralPedidosSet.size || regiaoGroups.reduce((acc, g) => acc + g.totalPedidos, 0)
 
-        // Helper para semáforo de cubagem idêntico ao Excel
+        // Helper para semáforo de cubagem conforme regra condicional:
+        // 0 a 9: Vermelho | 10 a 16: Laranja | 17 a 1000+: Verde
         const renderCubSemaforo = (cub: number) => {
-          let dotBg = '#22c55e' // verde
-          if (cub > 30) dotBg = '#ef4444' // vermelho
-          else if (cub > 14) dotBg = '#f59e0b' // amarelo/laranja
+          let dotBg = '#22c55e' // verde (17 a 1000)
+          if (cub < 10) {
+            dotBg = '#ef4444' // vermelho (0 a 9)
+          } else if (cub < 17) {
+            dotBg = '#f59e0b' // laranja (10 a 16)
+          } else {
+            dotBg = '#22c55e' // verde (17 a 1000)
+          }
 
           return (
             <span
