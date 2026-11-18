@@ -792,27 +792,26 @@ export const PcpJsMartinsPage: React.FC = () => {
 
   return (
     <div className="w-full space-y-4 animate-in fade-in duration-300">
-      {/* Header Superior */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-linear-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20">
-            <Cpu size={24} />
+      {/* Header Superior Compacto (Linha Única Fina - Reestruturado) */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2.5 border-b border-slate-200">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded-lg bg-linear-to-tr from-blue-600 to-indigo-600 text-white shadow-xs">
+            <Cpu size={18} />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black text-slate-900 tracking-tight">PCP J'S Martins</h1>
-              <span className="px-2 py-0.5 text-[10.5px] font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-full flex items-center gap-1">
-                <Database size={11} /> Base Operacional & Cadastros
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 font-medium">
+          <div className="flex items-center gap-2">
+            <h1 className="text-base font-black text-slate-900 tracking-tight">PCP J'S Martins</h1>
+            <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-full flex items-center gap-1">
+              <Database size={10} /> Base Operacional & Cadastros
+            </span>
+            <span className="hidden xl:inline text-slate-300 text-xs">|</span>
+            <p className="hidden xl:inline text-[11px] text-slate-500 font-medium">
               Planejamento, Controle e Programação da Produção & Operação Logística
             </p>
           </div>
         </div>
 
-        {/* Seletor de 4 Abas */}
-        <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs gap-1 flex-wrap sm:flex-nowrap">
+        {/* Seletor de 4 Abas Compacto */}
+        <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs gap-0.5 flex-wrap sm:flex-nowrap">
           {tabs.map(tab => {
             const isActive = activeTab === tab.id
             return (
@@ -820,7 +819,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
                   ? 'bg-white text-blue-700 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                   }`}
@@ -1893,21 +1892,34 @@ export const PcpJsMartinsPage: React.FC = () => {
         return (
           <div className="space-y-4">
             {/* ------------------------------------------------------------ */}
-            {/* PARTE DE CIMA: BARRA DE FILTROS RESERVADA E PRONTA           */}
+            {/* FAIXA HORIZONTAL AMPLA DEDICADA ÀS SEGMENTAÇÕES DE DADOS     */}
             {/* ------------------------------------------------------------ */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 shadow-2xs space-y-3">
+              {/* Barra de Título e Ações Rápidas da Faixa de Segmentações */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
-                    <Sliders size={18} />
+                  <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-100/80">
+                    <Sliders size={15} />
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-800">Filtros & Parâmetros do Planejamento</h3>
-                    <p className="text-xs text-slate-500">Refine a base de dados em tempo real para cálculo de capacidade e agrupamentos</p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                      Segmentações de Dados & Filtros do Planejamento
+                    </h3>
+                    {(planFilterTipoModal.length > 0 ||
+                      planFilterStatusOp.length > 0 ||
+                      planFilterFllibfat.length > 0 ||
+                      planFilterRegiao !== 'TODOS' ||
+                      planFilterModalidade !== 'TODOS' ||
+                      planFilterLinha !== 'TODOS' ||
+                      planSearchTerm.trim() !== '') && (
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                          Filtros ativos
+                        </span>
+                      )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 self-end sm:self-auto">
                   <button
                     type="button"
                     onClick={() => {
@@ -1919,96 +1931,37 @@ export const PcpJsMartinsPage: React.FC = () => {
                       setPlanFilterLinha('TODOS')
                       setPlanSearchTerm('')
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                    title="Redefinir todas as segmentações"
                   >
-                    <RefreshCw size={12} />
-                    Limpar Filtros
+                    <RefreshCw size={11} />
+                    Limpar Segmentações
                   </button>
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-100 text-blue-800 border border-blue-200">
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-100/80 text-blue-800 border border-blue-200/80">
                     {enrichedFiltered.length.toLocaleString('pt-BR')} itens ativos
                   </span>
                 </div>
               </div>
 
-              {/* Controles de Filtros Dropdown */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-3">
-                {/* Busca Destino / Rota / Pedido */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Busca Rápida</label>
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                    <input
-                      type="text"
-                      value={planSearchTerm}
-                      onChange={e => setPlanSearchTerm(e.target.value)}
-                      placeholder="Destino, rota ou pedido..."
-                      className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white"
-                    />
-                  </div>
-                </div>
-
-                {/* Filtro de Região */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Região</label>
-                  <select
-                    value={planFilterRegiao}
-                    onChange={e => setPlanFilterRegiao(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white font-medium text-slate-700"
-                  >
-                    {uniqueRegioes.map(r => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Filtro de Modalidade */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Modalidade (Aux)</label>
-                  <select
-                    value={planFilterModalidade}
-                    onChange={e => setPlanFilterModalidade(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white font-medium text-slate-700"
-                  >
-                    {uniqueModalidades.map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Filtro de Linha */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Linha</label>
-                  <select
-                    value={planFilterLinha}
-                    onChange={e => setPlanFilterLinha(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white font-medium text-slate-700"
-                  >
-                    {uniqueLinhas.map(l => (
-                      <option key={l} value={l}>{l}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* BARRA DE SEGMENTAÇÕES DE DADOS (LOGALIZADA LOGO ACIMA DO PAINEL) */}
-              <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex flex-wrap items-center gap-4">
+              {/* Linha 1: Segmentações Rápidas por Botões Interativos (Slicers) */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   {/* Segmentação 1: Tipo Modal */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Tipo Modal:</span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider">Tipo Modal:</span>
                       {planFilterTipoModal.length > 0 && (
-                        <span className="text-[10px] text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded font-extrabold">
-                          {planFilterTipoModal.length} ativo{planFilterTipoModal.length > 1 ? 's' : ''}
+                        <span className="text-[9.5px] text-blue-700 bg-blue-100 px-1 py-0.2 rounded font-extrabold">
+                          {planFilterTipoModal.length}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
                       <button
                         type="button"
                         onClick={() => setPlanFilterTipoModal([])}
-                        className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${planFilterTipoModal.length === 0
+                        className={`px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${planFilterTipoModal.length === 0
                           ? 'bg-[#0e3b66] text-white shadow-2xs'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                           }`}
@@ -2033,13 +1986,13 @@ export const PcpJsMartinsPage: React.FC = () => {
                                   : [...prev, item.id]
                               )
                             }}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer select-none ${isSelected
+                            className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer select-none ${isSelected
                               ? `${item.activeColor} shadow-2xs`
                               : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                               }`}
                           >
                             <span>{item.label}</span>
-                            <span className={`text-[9px] px-1 py-0.2 rounded font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                            <span className={`text-[8.5px] px-1 py-0.2 rounded font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
                               }`}>
                               {item.badge}
                             </span>
@@ -2052,29 +2005,31 @@ export const PcpJsMartinsPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setPlanFilterTipoModal([])}
-                        className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
+                        className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-0.5"
                       >
                         Limpar
                       </button>
                     )}
                   </div>
 
+                  <div className="h-4 w-px bg-slate-200 hidden md:block" />
+
                   {/* Segmentação 2: Status Operação */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Status Operação:</span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider">Status Operação:</span>
                       {planFilterStatusOp.length > 0 && (
-                        <span className="text-[10px] text-sky-700 bg-sky-100 px-1.5 py-0.2 rounded font-extrabold">
-                          {planFilterStatusOp.length} ativo{planFilterStatusOp.length > 1 ? 's' : ''}
+                        <span className="text-[9.5px] text-sky-700 bg-sky-100 px-1 py-0.2 rounded font-extrabold">
+                          {planFilterStatusOp.length}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
                       <button
                         type="button"
                         onClick={() => setPlanFilterStatusOp([])}
-                        className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${planFilterStatusOp.length === 0
+                        className={`px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${planFilterStatusOp.length === 0
                           ? 'bg-[#0e3b66] text-white shadow-2xs'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                           }`}
@@ -2098,7 +2053,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                   : [...prev, item.id]
                               )
                             }}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer select-none ${isSelected
+                            className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer select-none ${isSelected
                               ? `${item.activeColor} shadow-2xs`
                               : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                               }`}
@@ -2113,77 +2068,139 @@ export const PcpJsMartinsPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setPlanFilterStatusOp([])}
-                        className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
+                        className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-0.5"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="h-4 w-px bg-slate-200 hidden md:block" />
+
+                  {/* Segmentação 3: FLLIBFAT (Liberação de Faturamento) */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider">Lib. Faturamento:</span>
+                      {planFilterFllibfat.length > 0 && (
+                        <span className="text-[9.5px] text-indigo-700 bg-indigo-100 px-1 py-0.2 rounded font-extrabold">
+                          {planFilterFllibfat.length}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setPlanFilterFllibfat([])}
+                        className={`px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${planFilterFllibfat.length === 0
+                          ? 'bg-[#0e3b66] text-white shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                          }`}
+                      >
+                        Todos
+                      </button>
+
+                      {[
+                        { id: 'S', label: 'S', desc: 'Liberado', activeColor: 'bg-emerald-600 text-white' },
+                        { id: 'N', label: 'N', desc: 'Bloqueado', activeColor: 'bg-amber-600 text-white' }
+                      ].map(item => {
+                        const isSelected = planFilterFllibfat.includes(item.id)
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setPlanFilterFllibfat(prev =>
+                                prev.includes(item.id)
+                                  ? prev.filter(t => t !== item.id)
+                                  : [...prev, item.id]
+                              )
+                            }}
+                            className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer select-none ${isSelected
+                              ? `${item.activeColor} shadow-2xs`
+                              : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                              }`}
+                          >
+                            <span className="font-extrabold">{item.label}</span>
+                            <span className={`text-[8.5px] px-1 py-0.2 rounded font-sans ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                              }`}>
+                              {item.desc}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {planFilterFllibfat.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPlanFilterFllibfat([])}
+                        className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-0.5"
                       >
                         Limpar
                       </button>
                     )}
                   </div>
                 </div>
+              </div>
 
-                {/* Segmentação 3: FLLIBFAT (Liberação de Faturamento) */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Lib. Faturamento (FLLIBFAT):</span>
-                    {planFilterFllibfat.length > 0 && (
-                      <span className="text-[10px] text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded font-extrabold">
-                        {planFilterFllibfat.length} ativo{planFilterFllibfat.length > 1 ? 's' : ''}
-                      </span>
-                    )}
+              {/* Linha 2: Segmentações por Seleção & Busca Rápida */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 pt-2 border-t border-slate-100">
+                {/* Busca Destino / Rota / Pedido */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Busca Rápida</label>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                    <input
+                      type="text"
+                      value={planSearchTerm}
+                      onChange={e => setPlanSearchTerm(e.target.value)}
+                      placeholder="Destino, rota ou pedido..."
+                      className="w-full pl-8 pr-2.5 py-1 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/70 focus:bg-white transition-colors"
+                    />
                   </div>
+                </div>
 
-                  <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
-                    <button
-                      type="button"
-                      onClick={() => setPlanFilterFllibfat([])}
-                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${planFilterFllibfat.length === 0
-                        ? 'bg-[#0e3b66] text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                        }`}
-                    >
-                      Todos
-                    </button>
+                {/* Filtro de Região */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Região</label>
+                  <select
+                    value={planFilterRegiao}
+                    onChange={e => setPlanFilterRegiao(e.target.value)}
+                    className="w-full px-2.5 py-1 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/70 focus:bg-white font-medium text-slate-700 transition-colors"
+                  >
+                    {uniqueRegioes.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
 
-                    {[
-                      { id: 'S', label: 'S', desc: 'Liberado', activeColor: 'bg-emerald-600 text-white' },
-                      { id: 'N', label: 'N', desc: 'Bloqueado', activeColor: 'bg-amber-600 text-white' }
-                    ].map(item => {
-                      const isSelected = planFilterFllibfat.includes(item.id)
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            setPlanFilterFllibfat(prev =>
-                              prev.includes(item.id)
-                                ? prev.filter(t => t !== item.id)
-                                : [...prev, item.id]
-                            )
-                          }}
-                          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer select-none ${isSelected
-                            ? `${item.activeColor} shadow-2xs`
-                            : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                            }`}
-                        >
-                          <span className="font-extrabold">{item.label}</span>
-                          <span className={`text-[9px] px-1 py-0.2 rounded font-sans ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
-                            }`}>
-                            {item.desc}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
+                {/* Filtro de Modalidade */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Modalidade (Aux)</label>
+                  <select
+                    value={planFilterModalidade}
+                    onChange={e => setPlanFilterModalidade(e.target.value)}
+                    className="w-full px-2.5 py-1 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/70 focus:bg-white font-medium text-slate-700 transition-colors"
+                  >
+                    {uniqueModalidades.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
 
-                  {planFilterFllibfat.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setPlanFilterFllibfat([])}
-                      className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
-                    >
-                      Limpar
-                    </button>
-                  )}
+                {/* Filtro de Linha */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Linha</label>
+                  <select
+                    value={planFilterLinha}
+                    onChange={e => setPlanFilterLinha(e.target.value)}
+                    className="w-full px-2.5 py-1 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/70 focus:bg-white font-medium text-slate-700 transition-colors"
+                  >
+                    {uniqueLinhas.map(l => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
