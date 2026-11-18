@@ -180,6 +180,10 @@ export const PcpJsMartinsPage: React.FC = () => {
   const [expandedDestinos, setExpandedDestinos] = useState<Record<string, boolean>>({})
   // Controle de regiões recolhidas no Planejamento
   const [collapsedRegioes, setCollapsedRegioes] = useState<Record<string, boolean>>({})
+  // Controle de modalidades expandidas dentro de destinos
+  const [expandedModalidades, setExpandedModalidades] = useState<Record<string, boolean>>({})
+  // Controle de status de lote expandidos dentro de modalidades
+  const [expandedStatusLotes, setExpandedStatusLotes] = useState<Record<string, boolean>>({})
 
   const toggleDestino = (destino: string) => {
     setExpandedDestinos(prev => ({ ...prev, [destino]: !prev[destino] }))
@@ -187,6 +191,14 @@ export const PcpJsMartinsPage: React.FC = () => {
 
   const toggleRegiao = (regiao: string) => {
     setCollapsedRegioes(prev => ({ ...prev, [regiao]: !prev[regiao] }))
+  }
+
+  const toggleModalidade = (key: string) => {
+    setExpandedModalidades(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const toggleStatusLote = (key: string) => {
+    setExpandedStatusLotes(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
   // Sincronizar parâmetros
@@ -1585,10 +1597,9 @@ export const PcpJsMartinsPage: React.FC = () => {
           return true
         })
 
-        // Agrupar por Região -> Destino
+        // Estrutura Hierárquica do Planejamento: Região -> Destino -> Modalidade -> Status do Lote -> Itens
         interface DestinoItemDetail {
           modalidade: string
-          tipoModal: string
           statusOperacao: string
           numlote: string
           numpedven: string
@@ -1600,6 +1611,28 @@ export const PcpJsMartinsPage: React.FC = () => {
           peso: number
         }
 
+        interface StatusLoteGroup {
+          status: string // 'EM CARTEIRA' | 'EM PROCESSO'
+          pedidosSet: Set<string>
+          pedidosCount: number
+          quantidade: number
+          cubagem: number
+          valorTotal: number
+          pesoTotal: number
+          itens: DestinoItemDetail[]
+        }
+
+        interface ModalidadeGroup {
+          modalidade: string // 'RODOVIARIO' | 'COURRIER' | 'ABA' | 'TRANSFERENCIA'
+          pedidosSet: Set<string>
+          pedidosCount: number
+          quantidade: number
+          cubagem: number
+          valorTotal: number
+          pesoTotal: number
+          statusGroups: StatusLoteGroup[]
+        }
+
         interface DestinoSummary {
           destino: string
           pedidosSet: Set<string>
@@ -1608,7 +1641,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           cubagem: number
           valorTotal: number
           pesoTotal: number
-          detalhes: DestinoItemDetail[]
+          modalidades: ModalidadeGroup[]
         }
 
         interface RegiaoGroup {
@@ -1622,41 +1655,54 @@ export const PcpJsMartinsPage: React.FC = () => {
           totalPeso: number
         }
 
-        const groupsMap = new Map<string, Map<string, DestinoSummary>>()
+        // Mapa de agrupamento: Regiao -> Destino -> Modalidade -> Status
+        const groupsMap = new Map<string, Map<string, Map<string, Map<string, {
+          pedidosSet: Set<string>
+          quantidade: number
+          cubagem: number
+          valorTotal: number
+          pesoTotal: number
+          itens: DestinoItemDetail[]
+        }>>>>()
 
         enrichedFiltered.forEach(row => {
           const reg = row.calc_regiao || 'INTERIOR'
           const dest = row.calc_destino || 'OUTROS'
+          const mod = row.calc_modalidade || '-'
+          // Normaliza status: 'EM CARTEIRA' ou 'EM PROCESSO'
+          const rawSt = String(row.calc_status_op || row.status_operacao || row.STATUS_OPERACAO || '').toUpperCase().trim()
+          const st = rawSt.includes('CARTEIRA') ? 'EM CARTEIRA' : (rawSt.includes('PROCESSO') ? 'EM PROCESSO' : (rawSt || 'EM CARTEIRA'))
 
-          if (!groupsMap.has(reg)) {
-            groupsMap.set(reg, new Map<string, DestinoSummary>())
-          }
+          if (!groupsMap.has(reg)) groupsMap.set(reg, new Map())
           const regMap = groupsMap.get(reg)!
 
-          if (!regMap.has(dest)) {
-            regMap.set(dest, {
-              destino: dest,
+          if (!regMap.has(dest)) regMap.set(dest, new Map())
+          const destMap = regMap.get(dest)!
+
+          if (!destMap.has(mod)) destMap.set(mod, new Map())
+          const modMap = destMap.get(mod)!
+
+          if (!modMap.has(st)) {
+            modMap.set(st, {
               pedidosSet: new Set<string>(),
-              pedidosCount: 0,
               quantidade: 0,
               cubagem: 0,
               valorTotal: 0,
               pesoTotal: 0,
-              detalhes: []
+              itens: []
             })
           }
 
-          const item = regMap.get(dest)!
-          if (row.calc_ped) item.pedidosSet.add(row.calc_ped)
-          item.quantidade += row.calc_qtd
-          item.cubagem += row.calc_cub
-          item.valorTotal += row.calc_vltotal
-          item.pesoTotal += row.calc_peso
+          const stGroup = modMap.get(st)!
+          if (row.calc_ped) stGroup.pedidosSet.add(row.calc_ped)
+          stGroup.quantidade += row.calc_qtd
+          stGroup.cubagem += row.calc_cub
+          stGroup.valorTotal += row.calc_vltotal
+          stGroup.pesoTotal += row.calc_peso
 
-          item.detalhes.push({
-            modalidade: row.calc_modalidade || '-',
-            tipoModal: row.calc_tipo_modal || getTipoModal(row.calc_modalidade || ''),
-            statusOperacao: row.calc_status_op || row.status_operacao || row.STATUS_OPERACAO || 'EM CARTEIRA',
+          stGroup.itens.push({
+            modalidade: mod,
+            statusOperacao: st,
             numlote: String(row.numlote || row.NUMLOTE || ''),
             numpedven: String(row.numpedven || row.NUMPEDVEN || ''),
             item: String(row.item || row.ITEM || ''),
@@ -1667,6 +1713,24 @@ export const PcpJsMartinsPage: React.FC = () => {
             peso: row.calc_peso
           })
         })
+
+        // Ordem preferencial das modalidades
+        const modalPriority = ['RODOVIARIO', 'COURRIER', 'ABA', 'TRANSFERENCIA']
+        const sortModalidades = (a: string, b: string) => {
+          const idxA = modalPriority.indexOf(a)
+          const idxB = modalPriority.indexOf(b)
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB
+          if (idxA !== -1) return -1
+          if (idxB !== -1) return 1
+          return a.localeCompare(b)
+        }
+
+        // Ordem de status: EM CARTEIRA primeiro, depois EM PROCESSO
+        const sortStatus = (a: string, b: string) => {
+          if (a === 'EM CARTEIRA') return -1
+          if (b === 'EM CARTEIRA') return 1
+          return a.localeCompare(b)
+        }
 
         // Ordem preferencial das regiões como no relatório do usuário
         const regiaoPriority = ['CAPITAL', 'METROPOLITANA', 'INTERIOR', 'ABASTECIMENTO CDs', '#N/D']
@@ -1681,10 +1745,74 @@ export const PcpJsMartinsPage: React.FC = () => {
 
         const regiaoGroups: RegiaoGroup[] = allPresentRegioes.map(reg => {
           const destMap = groupsMap.get(reg)!
-          const destinos = Array.from(destMap.values()).map(d => ({
-            ...d,
-            pedidosCount: d.pedidosSet.size || 1
-          })).sort((a, b) => a.destino.localeCompare(b.destino))
+          const destinos: DestinoSummary[] = Array.from(destMap.entries()).map(([destName, modMap]) => {
+            const destPedidosSet = new Set<string>()
+            let destQtd = 0
+            let destCub = 0
+            let destValor = 0
+            let destPeso = 0
+
+            const modalidades: ModalidadeGroup[] = Array.from(modMap.entries())
+              .sort(([a], [b]) => sortModalidades(a, b))
+              .map(([modName, stMap]) => {
+                const modPedidosSet = new Set<string>()
+                let modQtd = 0
+                let modCub = 0
+                let modValor = 0
+                let modPeso = 0
+
+                const statusGroups: StatusLoteGroup[] = Array.from(stMap.entries())
+                  .sort(([a], [b]) => sortStatus(a, b))
+                  .map(([stName, stData]) => {
+                    stData.pedidosSet.forEach(p => {
+                      modPedidosSet.add(p)
+                      destPedidosSet.add(p)
+                    })
+                    modQtd += stData.quantidade
+                    modCub += stData.cubagem
+                    modValor += stData.valorTotal
+                    modPeso += stData.pesoTotal
+
+                    return {
+                      status: stName,
+                      pedidosSet: stData.pedidosSet,
+                      pedidosCount: stData.pedidosSet.size || 1,
+                      quantidade: stData.quantidade,
+                      cubagem: stData.cubagem,
+                      valorTotal: stData.valorTotal,
+                      pesoTotal: stData.pesoTotal,
+                      itens: stData.itens
+                    }
+                  })
+
+                destQtd += modQtd
+                destCub += modCub
+                destValor += modValor
+                destPeso += modPeso
+
+                return {
+                  modalidade: modName,
+                  pedidosSet: modPedidosSet,
+                  pedidosCount: modPedidosSet.size || 1,
+                  quantidade: modQtd,
+                  cubagem: modCub,
+                  valorTotal: modValor,
+                  pesoTotal: modPeso,
+                  statusGroups
+                }
+              })
+
+            return {
+              destino: destName,
+              pedidosSet: destPedidosSet,
+              pedidosCount: destPedidosSet.size || 1,
+              quantidade: destQtd,
+              cubagem: destCub,
+              valorTotal: destValor,
+              pesoTotal: destPeso,
+              modalidades
+            }
+          }).sort((a, b) => a.destino.localeCompare(b.destino))
 
           const totalPedidosSet = new Set<string>()
           let totalQtd = 0
@@ -2177,77 +2305,163 @@ export const PcpJsMartinsPage: React.FC = () => {
                                     </td>
                                   </tr>
 
-                                  {/* DETALHAMENTO EXPANDIDO (Hierarquia: Modalidade, Status/Lote, Pedido, Item, Descrição, Qtd, Cubagem, Valor$, Peso) */}
+                                  {/* DETALHAMENTO EXPANDIDO (Hierarquia: Modalidade -> Status do Lote -> Pedido, Item, Descrição, Qtd, Cubagem, Valor$, Peso) */}
                                   {isExpanded && (
                                     <tr>
                                       <td colSpan={7} className="p-0 border-b border-sky-200">
-                                        <div className="bg-slate-50/90 border-y border-sky-100 p-2 pl-6 overflow-x-auto shadow-inner">
-                                          <table className="w-full text-[10px] border-collapse bg-white rounded-lg border border-slate-200/90 shadow-2xs">
-                                            <thead>
-                                              <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
-                                                <th className="py-1.5 px-2 text-center w-24">MODALIDADE</th>
-                                                <th className="py-1.5 px-2 text-center w-24">TIPO MODAL</th>
-                                                <th className="py-1.5 px-2 text-center w-28">STATUS / LOTE</th>
-                                                <th className="py-1.5 px-2 text-center w-28">NUMPEDVEN</th>
-                                                <th className="py-1.5 px-2 text-center w-20">ITEM</th>
-                                                <th className="py-1.5 px-3 text-left">DESCRIÇÃO</th>
-                                                <th className="py-1.5 px-2 text-center w-16">QTD</th>
-                                                <th className="py-1.5 px-2 text-center w-20">CUBAGEM</th>
-                                                <th className="py-1.5 px-2 text-center w-24">VALOR$</th>
-                                                <th className="py-1.5 px-2 text-center w-14">PESO</th>
-                                              </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 font-sans">
-                                              {dest.detalhes.map((det, dIdx) => (
-                                                <tr key={`${det.item}-${det.numpedven}-${dIdx}`} className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100">
-                                                  <td className="py-1 px-2 text-center font-bold text-slate-700">
-                                                    <span className="px-1.5 py-0.2 bg-blue-50 text-blue-800 border border-blue-200 rounded text-[9px]">
-                                                      {det.modalidade}
-                                                    </span>
-                                                  </td>
-                                                  <td className="py-1 px-2 text-center font-bold">
-                                                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${det.tipoModal === 'Venda' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                                                      det.tipoModal === 'Abastecimento' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                                                        'bg-purple-50 text-purple-700 border border-purple-200'
+                                        <div className="bg-slate-50/90 border-y border-sky-100 p-2 pl-4 sm:pl-6 overflow-x-auto shadow-inner space-y-2">
+                                          {dest.modalidades.map((modGroup) => {
+                                            const modKey = `${dest.destino}__${modGroup.modalidade}`
+                                            const isModExpanded = !!expandedModalidades[modKey]
+
+                                            return (
+                                              <div key={modKey} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                                                {/* Cabeçalho da Modalidade */}
+                                                <div
+                                                  onClick={() => toggleModalidade(modKey)}
+                                                  className="px-3 py-2 bg-slate-100/90 hover:bg-slate-200/80 transition-colors cursor-pointer flex flex-wrap items-center justify-between gap-2 border-b border-slate-200"
+                                                >
+                                                  <div className="flex items-center gap-2">
+                                                    <span className={`inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none font-mono font-black ${isModExpanded
+                                                      ? 'bg-blue-600 border-blue-600 text-white'
+                                                      : 'border-slate-400/80 bg-white text-slate-700'
                                                       }`}>
-                                                      {det.tipoModal}
+                                                      {isModExpanded ? '-' : '+'}
                                                     </span>
-                                                  </td>
-                                                  <td className="py-1 px-2 text-center text-slate-600 font-medium">
-                                                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
-                                                      }`}>
-                                                      {det.statusOperacao}
+                                                    <span className="text-[11px] font-black uppercase text-slate-900 tracking-wide">
+                                                      Modalidade: {modGroup.modalidade}
                                                     </span>
-                                                  </td>
-                                                  <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
-                                                    {det.numpedven || '-'}
-                                                  </td>
-                                                  <td className="py-1 px-2 text-center font-mono font-bold text-blue-700">
-                                                    {det.item || '-'}
-                                                  </td>
-                                                  <td className="py-1 px-3 text-slate-800 truncate max-w-xs" title={det.descricao}>
-                                                    {det.descricao || '-'}
-                                                  </td>
-                                                  <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
-                                                    {det.quantidade}
-                                                  </td>
-                                                  <td className="py-1 px-2 text-center font-mono">
-                                                    <div className="flex items-center justify-center gap-1">
-                                                      {renderCubSemaforo(det.cubagem)}
-                                                      <span className="font-bold text-slate-800">{det.cubagem.toFixed(2)}</span>
+                                                    <span className="text-[10px] text-slate-500 font-medium">
+                                                      ({modGroup.statusGroups.length} status)
+                                                    </span>
+                                                  </div>
+
+                                                  <div className="flex items-center gap-3 text-[10px] font-mono font-bold text-slate-700">
+                                                    <span>Ped: <strong className="text-slate-900">{modGroup.pedidosCount.toLocaleString('pt-BR')}</strong></span>
+                                                    <span>Qtd: <strong className="text-slate-900">{Math.round(modGroup.quantidade).toLocaleString('pt-BR')}</strong></span>
+                                                    <div className="flex items-center gap-1">
+                                                      {renderCubSemaforo(modGroup.cubagem)}
+                                                      <span>Cub: <strong className="text-slate-900">{modGroup.cubagem.toFixed(2)}</strong></span>
                                                     </div>
-                                                  </td>
-                                                  <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
-                                                    <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
-                                                    {det.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                  </td>
-                                                  <td className="py-1 px-2 text-center font-mono font-medium text-slate-700">
-                                                    {Math.round(det.peso)}
-                                                  </td>
-                                                </tr>
-                                              ))}
-                                            </tbody>
-                                          </table>
+                                                    <span>Val: <strong className="text-slate-900">R$ {modGroup.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+                                                    <span>Peso: <strong className="text-slate-900">{Math.round(modGroup.pesoTotal).toLocaleString('pt-BR')}</strong></span>
+                                                  </div>
+                                                </div>
+
+                                                {/* Bloco de Status do Lote da Modalidade */}
+                                                {isModExpanded && (
+                                                  <div className="p-2 space-y-2 bg-slate-50/50">
+                                                    {modGroup.statusGroups.map((stGroup) => {
+                                                      const stKey = `${modKey}__${stGroup.status}`
+                                                      const isStExpanded = !!expandedStatusLotes[stKey]
+
+                                                      return (
+                                                        <div key={stKey} className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-2xs">
+                                                          {/* Cabeçalho do Status do Lote (EM CARTEIRA primeiro, depois EM PROCESSO) */}
+                                                          <div
+                                                            onClick={() => toggleStatusLote(stKey)}
+                                                            className={`px-3 py-1.5 transition-colors cursor-pointer flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 ${stGroup.status === 'EM CARTEIRA'
+                                                              ? 'bg-blue-50/70 hover:bg-blue-100/70 text-blue-950'
+                                                              : 'bg-amber-50/70 hover:bg-amber-100/70 text-amber-950'
+                                                              }`}
+                                                          >
+                                                            <div className="flex items-center gap-2">
+                                                              <span className={`inline-flex items-center justify-center w-3 h-3 text-[9px] border rounded-xs leading-none font-mono font-black ${isStExpanded
+                                                                ? 'bg-slate-800 border-slate-800 text-white'
+                                                                : 'border-slate-400 bg-white text-slate-700'
+                                                                }`}>
+                                                                {isStExpanded ? '-' : '+'}
+                                                              </span>
+                                                              <span className="text-[10.5px] font-black uppercase tracking-wide">
+                                                                Status: {stGroup.status}
+                                                              </span>
+                                                              <span className="text-[9.5px] text-slate-500 font-medium">
+                                                                ({stGroup.itens.length} itens)
+                                                              </span>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-3 text-[9.5px] font-mono font-bold text-slate-700">
+                                                              <span>Ped: <strong className="text-slate-900">{stGroup.pedidosCount.toLocaleString('pt-BR')}</strong></span>
+                                                              <span>Qtd: <strong className="text-slate-900">{Math.round(stGroup.quantidade).toLocaleString('pt-BR')}</strong></span>
+                                                              <div className="flex items-center gap-1">
+                                                                {renderCubSemaforo(stGroup.cubagem)}
+                                                                <span>Cub: <strong className="text-slate-900">{stGroup.cubagem.toFixed(2)}</strong></span>
+                                                              </div>
+                                                              <span>Val: <strong className="text-slate-900">R$ {stGroup.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+                                                              <span>Peso: <strong className="text-slate-900">{Math.round(stGroup.pesoTotal).toLocaleString('pt-BR')}</strong></span>
+                                                            </div>
+                                                          </div>
+
+                                                          {/* Tabela dos Itens (Sem Tipo Modal, com Status do Lote na primeira coluna) */}
+                                                          {isStExpanded && (
+                                                            <div className="overflow-x-auto">
+                                                              <table className="w-full text-[10px] border-collapse bg-white">
+                                                                <thead>
+                                                                  <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
+                                                                    <th className="py-1.5 px-2 text-center w-28">STATUS / LOTE</th>
+                                                                    <th className="py-1.5 px-2 text-center w-24">MODALIDADE</th>
+                                                                    <th className="py-1.5 px-2 text-center w-28">NUMPEDVEN</th>
+                                                                    <th className="py-1.5 px-2 text-center w-20">ITEM</th>
+                                                                    <th className="py-1.5 px-3 text-left">DESCRIÇÃO</th>
+                                                                    <th className="py-1.5 px-2 text-center w-14">QTD</th>
+                                                                    <th className="py-1.5 px-2 text-center w-20">CUBAGEM</th>
+                                                                    <th className="py-1.5 px-2 text-center w-24">VALOR$</th>
+                                                                    <th className="py-1.5 px-2 text-center w-14">PESO</th>
+                                                                  </tr>
+                                                                </thead>
+                                                                <tbody className="divide-y divide-slate-100 font-sans">
+                                                                  {stGroup.itens.map((det, dIdx) => (
+                                                                    <tr key={`${det.item}-${det.numpedven}-${dIdx}`} className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100">
+                                                                      <td className="py-1 px-2 text-center text-slate-700 font-medium">
+                                                                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                                                                          }`}>
+                                                                          {det.statusOperacao}
+                                                                        </span>
+                                                                      </td>
+                                                                      <td className="py-1 px-2 text-center font-bold text-slate-700">
+                                                                        <span className="px-1.5 py-0.2 bg-slate-100 text-slate-800 border border-slate-200 rounded text-[9px]">
+                                                                          {det.modalidade}
+                                                                        </span>
+                                                                      </td>
+                                                                      <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                                        {det.numpedven || '-'}
+                                                                      </td>
+                                                                      <td className="py-1 px-2 text-center font-mono font-bold text-blue-700">
+                                                                        {det.item || '-'}
+                                                                      </td>
+                                                                      <td className="py-1 px-3 text-slate-800 truncate max-w-xs" title={det.descricao}>
+                                                                        {det.descricao || '-'}
+                                                                      </td>
+                                                                      <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                                        {det.quantidade}
+                                                                      </td>
+                                                                      <td className="py-1 px-2 text-center font-mono">
+                                                                        <div className="flex items-center justify-center gap-1">
+                                                                          {renderCubSemaforo(det.cubagem)}
+                                                                          <span className="font-bold text-slate-800">{det.cubagem.toFixed(2)}</span>
+                                                                        </div>
+                                                                      </td>
+                                                                      <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                                        <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
+                                                                        {det.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                      </td>
+                                                                      <td className="py-1 px-2 text-center font-mono font-medium text-slate-700">
+                                                                        {Math.round(det.peso)}
+                                                                      </td>
+                                                                    </tr>
+                                                                  ))}
+                                                                </tbody>
+                                                              </table>
+                                                            </div>
+                                                          )}
+                                                        </div>
+                                                      )
+                                                    })}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )
+                                          })}
                                         </div>
                                       </td>
                                     </tr>
