@@ -1645,6 +1645,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           cubagem: number
           valorTotal: number
           pesoTotal: number
+          itens: DestinoItemDetail[]
           modalidades: ModalidadeGroup[]
         }
 
@@ -1775,6 +1776,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                 let stCub = 0
                 let stValor = 0
                 let stPeso = 0
+                const stItens: DestinoItemDetail[] = []
 
                 const modalidades: ModalidadeGroup[] = Array.from(modMap.entries())
                   .sort(([a], [b]) => sortModalidades(a, b))
@@ -1787,6 +1789,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                     stCub += modData.cubagem
                     stValor += modData.valorTotal
                     stPeso += modData.pesoTotal
+                    stItens.push(...modData.itens)
 
                     return {
                       modalidade: modName,
@@ -1813,7 +1816,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                   cubagem: stCub,
                   valorTotal: stValor,
                   pesoTotal: stPeso,
-                  modalidades
+                  modalidades,
+                  itens: stItens
                 }
               })
 
@@ -2418,7 +2422,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                       Status: {stGroup.status}
                                                     </span>
                                                     <span className="text-[10px] text-slate-500 font-medium">
-                                                      ({stGroup.modalidades.length} modalidade{stGroup.modalidades.length > 1 ? 's' : ''})
+                                                      ({stGroup.itens.length} {stGroup.itens.length === 1 ? 'item' : 'itens'})
                                                     </span>
                                                   </div>
 
@@ -2434,112 +2438,66 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                   </div>
                                                 </div>
 
-                                                {/* Bloco de Modalidades dentro do Status */}
+                                                {/* Tabela Direta dos Itens (Sem agrupamento intermediário de Modalidade) */}
                                                 {isStExpanded && (
-                                                  <div className="p-2 space-y-2 bg-slate-50/50">
-                                                    {stGroup.modalidades.map((modGroup) => {
-                                                      const modKey = `${stKey}__${modGroup.modalidade}`
-                                                      const isModExpanded = !!expandedModalidades[modKey]
-
-                                                      return (
-                                                        <div key={modKey} className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-2xs">
-                                                          {/* Cabeçalho da Modalidade */}
-                                                          <div
-                                                            onClick={() => toggleModalidade(modKey)}
-                                                            className="px-3 py-1.5 bg-slate-100/90 hover:bg-slate-200/80 transition-colors cursor-pointer flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80"
-                                                          >
-                                                            <div className="flex items-center gap-2">
-                                                              <span className={`inline-flex items-center justify-center w-3 h-3 text-[9px] border rounded-xs leading-none font-mono font-black ${isModExpanded
-                                                                ? 'bg-slate-800 border-slate-800 text-white'
-                                                                : 'border-slate-400 bg-white text-slate-700'
+                                                  <div className="overflow-x-auto border-t border-slate-200">
+                                                    <table className="w-full text-[10px] border-collapse bg-white">
+                                                      <thead>
+                                                        <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
+                                                          <th className="py-1.5 px-2 text-center w-28">STATUS / LOTE</th>
+                                                          <th className="py-1.5 px-2 text-center w-24">MODALIDADE</th>
+                                                          <th className="py-1.5 px-2 text-center w-28">NUMPEDVEN</th>
+                                                          <th className="py-1.5 px-2 text-center w-20">ITEM</th>
+                                                          <th className="py-1.5 px-3 text-left">DESCRIÇÃO</th>
+                                                          <th className="py-1.5 px-2 text-center w-14">QTD</th>
+                                                          <th className="py-1.5 px-2 text-center w-20">CUBAGEM</th>
+                                                          <th className="py-1.5 px-2 text-center w-24">VALOR$</th>
+                                                          <th className="py-1.5 px-2 text-center w-14">PESO</th>
+                                                        </tr>
+                                                      </thead>
+                                                      <tbody className="divide-y divide-slate-100 font-sans">
+                                                        {stGroup.itens.map((det, dIdx) => (
+                                                          <tr key={`${det.item}-${det.numpedven}-${dIdx}`} className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100">
+                                                            <td className="py-1 px-2 text-center text-slate-700 font-medium">
+                                                              <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
                                                                 }`}>
-                                                                {isModExpanded ? '-' : '+'}
+                                                                {det.statusOperacao}
                                                               </span>
-                                                              <span className="text-[10.5px] font-black uppercase text-slate-800 tracking-wide">
-                                                                Modalidade: {modGroup.modalidade}
+                                                            </td>
+                                                            <td className="py-1 px-2 text-center font-bold text-slate-700">
+                                                              <span className="px-1.5 py-0.2 bg-slate-100 text-slate-800 border border-slate-200 rounded text-[9px]">
+                                                                {det.modalidade}
                                                               </span>
-                                                              <span className="text-[9.5px] text-slate-500 font-medium">
-                                                                ({modGroup.itens.length} itens)
-                                                              </span>
-                                                            </div>
-
-                                                            <div className="flex items-center gap-3 text-[9.5px] font-mono font-bold text-slate-700">
-                                                              <span>Ped: <strong className="text-slate-900">{modGroup.pedidosCount.toLocaleString('pt-BR')}</strong></span>
-                                                              <span>Qtd: <strong className="text-slate-900">{Math.round(modGroup.quantidade).toLocaleString('pt-BR')}</strong></span>
-                                                              <div className="flex items-center gap-1">
-                                                                {renderCubSemaforo(modGroup.cubagem)}
-                                                                <span>Cub: <strong className="text-slate-900">{modGroup.cubagem.toFixed(2)}</strong></span>
+                                                            </td>
+                                                            <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                              {det.numpedven || '-'}
+                                                            </td>
+                                                            <td className="py-1 px-2 text-center font-mono font-bold text-blue-700">
+                                                              {det.item || '-'}
+                                                            </td>
+                                                            <td className="py-1 px-3 text-slate-800 truncate max-w-xs" title={det.descricao}>
+                                                              {det.descricao || '-'}
+                                                            </td>
+                                                            <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                              {det.quantidade}
+                                                            </td>
+                                                            <td className="py-1 px-2 text-center font-mono">
+                                                              <div className="flex items-center justify-center gap-1">
+                                                                {renderCubSemaforo(det.cubagem)}
+                                                                <span className="font-bold text-slate-800">{det.cubagem.toFixed(2)}</span>
                                                               </div>
-                                                              <span>Val: <strong className="text-slate-900">R$ {modGroup.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
-                                                              <span>Peso: <strong className="text-slate-900">{Math.round(modGroup.pesoTotal).toLocaleString('pt-BR')}</strong></span>
-                                                            </div>
-                                                          </div>
-
-                                                          {/* Tabela dos Itens (Sem Tipo Modal, com Status do Lote na primeira coluna) */}
-                                                          {isModExpanded && (
-                                                            <div className="overflow-x-auto">
-                                                              <table className="w-full text-[10px] border-collapse bg-white">
-                                                                <thead>
-                                                                  <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
-                                                                    <th className="py-1.5 px-2 text-center w-28">STATUS / LOTE</th>
-                                                                    <th className="py-1.5 px-2 text-center w-24">MODALIDADE</th>
-                                                                    <th className="py-1.5 px-2 text-center w-28">NUMPEDVEN</th>
-                                                                    <th className="py-1.5 px-2 text-center w-20">ITEM</th>
-                                                                    <th className="py-1.5 px-3 text-left">DESCRIÇÃO</th>
-                                                                    <th className="py-1.5 px-2 text-center w-14">QTD</th>
-                                                                    <th className="py-1.5 px-2 text-center w-20">CUBAGEM</th>
-                                                                    <th className="py-1.5 px-2 text-center w-24">VALOR$</th>
-                                                                    <th className="py-1.5 px-2 text-center w-14">PESO</th>
-                                                                  </tr>
-                                                                </thead>
-                                                                <tbody className="divide-y divide-slate-100 font-sans">
-                                                                  {modGroup.itens.map((det, dIdx) => (
-                                                                    <tr key={`${det.item}-${det.numpedven}-${dIdx}`} className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100">
-                                                                      <td className="py-1 px-2 text-center text-slate-700 font-medium">
-                                                                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                                                                          }`}>
-                                                                          {det.statusOperacao}
-                                                                        </span>
-                                                                      </td>
-                                                                      <td className="py-1 px-2 text-center font-bold text-slate-700">
-                                                                        <span className="px-1.5 py-0.2 bg-slate-100 text-slate-800 border border-slate-200 rounded text-[9px]">
-                                                                          {det.modalidade}
-                                                                        </span>
-                                                                      </td>
-                                                                      <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
-                                                                        {det.numpedven || '-'}
-                                                                      </td>
-                                                                      <td className="py-1 px-2 text-center font-mono font-bold text-blue-700">
-                                                                        {det.item || '-'}
-                                                                      </td>
-                                                                      <td className="py-1 px-3 text-slate-800 truncate max-w-xs" title={det.descricao}>
-                                                                        {det.descricao || '-'}
-                                                                      </td>
-                                                                      <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
-                                                                        {det.quantidade}
-                                                                      </td>
-                                                                      <td className="py-1 px-2 text-center font-mono">
-                                                                        <div className="flex items-center justify-center gap-1">
-                                                                          {renderCubSemaforo(det.cubagem)}
-                                                                          <span className="font-bold text-slate-800">{det.cubagem.toFixed(2)}</span>
-                                                                        </div>
-                                                                      </td>
-                                                                      <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
-                                                                        <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
-                                                                        {det.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                                      </td>
-                                                                      <td className="py-1 px-2 text-center font-mono font-medium text-slate-700">
-                                                                        {Math.round(det.peso)}
-                                                                      </td>
-                                                                    </tr>
-                                                                  ))}
-                                                                </tbody>
-                                                              </table>
-                                                            </div>
-                                                          )}
-                                                        </div>
-                                                      )
-                                                    })}
+                                                            </td>
+                                                            <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                              <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
+                                                              {det.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </td>
+                                                            <td className="py-1 px-2 text-center font-mono font-medium text-slate-700">
+                                                              {Math.round(det.peso)}
+                                                            </td>
+                                                          </tr>
+                                                        ))}
+                                                      </tbody>
+                                                    </table>
                                                   </div>
                                                 )}
                                               </div>
