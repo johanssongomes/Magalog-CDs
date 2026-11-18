@@ -2259,8 +2259,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                               return (
                                 <React.Fragment key={dest.destino}>
                                   <tr
-                                    className={`transition-colors divide-x divide-slate-100 hover:bg-sky-50/50 ${isExpanded ? 'bg-sky-50/40' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                                    className={`transition-colors divide-x divide-slate-100 hover:bg-sky-50/50 ${isExpanded ? 'bg-blue-50/70' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
                                       }`}
+                                    style={isExpanded ? { borderTop: '2px solid #0e3b66', borderLeft: '2px solid #0e3b66', borderRight: '2px solid #0e3b66' } : undefined}
                                   >
                                     <td className="py-1 px-2.5 text-slate-600 text-[10.5px] font-bold whitespace-nowrap">
                                       {idx === 0 ? group.regiao : ''}
@@ -2308,8 +2309,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                                   {/* DETALHAMENTO EXPANDIDO (Hierarquia: Status do Lote -> Modalidade -> Pedido, Item, Descrição, Qtd, Cubagem, Valor$, Peso) */}
                                   {isExpanded && (
                                     <tr>
-                                      <td colSpan={7} className="p-0 border-b border-sky-200">
-                                        <div className="bg-slate-50/90 border-y border-sky-100 p-2 pl-4 sm:pl-6 overflow-x-auto shadow-inner space-y-2">
+                                      <td colSpan={7} className="p-0 bg-blue-50/20">
+                                        <div className="p-2 pl-4 sm:pl-6 overflow-x-auto space-y-2 border-b-2 border-x-2 border-[#0e3b66]">
                                           {dest.statusGroups.map((stGroup) => {
                                             const stKey = `${dest.destino}__${stGroup.status}`
                                             const isStExpanded = !!expandedStatusLotes[stKey]
