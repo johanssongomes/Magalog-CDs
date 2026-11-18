@@ -1597,7 +1597,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           return true
         })
 
-        // Estrutura Hierárquica do Planejamento: Região -> Destino -> Modalidade -> Status do Lote -> Itens
+        // Estrutura Hierárquica do Planejamento: Região -> Destino -> Status do Lote -> Modalidade -> Itens
         interface DestinoItemDetail {
           modalidade: string
           statusOperacao: string
@@ -1611,8 +1611,8 @@ export const PcpJsMartinsPage: React.FC = () => {
           peso: number
         }
 
-        interface StatusLoteGroup {
-          status: string // 'EM CARTEIRA' | 'EM PROCESSO'
+        interface ModalidadeGroup {
+          modalidade: string // 'RODOVIARIO' | 'COURRIER' | 'ABA' | 'TRANSFERENCIA'
           pedidosSet: Set<string>
           pedidosCount: number
           quantidade: number
@@ -1622,15 +1622,15 @@ export const PcpJsMartinsPage: React.FC = () => {
           itens: DestinoItemDetail[]
         }
 
-        interface ModalidadeGroup {
-          modalidade: string // 'RODOVIARIO' | 'COURRIER' | 'ABA' | 'TRANSFERENCIA'
+        interface StatusLoteGroup {
+          status: string // 'EM CARTEIRA' | 'EM PROCESSO'
           pedidosSet: Set<string>
           pedidosCount: number
           quantidade: number
           cubagem: number
           valorTotal: number
           pesoTotal: number
-          statusGroups: StatusLoteGroup[]
+          modalidades: ModalidadeGroup[]
         }
 
         interface DestinoSummary {
@@ -1641,7 +1641,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           cubagem: number
           valorTotal: number
           pesoTotal: number
-          modalidades: ModalidadeGroup[]
+          statusGroups: StatusLoteGroup[]
         }
 
         interface RegiaoGroup {
@@ -1655,7 +1655,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           totalPeso: number
         }
 
-        // Mapa de agrupamento: Regiao -> Destino -> Modalidade -> Status
+        // Mapa de agrupamento: Regiao -> Destino -> Status -> Modalidade
         const groupsMap = new Map<string, Map<string, Map<string, Map<string, {
           pedidosSet: Set<string>
           quantidade: number
@@ -1679,11 +1679,11 @@ export const PcpJsMartinsPage: React.FC = () => {
           if (!regMap.has(dest)) regMap.set(dest, new Map())
           const destMap = regMap.get(dest)!
 
-          if (!destMap.has(mod)) destMap.set(mod, new Map())
-          const modMap = destMap.get(mod)!
+          if (!destMap.has(st)) destMap.set(st, new Map())
+          const stMap = destMap.get(st)!
 
-          if (!modMap.has(st)) {
-            modMap.set(st, {
+          if (!stMap.has(mod)) {
+            stMap.set(mod, {
               pedidosSet: new Set<string>(),
               quantidade: 0,
               cubagem: 0,
@@ -1693,14 +1693,14 @@ export const PcpJsMartinsPage: React.FC = () => {
             })
           }
 
-          const stGroup = modMap.get(st)!
-          if (row.calc_ped) stGroup.pedidosSet.add(row.calc_ped)
-          stGroup.quantidade += row.calc_qtd
-          stGroup.cubagem += row.calc_cub
-          stGroup.valorTotal += row.calc_vltotal
-          stGroup.pesoTotal += row.calc_peso
+          const modData = stMap.get(mod)!
+          if (row.calc_ped) modData.pedidosSet.add(row.calc_ped)
+          modData.quantidade += row.calc_qtd
+          modData.cubagem += row.calc_cub
+          modData.valorTotal += row.calc_vltotal
+          modData.pesoTotal += row.calc_peso
 
-          stGroup.itens.push({
+          modData.itens.push({
             modalidade: mod,
             statusOperacao: st,
             numlote: String(row.numlote || row.NUMLOTE || ''),
@@ -1745,60 +1745,60 @@ export const PcpJsMartinsPage: React.FC = () => {
 
         const regiaoGroups: RegiaoGroup[] = allPresentRegioes.map(reg => {
           const destMap = groupsMap.get(reg)!
-          const destinos: DestinoSummary[] = Array.from(destMap.entries()).map(([destName, modMap]) => {
+          const destinos: DestinoSummary[] = Array.from(destMap.entries()).map(([destName, stMap]) => {
             const destPedidosSet = new Set<string>()
             let destQtd = 0
             let destCub = 0
             let destValor = 0
             let destPeso = 0
 
-            const modalidades: ModalidadeGroup[] = Array.from(modMap.entries())
-              .sort(([a], [b]) => sortModalidades(a, b))
-              .map(([modName, stMap]) => {
-                const modPedidosSet = new Set<string>()
-                let modQtd = 0
-                let modCub = 0
-                let modValor = 0
-                let modPeso = 0
+            const statusGroups: StatusLoteGroup[] = Array.from(stMap.entries())
+              .sort(([a], [b]) => sortStatus(a, b))
+              .map(([stName, modMap]) => {
+                const stPedidosSet = new Set<string>()
+                let stQtd = 0
+                let stCub = 0
+                let stValor = 0
+                let stPeso = 0
 
-                const statusGroups: StatusLoteGroup[] = Array.from(stMap.entries())
-                  .sort(([a], [b]) => sortStatus(a, b))
-                  .map(([stName, stData]) => {
-                    stData.pedidosSet.forEach(p => {
-                      modPedidosSet.add(p)
+                const modalidades: ModalidadeGroup[] = Array.from(modMap.entries())
+                  .sort(([a], [b]) => sortModalidades(a, b))
+                  .map(([modName, modData]) => {
+                    modData.pedidosSet.forEach(p => {
+                      stPedidosSet.add(p)
                       destPedidosSet.add(p)
                     })
-                    modQtd += stData.quantidade
-                    modCub += stData.cubagem
-                    modValor += stData.valorTotal
-                    modPeso += stData.pesoTotal
+                    stQtd += modData.quantidade
+                    stCub += modData.cubagem
+                    stValor += modData.valorTotal
+                    stPeso += modData.pesoTotal
 
                     return {
-                      status: stName,
-                      pedidosSet: stData.pedidosSet,
-                      pedidosCount: stData.pedidosSet.size || 1,
-                      quantidade: stData.quantidade,
-                      cubagem: stData.cubagem,
-                      valorTotal: stData.valorTotal,
-                      pesoTotal: stData.pesoTotal,
-                      itens: stData.itens
+                      modalidade: modName,
+                      pedidosSet: modData.pedidosSet,
+                      pedidosCount: modData.pedidosSet.size || 1,
+                      quantidade: modData.quantidade,
+                      cubagem: modData.cubagem,
+                      valorTotal: modData.valorTotal,
+                      pesoTotal: modData.pesoTotal,
+                      itens: modData.itens
                     }
                   })
 
-                destQtd += modQtd
-                destCub += modCub
-                destValor += modValor
-                destPeso += modPeso
+                destQtd += stQtd
+                destCub += stCub
+                destValor += stValor
+                destPeso += stPeso
 
                 return {
-                  modalidade: modName,
-                  pedidosSet: modPedidosSet,
-                  pedidosCount: modPedidosSet.size || 1,
-                  quantidade: modQtd,
-                  cubagem: modCub,
-                  valorTotal: modValor,
-                  pesoTotal: modPeso,
-                  statusGroups
+                  status: stName,
+                  pedidosSet: stPedidosSet,
+                  pedidosCount: stPedidosSet.size || 1,
+                  quantidade: stQtd,
+                  cubagem: stCub,
+                  valorTotal: stValor,
+                  pesoTotal: stPeso,
+                  modalidades
                 }
               })
 
@@ -1810,7 +1810,7 @@ export const PcpJsMartinsPage: React.FC = () => {
               cubagem: destCub,
               valorTotal: destValor,
               pesoTotal: destPeso,
-              modalidades
+              statusGroups
             }
           }).sort((a, b) => a.destino.localeCompare(b.destino))
 
@@ -2305,95 +2305,95 @@ export const PcpJsMartinsPage: React.FC = () => {
                                     </td>
                                   </tr>
 
-                                  {/* DETALHAMENTO EXPANDIDO (Hierarquia: Modalidade -> Status do Lote -> Pedido, Item, Descrição, Qtd, Cubagem, Valor$, Peso) */}
+                                  {/* DETALHAMENTO EXPANDIDO (Hierarquia: Status do Lote -> Modalidade -> Pedido, Item, Descrição, Qtd, Cubagem, Valor$, Peso) */}
                                   {isExpanded && (
                                     <tr>
                                       <td colSpan={7} className="p-0 border-b border-sky-200">
                                         <div className="bg-slate-50/90 border-y border-sky-100 p-2 pl-4 sm:pl-6 overflow-x-auto shadow-inner space-y-2">
-                                          {dest.modalidades.map((modGroup) => {
-                                            const modKey = `${dest.destino}__${modGroup.modalidade}`
-                                            const isModExpanded = !!expandedModalidades[modKey]
+                                          {dest.statusGroups.map((stGroup) => {
+                                            const stKey = `${dest.destino}__${stGroup.status}`
+                                            const isStExpanded = !!expandedStatusLotes[stKey]
 
                                             return (
-                                              <div key={modKey} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
-                                                {/* Cabeçalho da Modalidade */}
+                                              <div key={stKey} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                                                {/* Cabeçalho do Status do Lote (EM CARTEIRA primeiro, depois EM PROCESSO) */}
                                                 <div
-                                                  onClick={() => toggleModalidade(modKey)}
-                                                  className="px-3 py-2 bg-slate-100/90 hover:bg-slate-200/80 transition-colors cursor-pointer flex flex-wrap items-center justify-between gap-2 border-b border-slate-200"
+                                                  onClick={() => toggleStatusLote(stKey)}
+                                                  className={`px-3 py-2 transition-colors cursor-pointer flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 ${stGroup.status === 'EM CARTEIRA'
+                                                    ? 'bg-blue-50/80 hover:bg-blue-100/80 text-blue-950'
+                                                    : 'bg-amber-50/80 hover:bg-amber-100/80 text-amber-950'
+                                                    }`}
                                                 >
                                                   <div className="flex items-center gap-2">
-                                                    <span className={`inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none font-mono font-black ${isModExpanded
-                                                      ? 'bg-blue-600 border-blue-600 text-white'
-                                                      : 'border-slate-400/80 bg-white text-slate-700'
+                                                    <span className={`inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none font-mono font-black ${isStExpanded
+                                                      ? (stGroup.status === 'EM CARTEIRA' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-amber-600 border-amber-600 text-white')
+                                                      : 'border-slate-400 bg-white text-slate-700'
                                                       }`}>
-                                                      {isModExpanded ? '-' : '+'}
+                                                      {isStExpanded ? '-' : '+'}
                                                     </span>
-                                                    <span className="text-[11px] font-black uppercase text-slate-900 tracking-wide">
-                                                      Modalidade: {modGroup.modalidade}
+                                                    <span className="text-[11px] font-black uppercase tracking-wide">
+                                                      Status: {stGroup.status}
                                                     </span>
                                                     <span className="text-[10px] text-slate-500 font-medium">
-                                                      ({modGroup.statusGroups.length} status)
+                                                      ({stGroup.modalidades.length} modalidade{stGroup.modalidades.length > 1 ? 's' : ''})
                                                     </span>
                                                   </div>
 
                                                   <div className="flex items-center gap-3 text-[10px] font-mono font-bold text-slate-700">
-                                                    <span>Ped: <strong className="text-slate-900">{modGroup.pedidosCount.toLocaleString('pt-BR')}</strong></span>
-                                                    <span>Qtd: <strong className="text-slate-900">{Math.round(modGroup.quantidade).toLocaleString('pt-BR')}</strong></span>
+                                                    <span>Ped: <strong className="text-slate-900">{stGroup.pedidosCount.toLocaleString('pt-BR')}</strong></span>
+                                                    <span>Qtd: <strong className="text-slate-900">{Math.round(stGroup.quantidade).toLocaleString('pt-BR')}</strong></span>
                                                     <div className="flex items-center gap-1">
-                                                      {renderCubSemaforo(modGroup.cubagem)}
-                                                      <span>Cub: <strong className="text-slate-900">{modGroup.cubagem.toFixed(2)}</strong></span>
+                                                      {renderCubSemaforo(stGroup.cubagem)}
+                                                      <span>Cub: <strong className="text-slate-900">{stGroup.cubagem.toFixed(2)}</strong></span>
                                                     </div>
-                                                    <span>Val: <strong className="text-slate-900">R$ {modGroup.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
-                                                    <span>Peso: <strong className="text-slate-900">{Math.round(modGroup.pesoTotal).toLocaleString('pt-BR')}</strong></span>
+                                                    <span>Val: <strong className="text-slate-900">R$ {stGroup.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+                                                    <span>Peso: <strong className="text-slate-900">{Math.round(stGroup.pesoTotal).toLocaleString('pt-BR')}</strong></span>
                                                   </div>
                                                 </div>
 
-                                                {/* Bloco de Status do Lote da Modalidade */}
-                                                {isModExpanded && (
+                                                {/* Bloco de Modalidades dentro do Status */}
+                                                {isStExpanded && (
                                                   <div className="p-2 space-y-2 bg-slate-50/50">
-                                                    {modGroup.statusGroups.map((stGroup) => {
-                                                      const stKey = `${modKey}__${stGroup.status}`
-                                                      const isStExpanded = !!expandedStatusLotes[stKey]
+                                                    {stGroup.modalidades.map((modGroup) => {
+                                                      const modKey = `${stKey}__${modGroup.modalidade}`
+                                                      const isModExpanded = !!expandedModalidades[modKey]
 
                                                       return (
-                                                        <div key={stKey} className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-2xs">
-                                                          {/* Cabeçalho do Status do Lote (EM CARTEIRA primeiro, depois EM PROCESSO) */}
+                                                        <div key={modKey} className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-2xs">
+                                                          {/* Cabeçalho da Modalidade */}
                                                           <div
-                                                            onClick={() => toggleStatusLote(stKey)}
-                                                            className={`px-3 py-1.5 transition-colors cursor-pointer flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 ${stGroup.status === 'EM CARTEIRA'
-                                                              ? 'bg-blue-50/70 hover:bg-blue-100/70 text-blue-950'
-                                                              : 'bg-amber-50/70 hover:bg-amber-100/70 text-amber-950'
-                                                              }`}
+                                                            onClick={() => toggleModalidade(modKey)}
+                                                            className="px-3 py-1.5 bg-slate-100/90 hover:bg-slate-200/80 transition-colors cursor-pointer flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80"
                                                           >
                                                             <div className="flex items-center gap-2">
-                                                              <span className={`inline-flex items-center justify-center w-3 h-3 text-[9px] border rounded-xs leading-none font-mono font-black ${isStExpanded
+                                                              <span className={`inline-flex items-center justify-center w-3 h-3 text-[9px] border rounded-xs leading-none font-mono font-black ${isModExpanded
                                                                 ? 'bg-slate-800 border-slate-800 text-white'
                                                                 : 'border-slate-400 bg-white text-slate-700'
                                                                 }`}>
-                                                                {isStExpanded ? '-' : '+'}
+                                                                {isModExpanded ? '-' : '+'}
                                                               </span>
-                                                              <span className="text-[10.5px] font-black uppercase tracking-wide">
-                                                                Status: {stGroup.status}
+                                                              <span className="text-[10.5px] font-black uppercase text-slate-800 tracking-wide">
+                                                                Modalidade: {modGroup.modalidade}
                                                               </span>
                                                               <span className="text-[9.5px] text-slate-500 font-medium">
-                                                                ({stGroup.itens.length} itens)
+                                                                ({modGroup.itens.length} itens)
                                                               </span>
                                                             </div>
 
                                                             <div className="flex items-center gap-3 text-[9.5px] font-mono font-bold text-slate-700">
-                                                              <span>Ped: <strong className="text-slate-900">{stGroup.pedidosCount.toLocaleString('pt-BR')}</strong></span>
-                                                              <span>Qtd: <strong className="text-slate-900">{Math.round(stGroup.quantidade).toLocaleString('pt-BR')}</strong></span>
+                                                              <span>Ped: <strong className="text-slate-900">{modGroup.pedidosCount.toLocaleString('pt-BR')}</strong></span>
+                                                              <span>Qtd: <strong className="text-slate-900">{Math.round(modGroup.quantidade).toLocaleString('pt-BR')}</strong></span>
                                                               <div className="flex items-center gap-1">
-                                                                {renderCubSemaforo(stGroup.cubagem)}
-                                                                <span>Cub: <strong className="text-slate-900">{stGroup.cubagem.toFixed(2)}</strong></span>
+                                                                {renderCubSemaforo(modGroup.cubagem)}
+                                                                <span>Cub: <strong className="text-slate-900">{modGroup.cubagem.toFixed(2)}</strong></span>
                                                               </div>
-                                                              <span>Val: <strong className="text-slate-900">R$ {stGroup.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
-                                                              <span>Peso: <strong className="text-slate-900">{Math.round(stGroup.pesoTotal).toLocaleString('pt-BR')}</strong></span>
+                                                              <span>Val: <strong className="text-slate-900">R$ {modGroup.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+                                                              <span>Peso: <strong className="text-slate-900">{Math.round(modGroup.pesoTotal).toLocaleString('pt-BR')}</strong></span>
                                                             </div>
                                                           </div>
 
                                                           {/* Tabela dos Itens (Sem Tipo Modal, com Status do Lote na primeira coluna) */}
-                                                          {isStExpanded && (
+                                                          {isModExpanded && (
                                                             <div className="overflow-x-auto">
                                                               <table className="w-full text-[10px] border-collapse bg-white">
                                                                 <thead>
@@ -2410,7 +2410,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                                   </tr>
                                                                 </thead>
                                                                 <tbody className="divide-y divide-slate-100 font-sans">
-                                                                  {stGroup.itens.map((det, dIdx) => (
+                                                                  {modGroup.itens.map((det, dIdx) => (
                                                                     <tr key={`${det.item}-${det.numpedven}-${dIdx}`} className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100">
                                                                       <td className="py-1 px-2 text-center text-slate-700 font-medium">
                                                                         <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
