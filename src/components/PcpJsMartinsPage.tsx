@@ -34,6 +34,7 @@ import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import { getPcpItemsReport, getAllPcpSummaryItems, clearPcpPlanningCache, type PcpItem } from '../lib/pcpService'
 import initialSampleRows from '../data/pcp_initial_sample.json'
+import initialPlanningSummary from '../data/pcp_planning_summary.json'
 import { INITIAL_MODAL_PARAMS, type ModalParamItem } from '../data/pcp_modal_params'
 import { INITIAL_FILIAL_ROTA_PARAMS, type FilialRotaParamItem } from '../data/pcp_filial_rotas_params'
 
@@ -293,8 +294,10 @@ export const PcpJsMartinsPage: React.FC = () => {
     return (initialSampleRows as any[]) || []
   }
 
-  // Base completa de registros para o Planejamento (Supabase ou LocalStorage)
-  const [fullPlanningData, setFullPlanningData] = useState<PcpItem[]>([])
+  // Base completa de registros para o Planejamento (inicia instantaneamente com a base completa pré-processada)
+  const [fullPlanningData, setFullPlanningData] = useState<PcpItem[]>(() => {
+    return (initialPlanningSummary as any[]) || []
+  })
   const [isLoadingPlanning, setIsLoadingPlanning] = useState<boolean>(false)
 
   // Carregar todos os dados completos para o planejamento (com cache inteligente)
