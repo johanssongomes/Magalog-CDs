@@ -32,7 +32,7 @@ import {
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
-import { getPcpItemsReport, getAllPcpSummaryItems, clearPcpPlanningCache, type PcpItem } from '../lib/pcpService'
+import { getPcpItemsReport, getAllPcpSummaryItems, clearPcpPlanningCache, setPcpPlanningCache, type PcpItem } from '../lib/pcpService'
 import initialSampleRows from '../data/pcp_initial_sample.json'
 import initialPlanningSummary from '../data/pcp_planning_summary.json'
 import { INITIAL_MODAL_PARAMS, getTipoModal, type ModalParamItem } from '../data/pcp_modal_params'
@@ -101,7 +101,22 @@ export const PCP_COLUMNS: Array<{ key: keyof PcpItem; label: string; width?: str
 ]
 
 export const PcpJsMartinsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'planejamento' | 'programacao' | 'controle' | 'cadastros'>('controle')
+  const [activeTab, setActiveTab] = useState<'planejamento' | 'programacao' | 'controle' | 'cadastros'>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_pcp_active_tab')
+      if (saved && ['planejamento', 'programacao', 'controle', 'cadastros'].includes(saved)) {
+        return saved as any
+      }
+    } catch {}
+    return 'planejamento'
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('magalog_pcp_active_tab', activeTab)
+    } catch {}
+  }, [activeTab])
+
   const [activeSubParam, setActiveSubParam] = useState<'modal' | 'rotas'>('rotas')
 
   // --------------------------------------------------------------------------
@@ -168,14 +183,50 @@ export const PcpJsMartinsPage: React.FC = () => {
   const [editingRotaDestino, setEditingRotaDestino] = useState('')
   const [editingRotaRegiao, setEditingRotaRegiao] = useState('')
 
-  // Estados dos filtros da aba Planejamento
-  const [planFilterRegiao, setPlanFilterRegiao] = useState<string>('TODOS')
-  const [planFilterModalidade, setPlanFilterModalidade] = useState<string>('TODOS')
-  const [planFilterTipoModal, setPlanFilterTipoModal] = useState<string[]>([]) // Segmentação múltipla: ['Venda', 'Abastecimento', 'Tranfs']
-  const [planFilterFllibfat, setPlanFilterFllibfat] = useState<string[]>([]) // Segmentação múltipla FLLIBFAT: ['S', 'N']
-  const [planFilterStatusOp, setPlanFilterStatusOp] = useState<string[]>([]) // Segmentação múltipla Status Operação: ['EM CARTEIRA', 'EM PROCESSO']
-  const [planFilterLinha, setPlanFilterLinha] = useState<string>('TODOS')
-  const [planSearchTerm, setPlanSearchTerm] = useState<string>('')
+  // Estados dos filtros da aba Planejamento (persistentes no navegador)
+  const [planFilterRegiao, setPlanFilterRegiao] = useState<string>(() => {
+    try { return localStorage.getItem('magalog_pcp_plan_regiao') || 'TODOS' } catch { return 'TODOS' }
+  })
+  const [planFilterModalidade, setPlanFilterModalidade] = useState<string>(() => {
+    try { return localStorage.getItem('magalog_pcp_plan_modalidade') || 'TODOS' } catch { return 'TODOS' }
+  })
+  const [planFilterTipoModal, setPlanFilterTipoModal] = useState<string[]>(() => {
+    try {
+      const s = localStorage.getItem('magalog_pcp_plan_tipo_modal')
+      return s ? JSON.parse(s) : []
+    } catch { return [] }
+  })
+  const [planFilterFllibfat, setPlanFilterFllibfat] = useState<string[]>(() => {
+    try {
+      const s = localStorage.getItem('magalog_pcp_plan_fllibfat')
+      return s ? JSON.parse(s) : []
+    } catch { return [] }
+  })
+  const [planFilterStatusOp, setPlanFilterStatusOp] = useState<string[]>(() => {
+    try {
+      const s = localStorage.getItem('magalog_pcp_plan_status_op')
+      return s ? JSON.parse(s) : []
+    } catch { return [] }
+  })
+  const [planFilterLinha, setPlanFilterLinha] = useState<string>(() => {
+    try { return localStorage.getItem('magalog_pcp_plan_linha') || 'TODOS' } catch { return 'TODOS' }
+  })
+  const [planSearchTerm, setPlanSearchTerm] = useState<string>(() => {
+    try { return localStorage.getItem('magalog_pcp_plan_search') || '' } catch { return '' }
+  })
+
+  // Sincronizar filtros com localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('magalog_pcp_plan_regiao', planFilterRegiao)
+      localStorage.setItem('magalog_pcp_plan_modalidade', planFilterModalidade)
+      localStorage.setItem('magalog_pcp_plan_tipo_modal', JSON.stringify(planFilterTipoModal))
+      localStorage.setItem('magalog_pcp_plan_fllibfat', JSON.stringify(planFilterFllibfat))
+      localStorage.setItem('magalog_pcp_plan_status_op', JSON.stringify(planFilterStatusOp))
+      localStorage.setItem('magalog_pcp_plan_linha', planFilterLinha)
+      localStorage.setItem('magalog_pcp_plan_search', planSearchTerm)
+    } catch {}
+  }, [planFilterRegiao, planFilterModalidade, planFilterTipoModal, planFilterFllibfat, planFilterStatusOp, planFilterLinha, planSearchTerm])
   // Controle de destinos expandidos no Planejamento
   const [expandedDestinos, setExpandedDestinos] = useState<Record<string, boolean>>({})
   // Controle de regiões recolhidas no Planejamento
@@ -327,31 +378,37 @@ export const PcpJsMartinsPage: React.FC = () => {
   })
   const [isLoadingPlanning, setIsLoadingPlanning] = useState<boolean>(false)
 
-  // Carregar todos os dados completos para o planejamento (com cache inteligente)
+  // Carregar todos os dados completos para o planejamento (com cache inteligente e atualização em segundo plano)
   const loadPlanningData = useCallback(async (forceRefresh: boolean = false) => {
     setIsLoadingPlanning(true)
     try {
-      const dbRows = await getAllPcpSummaryItems(forceRefresh)
+      const dbRows = await getAllPcpSummaryItems(forceRefresh, (fresh) => {
+        if (fresh && fresh.length > 0) {
+          setFullPlanningData(fresh)
+        }
+      })
       if (dbRows && dbRows.length > 0) {
         setFullPlanningData(dbRows)
       } else {
         const local = getLocalData()
-        setFullPlanningData(local)
+        if (local && local.length > 0) {
+          setFullPlanningData(local)
+        }
       }
     } catch (e) {
       console.warn('Erro ao carregar dados consolidados do planejamento:', e)
       const local = getLocalData()
-      setFullPlanningData(local)
+      if (local && local.length > 0) {
+        setFullPlanningData(local)
+      }
     } finally {
       setIsLoadingPlanning(false)
     }
   }, [])
 
   useEffect(() => {
-    if (activeTab === 'planejamento') {
-      loadPlanningData()
-    }
-  }, [activeTab, loadPlanningData])
+    loadPlanningData()
+  }, [loadPlanningData])
 
   // Buscar dados com aplicação da coluna auxiliar Modalidade
   const loadData = useCallback(async (p: number = page, search: string = searchTerm) => {
@@ -638,7 +695,29 @@ export const PcpJsMartinsPage: React.FC = () => {
         console.warn('Banco Supabase em fallback local:', errDb)
       }
 
-      clearPcpPlanningCache()
+      // Atualiza instantaneamente a visualização e o cache persistente (IndexedDB)
+      const summaryForPlanning: PcpItem[] = mappedRows.map(r => ({
+        filentrega: r.filentrega,
+        fllibfat: r.fllibfat || 'S',
+        codmodal: r.codmodal || '',
+        descricaomodal: r.descricaomodal || '',
+        descricaorota: r.descricaorota || '',
+        status_operacao: r.status_operacao || 'EM PROCESSO',
+        linha: r.linha || '',
+        numpedven: r.numpedven || '',
+        numlote: r.numlote,
+        item: r.item,
+        descricao: r.descricao,
+        qtcomp: r.qtcomp,
+        fisico: r.fisico,
+        qtped: r.qtped,
+        cub_tot: r.cub_tot,
+        vltotal: r.vltotal,
+        pesoliq: r.pesoliq
+      }))
+      await setPcpPlanningCache(summaryForPlanning)
+      setFullPlanningData(summaryForPlanning)
+
       setUploadFeedback({
         type: 'success',
         message: `${rawRows.length.toLocaleString('pt-BR')} registros importados com sucesso para o banco de dados!`
@@ -1930,6 +2009,12 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2 self-end sm:self-auto">
+                  {isLoadingPlanning && (
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg animate-pulse">
+                      <RefreshCw size={11} className="animate-spin text-blue-600" />
+                      Sincronizando base...
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -1940,6 +2025,15 @@ export const PcpJsMartinsPage: React.FC = () => {
                       setPlanFilterStatusOp([])
                       setPlanFilterLinha('TODOS')
                       setPlanSearchTerm('')
+                      try {
+                        localStorage.removeItem('magalog_pcp_plan_regiao')
+                        localStorage.removeItem('magalog_pcp_plan_modalidade')
+                        localStorage.removeItem('magalog_pcp_plan_tipo_modal')
+                        localStorage.removeItem('magalog_pcp_plan_fllibfat')
+                        localStorage.removeItem('magalog_pcp_plan_status_op')
+                        localStorage.removeItem('magalog_pcp_plan_linha')
+                        localStorage.removeItem('magalog_pcp_plan_search')
+                      } catch {}
                     }}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
                     title="Redefinir todas as segmentações"

@@ -135,71 +135,225 @@ export async function getPcpItemsReport(params: PcpQueryParams): Promise<PcpQuer
   }
 }
 
-// Obter agregação de todos os itens do Supabase para o Planejamento (com cache em memória e carregamento paralelo)
-let cachedPlanningData: PcpItem[] | null = null
-let cacheTimestamp = 0
-const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutos de cache em memória
+// ---------------------------------------------------------------------------
+// CAMADA DE PERSISTÊNCIA INDEXEDDB PARA PCP (CARREGAMENTO INSTANTÂNEO 0MS)
+// ---------------------------------------------------------------------------
+const PCP_DB_NAME = 'MagalogPcpCacheDB'
+const PCP_DB_VERSION = 1
+const PCP_STORE_NAME = 'pcp_planning_store'
+const KEY_PLANNING_DATA = 'cached_planning_items'
+const KEY_TIMESTAMP = 'cached_timestamp'
 
-export function clearPcpPlanningCache() {
-  cachedPlanningData = null
-  cacheTimestamp = 0
+function openPcpDB(): Promise<IDBDatabase | null> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      return resolve(null)
+    }
+    try {
+      const req = window.indexedDB.open(PCP_DB_NAME, PCP_DB_VERSION)
+      req.onupgradeneeded = () => {
+        const db = req.result
+        if (!db.objectStoreNames.contains(PCP_STORE_NAME)) {
+          db.createObjectStore(PCP_STORE_NAME)
+        }
+      }
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => resolve(null)
+    } catch {
+      resolve(null)
+    }
+  })
 }
 
-export async function getAllPcpSummaryItems(forceRefresh: boolean = false): Promise<PcpItem[]> {
+export async function getPcpPlanningCache(): Promise<{ data: PcpItem[]; timestamp: number } | null> {
+  const db = await openPcpDB()
+  if (!db) return null
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(PCP_STORE_NAME, 'readonly')
+      const store = tx.objectStore(PCP_STORE_NAME)
+      const dataReq = store.get(KEY_PLANNING_DATA)
+      const timeReq = store.get(KEY_TIMESTAMP)
+
+      tx.oncomplete = () => {
+        if (dataReq.result && Array.isArray(dataReq.result) && dataReq.result.length > 0) {
+          resolve({
+            data: dataReq.result as PcpItem[],
+            timestamp: Number(timeReq.result) || 0
+          })
+        } else {
+          resolve(null)
+        }
+      }
+      tx.onerror = () => resolve(null)
+    } catch {
+      resolve(null)
+    }
+  })
+}
+
+export async function setPcpPlanningCache(items: PcpItem[]): Promise<void> {
+  cachedPlanningData = items
+  cacheTimestamp = Date.now()
+
+  const db = await openPcpDB()
+  if (!db) return
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(PCP_STORE_NAME, 'readwrite')
+      const store = tx.objectStore(PCP_STORE_NAME)
+      store.put(items, KEY_PLANNING_DATA)
+      store.put(Date.now(), KEY_TIMESTAMP)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => resolve()
+    } catch {
+      resolve()
+    }
+  })
+}
+
+// Obter agregação de todos os itens do Supabase para o Planejamento (com cache em memória + IndexedDB)
+let cachedPlanningData: PcpItem[] | null = null
+let cacheTimestamp = 0
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutos de validade antes de revalidar em segundo plano
+
+let isFetchingFromSupabase = false
+let activeFetchPromise: Promise<PcpItem[]> | null = null
+
+export async function clearPcpPlanningCache() {
+  cachedPlanningData = null
+  cacheTimestamp = 0
+  const db = await openPcpDB()
+  if (!db) return
+
+  return new Promise<void>((resolve) => {
+    try {
+      const tx = db.transaction(PCP_STORE_NAME, 'readwrite')
+      const store = tx.objectStore(PCP_STORE_NAME)
+      store.clear()
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => resolve()
+    } catch {
+      resolve()
+    }
+  })
+}
+
+async function fetchSummaryFromSupabase(): Promise<PcpItem[]> {
+  const batchSize = 1000
+
+  // 1. Obter total de registros para disparar requisições em paralelo
+  const { count, error: countErr } = await supabase
+    .from('pcp_js_martins')
+    .select('*', { count: 'exact', head: true })
+
+  if (countErr) {
+    console.warn('Erro ao verificar total de registros no Supabase:', countErr.message)
+    return []
+  }
+
+  const total = count || 0
+  if (total === 0) return []
+
+  const numBatches = Math.ceil(total / batchSize)
+  const promises = []
+
+  for (let b = 0; b < numBatches; b++) {
+    const from = b * batchSize
+    promises.push(
+      supabase
+        .from('pcp_js_martins')
+        .select('filentrega,fllibfat,codmodal,descricaomodal,descricaorota,status_operacao,linha,numpedven,numlote,item,descricao,qtcomp,fisico,qtped,cub_tot,vltotal,pesoliq')
+        .range(from, from + batchSize - 1)
+        .then(res => {
+          if (res.error) {
+            console.warn(`Erro no lote ${b}:`, res.error.message)
+            return []
+          }
+          return (res.data || []) as PcpItem[]
+        })
+    )
+  }
+
+  const results = await Promise.all(promises)
+  const allData = results.flat()
+
+  if (allData.length > 0) {
+    cachedPlanningData = allData
+    cacheTimestamp = Date.now()
+    await setPcpPlanningCache(allData)
+  }
+
+  return allData
+}
+
+export async function getAllPcpSummaryItems(
+  forceRefresh: boolean = false,
+  onBackgroundUpdate?: (data: PcpItem[]) => void
+): Promise<PcpItem[]> {
   const now = Date.now()
-  if (!forceRefresh && cachedPlanningData && (now - cacheTimestamp < CACHE_TTL_MS)) {
+
+  // 1. Memória imediata (< 1ms)
+  if (!forceRefresh && cachedPlanningData && cachedPlanningData.length > 0) {
+    if (now - cacheTimestamp >= CACHE_TTL_MS && !isFetchingFromSupabase) {
+      isFetchingFromSupabase = true
+      fetchSummaryFromSupabase()
+        .then(fresh => {
+          if (fresh.length > 0 && onBackgroundUpdate) {
+            onBackgroundUpdate(fresh)
+          }
+        })
+        .finally(() => {
+          isFetchingFromSupabase = false
+        })
+    }
     return cachedPlanningData
   }
 
-  try {
-    const batchSize = 1000
+  // 2. IndexedDB persistente no navegador (< 25ms - sobrevive a F5 / reload de página)
+  if (!forceRefresh) {
+    const cached = await getPcpPlanningCache()
+    if (cached && cached.data && cached.data.length > 0) {
+      cachedPlanningData = cached.data
+      cacheTimestamp = cached.timestamp || Date.now()
 
-    // 1. Obter total de registros para disparar requisições em paralelo
-    const { count, error: countErr } = await supabase
-      .from('pcp_js_martins')
-      .select('*', { count: 'exact', head: true })
-
-    if (countErr) {
-      console.warn('Erro ao verificar total de registros no Supabase:', countErr.message)
-      return cachedPlanningData || []
-    }
-
-    const total = count || 0
-    if (total === 0) return []
-
-    const numBatches = Math.ceil(total / batchSize)
-    const promises = []
-
-    for (let b = 0; b < numBatches; b++) {
-      const from = b * batchSize
-      promises.push(
-        supabase
-          .from('pcp_js_martins')
-          .select('filentrega,fllibfat,codmodal,descricaomodal,descricaorota,status_operacao,linha,numpedven,numlote,item,descricao,qtcomp,fisico,qtped,cub_tot,vltotal,pesoliq')
-          .range(from, from + batchSize - 1)
-          .then(res => {
-            if (res.error) {
-              console.warn(`Erro no lote ${b}:`, res.error.message)
-              return []
+      // Revalidação em segundo plano se tiver mais de 5 minutos
+      if (now - cacheTimestamp >= CACHE_TTL_MS && !isFetchingFromSupabase) {
+        isFetchingFromSupabase = true
+        fetchSummaryFromSupabase()
+          .then(fresh => {
+            if (fresh.length > 0 && onBackgroundUpdate) {
+              onBackgroundUpdate(fresh)
             }
-            return (res.data || []) as PcpItem[]
           })
-      )
+          .finally(() => {
+            isFetchingFromSupabase = false
+          })
+      }
+
+      return cached.data
     }
-
-    const results = await Promise.all(promises)
-    const allData = results.flat()
-
-    if (allData.length > 0) {
-      cachedPlanningData = allData
-      cacheTimestamp = Date.now()
-    }
-
-    return allData
-  } catch (err) {
-    console.error('Falha em getAllPcpSummaryItems:', err)
-    return cachedPlanningData || []
   }
+
+  // 3. Primeira execução ou forceRefresh: busca do Supabase
+  if (activeFetchPromise) {
+    return activeFetchPromise
+  }
+
+  isFetchingFromSupabase = true
+  activeFetchPromise = fetchSummaryFromSupabase()
+    .catch(err => {
+      console.error('Falha em getAllPcpSummaryItems:', err)
+      return cachedPlanningData || []
+    })
+    .finally(() => {
+      isFetchingFromSupabase = false
+      activeFetchPromise = null
+    })
+
+  return activeFetchPromise
 }
 
 // Obter filtros únicos de PCP
