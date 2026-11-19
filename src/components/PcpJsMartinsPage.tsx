@@ -35,15 +35,15 @@ import {
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
-import { 
-  getPcpItemsReport, 
-  getAllPcpSummaryItems, 
-  clearPcpPlanningCache, 
-  setPcpPlanningCache, 
+import {
+  getPcpItemsReport,
+  getAllPcpSummaryItems,
+  clearPcpPlanningCache,
+  setPcpPlanningCache,
   triggerOracleSync,
   getOracleSyncStatus,
   type OracleSyncStatus,
-  type PcpItem 
+  type PcpItem
 } from '../lib/pcpService'
 import initialSampleRows from '../data/pcp_initial_sample.json'
 import initialPlanningSummary from '../data/pcp_planning_summary.json'
@@ -112,9 +112,9 @@ export const PCP_COLUMNS: Array<{ key: keyof PcpItem; label: string; width?: str
   { key: 'faixa_dias_reduzida', label: 'FAIXA_DIAS_REDUZIDA', width: 'w-28' }
 ]
 
-// Formata data para o padrão brasileiro (DD/MM/YYYY)
+// Formata data para o padrão brasileiro (DD/MM/YYYY) ou prazo em dias
 export const formatDateBR = (val: any): string => {
-  if (!val) return '-'
+  if (!val && val !== 0) return '-'
   const str = String(val).trim()
   if (!str || str === 'null' || str === 'undefined' || str === '-') return '-'
 
@@ -129,13 +129,20 @@ export const formatDateBR = (val: any): string => {
     return `${match[3]}/${match[2]}/${match[1]}`
   }
 
-  // Tentar parse via Date se for válida
-  const d = new Date(str)
-  if (!isNaN(d.getTime())) {
-    const dia = String(d.getDate()).padStart(2, '0')
-    const mes = String(d.getMonth() + 1).padStart(2, '0')
-    const ano = d.getFullYear()
-    return `${dia}/${mes}/${ano}`
+  // Tentar parse via Date se for válida e não for puramente número
+  if (!/^\d+(\.0+)?$/.test(str)) {
+    const d = new Date(str)
+    if (!isNaN(d.getTime())) {
+      const dia = String(d.getDate()).padStart(2, '0')
+      const mes = String(d.getMonth() + 1).padStart(2, '0')
+      const ano = d.getFullYear()
+      return `${dia}/${mes}/${ano}`
+    }
+  }
+
+  // Se for apenas número de dias (ex: 10 ou 10.0)
+  if (/^\d+(\.0+)?$/.test(str)) {
+    return `${str.replace(/\.0+$/, '')} dias`
   }
 
   return str
@@ -637,8 +644,8 @@ export const PcpJsMartinsPage: React.FC = () => {
             dtpedido: String(r.dtpedido || r.DTPEDIDO || ''),
             dtentrega: String(r.dtentrega || r.DTENTREGA || ''),
             dtlibfat: String(r.dtlibfat || r.DTLIBFAT || ''),
-            preventrega: String(r.preventrega || r.PREVENTREGA || ''),
-            item: String(r.item || r.ITEM || ''),
+            preventrega: String(r.preventrega || r.PREVENTREGA || r.data_entrega_prevista || r.DATA_ENTREGA_PREVISTA || r.prazo_entrega || r.PRAZO_ENTREGA || ''),
+            item: formatItemCode(r.item || r.ITEM || ''),
             ibm: String(r.ibm || r.IBM || ''),
             descricao: String(r.descricao || r.DESCRICAO || ''),
             ref: String(r.ref || r.REF || ''),
@@ -2029,9 +2036,9 @@ export const PcpJsMartinsPage: React.FC = () => {
             modalidade: mod,
             linha: String(row.calc_linha || row.linha || row.LINHA || '-'),
             codmodal: formatItemCode(row.codmodal || row.CODMODAL || '-'),
-            preventrega: String(row.preventrega || row.PREVENTREGA || ''),
+            preventrega: String(row.preventrega || row.PREVENTREGA || row.data_entrega_prevista || row.DATA_ENTREGA_PREVISTA || row.prazo_entrega || row.PRAZO_ENTREGA || ''),
+            numlote: formatItemCode(row.numlote || row.NUMLOTE || '-'),
             statusOperacao: st,
-            numlote: String(row.numlote || row.NUMLOTE || ''),
             numpedven: String(row.numpedven || row.NUMPEDVEN || ''),
             item: formatItemCode(row.item || row.ITEM || ''),
             descricao: String(row.descricao || row.DESCRICAO || ''),
@@ -2804,11 +2811,12 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                     <table className="w-full text-[10px] border-collapse bg-white">
                                                       <thead>
                                                         <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
-                                                          <th className="py-1.5 px-2 text-center w-24">STATUS / LOTE</th>
+                                                          <th className="py-1.5 px-2 text-center w-24">STATUS</th>
                                                           <th className="py-1.5 px-2 text-center w-20">MODALIDADE</th>
                                                           <th className="py-1.5 px-2 text-center w-28">LINHA</th>
                                                           <th className="py-1.5 px-2 text-center w-20">CODMODAL</th>
                                                           <th className="py-1.5 px-2 text-center w-24">PREVENTREGA</th>
+                                                          <th className="py-1.5 px-2 text-center w-24">NUMLOTE</th>
                                                           <th className="py-1.5 px-2 text-center w-24">NUMPEDVEN</th>
                                                           <th className="py-1.5 px-2 text-center w-20">ITEM</th>
                                                           <th className="py-1.5 px-3 text-left">DESCRIÇÃO</th>
@@ -2840,6 +2848,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                             </td>
                                                             <td className="py-1 px-2 text-center font-mono font-medium text-slate-700 whitespace-nowrap">
                                                               {formatDateBR(det.preventrega)}
+                                                            </td>
+                                                            <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                              {det.numlote && det.numlote !== '-' ? det.numlote : '-'}
                                                             </td>
                                                             <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
                                                               {det.numpedven || '-'}
@@ -3113,13 +3124,12 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </div>
                 <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                   <div
-                    className={`h-full transition-all duration-500 rounded-full ${
-                      syncStatus.status === 'error'
+                    className={`h-full transition-all duration-500 rounded-full ${syncStatus.status === 'error'
                         ? 'bg-rose-500'
                         : syncStatus.status === 'success'
-                        ? 'bg-emerald-500'
-                        : 'bg-gradient-to-r from-blue-500 to-indigo-600 animate-pulse'
-                    }`}
+                          ? 'bg-emerald-500'
+                          : 'bg-gradient-to-r from-blue-500 to-indigo-600 animate-pulse'
+                      }`}
                     style={{ width: `${Math.max(5, syncStatus.progress || (isSyncingOracle ? 15 : 0))}%` }}
                   />
                 </div>
@@ -3127,13 +3137,12 @@ export const PcpJsMartinsPage: React.FC = () => {
 
               {/* Mensagem de Status */}
               <div
-                className={`p-3.5 rounded-xl border text-xs leading-relaxed ${
-                  syncStatus.status === 'error'
+                className={`p-3.5 rounded-xl border text-xs leading-relaxed ${syncStatus.status === 'error'
                     ? 'bg-rose-50 border-rose-200 text-rose-800'
                     : syncStatus.status === 'success'
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : 'bg-blue-50 border-blue-200 text-blue-900'
-                }`}
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-blue-50 border-blue-200 text-blue-900'
+                  }`}
               >
                 <div className="flex items-start gap-2.5">
                   {syncStatus.status === 'error' ? (
@@ -3148,8 +3157,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                       {syncStatus.status === 'error'
                         ? 'Status da Conexão'
                         : syncStatus.status === 'success'
-                        ? 'Sincronização Concluída'
-                        : 'Executando Sincronização'}
+                          ? 'Sincronização Concluída'
+                          : 'Executando Sincronização'}
                     </p>
                     <p className="text-[11.5px] opacity-90 break-words whitespace-pre-line">
                       {syncStatus.message || (isSyncingOracle ? 'Aguardando resposta do Oracle...' : 'Pronto para atualizar.')}
@@ -3177,27 +3186,23 @@ export const PcpJsMartinsPage: React.FC = () => {
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2 text-xs">
                 <div className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Etapas da Consulta:</div>
                 <div className="grid grid-cols-1 gap-1.5">
-                  <div className={`flex items-center gap-2 p-1.5 rounded-lg ${
-                    syncStatus.progress && syncStatus.progress >= 10 ? 'text-blue-800 font-bold bg-white' : 'text-slate-400'
-                  }`}>
+                  <div className={`flex items-center gap-2 p-1.5 rounded-lg ${syncStatus.progress && syncStatus.progress >= 10 ? 'text-blue-800 font-bold bg-white' : 'text-slate-400'
+                    }`}>
                     <span className="w-4 h-4 rounded-full border flex items-center justify-center text-[10px] font-bold bg-slate-100">1</span>
                     <span>Conexão VPN & Oracle MLPDW (DSN MLPDW)</span>
                   </div>
-                  <div className={`flex items-center gap-2 p-1.5 rounded-lg ${
-                    syncStatus.progress && syncStatus.progress >= 30 ? 'text-blue-800 font-bold bg-white' : 'text-slate-400'
-                  }`}>
+                  <div className={`flex items-center gap-2 p-1.5 rounded-lg ${syncStatus.progress && syncStatus.progress >= 30 ? 'text-blue-800 font-bold bg-white' : 'text-slate-400'
+                    }`}>
                     <span className="w-4 h-4 rounded-full border flex items-center justify-center text-[10px] font-bold bg-slate-100">2</span>
                     <span>Execução da Query da Carteira (53 colunas)</span>
                   </div>
-                  <div className={`flex items-center gap-2 p-1.5 rounded-lg ${
-                    syncStatus.progress && syncStatus.progress >= 60 ? 'text-blue-800 font-bold bg-white' : 'text-slate-400'
-                  }`}>
+                  <div className={`flex items-center gap-2 p-1.5 rounded-lg ${syncStatus.progress && syncStatus.progress >= 60 ? 'text-blue-800 font-bold bg-white' : 'text-slate-400'
+                    }`}>
                     <span className="w-4 h-4 rounded-full border flex items-center justify-center text-[10px] font-bold bg-slate-100">3</span>
                     <span>Gravação em Lote no Supabase (pcp_js_martins)</span>
                   </div>
-                  <div className={`flex items-center gap-2 p-1.5 rounded-lg ${
-                    syncStatus.progress && syncStatus.progress >= 100 ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-slate-400'
-                  }`}>
+                  <div className={`flex items-center gap-2 p-1.5 rounded-lg ${syncStatus.progress && syncStatus.progress >= 100 ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-slate-400'
+                    }`}>
                     <span className="w-4 h-4 rounded-full border flex items-center justify-center text-[10px] font-bold bg-slate-100">4</span>
                     <span>Atualização Instantânea da Página</span>
                   </div>

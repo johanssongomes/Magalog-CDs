@@ -139,10 +139,10 @@ export async function getPcpItemsReport(params: PcpQueryParams): Promise<PcpQuer
 // CAMADA DE PERSISTÊNCIA INDEXEDDB PARA PCP (CARREGAMENTO INSTANTÂNEO 0MS)
 // ---------------------------------------------------------------------------
 const PCP_DB_NAME = 'MagalogPcpCacheDB'
-const PCP_DB_VERSION = 1
+const PCP_DB_VERSION = 2
 const PCP_STORE_NAME = 'pcp_planning_store'
-const KEY_PLANNING_DATA = 'cached_planning_items'
-const KEY_TIMESTAMP = 'cached_timestamp'
+const KEY_PLANNING_DATA = 'cached_planning_items_v2'
+const KEY_TIMESTAMP = 'cached_timestamp_v2'
 
 function openPcpDB(): Promise<IDBDatabase | null> {
   return new Promise((resolve) => {
@@ -265,7 +265,7 @@ async function fetchSummaryFromSupabase(): Promise<PcpItem[]> {
     promises.push(
       supabase
         .from('pcp_js_martins')
-        .select('filentrega,fllibfat,codmodal,descricaomodal,descricaorota,status_operacao,linha,numpedven,numlote,item,descricao,qtcomp,fisico,qtped,cub_tot,vltotal,pesoliq,precounit')
+        .select('*')
         .range(from, from + batchSize - 1)
         .then(res => {
           if (res.error) {
