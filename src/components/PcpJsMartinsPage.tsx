@@ -28,7 +28,10 @@ import {
   Save,
   X,
   Sliders,
-  HelpCircle
+  HelpCircle,
+  Pin,
+  PinOff,
+  Menu
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -116,6 +119,26 @@ export const PcpJsMartinsPage: React.FC = () => {
       localStorage.setItem('magalog_pcp_active_tab', activeTab)
     } catch { }
   }, [activeTab])
+
+  // Estado para auto-ocultação do menu para ganhar espaço de tela
+  const [isMenuAutoHide, setIsMenuAutoHide] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('magalog_pcp_menu_autohide') === 'true'
+    } catch {
+      return false
+    }
+  })
+  const [isMenuHovered, setIsMenuHovered] = useState<boolean>(false)
+
+  const toggleMenuAutoHide = () => {
+    setIsMenuAutoHide(prev => {
+      const next = !prev
+      try {
+        localStorage.setItem('magalog_pcp_menu_autohide', String(next))
+      } catch { }
+      return next
+    })
+  }
 
   const [activeSubParam, setActiveSubParam] = useState<'modal' | 'rotas'>('rotas')
 
@@ -877,45 +900,107 @@ export const PcpJsMartinsPage: React.FC = () => {
 
   return (
     <div className="w-full space-y-4 animate-in fade-in duration-300">
-      {/* Header Superior Compacto (Linha Única Fina - Reestruturado) */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2.5 border-b border-slate-200">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-lg bg-linear-to-tr from-blue-600 to-indigo-600 text-white shadow-xs">
-            <Cpu size={18} />
+      {/* ------------------------------------------------------------------ */}
+      {/* BARRA DE MENUS NO CANTO ESQUERDO COM OPÇÃO DE AUTO-OCULTAR         */}
+      {/* ------------------------------------------------------------------ */}
+      {!isMenuAutoHide ? (
+        <div className="flex items-center justify-between gap-3 pb-2 border-b border-slate-200/90">
+          {/* Menus alinhados no canto esquerdo */}
+          <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs gap-0.5 flex-wrap sm:flex-nowrap">
+            {tabs.map(tab => {
+              const isActive = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
+                    ? 'bg-white text-blue-700 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                    }`}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                </button>
+              )
+            })}
           </div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-base font-black text-slate-900 tracking-tight">PCP J'S Martins</h1>
-            <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-full flex items-center gap-1">
-              <Database size={10} /> Base Operacional & Cadastros
-            </span>
-            <span className="hidden xl:inline text-slate-300 text-xs">|</span>
-            <p className="hidden xl:inline text-[11px] text-slate-500 font-medium">
-              Planejamento, Controle e Programação da Produção & Operação Logística
-            </p>
-          </div>
-        </div>
 
-        {/* Seletor de 4 Abas Compacto */}
-        <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs gap-0.5 flex-wrap sm:flex-nowrap">
-          {tabs.map(tab => {
-            const isActive = activeTab === tab.id
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
-                  ? 'bg-white text-blue-700 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                  }`}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-              </button>
-            )
-          })}
+          {/* Botão para ativar modo auto-ocultar */}
+          <button
+            type="button"
+            onClick={toggleMenuAutoHide}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all cursor-pointer"
+            title="Ocultar menus automaticamente para ganhar mais espaço de tela (só exibe ao passar o mouse)"
+          >
+            <Pin size={12} className="text-slate-400 rotate-45" />
+            <span className="hidden sm:inline">Auto-ocultar menus</span>
+          </button>
         </div>
-      </div>
+      ) : (
+        <div
+          onMouseEnter={() => setIsMenuHovered(true)}
+          onMouseLeave={() => setIsMenuHovered(false)}
+          className="relative z-40 -mb-2"
+        >
+          {/* Faixa / Gatilho fino de ativação no canto esquerdo */}
+          <div className="flex items-center justify-between py-0.5">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-slate-100/80 hover:bg-blue-50 border border-slate-200/80 text-[11px] font-bold text-slate-600 hover:text-blue-700 cursor-pointer shadow-2xs transition-all">
+              <Menu size={12} className="text-blue-600" />
+              <span>Menu: <strong className="text-blue-700 capitalize">{currentTabInfo.label}</strong></span>
+              <span className="text-[9.5px] text-slate-400 font-normal ml-1">(passe o mouse aqui para navegar)</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={toggleMenuAutoHide}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-medium text-slate-400 hover:text-slate-700 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all cursor-pointer"
+              title="Fixar menus permanentemente visíveis na tela"
+            >
+              <PinOff size={11} className="text-amber-500" />
+              <span className="hidden sm:inline">Fixar menu</span>
+            </button>
+          </div>
+
+          {/* Menu Flutuante que surge sobreposto ao passar o mouse */}
+          {isMenuHovered && (
+            <div className="absolute top-0 left-0 z-50 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-300 shadow-xl p-2 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150 min-w-[520px]">
+              <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs gap-0.5 flex-wrap sm:flex-nowrap">
+                {tabs.map(tab => {
+                  const isActive = activeTab === tab.id
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab(tab.id)
+                        setIsMenuHovered(false)
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
+                        ? 'bg-white text-blue-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                        }`}
+                    >
+                      {tab.icon}
+                      <span>{tab.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={toggleMenuAutoHide}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer"
+                title="Fixar menus permanentemente visíveis na tela"
+              >
+                <Pin size={12} className="text-blue-600" />
+                <span className="hidden sm:inline">Fixar menu</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* FEEDBACK DE UPLOAD */}
       {uploadFeedback && (
