@@ -156,6 +156,40 @@ export const formatItemCode = (val: any): string => {
   return str.replace(/\.0+$/, '')
 }
 
+// Converte data ou prazo em valor numérico para ordenação crescente (do menor para o maior vencimento)
+export const parseDateOrPrazoToTimestamp = (val: any): number => {
+  if (!val && val !== 0) return 9999999999999
+  const str = String(val).trim()
+  if (!str || str === 'null' || str === 'undefined' || str === '-') return 9999999999999
+
+  // Se estiver no formato DD/MM/YYYY
+  const brMatch = str.match(/^(\d{2})\/(\d{2})\/(\d{4})/)
+  if (brMatch) {
+    const [, d, m, y] = brMatch
+    return new Date(Number(y), Number(m) - 1, Number(d)).getTime()
+  }
+
+  // Se estiver no formato YYYY-MM-DD
+  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch
+    return new Date(Number(y), Number(m) - 1, Number(d)).getTime()
+  }
+
+  // Se for apenas número de dias (ex: "10" ou "10 dias")
+  const daysMatch = str.match(/^(\d+)/)
+  if (daysMatch) {
+    return Number(daysMatch[1]) * 86400000
+  }
+
+  const d = new Date(str)
+  if (!isNaN(d.getTime())) {
+    return d.getTime()
+  }
+
+  return 9999999999999
+}
+
 export const PcpJsMartinsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'planejamento' | 'programacao' | 'controle' | 'cadastros'>(() => {
     try {
@@ -2108,7 +2142,16 @@ export const PcpJsMartinsPage: React.FC = () => {
                     stCub += modData.cubagem
                     stValor += modData.valorTotal
                     stPeso += modData.pesoTotal
-                    stItens.push(...modData.itens)
+
+                    // Ordena os itens do menor vencimento para o maior dentro de cada modalidade
+                    const sortedItens = [...modData.itens].sort((a, b) => {
+                      const tA = parseDateOrPrazoToTimestamp(a.preventrega)
+                      const tB = parseDateOrPrazoToTimestamp(b.preventrega)
+                      if (tA !== tB) return tA - tB
+                      return (a.numpedven || '').localeCompare(b.numpedven || '')
+                    })
+
+                    stItens.push(...sortedItens)
 
                     return {
                       modalidade: modName,
@@ -2118,7 +2161,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                       cubagem: modData.cubagem,
                       valorTotal: modData.valorTotal,
                       pesoTotal: modData.pesoTotal,
-                      itens: modData.itens
+                      itens: sortedItens
                     }
                   })
 
