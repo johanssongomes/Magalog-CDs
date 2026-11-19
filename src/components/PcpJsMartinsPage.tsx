@@ -107,14 +107,14 @@ export const PcpJsMartinsPage: React.FC = () => {
       if (saved && ['planejamento', 'programacao', 'controle', 'cadastros'].includes(saved)) {
         return saved as any
       }
-    } catch {}
+    } catch { }
     return 'planejamento'
   })
 
   useEffect(() => {
     try {
       localStorage.setItem('magalog_pcp_active_tab', activeTab)
-    } catch {}
+    } catch { }
   }, [activeTab])
 
   const [activeSubParam, setActiveSubParam] = useState<'modal' | 'rotas'>('rotas')
@@ -225,7 +225,7 @@ export const PcpJsMartinsPage: React.FC = () => {
       localStorage.setItem('magalog_pcp_plan_status_op', JSON.stringify(planFilterStatusOp))
       localStorage.setItem('magalog_pcp_plan_linha', planFilterLinha)
       localStorage.setItem('magalog_pcp_plan_search', planSearchTerm)
-    } catch {}
+    } catch { }
   }, [planFilterRegiao, planFilterModalidade, planFilterTipoModal, planFilterFllibfat, planFilterStatusOp, planFilterLinha, planSearchTerm])
   // Controle de destinos expandidos no Planejamento
   const [expandedDestinos, setExpandedDestinos] = useState<Record<string, boolean>>({})
@@ -574,7 +574,12 @@ export const PcpJsMartinsPage: React.FC = () => {
     const local = getLocalData()
     const totalVolume = local.reduce((acc, r: any) => acc + (Number(r.fisico || r.FISICO) || 0), 0)
     const totalCubagem = local.reduce((acc, r: any) => acc + (Number(r.cub_tot || r.CUB_TOT) || 0), 0)
-    const totalValor = local.reduce((acc, r: any) => acc + (Number(r.vltotal || r.VLTOTAL) || 0), 0)
+    const totalValor = local.reduce((acc, r: any) => {
+      const qt = Number(r.qtcomp || r.QTCOMP || 0)
+      const pr = Number(r.precounit || r.PRECOUNIT || 0)
+      const vl = (pr > 0 && qt > 0) ? (pr * qt) : (Number(r.vltotal || r.VLTOTAL) || 0)
+      return acc + vl
+    }, 0)
     const emProcesso = local.filter((r: any) => (r.status_operacao || r.STATUS_OPERACAO) === 'EM PROCESSO').length
     const emCarteira = local.filter((r: any) => (r.status_operacao || r.STATUS_OPERACAO) === 'EM CARTEIRA').length
 
@@ -712,6 +717,7 @@ export const PcpJsMartinsPage: React.FC = () => {
         fisico: r.fisico,
         qtped: r.qtped,
         cub_tot: r.cub_tot,
+        precounit: r.precounit,
         vltotal: r.vltotal,
         pesoliq: r.pesoliq
       }))
@@ -1661,10 +1667,21 @@ export const PcpJsMartinsPage: React.FC = () => {
             calc_status_op: statusOperacao,
             calc_linha: linha,
             calc_ped: String(r.numpedven || r.NUMPEDVEN || ''),
-            calc_qtd: Number(r.qtcomp || r.QTCOMP || r.fisico || r.FISICO || r.qtped || r.QTPED) || 1,
+            calc_qtd: (() => {
+              const q = Number(r.qtcomp !== undefined ? r.qtcomp : (r.QTCOMP !== undefined ? r.QTCOMP : 0))
+              return q || Number(r.fisico || r.FISICO || r.qtped || r.QTPED) || 1
+            })(),
             calc_cub: Number(r.cub_tot || r.CUB_TOT) || 0,
-            calc_vltotal: Number(r.vltotal || r.VLTOTAL) || 0,
-            calc_peso: Number(r.pesoliq || r.PESOLIQ) || 0
+            calc_vltotal: (() => {
+              const qt = Number(r.qtcomp !== undefined ? r.qtcomp : (r.QTCOMP !== undefined ? r.QTCOMP : 0))
+              const pr = Number(r.precounit !== undefined ? r.precounit : (r.PRECOUNIT !== undefined ? r.PRECOUNIT : 0))
+              return (pr > 0 && qt > 0) ? (pr * qt) : (Number(r.vltotal || r.VLTOTAL) || 0)
+            })(),
+            calc_peso: (() => {
+              const qt = Number(r.qtcomp !== undefined ? r.qtcomp : (r.QTCOMP !== undefined ? r.QTCOMP : 0))
+              const ps = Number(r.pesoliq !== undefined ? r.pesoliq : (r.PESOLIQ !== undefined ? r.PESOLIQ : 0))
+              return (ps > 0 && qt > 0) ? (ps * qt) : (Number(r.pesoliq || r.PESOLIQ) || 0)
+            })()
           }
         }).filter(r => {
           if (planFilterRegiao !== 'TODOS' && r.calc_regiao !== planFilterRegiao) return false
@@ -2033,7 +2050,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                         localStorage.removeItem('magalog_pcp_plan_status_op')
                         localStorage.removeItem('magalog_pcp_plan_linha')
                         localStorage.removeItem('magalog_pcp_plan_search')
-                      } catch {}
+                      } catch { }
                     }}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
                     title="Redefinir todas as segmentações"

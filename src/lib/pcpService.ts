@@ -265,7 +265,7 @@ async function fetchSummaryFromSupabase(): Promise<PcpItem[]> {
     promises.push(
       supabase
         .from('pcp_js_martins')
-        .select('filentrega,fllibfat,codmodal,descricaomodal,descricaorota,status_operacao,linha,numpedven,numlote,item,descricao,qtcomp,fisico,qtped,cub_tot,vltotal,pesoliq')
+        .select('filentrega,fllibfat,codmodal,descricaomodal,descricaorota,status_operacao,linha,numpedven,numlote,item,descricao,qtcomp,fisico,qtped,cub_tot,vltotal,pesoliq,precounit')
         .range(from, from + batchSize - 1)
         .then(res => {
           if (res.error) {
