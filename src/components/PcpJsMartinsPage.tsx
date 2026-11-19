@@ -3084,17 +3084,17 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Alerta de Orientação quando der erro de VPN */}
-              {syncStatus.status === 'error' && (
+              {/* Alerta de Orientação quando der erro de VPN ou aguardando servidor */}
+              {(syncStatus.status === 'error' || syncStatus.status === 'requested') && (
                 <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 space-y-1">
                   <p className="font-bold flex items-center gap-1.5 text-amber-800">
-                    <AlertCircle size={13} /> Dica de Conexão:
+                    <AlertCircle size={13} /> Dica de Conexão no Servidor da Empresa:
                   </p>
                   <p>
-                    1. Certifique-se de estar conectado à <strong>VPN corporativa</strong> da empresa para que o servidor <code>mlpdwpkg.magazineluiza.intranet</code> fique acessível.
+                    1. Certifique-se de que o arquivo <strong><code>atualizar_carteira_servidor.bat</code></strong> (ou <code>sincronizador_servidor.py</code>) está aberto no servidor corporativo (ele fica ouvindo os cliques do site em segundo plano).
                   </p>
                   <p>
-                    2. Você também pode rodar diretamente o atalho <code>iniciar_sincronizador.bat</code> na pasta do projeto.
+                    2. Você também pode dar 2 cliques diretamente no <code>atualizar_carteira_servidor.bat</code> na Área de Trabalho do servidor a qualquer momento.
                   </p>
                 </div>
               )}

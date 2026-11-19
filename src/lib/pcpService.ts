@@ -391,33 +391,74 @@ export interface OracleSyncStatus {
   updated_at?: string
 }
 
-// Disparar sincronização do Oracle MLPDW para o Supabase
+// Disparar sincronização do Oracle MLPDW para o Supabase (via fila Supabase + fallback local)
 export async function triggerOracleSync(): Promise<{ success: boolean; message: string; error?: string }> {
   try {
-    const res = await fetch('/api/pcp/sync-oracle', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      return { success: false, message: data.error || 'Erro ao iniciar sincronização', error: data.error }
+    const requestPayload = {
+      action: 'sync',
+      status: 'requested',
+      progress: 10,
+      message: 'Solicitação enviada. Conectando ao sincronizador corporativo...',
+      requested_at: new Date().toISOString()
     }
-    return { success: true, message: data.message || 'Sincronização iniciada' }
+
+    // 1. Grava diretamente no Supabase (funciona na Vercel e em qualquer lugar)
+    const { error: supaErr } = await supabase
+      .from('performance_metrics')
+      .upsert({
+        cell_key: 'pcp_sync_command',
+        value: JSON.stringify(requestPayload)
+      }, { onConflict: 'cell_key' })
+
+    if (supaErr) {
+      console.warn('Aviso ao registrar comando no Supabase:', supaErr.message)
+    }
+
+    // 2. Tenta também acionar backend local se estiver rodando em desenvolvimento
+    try {
+      fetch('/api/pcp/sync-oracle', { method: 'POST' }).catch(() => {})
+    } catch {}
+
+    return { 
+      success: true, 
+      message: 'Solicitação de sincronização enviada para o sincronizador corporativo.' 
+    }
   } catch (err: any) {
     return { 
       success: false, 
-      message: 'Servidor de sincronização local indisponível. Você também pode rodar iniciar_sincronizador.bat.',
+      message: 'Falha ao registrar comando de sincronização no Supabase.',
       error: err.message 
     }
   }
 }
 
-// Consultar status atual da sincronização
+// Consultar status atual da sincronização (direto do Supabase)
 export async function getOracleSyncStatus(): Promise<OracleSyncStatus> {
   try {
-    const res = await fetch('/api/pcp/sync-status')
-    if (!res.ok) return { status: 'unknown' }
-    return await res.json()
+    // 1. Consulta prioritária no Supabase (funciona na Vercel e em qualquer máquina)
+    const { data, error } = await supabase
+      .from('performance_metrics')
+      .select('value, updated_at')
+      .eq('cell_key', 'pcp_sync_command')
+      .maybeSingle()
+
+    if (!error && data && data.value) {
+      try {
+        const parsed = JSON.parse(data.value)
+        return {
+          ...parsed,
+          updated_at: data.updated_at || parsed.updated_at
+        }
+      } catch {}
+    }
+
+    // 2. Fallback para API local se disponível
+    try {
+      const res = await fetch('/api/pcp/sync-status')
+      if (res.ok) return await res.json()
+    } catch {}
+
+    return { status: 'unknown' }
   } catch {
     return { status: 'unknown' }
   }
