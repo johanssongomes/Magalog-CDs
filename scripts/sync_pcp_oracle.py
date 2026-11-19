@@ -153,11 +153,63 @@ def write_status(data):
     except Exception as e:
         print(f"[STATUS ERROR] {e}")
 
+    # Também atualiza no Supabase para a interface web na nuvem acompanhar
+    try:
+        url = f"{SUPABASE_URL}/rest/v1/performance_metrics"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates"
+        }
+        payload = {
+            "cell_key": "pcp_sync_command",
+            "value": json.dumps(data, ensure_ascii=False)
+        }
+        requests.post(url, headers=headers, json=payload, verify=False, timeout=8)
+    except Exception:
+        pass
+
 def get_oracle_connection():
-    """Tenta conectar ao Oracle usando oracledb (thin mode e thick mode) ou pyodbc (DSN e Driver)"""
+    """Tenta conectar ao Oracle usando pyodbc (DSN MLPDW) ou oracledb"""
     errors = []
 
-    # 1. Tenta oracledb thin mode (puro python, não requer DLLs)
+    # 1. Tenta pyodbc com DSN MLPDW (ODBC nativo do Windows)
+    try:
+        import pyodbc
+        for conn_str in [
+            f"DSN={ORACLE_DSN};UID={ORACLE_USER};PWD={ORACLE_PWD};DBQ={ORACLE_DSN};",
+            f"DSN={ORACLE_DSN};UID={ORACLE_USER};PWD={ORACLE_PWD};",
+            f"DRIVER={{Oracle em OraClient11g_home1}};DBQ={ORACLE_DSN};UID={ORACLE_USER};PWD={ORACLE_PWD};"
+        ]:
+            try:
+                name = conn_str.split(";")[0]
+                print(f"[ORACLE] Conectando via ODBC ({name})...")
+                conn = pyodbc.connect(conn_str, timeout=15)
+                print("[ORACLE] Conectado com sucesso via ODBC!")
+                return conn, "pyodbc_odbc"
+            except Exception as e:
+                errors.append(f"pyodbc ({name}): {e}")
+    except ImportError:
+        errors.append("pyodbc não está instalado")
+
+    # 2. Tenta oracledb thick mode se houver client local 11g
+    client_bin = r"C:\Oracle\product\11.2.0\client_1\bin"
+    if os.path.exists(client_bin):
+        try:
+            import oracledb
+            try:
+                oracledb.init_oracle_client(lib_dir=client_bin)
+            except Exception:
+                pass
+            dsn = oracledb.makedsn(ORACLE_HOST, ORACLE_PORT, service_name=ORACLE_SERVICE)
+            conn = oracledb.connect(user=ORACLE_USER, password=ORACLE_PWD, dsn=dsn)
+            print("[ORACLE] Conectado com sucesso via oracledb thick!")
+            return conn, "oracledb_thick"
+        except Exception as e:
+            errors.append(f"oracledb thick: {e}")
+
+    # 3. Tenta oracledb thin mode (caso servidor seja compativel)
     try:
         import oracledb
         for host in [ORACLE_HOST, ORACLE_HOST_FALLBACK]:
@@ -171,46 +223,6 @@ def get_oracle_connection():
                 errors.append(f"oracledb thin ({host}): {e}")
     except ImportError:
         errors.append("oracledb não está instalado")
-
-    # 2. Tenta pyodbc com DSN MLPDW
-    try:
-        import pyodbc
-        try:
-            print("[ORACLE] Tentando pyodbc com DSN=MLPDW...")
-            conn_str = f"DSN={ORACLE_DSN};UID={ORACLE_USER};PWD={ORACLE_PWD};"
-            conn = pyodbc.connect(conn_str, timeout=15)
-            print("[ORACLE] Conectado com sucesso via pyodbc (DSN)!")
-            return conn, "pyodbc_dsn"
-        except Exception as e:
-            errors.append(f"pyodbc DSN: {e}")
-
-        # 3. Tenta pyodbc com DRIVER direto
-        try:
-            print("[ORACLE] Tentando pyodbc com DRIVER={Oracle em OraClient11g_home1}...")
-            conn_str = f"DRIVER={{Oracle em OraClient11g_home1}};DBQ={ORACLE_DSN};UID={ORACLE_USER};PWD={ORACLE_PWD};"
-            conn = pyodbc.connect(conn_str, timeout=15)
-            print("[ORACLE] Conectado com sucesso via pyodbc (Driver)!")
-            return conn, "pyodbc_driver"
-        except Exception as e:
-            errors.append(f"pyodbc Driver: {e}")
-    except ImportError:
-        errors.append("pyodbc não está instalado")
-
-    # 4. Tenta oracledb thick mode se houver client local
-    client_bin = r"C:\Oracle\product\11.2.0\client_1\bin"
-    if os.path.exists(client_bin):
-        try:
-            import oracledb
-            try:
-                oracledb.init_oracle_client(lib_dir=client_bin)
-            except Exception:
-                pass
-            dsn = oracledb.makedsn(ORACLE_HOST, ORACLE_PORT, service_name=ORACLE_SERVICE)
-            conn = oracledb.connect(user=ORACLE_USER, password=ORACLE_PWD, dsn=dsn)
-            print("[ORACLE] Conectado com sucesso via oracledb thick mode!")
-            return conn, "oracledb_thick"
-        except Exception as e:
-            errors.append(f"oracledb thick: {e}")
 
     raise ConnectionError(
         "Não foi possível conectar ao Oracle. Verifique se você está conectado à VPN corporativa da empresa.\nDetalhes:\n" + "\n".join(errors)

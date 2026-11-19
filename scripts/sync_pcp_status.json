@@ -1,7 +1,9 @@
 {
-  "status": "error",
-  "step": "failed",
-  "progress": 0,
-  "message": "Não foi possível conectar ao Oracle. Verifique se você está conectado à VPN corporativa da empresa.\nDetalhes:\noracledb thin (mlpdwpkg.magazineluiza.intranet): DPY-6005: cannot connect to database (CONNECTION_ID=fVnQpcLHEeFahGShLrarGw==).\n[Errno 11001] getaddrinfo failed\noracledb thin (100.64.0.6): DPY-6005: cannot connect to database (CONNECTION_ID=baKc3ZjCcGuETiVpHiYwsw==).\n[Errno 11001] getaddrinfo failed\npyodbc DSN: ('HY000', '[HY000] [Oracle][ODBC][Ora]ORA-12545: A conexão falhou porque o objeto ou host de destino não existe\\n\\x00\\x00\\x00\\x00\\x00\\x00templatelib.py\\x00\\x00\\x00x\\x00\\x00\\x00관䙎\\uf8e6ǜʈ備睿ǝ관䙎\\uf8e6ǜ⇥ꗂᪧǝㆈ\\x00\\x00\\x00䀀\\x00\\x00\\x00 \\x00\\x16\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00__init__.py\\x00\\x00\\x00\\x00\\x00\\x00᪶鰳ᪧǝ帞\\ue0f7 (12545) (SQLDriverConnect); [HY000] [Microsoft][ODBC Driver Manager] Falha de SQLSetConnectAttr do driver (0); [HY000] [Oracle][ODBC][Ora]ORA-12545: A conexão falhou porque o objeto ou host de destino não existe\\n\\x00\\x00\\x00\\x00\\x00\\x00templatelib.py\\x00\\x00\\x00x\\x00\\x00\\x00관䙎\\uf8e6ǜʈ備睿ǝ관䙎\\uf8e6ǜ⇥ꗂᪧǝㆈ\\x00\\x00\\x00䀀\\x00\\x00\\x00 \\x00\\x16\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00__init__.py\\x00\\x00\\x00\\x00\\x00\\x00᪶鰳ᪧǝ帞\\ue0f7 (12545)')\npyodbc Driver: ('HY000', '[HY000] [Oracle][ODBC][Ora]ORA-12545: A conexão falhou porque o objeto ou host de destino não existe\\n\\x00\\x00\\x00\\x00\\x00\\x00templatelib.py\\x00\\x00\\x00x\\x00\\x00\\x00관䙎\\uf8e6ǜʈ備睿ǝ관䙎\\uf8e6ǜ⇥ꗂᪧǝㆈ\\x00\\x00\\x00䀀\\x00\\x00\\x00 \\x00\\x16\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00__init__.py\\x00\\x00\\x00\\x00\\x00\\x00᪶鰳ᪧǝ帞\\ue0f7 (12545) (SQLDriverConnect); [HY000] [Microsoft][ODBC Driver Manager] Falha de SQLSetConnectAttr do driver (0); [HY000] [Oracle][ODBC][Ora]ORA-12545: A conexão falhou porque o objeto ou host de destino não existe\\n\\x00\\x00\\x00\\x00\\x00\\x00templatelib.py\\x00\\x00\\x00x\\x00\\x00\\x00관䙎\\uf8e6ǜʈ備睿ǝ관䙎\\uf8e6ǜ⇥ꗂᪧǝㆈ\\x00\\x00\\x00䀀\\x00\\x00\\x00 \\x00\\x16\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00__init__.py\\x00\\x00\\x00\\x00\\x00\\x00᪶鰳ᪧǝ帞\\ue0f7 (12545)')\noracledb thick: DPY-6005: cannot connect to database (CONNECTION_ID=/18iq7h7phRnpV1tQCX1Fw==).\n[Errno 11001] getaddrinfo failed",
-  "updated_at": "2026-11-19T00:48:50.964194"
+  "status": "success",
+  "step": "completed",
+  "progress": 100,
+  "total": 8837,
+  "elapsed_seconds": 43.5,
+  "message": "Carteira atualizada com sucesso! 8,837 itens sincronizados em 43.5s.",
+  "updated_at": "2026-11-19T10:22:35.455072"
 }
