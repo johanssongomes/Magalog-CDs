@@ -374,3 +374,51 @@ export async function getPcpFiltersMeta() {
     return { statusList: ['EM PROCESSO', 'EM CARTEIRA'] }
   }
 }
+
+// =========================================================================
+// SINCRONIZADOR ORACLE MLPDW -> SUPABASE
+// =========================================================================
+
+export interface OracleSyncStatus {
+  status: 'idle' | 'running' | 'success' | 'warning' | 'error' | 'unknown'
+  step?: string
+  progress?: number
+  current?: number
+  total?: number
+  message?: string
+  elapsed_seconds?: number
+  error?: string
+  updated_at?: string
+}
+
+// Disparar sincronização do Oracle MLPDW para o Supabase
+export async function triggerOracleSync(): Promise<{ success: boolean; message: string; error?: string }> {
+  try {
+    const res = await fetch('/api/pcp/sync-oracle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { success: false, message: data.error || 'Erro ao iniciar sincronização', error: data.error }
+    }
+    return { success: true, message: data.message || 'Sincronização iniciada' }
+  } catch (err: any) {
+    return { 
+      success: false, 
+      message: 'Servidor de sincronização local indisponível. Você também pode rodar iniciar_sincronizador.bat.',
+      error: err.message 
+    }
+  }
+}
+
+// Consultar status atual da sincronização
+export async function getOracleSyncStatus(): Promise<OracleSyncStatus> {
+  try {
+    const res = await fetch('/api/pcp/sync-status')
+    if (!res.ok) return { status: 'unknown' }
+    return await res.json()
+  } catch {
+    return { status: 'unknown' }
+  }
+}

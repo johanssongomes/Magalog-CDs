@@ -35,7 +35,16 @@ import {
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
-import { getPcpItemsReport, getAllPcpSummaryItems, clearPcpPlanningCache, setPcpPlanningCache, type PcpItem } from '../lib/pcpService'
+import { 
+  getPcpItemsReport, 
+  getAllPcpSummaryItems, 
+  clearPcpPlanningCache, 
+  setPcpPlanningCache, 
+  triggerOracleSync,
+  getOracleSyncStatus,
+  type OracleSyncStatus,
+  type PcpItem 
+} from '../lib/pcpService'
 import initialSampleRows from '../data/pcp_initial_sample.json'
 import initialPlanningSummary from '../data/pcp_planning_summary.json'
 import { INITIAL_MODAL_PARAMS, getTipoModal, type ModalParamItem } from '../data/pcp_modal_params'
@@ -432,6 +441,54 @@ export const PcpJsMartinsPage: React.FC = () => {
   useEffect(() => {
     loadPlanningData()
   }, [loadPlanningData])
+
+  // --------------------------------------------------------------------------
+  // ESTADOS E CONTROLE DA SINCRONIZAÇÃO DIRETA COM ORACLE MLPDW
+  // --------------------------------------------------------------------------
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState<boolean>(false)
+  const [isSyncingOracle, setIsSyncingOracle] = useState<boolean>(false)
+  const [syncStatus, setSyncStatus] = useState<OracleSyncStatus>({ status: 'idle' })
+
+  const handleSyncOracleCarteira = async () => {
+    setIsSyncModalOpen(true)
+    setIsSyncingOracle(true)
+    setSyncStatus({
+      status: 'running',
+      step: 'starting',
+      progress: 10,
+      message: '🔌 Conectando ao banco de dados Oracle MLPDW (verificando VPN)...'
+    })
+
+    const res = await triggerOracleSync()
+    if (!res.success) {
+      setIsSyncingOracle(false)
+      setSyncStatus({
+        status: 'error',
+        step: 'failed',
+        progress: 0,
+        message: res.message || 'Falha ao iniciar sincronização.'
+      })
+      return
+    }
+
+    const pollInterval = window.setInterval(async () => {
+      try {
+        const current = await getOracleSyncStatus()
+        setSyncStatus(current)
+
+        if (current.status === 'success') {
+          window.clearInterval(pollInterval)
+          setIsSyncingOracle(false)
+          await loadPlanningData(true)
+        } else if (current.status === 'error' || current.status === 'warning') {
+          window.clearInterval(pollInterval)
+          setIsSyncingOracle(false)
+        }
+      } catch {
+        // Polling contínuo
+      }
+    }, 1500)
+  }
 
   // Buscar dados com aplicação da coluna auxiliar Modalidade
   const loadData = useCallback(async (p: number = page, search: string = searchTerm) => {
@@ -1577,6 +1634,18 @@ export const PcpJsMartinsPage: React.FC = () => {
                 <RefreshCw size={14} className={isLoading ? 'animate-spin text-blue-600' : ''} />
               </button>
 
+              {/* Botão Atualizar Carteira Direto no Oracle */}
+              <button
+                type="button"
+                onClick={handleSyncOracleCarteira}
+                disabled={isSyncingOracle}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all cursor-pointer shadow-2xs disabled:opacity-60 active:scale-95"
+                title="Consultar Carteira diretamente do Oracle MLPDW e sincronizar com Supabase"
+              >
+                <Database size={14} className={isSyncingOracle ? 'animate-spin' : ''} />
+                <span>{isSyncingOracle ? 'Atualizando...' : 'Atualizar Carteira (Oracle)'}</span>
+              </button>
+
               {/* Botão de Upload / Importar PCP J'S MARTINS.xlsx */}
               <label
                 htmlFor="pcp-file-upload"
@@ -2142,6 +2211,16 @@ export const PcpJsMartinsPage: React.FC = () => {
                   >
                     <RefreshCw size={11} />
                     Limpar Segmentações
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSyncOracleCarteira}
+                    disabled={isSyncingOracle}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-2xs hover:shadow-xs rounded-lg transition-all cursor-pointer disabled:opacity-60 active:scale-95"
+                    title="Consultar Carteira diretamente do Oracle MLPDW e sincronizar com Supabase"
+                  >
+                    <Database size={12} className={isSyncingOracle ? 'animate-spin' : ''} />
+                    <span>{isSyncingOracle ? 'Atualizando...' : 'Atualizar Carteira'}</span>
                   </button>
                   <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-100/80 text-blue-800 border border-blue-200/80">
                     {enrichedFiltered.length.toLocaleString('pt-BR')} itens ativos
@@ -2916,6 +2995,178 @@ export const PcpJsMartinsPage: React.FC = () => {
                 <span>Programação Diária</span>
               </div>
               <p className="text-[11px] text-slate-500">Sequenciamento de pedidos e distribuição por docas e rotas.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* MODAL DE SINCRONIZAÇÃO DIRETA COM ORACLE MLPDW                     */}
+      {/* ------------------------------------------------------------------ */}
+      {isSyncModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col">
+            {/* Cabeçalho do Modal */}
+            <div className="px-5 py-4 bg-gradient-to-r from-[#002f5c] to-[#0a4a82] text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-white/10 rounded-xl">
+                  <Database size={18} className="text-blue-300" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black tracking-wide">Sincronização da Carteira</h3>
+                  <p className="text-[11px] text-blue-200">Oracle MLPDW ➔ Supabase (pcp_js_martins)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isSyncingOracle) setIsSyncModalOpen(false)
+                }}
+                disabled={isSyncingOracle}
+                className="p-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer disabled:opacity-40"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Conteúdo do Modal */}
+            <div className="p-5 space-y-4">
+              {/* Barra de Progresso */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-slate-600">Progresso</span>
+                  <span className="text-blue-600 font-bold">{syncStatus.progress || (isSyncingOracle ? 15 : 0)}%</span>
+                </div>
+                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                  <div
+                    className={`h-full transition-all duration-500 rounded-full ${
+                      syncStatus.status === 'error'
+                        ? 'bg-rose-500'
+                        : syncStatus.status === 'success'
+                        ? 'bg-emerald-500'
+                        : 'bg-gradient-to-r from-blue-500 to-indigo-600 animate-pulse'
+                    }`}
+                    style={{ width: `${Math.max(5, syncStatus.progress || (isSyncingOracle ? 15 : 0))}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Mensagem de Status */}
+              <div
+                className={`p-3.5 rounded-xl border text-xs leading-relaxed ${
+                  syncStatus.status === 'error'
+                    ? 'bg-rose-50 border-rose-200 text-rose-800'
+                    : syncStatus.status === 'success'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    : 'bg-blue-50 border-blue-200 text-blue-900'
+                }`}
+              >
+                <div className="flex items-start gap-2.5">
+                  {syncStatus.status === 'error' ? (
+                    <AlertCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+                  ) : syncStatus.status === 'success' ? (
+                    <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <RefreshCw size={18} className="text-blue-600 shrink-0 mt-0.5 animate-spin" />
+                  )}
+                  <div className="space-y-1">
+                    <p className="font-bold">
+                      {syncStatus.status === 'error'
+                        ? 'Status da Conexão'
+                        : syncStatus.status === 'success'
+                        ? 'Sincronização Concluída'
+                        : 'Executando Sincronização'}
+                    </p>
+                    <p className="text-[11.5px] opacity-90 break-words whitespace-pre-line">
+                      {syncStatus.message || (isSyncingOracle ? 'Aguardando resposta do Oracle...' : 'Pronto para atualizar.')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Alerta de Orientação quando der erro de VPN */}
+              {syncStatus.status === 'error' && (
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 space-y-1">
+                  <p className="font-bold flex items-center gap-1.5 text-amber-800">
+                    <AlertCircle size={13} /> Dica de Conexão:
+                  </p>
+                  <p>
+                    1. Certifique-se de estar conectado à <strong>VPN corporativa</strong> da empresa para que o servidor <code>mlpdwpkg.magazineluiza.intranet</code> fique acessível.
+                  </p>
+                  <p>
+                    2. Você também pode rodar diretamente o atalho <code>iniciar_sincronizador.bat</code> na pasta do projeto.
+                  </p>
+                </div>
+              )}
+
+              {/* Etapas do Processo */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2 text-xs">
+                <div className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Etapas da Consulta:</div>
+                <div className="grid grid-cols-1 gap-1.5">
+                  <div className={`flex items-center gap-2 p-1.5 rounded-lg ${
+                    syncStatus.progress && syncStatus.progress >= 10 ? 'text-blue-800 font-bold bg-white' : 'text-slate-400'
+                  }`}>
+                    <span className="w-4 h-4 rounded-full border flex items-center justify-center text-[10px] font-bold bg-slate-100">1</span>
+                    <span>Conexão VPN & Oracle MLPDW (DSN MLPDW)</span>
+                  </div>
+                  <div className={`flex items-center gap-2 p-1.5 rounded-lg ${
+                    syncStatus.progress && syncStatus.progress >= 30 ? 'text-blue-800 font-bold bg-white' : 'text-slate-400'
+                  }`}>
+                    <span className="w-4 h-4 rounded-full border flex items-center justify-center text-[10px] font-bold bg-slate-100">2</span>
+                    <span>Execução da Query da Carteira (53 colunas)</span>
+                  </div>
+                  <div className={`flex items-center gap-2 p-1.5 rounded-lg ${
+                    syncStatus.progress && syncStatus.progress >= 60 ? 'text-blue-800 font-bold bg-white' : 'text-slate-400'
+                  }`}>
+                    <span className="w-4 h-4 rounded-full border flex items-center justify-center text-[10px] font-bold bg-slate-100">3</span>
+                    <span>Gravação em Lote no Supabase (pcp_js_martins)</span>
+                  </div>
+                  <div className={`flex items-center gap-2 p-1.5 rounded-lg ${
+                    syncStatus.progress && syncStatus.progress >= 100 ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-slate-400'
+                  }`}>
+                    <span className="w-4 h-4 rounded-full border flex items-center justify-center text-[10px] font-bold bg-slate-100">4</span>
+                    <span>Atualização Instantânea da Página</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2">
+              {isSyncingOracle ? (
+                <button
+                  type="button"
+                  onClick={() => setIsSyncModalOpen(false)}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg shadow-2xs hover:bg-slate-100 cursor-pointer"
+                >
+                  Minimizar (continua em segundo plano)
+                </button>
+              ) : syncStatus.status === 'error' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsSyncModalOpen(false)}
+                    className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg shadow-2xs hover:bg-slate-100 cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSyncOracleCarteira}
+                    className="px-3.5 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-2xs cursor-pointer"
+                  >
+                    Tentar Novamente
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsSyncModalOpen(false)}
+                  className="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-2xs cursor-pointer"
+                >
+                  Concluir
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -894,6 +894,77 @@ app.delete('/api/colaboradores', async (req, res) => {
   res.json({ success: true, message: 'Todos os colaboradores foram removidos.' })
 })
 
+// =========================================================================
+// SINCRONIZADOR ORACLE MLPDW -> SUPABASE (CARTEIRA PCP J'S MARTINS)
+// =========================================================================
+
+let pcpSyncProcess = null
+
+// Disparar sincronização
+app.post('/api/pcp/sync-oracle', (req, res) => {
+  const statusFile = path.join(__dirname, '../scripts/sync_pcp_status.json')
+  
+  if (pcpSyncProcess) {
+    return res.status(409).json({ 
+      error: 'Uma sincronização já está em andamento.',
+      status: 'running' 
+    })
+  }
+
+  const scriptPath = path.join(__dirname, '../scripts/sync_pcp_oracle.py')
+  
+  try {
+    fs.writeFileSync(statusFile, JSON.stringify({
+      status: 'running',
+      step: 'starting',
+      progress: 5,
+      message: 'Iniciando sincronizador Python...',
+      updated_at: new Date().toISOString()
+    }, null, 2), 'utf-8')
+  } catch (e) {
+    console.error('Erro ao escrever status inicial:', e)
+  }
+
+  pcpSyncProcess = exec(`python "${scriptPath}"`, { windowsHide: true }, (error, stdout, stderr) => {
+    pcpSyncProcess = null
+    if (error) {
+      console.error('Erro no sync PCP Oracle:', stderr || error.message)
+      try {
+        fs.writeFileSync(statusFile, JSON.stringify({
+          status: 'error',
+          step: 'failed',
+          progress: 0,
+          message: stderr || error.message,
+          updated_at: new Date().toISOString()
+        }, null, 2), 'utf-8')
+      } catch {}
+    } else {
+      console.log('Sync PCP Oracle concluído com sucesso!')
+    }
+  })
+
+  return res.json({ 
+    success: true, 
+    message: 'Sincronização iniciada com sucesso.',
+    status: 'running'
+  })
+})
+
+// Consultar status da sincronização
+app.get('/api/pcp/sync-status', (req, res) => {
+  const statusFile = path.join(__dirname, '../scripts/sync_pcp_status.json')
+  if (!fs.existsSync(statusFile)) {
+    return res.json({ status: 'idle', message: 'Nenhuma sincronização recente.' })
+  }
+
+  try {
+    const content = JSON.parse(fs.readFileSync(statusFile, 'utf-8') || '{}')
+    return res.json(content)
+  } catch (err) {
+    return res.json({ status: 'unknown', error: err.message })
+  }
+})
+
 app.listen(PORT, () => {
   console.log(`Backend API rodando com Supabase em http://localhost:${PORT}`)
 })
