@@ -244,6 +244,9 @@ def format_cell(col_name, val):
             return 0.0
 
     s = str(val).strip()
+    if col in {"item", "ibm", "codmodal", "numpedven", "numlote", "codrota"}:
+        if s.endswith(".0"):
+            s = s[:-2]
     return s if s else None
 
 def run_sync():

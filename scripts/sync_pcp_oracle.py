@@ -261,6 +261,9 @@ def format_value(col_name, val):
 
     # Texto
     str_val = str(val).strip()
+    if col in {"item", "ibm", "codmodal", "numpedven", "numlote", "codrota"}:
+        if str_val.endswith(".0"):
+            str_val = str_val[:-2]
     return str_val if str_val else None
 
 def sync_carteira():

@@ -112,6 +112,43 @@ export const PCP_COLUMNS: Array<{ key: keyof PcpItem; label: string; width?: str
   { key: 'faixa_dias_reduzida', label: 'FAIXA_DIAS_REDUZIDA', width: 'w-28' }
 ]
 
+// Formata data para o padrão brasileiro (DD/MM/YYYY)
+export const formatDateBR = (val: any): string => {
+  if (!val) return '-'
+  const str = String(val).trim()
+  if (!str || str === 'null' || str === 'undefined' || str === '-') return '-'
+
+  // Se já estiver no formato DD/MM/YYYY
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(str)) {
+    return str.substring(0, 10)
+  }
+
+  // Formato ISO ou YYYY-MM-DD (ex: 2026-11-23 00:00:00 ou 2026-11-23T...)
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (match) {
+    return `${match[3]}/${match[2]}/${match[1]}`
+  }
+
+  // Tentar parse via Date se for válida
+  const d = new Date(str)
+  if (!isNaN(d.getTime())) {
+    const dia = String(d.getDate()).padStart(2, '0')
+    const mes = String(d.getMonth() + 1).padStart(2, '0')
+    const ano = d.getFullYear()
+    return `${dia}/${mes}/${ano}`
+  }
+
+  return str
+}
+
+// Remove casas decimais espúrias de código de item (ex: 8131690.0 -> 8131690)
+export const formatItemCode = (val: any): string => {
+  if (!val && val !== 0) return '-'
+  const str = String(val).trim()
+  if (!str || str === 'null' || str === 'undefined' || str === '-') return '-'
+  return str.replace(/\.0+$/, '')
+}
+
 export const PcpJsMartinsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'planejamento' | 'programacao' | 'controle' | 'cadastros'>(() => {
     try {
@@ -868,6 +905,14 @@ export const PcpJsMartinsPage: React.FC = () => {
   const renderCell = (row: PcpItem, col: typeof PCP_COLUMNS[number]) => {
     const val = (row as any)[col.key]
     if (val === null || val === undefined || val === '') return '-'
+
+    if (col.key === 'item' || col.key === 'ibm' || col.key === 'codrota') {
+      return formatItemCode(val)
+    }
+
+    if (col.key === 'preventrega' || col.key === 'dtpedido' || col.key === 'dtentrega' || col.key === 'dtlibfat' || col.key === 'dtalter') {
+      return formatDateBR(val)
+    }
 
     if (col.type === 'num') {
       const num = Number(val)
@@ -1876,6 +1921,9 @@ export const PcpJsMartinsPage: React.FC = () => {
         // Estrutura Hierárquica do Planejamento: Região -> Destino -> Status do Lote -> Modalidade -> Itens
         interface DestinoItemDetail {
           modalidade: string
+          linha: string
+          codmodal: string
+          preventrega: string
           statusOperacao: string
           numlote: string
           numpedven: string
@@ -1979,10 +2027,13 @@ export const PcpJsMartinsPage: React.FC = () => {
 
           modData.itens.push({
             modalidade: mod,
+            linha: String(row.calc_linha || row.linha || row.LINHA || '-'),
+            codmodal: formatItemCode(row.codmodal || row.CODMODAL || '-'),
+            preventrega: String(row.preventrega || row.PREVENTREGA || ''),
             statusOperacao: st,
             numlote: String(row.numlote || row.NUMLOTE || ''),
             numpedven: String(row.numpedven || row.NUMPEDVEN || ''),
-            item: String(row.item || row.ITEM || ''),
+            item: formatItemCode(row.item || row.ITEM || ''),
             descricao: String(row.descricao || row.DESCRICAO || ''),
             quantidade: row.calc_qtd,
             cubagem: row.calc_cub,
@@ -2755,8 +2806,11 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                         <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
                                                           <th className="py-1.5 px-2 text-center w-24">STATUS / LOTE</th>
                                                           <th className="py-1.5 px-2 text-center w-20">MODALIDADE</th>
+                                                          <th className="py-1.5 px-2 text-center w-28">LINHA</th>
+                                                          <th className="py-1.5 px-2 text-center w-20">CODMODAL</th>
+                                                          <th className="py-1.5 px-2 text-center w-24">PREVENTREGA</th>
                                                           <th className="py-1.5 px-2 text-center w-24">NUMPEDVEN</th>
-                                                          <th className="py-1.5 px-2 text-center w-18">ITEM</th>
+                                                          <th className="py-1.5 px-2 text-center w-20">ITEM</th>
                                                           <th className="py-1.5 px-3 text-left">DESCRIÇÃO</th>
                                                           <th className="py-1.5 px-2 text-center w-[80px] min-w-[80px] max-w-[80px]">QTD</th>
                                                           <th className="py-1.5 px-2 text-center w-[90px] min-w-[90px] max-w-[90px]">CUBAGEM</th>
@@ -2778,11 +2832,20 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                                 {det.modalidade}
                                                               </span>
                                                             </td>
+                                                            <td className="py-1 px-2 text-center text-slate-700 font-medium truncate max-w-[130px]" title={det.linha}>
+                                                              {det.linha || '-'}
+                                                            </td>
+                                                            <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                              {det.codmodal || '-'}
+                                                            </td>
+                                                            <td className="py-1 px-2 text-center font-mono font-medium text-slate-700 whitespace-nowrap">
+                                                              {formatDateBR(det.preventrega)}
+                                                            </td>
                                                             <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
                                                               {det.numpedven || '-'}
                                                             </td>
                                                             <td className="py-1 px-2 text-center font-mono font-bold text-blue-700">
-                                                              {det.item || '-'}
+                                                              {formatItemCode(det.item)}
                                                             </td>
                                                             <td className="py-1 px-3 text-slate-800 truncate max-w-xs" title={det.descricao}>
                                                               {det.descricao || '-'}
