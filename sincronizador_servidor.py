@@ -1,13 +1,12 @@
 """
 Sincronizador Autônomo e Sentinela: Oracle MLPDW (Servidor Corporativo) -> Supabase
 =====================================================================================
-Copie este arquivo ou 'atualizar_carteira_servidor.bat' diretamente para a Área de Trabalho 
+Copie este arquivo e 'atualizar_carteira_servidor.bat' para a Área de Trabalho 
 do servidor da empresa (ml-ibm-vpnts02).
 
-Modos de uso via terminal ou duplo clique:
-  python sincronizador_servidor.py          (Sincroniza agora e fica de Sentinela)
-  python sincronizador_servidor.py --now    (Apenas sincroniza agora e encerra)
-  python sincronizador_servidor.py --watch  (Apenas fica ouvindo cliques do site)
+Ele roda automaticamente:
+1. Faz a sincronização da Carteira na hora.
+2. Mantém o Modo Sentinela ativo para responder aos cliques do site em tempo real!
 """
 
 import os
@@ -163,39 +162,60 @@ def get_supabase_command():
     return None
 
 def connect_oracle():
-    # 1. oracledb thin mode
+    errors = []
+
+    # 1. pyodbc com DSN MLPDW (o mesmo configurado no Excel da empresa)
+    try:
+        import pyodbc
+        for dsn_str in [
+            f"DSN={ORACLE_DSN};UID={ORACLE_USER};PWD={ORACLE_PWD};DBQ={ORACLE_DSN};",
+            f"DSN={ORACLE_DSN};UID={ORACLE_USER};PWD={ORACLE_PWD};",
+            f"DRIVER={{Oracle em OraClient11g_home1}};DBQ={ORACLE_DSN};UID={ORACLE_USER};PWD={ORACLE_PWD};"
+        ]:
+            try:
+                name = dsn_str.split(";")[0]
+                print(f"[ORACLE] Conectando via ODBC ({name})...")
+                conn = pyodbc.connect(dsn_str, timeout=15)
+                print("[ORACLE] Conectado com sucesso via ODBC!")
+                return conn
+            except Exception as e:
+                errors.append(f"ODBC ({name}): {e}")
+    except ImportError:
+        errors.append("pyodbc não está instalado")
+
+    # 2. oracledb thin mode (TCP direto)
     try:
         import oracledb
         for host in [ORACLE_HOST, ORACLE_HOST_FALLBACK]:
             try:
                 print(f"[ORACLE] Conectando via oracledb thin ({host}:{ORACLE_PORT}/{ORACLE_SERVICE})...")
                 dsn = oracledb.makedsn(host, ORACLE_PORT, service_name=ORACLE_SERVICE)
-                return oracledb.connect(user=ORACLE_USER, password=ORACLE_PWD, dsn=dsn)
+                conn = oracledb.connect(user=ORACLE_USER, password=ORACLE_PWD, dsn=dsn)
+                print("[ORACLE] Conectado com sucesso via oracledb thin!")
+                return conn
             except Exception as e:
-                print(f" - Tentativa oracledb thin falhou ({host}): {e}")
+                errors.append(f"oracledb thin ({host}): {e}")
     except ImportError:
-        pass
+        errors.append("oracledb não está instalado")
 
-    # 2. pyodbc com DSN MLPDW
-    try:
-        import pyodbc
+    # 3. oracledb thick mode se houver client 11g
+    client_bin = r"C:\Oracle\product\11.2.0\client_1\bin"
+    if os.path.exists(client_bin):
         try:
-            print("[ORACLE] Conectando via pyodbc (DSN=MLPDW)...")
-            return pyodbc.connect(f"DSN={ORACLE_DSN};UID={ORACLE_USER};PWD={ORACLE_PWD};", timeout=15)
+            import oracledb
+            try:
+                oracledb.init_oracle_client(lib_dir=client_bin)
+            except Exception:
+                pass
+            dsn = oracledb.makedsn(ORACLE_HOST, ORACLE_PORT, service_name=ORACLE_SERVICE)
+            conn = oracledb.connect(user=ORACLE_USER, password=ORACLE_PWD, dsn=dsn)
+            print("[ORACLE] Conectado com sucesso via oracledb thick!")
+            return conn
         except Exception as e:
-            print(f" - Tentativa pyodbc DSN falhou: {e}")
-
-        # 3. pyodbc com DRIVER
-        try:
-            print("[ORACLE] Conectando via pyodbc com driver direto...")
-            return pyodbc.connect(f"DRIVER={{Oracle em OraClient11g_home1}};DBQ={ORACLE_DSN};UID={ORACLE_USER};PWD={ORACLE_PWD};", timeout=15)
-        except Exception as e:
-            print(f" - Tentativa pyodbc Driver falhou: {e}")
-    except ImportError:
-        pass
+            errors.append(f"oracledb thick: {e}")
 
     raise ConnectionError(
-        "Não foi possível conectar ao Oracle MLPDW. Verifique se você está dentro do servidor da empresa ou conectado à VPN corporativa."
+        "Não foi possível conectar ao Oracle MLPDW.\nDetalhes das tentativas:\n - " + "\n - ".join(errors)
     )
 
 def format_cell(col_name, val):
@@ -322,11 +342,19 @@ def run_sync():
 
 def sentinel_loop():
     print("=" * 70)
-    print("MODO SENTINELA ATIVO (Ouvindo cliques do site Vercel)")
-    print("Você pode minimizar esta janela na barra de tarefas.")
-    print("Quando você clicar em 'Atualizar Carteira' no site, ela executará automaticamente!")
-    print("Pressione Ctrl+C para encerrar quando quiser.")
+    print("MODO SENTINELA ATIVO (Ouvindo cliques do botão 'Atualizar Carteira' no site)")
+    print("Mantenha esta janela minimizada na barra de tarefas do servidor.")
+    print("Quando você clicar no site, a sincronização disparará automaticamente!")
     print("=" * 70 + "\n")
+
+    # Verifica se já havia um pedido pendente no momento da inicialização
+    try:
+        init_cmd = get_supabase_command()
+        if init_cmd and isinstance(init_cmd, dict) and init_cmd.get("status") == "requested":
+            print("[PEDIDO PENDENTE ENCONTRADO!] Processando sincronização imediatamente...")
+            run_sync()
+    except Exception:
+        pass
 
     last_processed_time = ""
     while True:
@@ -339,11 +367,11 @@ def sentinel_loop():
                     last_processed_time = req_time
                     print(f"\n[SINAL DETECTADO DO SITE!] Solicitação recebida às {req_time}. Iniciando...")
                     run_sync()
-                    print("\n[SENTINELA] Aguardando novas solicitações do site...")
+                    print("\n[SENTINELA] Aguardando novos cliques no site...\n")
         except Exception as e:
             print(f"[SENTINELA AVISO] {e}")
 
-        time.sleep(2.5)
+        time.sleep(2)
 
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else "--hybrid"
@@ -352,6 +380,7 @@ if __name__ == "__main__":
     elif mode == "--watch":
         sentinel_loop()
     else:
-        print("Opção selecionada: Sincronizar Agora + Manter Modo Sentinela Ativo.")
+        # Modo Padrão: Sincroniza imediatamente E entra em modo sentinela
+        print("Iniciando sincronização inicial da Carteira...")
         run_sync()
         sentinel_loop()
