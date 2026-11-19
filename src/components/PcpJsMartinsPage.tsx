@@ -2149,204 +2149,204 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Linha 1: Segmentações Rápidas por Botões Interativos (Slicers) */}
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* Segmentação 1: Tipo Modal */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider">Tipo Modal:</span>
-                      {planFilterTipoModal.length > 0 && (
-                        <span className="text-[9.5px] text-blue-700 bg-blue-100 px-1 py-0.2 rounded font-extrabold">
-                          {planFilterTipoModal.length}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
-                      <button
-                        type="button"
-                        onClick={() => setPlanFilterTipoModal([])}
-                        className={`px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${planFilterTipoModal.length === 0
-                          ? 'bg-[#0e3b66] text-white shadow-2xs'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                          }`}
-                      >
-                        Todos
-                      </button>
-
-                      {[
-                        { id: 'Venda', label: 'Venda', badge: 'RD/COU', activeColor: 'bg-blue-600 text-white' },
-                        { id: 'Abastecimento', label: 'Abastecimento', badge: 'ABA', activeColor: 'bg-emerald-600 text-white' },
-                        { id: 'Tranfs', label: 'Tranfs', badge: 'TRF', activeColor: 'bg-purple-600 text-white' }
-                      ].map(item => {
-                        const isSelected = planFilterTipoModal.includes(item.id)
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => {
-                              setPlanFilterTipoModal(prev =>
-                                prev.includes(item.id)
-                                  ? prev.filter(t => t !== item.id)
-                                  : [...prev, item.id]
-                              )
-                            }}
-                            className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer select-none ${isSelected
-                              ? `${item.activeColor} shadow-2xs`
-                              : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                              }`}
-                          >
-                            <span>{item.label}</span>
-                            <span className={`text-[8.5px] px-1 py-0.2 rounded font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
-                              }`}>
-                              {item.badge}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
-
-                    {planFilterTipoModal.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setPlanFilterTipoModal([])}
-                        className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-0.5"
-                      >
-                        Limpar
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="h-4 w-px bg-slate-200 hidden md:block" />
-
-                  {/* Segmentação 2: Status Operação */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider">Status Operação:</span>
-                      {planFilterStatusOp.length > 0 && (
-                        <span className="text-[9.5px] text-sky-700 bg-sky-100 px-1 py-0.2 rounded font-extrabold">
-                          {planFilterStatusOp.length}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
-                      <button
-                        type="button"
-                        onClick={() => setPlanFilterStatusOp([])}
-                        className={`px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${planFilterStatusOp.length === 0
-                          ? 'bg-[#0e3b66] text-white shadow-2xs'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                          }`}
-                      >
-                        Todos
-                      </button>
-
-                      {[
-                        { id: 'EM CARTEIRA', label: 'Em Carteira', activeColor: 'bg-blue-600 text-white' },
-                        { id: 'EM PROCESSO', label: 'Em Processo', activeColor: 'bg-amber-600 text-white' }
-                      ].map(item => {
-                        const isSelected = planFilterStatusOp.includes(item.id)
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => {
-                              setPlanFilterStatusOp(prev =>
-                                prev.includes(item.id)
-                                  ? prev.filter(t => t !== item.id)
-                                  : [...prev, item.id]
-                              )
-                            }}
-                            className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer select-none ${isSelected
-                              ? `${item.activeColor} shadow-2xs`
-                              : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                              }`}
-                          >
-                            <span>{item.label}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-
-                    {planFilterStatusOp.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setPlanFilterStatusOp([])}
-                        className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-0.5"
-                      >
-                        Limpar
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="h-4 w-px bg-slate-200 hidden md:block" />
-
-                  {/* Segmentação 3: FLLIBFAT (Liberação de Faturamento) */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider">Lib. Faturamento:</span>
-                      {planFilterFllibfat.length > 0 && (
-                        <span className="text-[9.5px] text-indigo-700 bg-indigo-100 px-1 py-0.2 rounded font-extrabold">
-                          {planFilterFllibfat.length}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
-                      <button
-                        type="button"
-                        onClick={() => setPlanFilterFllibfat([])}
-                        className={`px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${planFilterFllibfat.length === 0
-                          ? 'bg-[#0e3b66] text-white shadow-2xs'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                          }`}
-                      >
-                        Todos
-                      </button>
-
-                      {[
-                        { id: 'S', label: 'S', desc: 'Liberado', activeColor: 'bg-emerald-600 text-white' },
-                        { id: 'N', label: 'N', desc: 'Bloqueado', activeColor: 'bg-amber-600 text-white' }
-                      ].map(item => {
-                        const isSelected = planFilterFllibfat.includes(item.id)
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => {
-                              setPlanFilterFllibfat(prev =>
-                                prev.includes(item.id)
-                                  ? prev.filter(t => t !== item.id)
-                                  : [...prev, item.id]
-                              )
-                            }}
-                            className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer select-none ${isSelected
-                              ? `${item.activeColor} shadow-2xs`
-                              : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                              }`}
-                          >
-                            <span className="font-extrabold">{item.label}</span>
-                            <span className={`text-[8.5px] px-1 py-0.2 rounded font-sans ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
-                              }`}>
-                              {item.desc}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
-
+              {/* Segmentações Rápidas por Botões Interativos (Slicers) - Empilhadas */}
+              <div className="flex flex-col gap-2 pt-1 pb-1">
+                {/* 1ª Linha: Liberação de Faturamento (FLLIBFAT) */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5 w-[145px] shrink-0">
+                    <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider">
+                      Lib. Faturamento:
+                    </span>
                     {planFilterFllibfat.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setPlanFilterFllibfat([])}
-                        className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-0.5"
-                      >
-                        Limpar
-                      </button>
+                      <span className="text-[9.5px] text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded font-extrabold">
+                        {planFilterFllibfat.length}
+                      </span>
                     )}
                   </div>
+
+                  <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setPlanFilterFllibfat([])}
+                      className={`px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${planFilterFllibfat.length === 0
+                        ? 'bg-[#0e3b66] text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                        }`}
+                    >
+                      Todos
+                    </button>
+
+                    {[
+                      { id: 'S', label: 'S', desc: 'Liberado', activeColor: 'bg-emerald-600 text-white' },
+                      { id: 'N', label: 'N', desc: 'Bloqueado', activeColor: 'bg-amber-600 text-white' }
+                    ].map(item => {
+                      const isSelected = planFilterFllibfat.includes(item.id)
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setPlanFilterFllibfat(prev =>
+                              prev.includes(item.id)
+                                ? prev.filter(t => t !== item.id)
+                                : [...prev, item.id]
+                            )
+                          }}
+                          className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer select-none ${isSelected
+                            ? `${item.activeColor} shadow-2xs`
+                            : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                            }`}
+                        >
+                          <span className="font-extrabold">{item.label}</span>
+                          <span className={`text-[8.5px] px-1 py-0.2 rounded font-sans ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                            {item.desc}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {planFilterFllibfat.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPlanFilterFllibfat([])}
+                      className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+
+                {/* 2ª Linha: Status Operação */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5 w-[145px] shrink-0">
+                    <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider">
+                      Status Operação:
+                    </span>
+                    {planFilterStatusOp.length > 0 && (
+                      <span className="text-[9.5px] text-sky-700 bg-sky-100 px-1.5 py-0.2 rounded font-extrabold">
+                        {planFilterStatusOp.length}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setPlanFilterStatusOp([])}
+                      className={`px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${planFilterStatusOp.length === 0
+                        ? 'bg-[#0e3b66] text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                        }`}
+                    >
+                      Todos
+                    </button>
+
+                    {[
+                      { id: 'EM CARTEIRA', label: 'Em Carteira', activeColor: 'bg-blue-600 text-white' },
+                      { id: 'EM PROCESSO', label: 'Em Processo', activeColor: 'bg-amber-600 text-white' }
+                    ].map(item => {
+                      const isSelected = planFilterStatusOp.includes(item.id)
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setPlanFilterStatusOp(prev =>
+                              prev.includes(item.id)
+                                ? prev.filter(t => t !== item.id)
+                                : [...prev, item.id]
+                            )
+                          }}
+                          className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer select-none ${isSelected
+                            ? `${item.activeColor} shadow-2xs`
+                            : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                            }`}
+                        >
+                          <span>{item.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {planFilterStatusOp.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPlanFilterStatusOp([])}
+                      className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+
+                {/* 3ª Linha: Tipo Modal */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5 w-[145px] shrink-0">
+                    <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider">
+                      Tipo Modal:
+                    </span>
+                    {planFilterTipoModal.length > 0 && (
+                      <span className="text-[9.5px] text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded font-extrabold">
+                        {planFilterTipoModal.length}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setPlanFilterTipoModal([])}
+                      className={`px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${planFilterTipoModal.length === 0
+                        ? 'bg-[#0e3b66] text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                        }`}
+                    >
+                      Todos
+                    </button>
+
+                    {[
+                      { id: 'Venda', label: 'Venda', badge: 'RD/COU', activeColor: 'bg-blue-600 text-white' },
+                      { id: 'Abastecimento', label: 'Abastecimento', badge: 'ABA', activeColor: 'bg-emerald-600 text-white' },
+                      { id: 'Tranfs', label: 'Tranfs', badge: 'TRF', activeColor: 'bg-purple-600 text-white' }
+                    ].map(item => {
+                      const isSelected = planFilterTipoModal.includes(item.id)
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setPlanFilterTipoModal(prev =>
+                              prev.includes(item.id)
+                                ? prev.filter(t => t !== item.id)
+                                : [...prev, item.id]
+                            )
+                          }}
+                          className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer select-none ${isSelected
+                            ? `${item.activeColor} shadow-2xs`
+                            : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                            }`}
+                        >
+                          <span>{item.label}</span>
+                          <span className={`text-[8.5px] px-1 py-0.2 rounded font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                            {item.badge}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {planFilterTipoModal.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPlanFilterTipoModal([])}
+                      className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
+                    >
+                      Limpar
+                    </button>
+                  )}
                 </div>
               </div>
 
