@@ -471,10 +471,21 @@ export const PcpJsMartinsPage: React.FC = () => {
       return
     }
 
+    let ticks = 0
     const pollInterval = window.setInterval(async () => {
+      ticks++
       try {
         const current = await getOracleSyncStatus()
-        setSyncStatus(current)
+
+        // Se estiver como requested há mais de 8 segundos, orienta o usuário
+        if (current.status === 'requested' && ticks >= 5) {
+          setSyncStatus({
+            ...current,
+            message: 'Aguardando o sincronizador no computador. Dê 2 cliques em "iniciar_sincronizador.bat" na pasta do projeto.'
+          })
+        } else {
+          setSyncStatus(current)
+        }
 
         if (current.status === 'success') {
           window.clearInterval(pollInterval)

@@ -438,7 +438,65 @@ def sync_carteira():
             except Exception:
                 pass
 
+def get_supabase_command():
+    """Lê o comando na fila do Supabase para saber se o site solicitou sincronização"""
+    try:
+        url = f"{SUPABASE_URL}/rest/v1/performance_metrics?cell_key=eq.pcp_sync_command&select=value"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}"
+        }
+        res = requests.get(url, headers=headers, verify=False, timeout=8)
+        if res.status_code == 200:
+            data = res.json()
+            if data and "value" in data[0]:
+                return json.loads(data[0]["value"])
+    except Exception:
+        pass
+    return None
+
+def sentinel_loop():
+    print("=" * 70)
+    print("MODO SENTINELA ATIVO (Ouvindo cliques do botão 'Atualizar Carteira' no site)")
+    print("Mantenha esta janela minimizada na barra de tarefas.")
+    print("Sempre que você clicar no botão no site, ele executará automaticamente!")
+    print("Pressione Ctrl+C para encerrar quando quiser.")
+    print("=" * 70 + "\n")
+
+    # Verifica se já havia um pedido pendente no momento da inicialização
+    try:
+        init_cmd = get_supabase_command()
+        if init_cmd and isinstance(init_cmd, dict) and init_cmd.get("status") == "requested":
+            print("[PEDIDO PENDENTE ENCONTRADO!] Processando sincronização imediatamente...")
+            sync_carteira()
+    except Exception:
+        pass
+
+    last_processed_time = ""
+    while True:
+        try:
+            cmd = get_supabase_command()
+            if cmd and isinstance(cmd, dict):
+                status = cmd.get("status")
+                req_time = cmd.get("requested_at", "")
+                if status == "requested" and req_time != last_processed_time:
+                    last_processed_time = req_time
+                    print(f"\n[SINAL DETECTADO DO SITE!] Solicitação recebida às {req_time}. Iniciando...")
+                    sync_carteira()
+                    print("\n[SENTINELA] Aguardando novos cliques no site...\n")
+        except Exception as e:
+            print(f"[SENTINELA AVISO] {e}")
+
+        time.sleep(2)
+
 if __name__ == "__main__":
-    result = sync_carteira()
-    if not result.get("success"):
-        sys.exit(1)
+    mode = sys.argv[1] if len(sys.argv) > 1 else "--hybrid"
+    if mode == "--now":
+        result = sync_carteira()
+        if not result.get("success"):
+            sys.exit(1)
+    elif mode == "--watch":
+        sentinel_loop()
+    else:
+        sync_carteira()
+        sentinel_loop()
