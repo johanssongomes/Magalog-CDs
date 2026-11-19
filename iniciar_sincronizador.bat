@@ -1,5 +1,6 @@
 @echo off
 chcp 65001 > nul
+cd /d "%~dp0"
 title Sincronizador Carteira Oracle MLPDW -> Supabase
 color 0B
 echo ======================================================================
