@@ -139,7 +139,8 @@ def update_supabase_status(status, progress=0, message="", total=0, elapsed=0):
         }
         payload = {
             "cell_key": "pcp_sync_command",
-            "value": json.dumps(val, ensure_ascii=False)
+            "value": json.dumps(val, ensure_ascii=False),
+            "updated_at": datetime.datetime.now().isoformat()
         }
         requests.post(url, headers=headers, json=payload, verify=False, timeout=10)
     except Exception as e:

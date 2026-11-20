@@ -2,8 +2,8 @@
   "status": "success",
   "step": "completed",
   "progress": 100,
-  "total": 8971,
-  "elapsed_seconds": 29.7,
-  "message": "Carteira atualizada com sucesso! 8,971 itens sincronizados em 29.7s.",
-  "updated_at": "2026-11-19T15:45:36.908837"
+  "total": 8290,
+  "elapsed_seconds": 7.2,
+  "message": "Carteira atualizada com sucesso! 8,290 itens sincronizados.",
+  "updated_at": "2026-11-20T12:22:19.945755"
 }

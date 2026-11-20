@@ -154,6 +154,13 @@ export const formatDateTimeBR = (val: any): string => {
   const str = String(val).trim()
   if (!str || str === '-' || str === 'null' || str === 'undefined') return ''
 
+  // Prioriza extração direta de ano, mês, dia, hora e minuto para evitar distorção de fuso horário
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/)
+  if (match) {
+    const [, y, m, d, hh, mm] = match
+    return `${d}/${m}/${y} às ${hh}:${mm}`
+  }
+
   try {
     const d = new Date(str)
     if (!isNaN(d.getTime())) {
@@ -164,13 +171,7 @@ export const formatDateTimeBR = (val: any): string => {
       const min = String(d.getMinutes()).padStart(2, '0')
       return `${dia}/${mes}/${ano} às ${hora}:${min}`
     }
-  } catch {}
-
-  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/)
-  if (match) {
-    const [, y, m, d, hh, mm] = match
-    return `${d}/${m}/${y} às ${hh}:${mm}`
-  }
+  } catch { }
 
   return str
 }
@@ -555,7 +556,7 @@ export const PcpJsMartinsPage: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<OracleSyncStatus>({ status: 'idle' })
 
   // Timestamp oficial da última sincronização central da Carteira (Supabase / Nuvem)
-  const [lastSyncDateStr, setLastSyncDateStr] = useState<string>('2026-11-19T15:45:36')
+  const [lastSyncDateStr, setLastSyncDateStr] = useState<string>('2026-11-20T12:22:19')
 
   const refreshLastSyncTimestamp = useCallback(async () => {
     try {
@@ -564,7 +565,7 @@ export const PcpJsMartinsPage: React.FC = () => {
         setLastSyncDateStr(status.updated_at)
         return
       }
-    } catch {}
+    } catch { }
 
     // Fallback: se não encontrar no status, busca a data de alteração mais recente da base
     if (fullPlanningData && fullPlanningData.length > 0) {
@@ -2350,11 +2351,10 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                     {/* Badge da Última Atualização Central da Carteira */}
                     <div
-                      className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] border shadow-2xs transition-all ${
-                        isSyncingOracle
+                      className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] border shadow-2xs transition-all ${isSyncingOracle
                           ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse'
                           : 'bg-slate-50 text-slate-600 border-slate-200/90 hover:bg-slate-100'
-                      }`}
+                        }`}
                       title={lastSyncDateStr ? `Sincronizado no Supabase: ${lastSyncDateStr}` : 'Sincronização da Carteira'}
                     >
                       <Clock size={11} className={isSyncingOracle ? 'animate-spin text-blue-600' : 'text-blue-500'} />
@@ -2362,7 +2362,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                       <strong className="font-mono font-bold text-slate-800">
                         {isSyncingOracle
                           ? 'Sincronizando agora...'
-                          : (lastSyncDateStr ? formatDateTimeBR(lastSyncDateStr) : '19/11/2026 às 15:45')}
+                          : (lastSyncDateStr ? formatDateTimeBR(lastSyncDateStr) : '20/11/2026 às 12:22')}
                       </strong>
                     </div>
                   </div>
@@ -3245,10 +3245,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                 <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                   <div
                     className={`h-full transition-all duration-500 rounded-full ${syncStatus.status === 'error'
-                        ? 'bg-rose-500'
-                        : syncStatus.status === 'success'
-                          ? 'bg-emerald-500'
-                          : 'bg-gradient-to-r from-blue-500 to-indigo-600 animate-pulse'
+                      ? 'bg-rose-500'
+                      : syncStatus.status === 'success'
+                        ? 'bg-emerald-500'
+                        : 'bg-gradient-to-r from-blue-500 to-indigo-600 animate-pulse'
                       }`}
                     style={{ width: `${Math.max(5, syncStatus.progress || (isSyncingOracle ? 15 : 0))}%` }}
                   />
@@ -3258,10 +3258,10 @@ export const PcpJsMartinsPage: React.FC = () => {
               {/* Mensagem de Status */}
               <div
                 className={`p-3.5 rounded-xl border text-xs leading-relaxed ${syncStatus.status === 'error'
-                    ? 'bg-rose-50 border-rose-200 text-rose-800'
-                    : syncStatus.status === 'success'
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                      : 'bg-blue-50 border-blue-200 text-blue-900'
+                  ? 'bg-rose-50 border-rose-200 text-rose-800'
+                  : syncStatus.status === 'success'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    : 'bg-blue-50 border-blue-200 text-blue-900'
                   }`}
               >
                 <div className="flex items-start gap-2.5">

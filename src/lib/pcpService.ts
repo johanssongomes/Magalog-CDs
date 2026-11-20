@@ -447,7 +447,7 @@ export async function getOracleSyncStatus(): Promise<OracleSyncStatus> {
         const parsed = JSON.parse(data.value)
         return {
           ...parsed,
-          updated_at: data.updated_at || parsed.updated_at
+          updated_at: parsed.updated_at || data.updated_at
         }
       } catch {}
     }

@@ -164,7 +164,8 @@ def write_status(data):
         }
         payload = {
             "cell_key": "pcp_sync_command",
-            "value": json.dumps(data, ensure_ascii=False)
+            "value": json.dumps(data, ensure_ascii=False),
+            "updated_at": datetime.datetime.now().isoformat()
         }
         requests.post(url, headers=headers, json=payload, verify=False, timeout=8)
     except Exception:
