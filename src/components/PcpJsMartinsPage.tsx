@@ -31,7 +31,8 @@ import {
   HelpCircle,
   Pin,
   PinOff,
-  Menu
+  Menu,
+  MapPin
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -52,6 +53,7 @@ import initialSampleRows from '../data/pcp_initial_sample.json'
 import initialPlanningSummary from '../data/pcp_planning_summary.json'
 import { INITIAL_MODAL_PARAMS, getTipoModal, type ModalParamItem } from '../data/pcp_modal_params'
 import { INITIAL_FILIAL_ROTA_PARAMS, type FilialRotaParamItem } from '../data/pcp_filial_rotas_params'
+import { INITIAL_CEP_ROTA_PARAMS, cleanCep, isGenericRoute, type CepRotaParamItem } from '../data/pcp_cep_rotas_params'
 
 // Definição das 53 Colunas Oficiais da Planilha PCP J'S MARTINS.xlsx + Coluna Auxiliar Dinâmica
 export const PCP_COLUMNS: Array<{ key: keyof PcpItem; label: string; width?: string; align?: 'left' | 'center' | 'right'; type?: 'num' | 'cur' | 'date' | 'str' }> = [
@@ -258,10 +260,10 @@ export const PcpJsMartinsPage: React.FC = () => {
     })
   }
 
-  const [activeSubParam, setActiveSubParam] = useState<'modal' | 'rotas'>('rotas')
+  const [activeSubParam, setActiveSubParam] = useState<'modal' | 'rotas' | 'ceps'>('rotas')
 
   // --------------------------------------------------------------------------
-  // ESTADOS DA ABA CADASTROS AUXILIARES (DE-PARA DE MODAIS & ROTAS)
+  // ESTADOS DA ABA CADASTROS AUXILIARES (DE-PARA DE MODAIS, ROTAS & CEPS)
   // --------------------------------------------------------------------------
   const [modalParams, setModalParams] = useState<ModalParamItem[]>(() => {
     try {
@@ -289,6 +291,19 @@ export const PcpJsMartinsPage: React.FC = () => {
     return INITIAL_FILIAL_ROTA_PARAMS
   })
 
+  const [cepRotaParams, setCepRotaParams] = useState<CepRotaParamItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_pcp_cep_rotas_params')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar parâmetros locais de CEPs:', e)
+    }
+    return INITIAL_CEP_ROTA_PARAMS
+  })
+
   // Mapas rápidos de consulta
   const modalMap = useMemo(() => {
     const map: Record<string, string> = {}
@@ -308,6 +323,35 @@ export const PcpJsMartinsPage: React.FC = () => {
     return map
   }, [filialRotaParams])
 
+  // Mapas de consulta de CEP (8 dígitos exatos e prefixos de 5 dígitos)
+  const { cepRotaMap, prefix5RotaMap } = useMemo(() => {
+    const exact: Record<string, string> = {}
+    const p5: Record<string, string> = {}
+    cepRotaParams.forEach(p => {
+      const c = cleanCep(p.cep)
+      const r = (p.descricaorota || '').trim()
+      if (!c || !r) return
+      if (c.length === 8) {
+        exact[c] = r
+      } else if (c.length === 5) {
+        p5[c] = r
+      }
+    })
+    return { cepRotaMap: exact, prefix5RotaMap: p5 }
+  }, [cepRotaParams])
+
+  // Helper para resolver rota oficial a partir do CEP para pedidos com rotas genéricas de trânsito/cross-docking
+  const resolveRouteByCep = useCallback((route: string | undefined | null, rawCep: any): string => {
+    const originalRoute = String(route || '').trim()
+    if (!isGenericRoute(originalRoute)) return originalRoute
+    const c = cleanCep(rawCep)
+    if (!c) return originalRoute
+    if (cepRotaMap[c]) return cepRotaMap[c]
+    const p5 = c.slice(0, 5)
+    if (prefix5RotaMap[p5]) return prefix5RotaMap[p5]
+    return originalRoute
+  }, [cepRotaMap, prefix5RotaMap])
+
   // Estados de formulário da aba Cadastros Auxiliares (Modal)
   const [newCodModal, setNewCodModal] = useState('')
   const [newModalidade, setNewModalidade] = useState('')
@@ -323,6 +367,17 @@ export const PcpJsMartinsPage: React.FC = () => {
   const [editingRotaIndex, setEditingRotaIndex] = useState<number | null>(null)
   const [editingRotaDestino, setEditingRotaDestino] = useState('')
   const [editingRotaRegiao, setEditingRotaRegiao] = useState('')
+
+  // Estados de formulário da aba Cadastros Auxiliares (CEPs & Rotas)
+  const [newCep, setNewCep] = useState('')
+  const [newCepRota, setNewCepRota] = useState('')
+  const [newCepCidade, setNewCepCidade] = useState('')
+  const [searchCepParam, setSearchCepParam] = useState('')
+  const [editingCepIndex, setEditingCepIndex] = useState<number | null>(null)
+  const [editingCepRota, setEditingCepRota] = useState('')
+  const [editingCepCidade, setEditingCepCidade] = useState('')
+  const [cepPage, setCepPage] = useState(1)
+  const [cepPageSize] = useState(50)
 
   // Estados dos filtros da aba Planejamento (persistentes no navegador)
   const [planFilterRegiao, setPlanFilterRegiao] = useState<string>(() => {
@@ -426,7 +481,7 @@ export const PcpJsMartinsPage: React.FC = () => {
 
   // Carregar parâmetros centrais de Cadastros Auxiliares do Supabase na inicialização
   useEffect(() => {
-    fetchPcpAuxParams().then(({ filialRotas, modais }) => {
+    fetchPcpAuxParams().then(({ filialRotas, modais, cepRotas }) => {
       if (filialRotas && filialRotas.length > 0) {
         setFilialRotaParams(filialRotas)
         try { localStorage.setItem('magalog_pcp_filial_rotas_params', JSON.stringify(filialRotas)) } catch { }
@@ -434,6 +489,10 @@ export const PcpJsMartinsPage: React.FC = () => {
       if (modais && modais.length > 0) {
         setModalParams(modais)
         try { localStorage.setItem('magalog_pcp_modal_params', JSON.stringify(modais)) } catch { }
+      }
+      if (cepRotas && cepRotas.length > 0) {
+        setCepRotaParams(cepRotas)
+        try { localStorage.setItem('magalog_pcp_cep_rotas_params', JSON.stringify(cepRotas)) } catch { }
       }
     }).catch(() => { })
   }, [])
@@ -453,6 +512,14 @@ export const PcpJsMartinsPage: React.FC = () => {
       localStorage.setItem('magalog_pcp_filial_rotas_params', JSON.stringify(list))
     } catch { }
     savePcpAuxParams('filial_rotas', list).catch(() => { })
+  }
+
+  const saveCepRotaParams = (list: CepRotaParamItem[]) => {
+    setCepRotaParams(list)
+    try {
+      localStorage.setItem('magalog_pcp_cep_rotas_params', JSON.stringify(list))
+    } catch { }
+    savePcpAuxParams('cep_rotas', list).catch(() => { })
   }
 
   const handleAddParam = () => {
@@ -526,6 +593,105 @@ export const PcpJsMartinsPage: React.FC = () => {
     setEditingRotaDestino('')
     setEditingRotaRegiao('')
   }
+
+  // Handlers do De-Para de CEPs & Rotas
+  const handleAddCepParam = () => {
+    const c = cleanCep(newCep)
+    const r = newCepRota.trim()
+    if (!c || !r) {
+      alert('Informe o CEP (8 dígitos ou 5 dígitos para prefixo) e a Rota Oficial correspondente.')
+      return
+    }
+    const existingIdx = cepRotaParams.findIndex(p => cleanCep(p.cep) === c)
+    let updated: CepRotaParamItem[]
+    if (existingIdx >= 0) {
+      updated = [...cepRotaParams]
+      updated[existingIdx] = {
+        ...updated[existingIdx],
+        descricaorota: r,
+        cidade: newCepCidade.trim() || updated[existingIdx].cidade
+      }
+    } else {
+      updated = [
+        { cep: c, descricaorota: r, cidade: newCepCidade.trim() || undefined },
+        ...cepRotaParams
+      ]
+    }
+    saveCepRotaParams(updated)
+    setNewCep('')
+    setNewCepRota('')
+    setNewCepCidade('')
+  }
+
+  const handleDeleteCepParam = (cepToDelete: string) => {
+    const target = cleanCep(cepToDelete)
+    const updated = cepRotaParams.filter(p => cleanCep(p.cep) !== target)
+    saveCepRotaParams(updated)
+  }
+
+  const handleSaveCepEdit = (idx: number) => {
+    if (!editingCepRota.trim()) return
+    const updated = [...cepRotaParams]
+    updated[idx] = {
+      ...updated[idx],
+      descricaorota: editingCepRota.trim(),
+      cidade: editingCepCidade.trim() || updated[idx].cidade
+    }
+    saveCepRotaParams(updated)
+    setEditingCepIndex(null)
+    setEditingCepRota('')
+    setEditingCepCidade('')
+  }
+
+  const handleAutoPopulateCepsFromBase = () => {
+    const rows = (fullPlanningData && fullPlanningData.length > 0) ? fullPlanningData : (items && items.length > 0 ? items : initialPlanningSummary)
+    const existingCeps = new Set(cepRotaParams.map(p => cleanCep(p.cep)))
+    const newlyDiscovered = new Map<string, string>()
+
+    for (const row of rows) {
+      const rota = String(row.descricaorota || (row as any).DESCRICAOROTA || '').trim()
+      if (rota && !isGenericRoute(rota)) {
+        const c = cleanCep(row.cep_entrega || (row as any).CEP_ENTREGA)
+        if (c && c.length === 8 && !existingCeps.has(c) && !newlyDiscovered.has(c)) {
+          newlyDiscovered.set(c, rota)
+        }
+      }
+    }
+
+    if (newlyDiscovered.size === 0) {
+      alert('Todos os CEPs com rotas oficiais não-genéricas da base atual já constam cadastrados no De-Para!')
+      return
+    }
+
+    const newItems: CepRotaParamItem[] = []
+    for (const [cep, descricaorota] of newlyDiscovered.entries()) {
+      newItems.push({ cep, descricaorota })
+    }
+
+    const updated = [...newItems, ...cepRotaParams]
+    saveCepRotaParams(updated)
+    alert(`Sucesso! ${newItems.length} novos CEPs com rotas oficiais foram extraídos da base e adicionados ao De-Para!`)
+  }
+
+  const filteredCepParams = useMemo(() => {
+    const term = searchCepParam.trim().toUpperCase()
+    if (!term) return cepRotaParams
+    return cepRotaParams.filter(p => {
+      const c = cleanCep(p.cep)
+      const r = (p.descricaorota || '').toUpperCase()
+      const d = (rotaMap[r.toUpperCase()]?.destino || '').toUpperCase()
+      const reg = (rotaMap[r.toUpperCase()]?.regiao || '').toUpperCase()
+      const cid = (p.cidade || '').toUpperCase()
+      return c.includes(term) || r.includes(term) || d.includes(term) || reg.includes(term) || cid.includes(term)
+    })
+  }, [cepRotaParams, searchCepParam, rotaMap])
+
+  const paginatedCepParams = useMemo(() => {
+    const from = (cepPage - 1) * cepPageSize
+    return filteredCepParams.slice(from, from + cepPageSize)
+  }, [filteredCepParams, cepPage, cepPageSize])
+
+  const totalCepPages = Math.ceil(filteredCepParams.length / cepPageSize) || 1
 
   // --------------------------------------------------------------------------
   // ESTADOS DA ABA CONTROLE & ACOMPANHAMENTO (TABELA BASE DO BANCO DE DADOS)
@@ -758,9 +924,12 @@ export const PcpJsMartinsPage: React.FC = () => {
           const modalidadeCalc = modalMap[cod] || item.descricaomodal || '-'
           const isAba = modalidadeCalc.trim().toUpperCase() === 'ABA'
 
+          // Resolve rota oficial pelo CEP caso a rota cadastrada seja genérica (Candeias, 1SX 2SX, etc.)
+          const resolvedRota = resolveRouteByCep(item.descricaorota, item.cep_entrega)
+
           let rotaInfo = { destino: '-', regiao: '-' }
           const filEntregaKey = String(item.filentrega || '').trim().toUpperCase()
-          const rotaKey = String(item.descricaorota || '').trim().toUpperCase()
+          const rotaKey = resolvedRota.trim().toUpperCase()
 
           if (isAba) {
             // Se for ABA (Abastecimento), prioridade máxima para a FILENTREGA da loja/filial (ex: 1349 -> 1349-Limoeiro QUI)
@@ -774,9 +943,10 @@ export const PcpJsMartinsPage: React.FC = () => {
 
           return {
             ...item,
+            descricaorota: resolvedRota,
             modalidade_calc: modalidadeCalc,
             tipo_modal_calc: tipoModalCalc,
-            destino_calc: rotaInfo.destino !== '-' ? rotaInfo.destino : (item.descricaorota || (item.filentrega ? `Filial ${item.filentrega}` : '-')),
+            destino_calc: rotaInfo.destino !== '-' ? rotaInfo.destino : (resolvedRota || (item.filentrega ? `Filial ${item.filentrega}` : '-')),
             regiao_calc: rotaInfo.regiao !== '-' ? rotaInfo.regiao : 'INTERIOR'
           }
         })
@@ -813,9 +983,13 @@ export const PcpJsMartinsPage: React.FC = () => {
           const modalidadeCalc = modalMap[cod] || String(r.descricaomodal || r.DESCRICAOMODAL || '-')
           const isAba = modalidadeCalc.trim().toUpperCase() === 'ABA'
 
+          const rawRota = String(r.descricaorota || r.DESCRICAOROTA || '').trim()
+          const rawCep = r.cep_entrega || r.CEP_ENTREGA
+          const resolvedRota = resolveRouteByCep(rawRota, rawCep)
+
           let rotaInfo = { destino: '-', regiao: '-' }
           const filEntregaKey = String(r.filentrega || r.FILENTREGA || '').trim().toUpperCase()
-          const rotaKey = String(r.descricaorota || r.DESCRICAOROTA || '').trim().toUpperCase()
+          const rotaKey = resolvedRota.trim().toUpperCase()
 
           if (isAba) {
             rotaInfo = rotaMap[filEntregaKey] || rotaMap[rotaKey] || { destino: '-', regiao: '-' }
@@ -828,7 +1002,8 @@ export const PcpJsMartinsPage: React.FC = () => {
             filorig: Number(r.filorig || r.FILORIG) || 994,
             codfil: Number(r.codfil || r.CODFIL) || 994,
             filentrega: Number(r.filentrega || r.FILENTREGA) || 0,
-            destino_calc: rotaInfo.destino !== '-' ? rotaInfo.destino : (r.descricaorota || r.DESCRICAOROTA || (r.filentrega || r.FILENTREGA ? `Filial ${r.filentrega || r.FILENTREGA}` : '-')),
+            descricaorota: resolvedRota,
+            destino_calc: rotaInfo.destino !== '-' ? rotaInfo.destino : (resolvedRota || (r.filentrega || r.FILENTREGA ? `Filial ${r.filentrega || r.FILENTREGA}` : '-')),
             regiao_calc: rotaInfo.regiao !== '-' ? rotaInfo.regiao : 'INTERIOR',
             numlote: String(r.numlote || r.NUMLOTE || ''),
             fllibfat: String(r.fllibfat || r.FLLIBFAT || ''),
@@ -890,7 +1065,7 @@ export const PcpJsMartinsPage: React.FC = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [page, pageSize, selectedStatusOperacao, selectedFilEntrega, searchTerm, modalMap, rotaMap])
+  }, [page, pageSize, selectedStatusOperacao, selectedFilEntrega, searchTerm, modalMap, rotaMap, resolveRouteByCep])
 
   useEffect(() => {
     if (activeTab === 'controle') {
@@ -1369,6 +1544,18 @@ export const PcpJsMartinsPage: React.FC = () => {
                 <Layers size={13} />
                 <span>Modalidade ({modalParams.length})</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveSubParam('ceps')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${activeSubParam === 'ceps'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+              >
+                <MapPin size={13} />
+                <span>De-Para CEPs & Rotas ({cepRotaParams.length})</span>
+              </button>
             </div>
           </div>
 
@@ -1767,6 +1954,338 @@ export const PcpJsMartinsPage: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* SUBPÁGINA 3: DE-PARA DE CEPS & ROTAS */}
+          {activeSubParam === 'ceps' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* CARD 1: FORMULÁRIO DE CADASTRO E AUTO-POPULAÇÃO */}
+              <div className="space-y-4">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+                  <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
+                    <Plus size={16} className="text-emerald-600" /> Novo De-Para (CEP &rarr; Rota Oficial)
+                  </h3>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                        CEP de Entrega
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: 62870000 ou 62870"
+                        value={newCep}
+                        onChange={(e) => setNewCep(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500 font-mono font-bold"
+                      />
+                      <span className="text-[10px] text-slate-400 mt-0.5 block">
+                        Informe 8 dígitos (exato) ou 5 dígitos (prefixo regional).
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                        Rota Oficial Correspondente
+                      </label>
+                      <input
+                        type="text"
+                        list="available-official-rotas"
+                        placeholder="Ex: 994-EC1 CE PACAJUS ou 994-EC2 CE FORTALEZA A..."
+                        value={newCepRota}
+                        onChange={(e) => setNewCepRota(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500 font-medium"
+                      />
+                      <datalist id="available-official-rotas">
+                        {Array.from(new Set(filialRotaParams.map(p => p.filialRota))).sort().map(r => (
+                          <option key={r} value={r} />
+                        ))}
+                      </datalist>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                        Cidade / Bairro / Obs (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Pacajus, Fortaleza Aldeota..."
+                        value={newCepCidade}
+                        onChange={(e) => setNewCepCidade(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddCepParam}
+                      className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2 mt-2"
+                    >
+                      <Save size={14} />
+                      <span>Salvar Parâmetro de CEP</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* CARD 2: AUTO-ALIMENTAÇÃO PELA BASE & ESTATÍSTICAS */}
+                <div className="bg-linear-to-br from-indigo-50/70 to-blue-50/50 p-4 rounded-2xl border border-indigo-100 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-amber-500" /> Alimentação Inteligente
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                      {cepRotaParams.length.toLocaleString('pt-BR')} regras ativas
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Extraia automaticamente do banco de dados todos os CEPs que já possuem rotas oficiais não-genéricas cadastradas para alimentar esta lista.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={handleAutoPopulateCepsFromBase}
+                    className="w-full py-2 px-3 bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-xl transition-all shadow-2xs cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Sparkles size={13} className="text-indigo-600" />
+                    <span>Auto-Alimentar pela Base</span>
+                  </button>
+
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-indigo-100/80 text-[10.5px]">
+                    <div className="bg-white/80 p-2 rounded-lg border border-indigo-100">
+                      <span className="text-slate-400 block text-[9px] uppercase font-bold">Fortaleza (Rotas A-N)</span>
+                      <strong className="text-indigo-950 font-mono text-xs">
+                        {cepRotaParams.filter(p => (p.descricaorota || '').toUpperCase().includes('FORTALEZA')).length} CEPs
+                      </strong>
+                    </div>
+                    <div className="bg-white/80 p-2 rounded-lg border border-indigo-100">
+                      <span className="text-slate-400 block text-[9px] uppercase font-bold">Interior / Reg. Metro</span>
+                      <strong className="text-indigo-950 font-mono text-xs">
+                        {cepRotaParams.filter(p => !(p.descricaorota || '').toUpperCase().includes('FORTALEZA')).length} CEPs
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* CARD 3: TABELA DE REGRAS DE CEP CADASTRADAS */}
+              <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50/50">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                      <MapPin size={16} className="text-blue-600" /> De-Para de CEPs e Rotas
+                    </h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                      {filteredCepParams.length.toLocaleString('pt-BR')} registros
+                    </span>
+                  </div>
+
+                  {/* Campo de Busca Rápida */}
+                  <div className="relative w-full sm:w-64">
+                    <Search size={13} className="absolute left-2.5 top-2.5 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar CEP, rota, destino..."
+                      value={searchCepParam}
+                      onChange={(e) => {
+                        setSearchCepParam(e.target.value)
+                        setCepPage(1)
+                      }}
+                      className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500 bg-white"
+                    />
+                    {searchCepParam && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchCepParam('')
+                          setCepPage(1)
+                        }}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tabela Responsiva */}
+                <div className="overflow-x-auto flex-1 min-h-[400px] max-h-[560px] scrollbar-thin">
+                  <table className="w-full text-xs text-left border-collapse whitespace-nowrap">
+                    <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold tracking-wider z-10 shadow-2xs">
+                      <tr>
+                        <th className="py-2.5 px-3 text-center w-12 text-slate-400 font-mono text-[9px]">#</th>
+                        <th className="py-2.5 px-3">CEP / Prefixo</th>
+                        <th className="py-2.5 px-3">Rota Oficial</th>
+                        <th className="py-2.5 px-3 text-center">Destino</th>
+                        <th className="py-2.5 px-3 text-center">Região</th>
+                        <th className="py-2.5 px-3">Cidade / Obs</th>
+                        <th className="py-2.5 px-3 text-center w-20">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedCepParams.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-12 text-center text-slate-400">
+                            Nenhuma regra de CEP encontrada com o filtro informado.
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedCepParams.map((param, idx) => {
+                          const globalIdx = (cepPage - 1) * cepPageSize + idx
+                          const isEditing = editingCepIndex === globalIdx
+                          const cleanC = cleanCep(param.cep)
+                          const formattedCep = cleanC.length === 8 ? `${cleanC.slice(0, 5)}-${cleanC.slice(5)}` : `${cleanC} (prefixo)`
+                          const rotaUpper = (param.descricaorota || '').toUpperCase()
+                          const targetInfo = rotaMap[rotaUpper] || { destino: '-', regiao: '-' }
+
+                          return (
+                            <tr key={`${param.cep}-${idx}`} className="hover:bg-slate-50/60 transition-colors">
+                              <td className="py-2 px-3 text-center text-slate-400 font-mono text-[10px]">
+                                {globalIdx + 1}
+                              </td>
+
+                              <td className="py-2 px-3 font-mono font-bold text-slate-800">
+                                <span className={`px-1.5 py-0.5 rounded text-[10.5px] ${cleanC.length === 5 ? 'bg-amber-50 text-amber-800 border border-amber-200 font-semibold' : 'bg-slate-100 text-slate-800'}`}>
+                                  {formattedCep}
+                                </span>
+                              </td>
+
+                              <td className="py-2 px-3 font-semibold text-blue-700">
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    list="available-official-rotas"
+                                    value={editingCepRota}
+                                    onChange={(e) => setEditingCepRota(e.target.value)}
+                                    className="px-2 py-0.5 text-xs border border-blue-400 rounded focus:outline-hidden font-bold w-full"
+                                    autoFocus
+                                  />
+                                ) : (
+                                  param.descricaorota
+                                )}
+                              </td>
+
+                              <td className="py-2 px-3 text-center">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800">
+                                  {targetInfo.destino !== '-' ? targetInfo.destino : (param.destino || '-')}
+                                </span>
+                              </td>
+
+                              <td className="py-2 px-3 text-center">
+                                <span className={`px-2 py-0.5 rounded text-[9.5px] font-black uppercase ${
+                                  targetInfo.regiao === 'CAPITAL' ? 'bg-blue-100 text-blue-800' :
+                                  targetInfo.regiao === 'METROPOLITANA' ? 'bg-indigo-100 text-indigo-800' :
+                                  targetInfo.regiao === 'INTERIOR' ? 'bg-emerald-100 text-emerald-800' :
+                                  'bg-slate-100 text-slate-700'
+                                }`}>
+                                  {targetInfo.regiao !== '-' ? targetInfo.regiao : (param.regiao || 'INTERIOR')}
+                                </span>
+                              </td>
+
+                              <td className="py-2 px-3 text-slate-500 text-[11px]">
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    value={editingCepCidade}
+                                    onChange={(e) => setEditingCepCidade(e.target.value)}
+                                    placeholder="Cidade / Obs"
+                                    className="px-2 py-0.5 text-xs border border-blue-400 rounded focus:outline-hidden w-full"
+                                  />
+                                ) : (
+                                  param.cidade || '-'
+                                )}
+                              </td>
+
+                              <td className="py-2 px-3 text-center">
+                                {isEditing ? (
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveCepEdit(globalIdx)}
+                                      className="p-1 rounded text-emerald-600 hover:bg-emerald-50 cursor-pointer"
+                                      title="Salvar alterações"
+                                    >
+                                      <Save size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingCepIndex(null)
+                                        setEditingCepRota('')
+                                        setEditingCepCidade('')
+                                      }}
+                                      className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                                      title="Cancelar edição"
+                                    >
+                                      <X size={13} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingCepIndex(globalIdx)
+                                        setEditingCepRota(param.descricaorota)
+                                        setEditingCepCidade(param.cidade || '')
+                                      }}
+                                      className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
+                                      title="Editar regra"
+                                    >
+                                      <Edit2 size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteCepParam(param.cep)}
+                                      className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                                      title="Excluir regra"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Paginação */}
+                {totalCepPages > 1 && (
+                  <div className="p-3 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between text-xs">
+                    <span className="text-slate-500 text-[11px]">
+                      Mostrando {Math.min((cepPage - 1) * cepPageSize + 1, filteredCepParams.length)} - {Math.min(cepPage * cepPageSize, filteredCepParams.length)} de {filteredCepParams.length} regras
+                    </span>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setCepPage(p => Math.max(1, p - 1))}
+                        disabled={cepPage === 1}
+                        className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 font-bold text-[11px]"
+                      >
+                        <ChevronLeft size={13} /> Anterior
+                      </button>
+
+                      <span className="px-2 font-mono font-bold text-slate-700 text-xs">
+                        {cepPage} / {totalCepPages}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => setCepPage(p => Math.min(totalCepPages, p + 1))}
+                        disabled={cepPage >= totalCepPages}
+                        className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 font-bold text-[11px]"
+                      >
+                        Próxima <ChevronRight size={13} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2049,9 +2568,13 @@ export const PcpJsMartinsPage: React.FC = () => {
           const modalidade = modalMap[cod] || String(r.descricaomodal || r.DESCRICAOMODAL || '-')
           const isAba = modalidade.trim().toUpperCase() === 'ABA'
 
+          const rawRota = String(r.descricaorota || r.DESCRICAOROTA || '').trim()
+          const rawCep = r.cep_entrega || r.CEP_ENTREGA
+          const resolvedRota = resolveRouteByCep(rawRota, rawCep)
+
           let rotaInfo = { destino: '-', regiao: '-' }
           const filEntregaKey = String(r.filentrega || r.FILENTREGA || '').trim().toUpperCase()
-          const rotaKey = String(r.descricaorota || r.DESCRICAOROTA || '').trim().toUpperCase()
+          const rotaKey = resolvedRota.trim().toUpperCase()
 
           if (isAba) {
             // Se modalidade for ABA (Abastecimento), prioridade máxima para FILENTREGA no cadastro (ex: 1349 -> 1349-Limoeiro QUI)
@@ -2062,7 +2585,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           }
 
           const regiao = rotaInfo.regiao !== '-' ? rotaInfo.regiao : 'INTERIOR'
-          const destino = rotaInfo.destino !== '-' ? rotaInfo.destino : (r.descricaorota || r.DESCRICAOROTA || (r.filentrega || r.FILENTREGA ? `Filial ${r.filentrega || r.FILENTREGA}` : 'OUTROS'))
+          const destino = rotaInfo.destino !== '-' ? rotaInfo.destino : (resolvedRota || (r.filentrega || r.FILENTREGA ? `Filial ${r.filentrega || r.FILENTREGA}` : 'OUTROS'))
           const statusOperacao = String(r.status_operacao || r.STATUS_OPERACAO || '')
           const linha = String(r.linha || r.LINHA || '')
           const fllibfat = String(r.fllibfat || r.FLLIBFAT || 'S').trim().toUpperCase()
@@ -2070,6 +2593,7 @@ export const PcpJsMartinsPage: React.FC = () => {
 
           return {
             ...r,
+            descricaorota: resolvedRota,
             calc_regiao: regiao,
             calc_destino: destino,
             calc_modalidade: modalidade,
@@ -2119,7 +2643,8 @@ export const PcpJsMartinsPage: React.FC = () => {
             const matchRota = String(r.descricaorota || r.DESCRICAOROTA || '').toLowerCase().includes(term)
             const matchFil = String(r.filentrega || r.FILENTREGA || '').toLowerCase().includes(term)
             const matchItem = String(r.item || r.ITEM || '').toLowerCase().includes(term)
-            if (!matchDest && !matchReg && !matchPed && !matchRota && !matchFil && !matchItem) return false
+            const matchCep = String(r.cep_entrega || r.CEP_ENTREGA || '').replace(/\.0+$/, '').includes(term)
+            if (!matchDest && !matchReg && !matchPed && !matchRota && !matchFil && !matchItem && !matchCep) return false
           }
           return true
         })
@@ -2139,7 +2664,8 @@ export const PcpJsMartinsPage: React.FC = () => {
             const matchRota = String(r.descricaorota || r.DESCRICAOROTA || '').toLowerCase().includes(term)
             const matchFil = String(r.filentrega || r.FILENTREGA || '').toLowerCase().includes(term)
             const matchItem = String(r.item || r.ITEM || '').toLowerCase().includes(term)
-            if (!matchDest && !matchReg && !matchPed && !matchRota && !matchFil && !matchItem) return false
+            const matchCep = String(r.cep_entrega || r.CEP_ENTREGA || '').replace(/\.0+$/, '').includes(term)
+            if (!matchDest && !matchReg && !matchPed && !matchRota && !matchFil && !matchItem && !matchCep) return false
           }
           return true
         })

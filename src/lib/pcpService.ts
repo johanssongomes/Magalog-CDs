@@ -524,22 +524,23 @@ export async function getOracleSyncStatus(): Promise<OracleSyncStatus> {
 }
 
 // =========================================================================
-// SINCRONIZAÇÃO CENTRAL DE CADASTROS AUXILIARES (DE-PARA DE ROTAS E MODAIS)
+// SINCRONIZAÇÃO CENTRAL DE CADASTROS AUXILIARES (DE-PARA DE ROTAS, MODAIS E CEPS)
 // =========================================================================
 
 export async function fetchPcpAuxParams(): Promise<{
   filialRotas?: any[]
   modais?: any[]
+  cepRotas?: any[]
 }> {
   try {
     const { data, error } = await supabase
       .from('performance_metrics')
       .select('cell_key, value')
-      .in('cell_key', ['pcp_filial_rotas_params', 'pcp_modal_params'])
+      .in('cell_key', ['pcp_filial_rotas_params', 'pcp_modal_params', 'pcp_cep_rotas_params'])
 
     if (error || !data) return {}
 
-    const result: { filialRotas?: any[]; modais?: any[] } = {}
+    const result: { filialRotas?: any[]; modais?: any[]; cepRotas?: any[] } = {}
     for (const row of data) {
       if (row.cell_key === 'pcp_filial_rotas_params' && row.value) {
         try {
@@ -551,6 +552,11 @@ export async function fetchPcpAuxParams(): Promise<{
           const parsed = JSON.parse(row.value)
           if (Array.isArray(parsed) && parsed.length > 0) result.modais = parsed
         } catch { }
+      } else if (row.cell_key === 'pcp_cep_rotas_params' && row.value) {
+        try {
+          const parsed = JSON.parse(row.value)
+          if (Array.isArray(parsed) && parsed.length > 0) result.cepRotas = parsed
+        } catch { }
       }
     }
     return result
@@ -560,11 +566,16 @@ export async function fetchPcpAuxParams(): Promise<{
 }
 
 export async function savePcpAuxParams(
-  type: 'filial_rotas' | 'modais',
+  type: 'filial_rotas' | 'modais' | 'cep_rotas',
   data: any[]
 ): Promise<boolean> {
   try {
-    const cell_key = type === 'filial_rotas' ? 'pcp_filial_rotas_params' : 'pcp_modal_params'
+    const cell_key =
+      type === 'filial_rotas'
+        ? 'pcp_filial_rotas_params'
+        : type === 'modais'
+        ? 'pcp_modal_params'
+        : 'pcp_cep_rotas_params'
     const payload = {
       cell_key,
       value: JSON.stringify(data),
