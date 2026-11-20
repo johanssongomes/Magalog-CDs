@@ -143,6 +143,7 @@ const PCP_DB_VERSION = 2
 const PCP_STORE_NAME = 'pcp_planning_store'
 const KEY_PLANNING_DATA = 'cached_planning_items_v2'
 const KEY_TIMESTAMP = 'cached_timestamp_v2'
+const KEY_SYNC_VERSION = 'cached_sync_version_v2'
 
 function openPcpDB(): Promise<IDBDatabase | null> {
   return new Promise((resolve) => {
@@ -165,7 +166,7 @@ function openPcpDB(): Promise<IDBDatabase | null> {
   })
 }
 
-export async function getPcpPlanningCache(): Promise<{ data: PcpItem[]; timestamp: number } | null> {
+export async function getPcpPlanningCache(): Promise<{ data: PcpItem[]; timestamp: number; syncVersion?: string } | null> {
   const db = await openPcpDB()
   if (!db) return null
 
@@ -175,12 +176,14 @@ export async function getPcpPlanningCache(): Promise<{ data: PcpItem[]; timestam
       const store = tx.objectStore(PCP_STORE_NAME)
       const dataReq = store.get(KEY_PLANNING_DATA)
       const timeReq = store.get(KEY_TIMESTAMP)
+      const syncVerReq = store.get(KEY_SYNC_VERSION)
 
       tx.oncomplete = () => {
         if (dataReq.result && Array.isArray(dataReq.result) && dataReq.result.length > 0) {
           resolve({
             data: dataReq.result as PcpItem[],
-            timestamp: Number(timeReq.result) || 0
+            timestamp: Number(timeReq.result) || 0,
+            syncVersion: syncVerReq.result ? String(syncVerReq.result) : undefined
           })
         } else {
           resolve(null)
@@ -193,9 +196,12 @@ export async function getPcpPlanningCache(): Promise<{ data: PcpItem[]; timestam
   })
 }
 
-export async function setPcpPlanningCache(items: PcpItem[]): Promise<void> {
+export async function setPcpPlanningCache(items: PcpItem[], syncVersion?: string): Promise<void> {
   cachedPlanningData = items
   cacheTimestamp = Date.now()
+  if (syncVersion) {
+    cachedSyncVersion = syncVersion
+  }
 
   const db = await openPcpDB()
   if (!db) return
@@ -206,6 +212,9 @@ export async function setPcpPlanningCache(items: PcpItem[]): Promise<void> {
       const store = tx.objectStore(PCP_STORE_NAME)
       store.put(items, KEY_PLANNING_DATA)
       store.put(Date.now(), KEY_TIMESTAMP)
+      if (syncVersion) {
+        store.put(syncVersion, KEY_SYNC_VERSION)
+      }
       tx.oncomplete = () => resolve()
       tx.onerror = () => resolve()
     } catch {
@@ -216,14 +225,16 @@ export async function setPcpPlanningCache(items: PcpItem[]): Promise<void> {
 
 // Obter agregação de todos os itens do Supabase para o Planejamento (com cache em memória + IndexedDB)
 let cachedPlanningData: PcpItem[] | null = null
+let cachedSyncVersion: string | null = null
 let cacheTimestamp = 0
-const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutos de validade antes de revalidar em segundo plano
+const CACHE_TTL_MS = 60 * 1000 // 1 minuto de validade para checagem em segundo plano
 
 let isFetchingFromSupabase = false
 let activeFetchPromise: Promise<PcpItem[]> | null = null
 
 export async function clearPcpPlanningCache() {
   cachedPlanningData = null
+  cachedSyncVersion = null
   cacheTimestamp = 0
   const db = await openPcpDB()
   if (!db) return
@@ -241,8 +252,24 @@ export async function clearPcpPlanningCache() {
   })
 }
 
-async function fetchSummaryFromSupabase(): Promise<PcpItem[]> {
+async function fetchSummaryFromSupabase(knownSyncVersion?: string): Promise<PcpItem[]> {
   const batchSize = 1000
+
+  // Obter versão da sincronização para atrelar ao cache local
+  let latestSyncVersion: string | undefined = knownSyncVersion
+  if (!latestSyncVersion) {
+    try {
+      const { data: statusRow } = await supabase
+        .from('performance_metrics')
+        .select('value, updated_at')
+        .eq('cell_key', 'pcp_sync_command')
+        .maybeSingle()
+      if (statusRow?.value) {
+        const parsed = JSON.parse(statusRow.value)
+        latestSyncVersion = parsed.updated_at || statusRow.updated_at
+      }
+    } catch {}
+  }
 
   // 1. Obter total de registros para disparar requisições em paralelo
   const { count, error: countErr } = await supabase
@@ -283,7 +310,8 @@ async function fetchSummaryFromSupabase(): Promise<PcpItem[]> {
   if (allData.length > 0) {
     cachedPlanningData = allData
     cacheTimestamp = Date.now()
-    await setPcpPlanningCache(allData)
+    if (latestSyncVersion) cachedSyncVersion = latestSyncVersion
+    await setPcpPlanningCache(allData, latestSyncVersion)
   }
 
   return allData
@@ -291,15 +319,21 @@ async function fetchSummaryFromSupabase(): Promise<PcpItem[]> {
 
 export async function getAllPcpSummaryItems(
   forceRefresh: boolean = false,
-  onBackgroundUpdate?: (data: PcpItem[]) => void
+  onBackgroundUpdate?: (data: PcpItem[]) => void,
+  expectedSyncVersion?: string
 ): Promise<PcpItem[]> {
   const now = Date.now()
+
+  // Se o servidor tiver uma versão de sync diferente do cache, invalida e força busca fresca
+  if (expectedSyncVersion && cachedSyncVersion && expectedSyncVersion !== cachedSyncVersion) {
+    forceRefresh = true
+  }
 
   // 1. Memória imediata (< 1ms)
   if (!forceRefresh && cachedPlanningData && cachedPlanningData.length > 0) {
     if (now - cacheTimestamp >= CACHE_TTL_MS && !isFetchingFromSupabase) {
       isFetchingFromSupabase = true
-      fetchSummaryFromSupabase()
+      fetchSummaryFromSupabase(expectedSyncVersion)
         .then(fresh => {
           if (fresh.length > 0 && onBackgroundUpdate) {
             onBackgroundUpdate(fresh)
@@ -316,24 +350,30 @@ export async function getAllPcpSummaryItems(
   if (!forceRefresh) {
     const cached = await getPcpPlanningCache()
     if (cached && cached.data && cached.data.length > 0) {
-      cachedPlanningData = cached.data
-      cacheTimestamp = cached.timestamp || Date.now()
+      // Se tiver versão gravada e for mais antiga que a esperada do Supabase, não usa o cache!
+      if (expectedSyncVersion && cached.syncVersion && expectedSyncVersion !== cached.syncVersion) {
+        // Cache desatualizado detectado: força busca dos dados novos do Supabase
+      } else {
+        cachedPlanningData = cached.data
+        cacheTimestamp = cached.timestamp || Date.now()
+        if (cached.syncVersion) cachedSyncVersion = cached.syncVersion
 
-      // Revalidação em segundo plano se tiver mais de 5 minutos
-      if (now - cacheTimestamp >= CACHE_TTL_MS && !isFetchingFromSupabase) {
-        isFetchingFromSupabase = true
-        fetchSummaryFromSupabase()
-          .then(fresh => {
-            if (fresh.length > 0 && onBackgroundUpdate) {
-              onBackgroundUpdate(fresh)
-            }
-          })
-          .finally(() => {
-            isFetchingFromSupabase = false
-          })
+        // Revalidação em segundo plano se tiver mais de 1 minuto
+        if (now - cacheTimestamp >= CACHE_TTL_MS && !isFetchingFromSupabase) {
+          isFetchingFromSupabase = true
+          fetchSummaryFromSupabase(expectedSyncVersion)
+            .then(fresh => {
+              if (fresh.length > 0 && onBackgroundUpdate) {
+                onBackgroundUpdate(fresh)
+              }
+            })
+            .finally(() => {
+              isFetchingFromSupabase = false
+            })
+        }
+
+        return cached.data
       }
-
-      return cached.data
     }
   }
 
@@ -343,7 +383,7 @@ export async function getAllPcpSummaryItems(
   }
 
   isFetchingFromSupabase = true
-  activeFetchPromise = fetchSummaryFromSupabase()
+  activeFetchPromise = fetchSummaryFromSupabase(expectedSyncVersion)
     .catch(err => {
       console.error('Falha em getAllPcpSummaryItems:', err)
       return cachedPlanningData || []

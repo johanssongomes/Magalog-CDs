@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   CalendarDays,
   Hammer,
@@ -547,17 +547,31 @@ export const PcpJsMartinsPage: React.FC = () => {
   })
   const [isLoadingPlanning, setIsLoadingPlanning] = useState<boolean>(false)
 
+  // Referência da versão de sincronização atualmente carregada em tela
+  const lastLoadedSyncVersionRef = useRef<string | null>(null)
+
   // Carregar todos os dados completos para o planejamento (com cache inteligente e atualização em segundo plano)
   const loadPlanningData = useCallback(async (forceRefresh: boolean = false) => {
     setIsLoadingPlanning(true)
     try {
+      // 1. Obter versão remota atual no Supabase (para validar se o cache local é válido)
+      const syncStatus = await getOracleSyncStatus().catch(() => null)
+      const remoteVersion = syncStatus?.updated_at || undefined
+      if (remoteVersion) {
+        setLastSyncDateStr(remoteVersion)
+      }
+
       const dbRows = await getAllPcpSummaryItems(forceRefresh, (fresh) => {
         if (fresh && fresh.length > 0) {
           setFullPlanningData(fresh)
         }
-      })
+      }, remoteVersion)
+
       if (dbRows && dbRows.length > 0) {
         setFullPlanningData(dbRows)
+        if (remoteVersion) {
+          lastLoadedSyncVersionRef.current = remoteVersion
+        }
       } else {
         const local = getLocalData()
         if (local && local.length > 0) {
@@ -594,6 +608,14 @@ export const PcpJsMartinsPage: React.FC = () => {
       const status = await getOracleSyncStatus()
       if (status && status.updated_at) {
         setLastSyncDateStr(status.updated_at)
+
+        // Se detectar que houve uma nova sincronização na nuvem diferente da versão carregada na tela,
+        // atualiza os dados automaticamente para todos os usuários sem precisar de F5!
+        if (lastLoadedSyncVersionRef.current && status.updated_at !== lastLoadedSyncVersionRef.current) {
+          console.log('⚡ Detectada nova sincronização na nuvem por outro usuário/servidor. Atualizando tela automaticamente...', status.updated_at)
+          lastLoadedSyncVersionRef.current = status.updated_at
+          await loadPlanningData(true)
+        }
         return
       }
     } catch { }
@@ -608,14 +630,41 @@ export const PcpJsMartinsPage: React.FC = () => {
         setLastSyncDateStr(dates[0])
       }
     }
-  }, [fullPlanningData])
+  }, [fullPlanningData, loadPlanningData])
 
   useEffect(() => {
     refreshLastSyncTimestamp()
-    // Polling a cada 30 segundos para captar atualizações feitas por qualquer outro usuário
-    const interval = window.setInterval(refreshLastSyncTimestamp, 30000)
+    // Polling a cada 20 segundos para captar atualizações feitas por qualquer outro usuário
+    const interval = window.setInterval(refreshLastSyncTimestamp, 20000)
     return () => window.clearInterval(interval)
   }, [refreshLastSyncTimestamp])
+
+  // Ouvinte em tempo real via Supabase Realtime (WebSocket):
+  // Quando qualquer usuário ou o servidor corporativo rodar a sincronização,
+  // TODOS os navegadores abertos no Magalog recebem o evento e atualizam automaticamente na hora!
+  useEffect(() => {
+    const channel = supabase
+      .channel('pcp_sync_realtime_broadcast')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'performance_metrics',
+          filter: 'cell_key=eq.pcp_sync_command'
+        },
+        () => {
+          console.log('⚡ Evento Realtime recebido: Carteira atualizada no servidor! Recarregando dados para todos...')
+          refreshLastSyncTimestamp()
+          loadPlanningData(true)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [loadPlanningData, refreshLastSyncTimestamp])
 
   const handleSyncOracleCarteira = async () => {
     setIsSyncModalOpen(true)
@@ -2491,9 +2540,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                     <div
                       className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] border shadow-2xs transition-all ${isSyncingOracle
                         ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse'
-                        : 'bg-slate-50 text-slate-600 border-slate-200/90 hover:bg-slate-100'
+                        : 'bg-slate-50 text-slate-600 border-slate-200/90'
                         }`}
-                      title={lastSyncDateStr ? `Sincronizado no Supabase: ${lastSyncDateStr}` : 'Sincronização da Carteira'}
+                      title={lastSyncDateStr ? `Sincronizado no Supabase: ${lastSyncDateStr} (Clique no botão para recarregar da nuvem)` : 'Sincronização da Carteira'}
                     >
                       <Clock size={11} className={isSyncingOracle ? 'animate-spin text-blue-600' : 'text-blue-500'} />
                       <span className="text-slate-400 font-medium hidden sm:inline">Última atualização:</span>
@@ -2502,6 +2551,15 @@ export const PcpJsMartinsPage: React.FC = () => {
                           ? 'Sincronizando agora...'
                           : (lastSyncDateStr ? formatDateTimeBR(lastSyncDateStr) : '20/11/2026 às 12:22')}
                       </strong>
+                      <button
+                        type="button"
+                        onClick={() => loadPlanningData(true)}
+                        disabled={isLoadingPlanning}
+                        title="Recarregar dados mais recentes da nuvem agora"
+                        className="ml-0.5 p-0.5 rounded text-slate-400 hover:text-blue-600 hover:bg-slate-200 transition-colors cursor-pointer"
+                      >
+                        <RefreshCw size={11} className={isLoadingPlanning ? 'animate-spin text-blue-600' : ''} />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -2838,11 +2896,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                         type="button"
                         onClick={() => setPlanViewMode('regiao')}
                         title="Visualização Consolidada por Região (Hierárquica)"
-                        className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${
-                          planViewMode === 'regiao'
+                        className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${planViewMode === 'regiao'
                             ? 'bg-blue-600 text-white shadow-xs font-black'
                             : 'text-sky-200/80 hover:text-white hover:bg-white/10'
-                        }`}
+                          }`}
                       >
                         <Layers size={12} />
                         <span>Por Região</span>
@@ -2851,11 +2908,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                         type="button"
                         onClick={() => setPlanViewMode('comparativo')}
                         title="Visualização Comparativa por Destino (Carteira vs Processo)"
-                        className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${
-                          planViewMode === 'comparativo'
+                        className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${planViewMode === 'comparativo'
                             ? 'bg-blue-600 text-white shadow-xs font-black'
                             : 'text-sky-200/80 hover:text-white hover:bg-white/10'
-                        }`}
+                          }`}
                       >
                         <BarChart3 size={12} />
                         <span>Comparativo</span>
@@ -2874,398 +2930,398 @@ export const PcpJsMartinsPage: React.FC = () => {
                 {planViewMode === 'regiao' ? (
                   /* Tabela estilizada com tema clean (linhas brancas com hover suave e bordas sutis) */
                   <div className="w-full">
-                  <table className="w-full border-collapse font-sans text-slate-800 text-[10.5px] table-auto select-text">
-                    <thead className="sticky top-0 z-20 bg-[#0e3b66] text-white uppercase text-[9.5px] font-black tracking-wider border-b border-slate-200">
-                      <tr className="divide-x divide-white/10">
-                        <th className="py-2 px-2.5 text-left font-bold w-24">
-                          <div className="flex items-center justify-between gap-1">
-                            <span>REGIÃO</span>
-                            <span className="text-[8px] opacity-70">▾</span>
-                          </div>
-                        </th>
-                        <th className="py-2 px-2.5 text-left font-bold min-w-[260px]">
-                          <div className="flex items-center justify-between gap-1">
-                            <span>DESTINO</span>
-                            <span className="text-[8px] opacity-70">▾</span>
-                          </div>
-                        </th>
-                        <th className="py-2 px-2 text-center font-bold w-14">
-                          <div className="flex items-center justify-center gap-0.5">
-                            <span>PEDIDO</span>
-                            <span className="text-[8px] opacity-70">▾</span>
-                          </div>
-                        </th>
-                        <th className="py-2 px-2 text-center font-bold w-[80px] min-w-[80px] max-w-[80px]">
-                          <span>QUANTIDADE</span>
-                        </th>
-                        <th className="py-2 px-2 text-center font-bold w-[90px] min-w-[90px] max-w-[90px]">
-                          <span>CUBAGEM</span>
-                        </th>
-                        <th className="py-2 px-2 text-center font-bold w-[110px] min-w-[110px] max-w-[110px]">
-                          <div className="flex items-center justify-center gap-0.5">
-                            <span>VALOR$</span>
-                            <span className="text-[8px] opacity-70">▾</span>
-                          </div>
-                        </th>
-                        <th className="py-2 px-2 text-center font-bold w-[65px] min-w-[65px] max-w-[65px]">
-                          <span>PESO</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-sans">
-                      {regiaoGroups.map((group) => {
-                        const isRegiaoCollapsed = !!collapsedRegioes[group.regiao]
-                        return (
-                          <React.Fragment key={group.regiao}>
-                            {/* Cabeçalho de Grupo da Região:
+                    <table className="w-full border-collapse font-sans text-slate-800 text-[10.5px] table-auto select-text">
+                      <thead className="sticky top-0 z-20 bg-[#0e3b66] text-white uppercase text-[9.5px] font-black tracking-wider border-b border-slate-200">
+                        <tr className="divide-x divide-white/10">
+                          <th className="py-2 px-2.5 text-left font-bold w-24">
+                            <div className="flex items-center justify-between gap-1">
+                              <span>REGIÃO</span>
+                              <span className="text-[8px] opacity-70">▾</span>
+                            </div>
+                          </th>
+                          <th className="py-2 px-2.5 text-left font-bold min-w-[260px]">
+                            <div className="flex items-center justify-between gap-1">
+                              <span>DESTINO</span>
+                              <span className="text-[8px] opacity-70">▾</span>
+                            </div>
+                          </th>
+                          <th className="py-2 px-2 text-center font-bold w-14">
+                            <div className="flex items-center justify-center gap-0.5">
+                              <span>PEDIDO</span>
+                              <span className="text-[8px] opacity-70">▾</span>
+                            </div>
+                          </th>
+                          <th className="py-2 px-2 text-center font-bold w-[80px] min-w-[80px] max-w-[80px]">
+                            <span>QUANTIDADE</span>
+                          </th>
+                          <th className="py-2 px-2 text-center font-bold w-[90px] min-w-[90px] max-w-[90px]">
+                            <span>CUBAGEM</span>
+                          </th>
+                          <th className="py-2 px-2 text-center font-bold w-[110px] min-w-[110px] max-w-[110px]">
+                            <div className="flex items-center justify-center gap-0.5">
+                              <span>VALOR$</span>
+                              <span className="text-[8px] opacity-70">▾</span>
+                            </div>
+                          </th>
+                          <th className="py-2 px-2 text-center font-bold w-[65px] min-w-[65px] max-w-[65px]">
+                            <span>PESO</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-sans">
+                        {regiaoGroups.map((group) => {
+                          const isRegiaoCollapsed = !!collapsedRegioes[group.regiao]
+                          return (
+                            <React.Fragment key={group.regiao}>
+                              {/* Cabeçalho de Grupo da Região:
                                 - Se RECOLHIDA: fica em UMA ÚNICA LINHA já com os totais de Pedidos, Quantidade, Cubagem, Valor$ e Peso.
                                 - Se EXPANDIDA: vira uma barra de cabeçalho simples [-] REGIAO, os destinos vêm abaixo e o subtotal vem no rodapé.
                             */}
-                            {isRegiaoCollapsed ? (
-                              <tr className="bg-slate-100/95 hover:bg-slate-200/80 transition-colors text-slate-900 font-extrabold border-y border-slate-200 divide-x divide-slate-200">
-                                <td colSpan={2} className="py-1 px-2.5 uppercase tracking-wide text-[11px] whitespace-nowrap">
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleRegiao(group.regiao)}
-                                    className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-700 transition-colors cursor-pointer w-full select-none"
-                                  >
-                                    <span className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none mr-1 font-mono font-black shadow-2xs bg-blue-600 border-blue-600 text-white">
-                                      +
-                                    </span>
-                                    <span className="text-slate-900 font-black">{group.regiao}</span>
-                                    <span className="text-[10px] text-slate-500 font-normal lowercase ml-1">
-                                      ({group.destinos.length} destinos - clique para expandir)
-                                    </span>
-                                  </button>
-                                </td>
-                                <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
-                                  {group.totalPedidos.toLocaleString('pt-BR')}
-                                </td>
-                                <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono w-[80px] min-w-[80px] max-w-[80px]">
-                                  {Math.round(group.totalQtd).toLocaleString('pt-BR')}
-                                </td>
-                                <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono w-[90px] min-w-[90px] max-w-[90px]">
-                                  <div className="grid grid-cols-[18px_1fr] items-center gap-1 w-[72px] mx-auto">
-                                    <div className="flex justify-center items-center">
-                                      {renderCubSemaforo(group.totalCub)}
+                              {isRegiaoCollapsed ? (
+                                <tr className="bg-slate-100/95 hover:bg-slate-200/80 transition-colors text-slate-900 font-extrabold border-y border-slate-200 divide-x divide-slate-200">
+                                  <td colSpan={2} className="py-1 px-2.5 uppercase tracking-wide text-[11px] whitespace-nowrap">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleRegiao(group.regiao)}
+                                      className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-700 transition-colors cursor-pointer w-full select-none"
+                                    >
+                                      <span className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none mr-1 font-mono font-black shadow-2xs bg-blue-600 border-blue-600 text-white">
+                                        +
+                                      </span>
+                                      <span className="text-slate-900 font-black">{group.regiao}</span>
+                                      <span className="text-[10px] text-slate-500 font-normal lowercase ml-1">
+                                        ({group.destinos.length} destinos - clique para expandir)
+                                      </span>
+                                    </button>
+                                  </td>
+                                  <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
+                                    {group.totalPedidos.toLocaleString('pt-BR')}
+                                  </td>
+                                  <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono w-[80px] min-w-[80px] max-w-[80px]">
+                                    {Math.round(group.totalQtd).toLocaleString('pt-BR')}
+                                  </td>
+                                  <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono w-[90px] min-w-[90px] max-w-[90px]">
+                                    <div className="grid grid-cols-[18px_1fr] items-center gap-1 w-[72px] mx-auto">
+                                      <div className="flex justify-center items-center">
+                                        {renderCubSemaforo(group.totalCub)}
+                                      </div>
+                                      <span className="text-right text-slate-900 font-black">
+                                        {group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
                                     </div>
-                                    <span className="text-right text-slate-900 font-black">
-                                      {group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono w-[110px] min-w-[110px] max-w-[110px]">
-                                  <div className="inline-flex items-center justify-center gap-1 w-full text-slate-900">
-                                    <span className="text-slate-500 font-normal text-[9.5px]">R$</span>
-                                    <span className="text-slate-900">
-                                      {group.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono w-[65px] min-w-[65px] max-w-[65px]">
-                                  {Math.round(group.totalPeso).toLocaleString('pt-BR')}
-                                </td>
-                              </tr>
-                            ) : (
-                              <tr className="bg-slate-100/90 hover:bg-slate-200/70 transition-colors text-slate-900 font-extrabold border-y border-slate-200">
-                                <td colSpan={7} className="py-1 px-2.5 uppercase tracking-wide text-[11px]">
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleRegiao(group.regiao)}
-                                    className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-700 transition-colors cursor-pointer w-full select-none"
-                                  >
-                                    <span className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none mr-1 font-mono font-black shadow-2xs border-slate-400/80 bg-white text-slate-700">
-                                      -
-                                    </span>
-                                    <span className="text-slate-900 font-black">{group.regiao}</span>
-                                    <span className="text-[10px] text-slate-500 font-normal lowercase ml-1">
-                                      ({group.destinos.length} destinos)
-                                    </span>
-                                  </button>
-                                </td>
-                              </tr>
-                            )}
+                                  </td>
+                                  <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono w-[110px] min-w-[110px] max-w-[110px]">
+                                    <div className="inline-flex items-center justify-center gap-1 w-full text-slate-900">
+                                      <span className="text-slate-500 font-normal text-[9.5px]">R$</span>
+                                      <span className="text-slate-900">
+                                        {group.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono w-[65px] min-w-[65px] max-w-[65px]">
+                                    {Math.round(group.totalPeso).toLocaleString('pt-BR')}
+                                  </td>
+                                </tr>
+                              ) : (
+                                <tr className="bg-slate-100/90 hover:bg-slate-200/70 transition-colors text-slate-900 font-extrabold border-y border-slate-200">
+                                  <td colSpan={7} className="py-1 px-2.5 uppercase tracking-wide text-[11px]">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleRegiao(group.regiao)}
+                                      className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-700 transition-colors cursor-pointer w-full select-none"
+                                    >
+                                      <span className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none mr-1 font-mono font-black shadow-2xs border-slate-400/80 bg-white text-slate-700">
+                                        -
+                                      </span>
+                                      <span className="text-slate-900 font-black">{group.regiao}</span>
+                                      <span className="text-[10px] text-slate-500 font-normal lowercase ml-1">
+                                        ({group.destinos.length} destinos)
+                                      </span>
+                                    </button>
+                                  </td>
+                                </tr>
+                              )}
 
-                            {/* Linhas de Destino com suporte a expansão detalhada (visíveis se a região não estiver recolhida) */}
-                            {!isRegiaoCollapsed && group.destinos.map((dest, idx) => {
-                              const isExpanded = !!expandedDestinos[dest.destino]
-                              return (
-                                <React.Fragment key={dest.destino}>
-                                  <tr
-                                    className={`transition-colors divide-x divide-slate-100 hover:bg-sky-50/50 ${isExpanded ? 'bg-blue-50/70' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                                      }`}
-                                    style={isExpanded ? { borderTop: '2px solid #0e3b66', borderLeft: '2px solid #0e3b66', borderRight: '2px solid #0e3b66' } : undefined}
-                                  >
-                                    <td className="py-1 px-2.5 text-slate-600 text-[10.5px] font-bold whitespace-nowrap">
-                                      {idx === 0 ? group.regiao : ''}
-                                    </td>
-                                    <td className="py-1 px-2.5 font-bold text-slate-800 text-[11px] whitespace-nowrap">
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleDestino(dest.destino)}
-                                        className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-600 transition-colors cursor-pointer"
-                                      >
-                                        <span className={`inline-flex items-center justify-center w-3 h-3 text-[9px] border rounded-xs leading-none shrink-0 font-mono font-bold select-none ${isExpanded ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-slate-100 text-slate-600'
-                                          }`}>
-                                          {isExpanded ? '-' : '+'}
-                                        </span>
-                                        <span className={isExpanded ? 'text-blue-700 font-extrabold select-text' : 'select-text'}>{dest.destino}</span>
-                                      </button>
-                                    </td>
-                                    <td className="py-1 px-2 text-center font-bold text-slate-700 text-[11px] whitespace-nowrap font-mono">
-                                      {dest.pedidosCount.toLocaleString('pt-BR')}
-                                    </td>
-                                    <td className="py-1 px-2 text-center font-bold text-slate-700 text-[11px] whitespace-nowrap font-mono w-[80px] min-w-[80px] max-w-[80px]">
-                                      {Math.round(dest.quantidade).toLocaleString('pt-BR')}
-                                    </td>
-                                    <td className="py-1 px-2 text-center text-[11px] whitespace-nowrap font-mono w-[90px] min-w-[90px] max-w-[90px]">
-                                      <div className="grid grid-cols-[18px_1fr] items-center gap-1 w-[72px] mx-auto">
-                                        <div className="flex justify-center items-center">
-                                          {renderCubSemaforo(dest.cubagem)}
-                                        </div>
-                                        <span className="text-right font-bold text-slate-800">
-                                          {dest.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </span>
-                                      </div>
-                                    </td>
-                                    <td className="py-1 px-2 text-center text-[11px] whitespace-nowrap font-mono w-[110px] min-w-[110px] max-w-[110px]">
-                                      <div className="inline-flex items-center justify-center gap-1 w-full font-bold text-slate-800">
-                                        <span className="text-slate-400 font-normal text-[9.5px]">R$</span>
-                                        <span>{dest.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                      </div>
-                                    </td>
-                                    <td className="py-1 px-2 text-center text-[11px] text-slate-700 font-bold whitespace-nowrap font-mono w-[65px] min-w-[65px] max-w-[65px]">
-                                      {Math.round(dest.pesoTotal).toLocaleString('pt-BR')}
-                                    </td>
-                                  </tr>
-
-                                  {/* DETALHAMENTO EXPANDIDO (Hierarquia: Status do Lote -> Itens Diretos com Colunas Perfeitamente Alinhadas) */}
-                                  {isExpanded && (
-                                    <tr>
-                                      <td colSpan={7} className="p-0 bg-slate-50/40">
-                                        <div className="w-full border-b-2 border-x-2 border-[#0e3b66] divide-y divide-slate-200">
-                                          {dest.statusGroups.map((stGroup) => {
-                                            const stKey = `${dest.destino}__${stGroup.status}`
-                                            const isStExpanded = !!expandedStatusLotes[stKey]
-
-                                            return (
-                                              <div key={stKey} className="w-full bg-white overflow-hidden">
-                                                {/* Cabeçalho do Status do Lote (Alinhado exatamente com o cabeçalho pai) */}
-                                                <div
-                                                  onClick={() => toggleStatusLote(stKey)}
-                                                  className={`transition-colors cursor-pointer flex items-center justify-between border-b border-slate-200 ${stGroup.status === 'EM CARTEIRA'
-                                                    ? 'bg-blue-50/90 hover:bg-blue-100/90 text-blue-950'
-                                                    : 'bg-amber-50/90 hover:bg-amber-100/90 text-amber-950'
-                                                    }`}
-                                                >
-                                                  <div className="flex items-center gap-2 pl-4 sm:pl-6 py-2 flex-1 min-w-0">
-                                                    <span className={`inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none font-mono font-black shrink-0 ${isStExpanded
-                                                      ? (stGroup.status === 'EM CARTEIRA' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-amber-600 border-amber-600 text-white')
-                                                      : 'border-slate-400 bg-white text-slate-700'
-                                                      }`}>
-                                                      {isStExpanded ? '-' : '+'}
-                                                    </span>
-                                                    <span className="text-[11px] font-black uppercase tracking-wide truncate">
-                                                      Status: {stGroup.status}
-                                                    </span>
-                                                    <span className="text-[10px] text-slate-500 font-medium shrink-0">
-                                                      ({stGroup.itens.length} {stGroup.itens.length === 1 ? 'item' : 'itens'})
-                                                    </span>
-                                                    <span className="text-slate-300 font-normal mx-1 hidden sm:inline">|</span>
-                                                    <span className="text-[10px] font-mono text-slate-600 shrink-0 hidden sm:inline">
-                                                      Ped: <strong className="text-slate-900">{stGroup.pedidosCount.toLocaleString('pt-BR')}</strong>
-                                                    </span>
-                                                  </div>
-
-                                                  {/* Métricas do Status travadas com a mesma largura das colunas superiores */}
-                                                  <div className="flex items-center divide-x divide-slate-200/80 shrink-0 text-[10px] font-mono font-bold text-slate-800">
-                                                    <div className="w-[80px] min-w-[80px] max-w-[80px] py-1.5 px-2 text-center whitespace-nowrap">
-                                                      {Math.round(stGroup.quantidade).toLocaleString('pt-BR')}
-                                                    </div>
-                                                    <div className="w-[90px] min-w-[90px] max-w-[90px] py-1.5 px-2 text-center whitespace-nowrap">
-                                                      <div className="grid grid-cols-[18px_1fr] items-center gap-1 w-[72px] mx-auto">
-                                                        <div className="flex justify-center items-center">
-                                                          {renderCubSemaforo(stGroup.cubagem)}
-                                                        </div>
-                                                        <span className="text-right font-bold text-slate-800">
-                                                          {stGroup.cubagem.toFixed(2)}
-                                                        </span>
-                                                      </div>
-                                                    </div>
-                                                    <div className="w-[110px] min-w-[110px] max-w-[110px] py-1.5 px-2 text-center whitespace-nowrap">
-                                                      <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
-                                                      <span>{stGroup.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                                    </div>
-                                                    <div className="w-[65px] min-w-[65px] max-w-[65px] py-1.5 px-2 text-center whitespace-nowrap">
-                                                      {Math.round(stGroup.pesoTotal).toLocaleString('pt-BR')}
-                                                    </div>
-                                                  </div>
-                                                </div>
-
-                                                {/* Tabela Direta dos Itens (Alinhada perfeitamente coluna por coluna) */}
-                                                {isStExpanded && (
-                                                  <div className="overflow-x-auto w-full select-text">
-                                                    <table className="w-full text-[10px] border-collapse bg-white select-text">
-                                                      <thead>
-                                                        <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
-                                                          <th className="py-1.5 px-2 text-center w-24">STATUS</th>
-                                                          <th className="py-1.5 px-2 text-center w-20">MODALIDADE</th>
-                                                          <th className="py-1.5 px-2 text-center w-28">LINHA</th>
-                                                          <th className="py-1.5 px-2 text-center w-20">CODMODAL</th>
-                                                          <th className="py-1.5 px-2 text-center w-24">PREVENTREGA</th>
-                                                          <th className="py-1.5 px-2 text-center w-24">NUMLOTE</th>
-                                                          <th className="py-1.5 px-2 text-center w-24">NUMPEDVEN</th>
-                                                          <th className="py-1.5 px-2 text-center w-20">ITEM</th>
-                                                          <th className="py-1.5 px-3 text-left">DESCRIÇÃO</th>
-                                                          <th className="py-1.5 px-2 text-center w-[80px] min-w-[80px] max-w-[80px]">QTD</th>
-                                                          <th className="py-1.5 px-2 text-center w-[90px] min-w-[90px] max-w-[90px]">CUBAGEM</th>
-                                                          <th className="py-1.5 px-2 text-center w-[110px] min-w-[110px] max-w-[110px]">VALOR$</th>
-                                                          <th className="py-1.5 px-2 text-center w-[65px] min-w-[65px] max-w-[65px]">PESO</th>
-                                                        </tr>
-                                                      </thead>
-                                                      <tbody className="divide-y divide-slate-100 font-sans">
-                                                        {stGroup.itens.map((det, dIdx) => (
-                                                          <tr key={`${det.item}-${det.numpedven}-${dIdx}`} className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100">
-                                                            <td className="py-1 px-2 text-center text-slate-700 font-medium">
-                                                              <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                                                                }`}>
-                                                                {det.statusOperacao}
-                                                              </span>
-                                                            </td>
-                                                            <td className="py-1 px-2 text-center font-bold text-slate-700">
-                                                              <span className="px-1.5 py-0.2 bg-slate-100 text-slate-800 border border-slate-200 rounded text-[9px]">
-                                                                {det.modalidade}
-                                                              </span>
-                                                            </td>
-                                                            <td className="py-1 px-2 text-center text-slate-700 font-medium truncate max-w-[130px]" title={det.linha}>
-                                                              {det.linha || '-'}
-                                                            </td>
-                                                            <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
-                                                              {det.codmodal || '-'}
-                                                            </td>
-                                                            <td className="py-1 px-2 text-center font-mono font-medium text-slate-700 whitespace-nowrap">
-                                                              {formatDateBR(det.preventrega)}
-                                                            </td>
-                                                            <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
-                                                              {det.numlote && det.numlote !== '-' ? det.numlote : '-'}
-                                                            </td>
-                                                            <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
-                                                              {det.numpedven || '-'}
-                                                            </td>
-                                                            <td className="py-1 px-2 text-center font-mono font-bold text-blue-700">
-                                                              {formatItemCode(det.item)}
-                                                            </td>
-                                                            <td className="py-1 px-3 text-slate-800 truncate max-w-xs" title={det.descricao}>
-                                                              {det.descricao || '-'}
-                                                            </td>
-                                                            <td className="py-1 px-2 text-center font-mono font-bold text-slate-800 w-[80px] min-w-[80px] max-w-[80px]">
-                                                              {det.quantidade}
-                                                            </td>
-                                                            <td className="py-1 px-2 text-center font-mono w-[90px] min-w-[90px] max-w-[90px]">
-                                                              <div className="grid grid-cols-[18px_1fr] items-center gap-1 w-[72px] mx-auto">
-                                                                <div className="flex justify-center items-center">
-                                                                  {renderCubSemaforo(det.cubagem)}
-                                                                </div>
-                                                                <span className="text-right font-bold text-slate-800">{det.cubagem.toFixed(2)}</span>
-                                                              </div>
-                                                            </td>
-                                                            <td className="py-1 px-2 text-center font-mono font-bold text-slate-800 w-[110px] min-w-[110px] max-w-[110px]">
-                                                              <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
-                                                              {det.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                            </td>
-                                                            <td className="py-1 px-2 text-center font-mono font-medium text-slate-700 w-[65px] min-w-[65px] max-w-[65px]">
-                                                              {Math.round(det.peso)}
-                                                            </td>
-                                                          </tr>
-                                                        ))}
-                                                      </tbody>
-                                                    </table>
-                                                  </div>
-                                                )}
-                                              </div>
-                                            )
-                                          })}
+                              {/* Linhas de Destino com suporte a expansão detalhada (visíveis se a região não estiver recolhida) */}
+                              {!isRegiaoCollapsed && group.destinos.map((dest, idx) => {
+                                const isExpanded = !!expandedDestinos[dest.destino]
+                                return (
+                                  <React.Fragment key={dest.destino}>
+                                    <tr
+                                      className={`transition-colors divide-x divide-slate-100 hover:bg-sky-50/50 ${isExpanded ? 'bg-blue-50/70' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                                        }`}
+                                      style={isExpanded ? { borderTop: '2px solid #0e3b66', borderLeft: '2px solid #0e3b66', borderRight: '2px solid #0e3b66' } : undefined}
+                                    >
+                                      <td className="py-1 px-2.5 text-slate-600 text-[10.5px] font-bold whitespace-nowrap">
+                                        {idx === 0 ? group.regiao : ''}
+                                      </td>
+                                      <td className="py-1 px-2.5 font-bold text-slate-800 text-[11px] whitespace-nowrap">
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleDestino(dest.destino)}
+                                          className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-600 transition-colors cursor-pointer"
+                                        >
+                                          <span className={`inline-flex items-center justify-center w-3 h-3 text-[9px] border rounded-xs leading-none shrink-0 font-mono font-bold select-none ${isExpanded ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-slate-100 text-slate-600'
+                                            }`}>
+                                            {isExpanded ? '-' : '+'}
+                                          </span>
+                                          <span className={isExpanded ? 'text-blue-700 font-extrabold select-text' : 'select-text'}>{dest.destino}</span>
+                                        </button>
+                                      </td>
+                                      <td className="py-1 px-2 text-center font-bold text-slate-700 text-[11px] whitespace-nowrap font-mono">
+                                        {dest.pedidosCount.toLocaleString('pt-BR')}
+                                      </td>
+                                      <td className="py-1 px-2 text-center font-bold text-slate-700 text-[11px] whitespace-nowrap font-mono w-[80px] min-w-[80px] max-w-[80px]">
+                                        {Math.round(dest.quantidade).toLocaleString('pt-BR')}
+                                      </td>
+                                      <td className="py-1 px-2 text-center text-[11px] whitespace-nowrap font-mono w-[90px] min-w-[90px] max-w-[90px]">
+                                        <div className="grid grid-cols-[18px_1fr] items-center gap-1 w-[72px] mx-auto">
+                                          <div className="flex justify-center items-center">
+                                            {renderCubSemaforo(dest.cubagem)}
+                                          </div>
+                                          <span className="text-right font-bold text-slate-800">
+                                            {dest.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </span>
                                         </div>
                                       </td>
+                                      <td className="py-1 px-2 text-center text-[11px] whitespace-nowrap font-mono w-[110px] min-w-[110px] max-w-[110px]">
+                                        <div className="inline-flex items-center justify-center gap-1 w-full font-bold text-slate-800">
+                                          <span className="text-slate-400 font-normal text-[9.5px]">R$</span>
+                                          <span>{dest.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                        </div>
+                                      </td>
+                                      <td className="py-1 px-2 text-center text-[11px] text-slate-700 font-bold whitespace-nowrap font-mono w-[65px] min-w-[65px] max-w-[65px]">
+                                        {Math.round(dest.pesoTotal).toLocaleString('pt-BR')}
+                                      </td>
                                     </tr>
-                                  )}
-                                </React.Fragment>
-                              )
-                            })}
 
-                            {/* Subtotal da Região (Ex: CAPITAL TOTAL) - SÓ EXIBE SE A REGIÃO ESTIVER EXPANDIDA */}
-                            {!isRegiaoCollapsed && (
-                              <tr className="bg-slate-100/90 text-slate-900 font-black border-y border-slate-200 divide-x divide-slate-200">
-                                <td colSpan={2} className="py-1 px-2.5 tracking-wide uppercase text-[10.5px] font-black whitespace-nowrap text-slate-900">
-                                  {group.regiao} TOTAL
-                                </td>
-                                <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
-                                  {group.totalPedidos.toLocaleString('pt-BR')}
-                                </td>
-                                <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono w-[80px] min-w-[80px] max-w-[80px]">
-                                  {Math.round(group.totalQtd).toLocaleString('pt-BR')}
-                                </td>
-                                <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono w-[90px] min-w-[90px] max-w-[90px]">
-                                  <div className="grid grid-cols-[18px_1fr] items-center gap-1 w-[72px] mx-auto">
-                                    <div className="flex justify-center items-center">
-                                      {renderCubSemaforo(group.totalCub)}
+                                    {/* DETALHAMENTO EXPANDIDO (Hierarquia: Status do Lote -> Itens Diretos com Colunas Perfeitamente Alinhadas) */}
+                                    {isExpanded && (
+                                      <tr>
+                                        <td colSpan={7} className="p-0 bg-slate-50/40">
+                                          <div className="w-full border-b-2 border-x-2 border-[#0e3b66] divide-y divide-slate-200">
+                                            {dest.statusGroups.map((stGroup) => {
+                                              const stKey = `${dest.destino}__${stGroup.status}`
+                                              const isStExpanded = !!expandedStatusLotes[stKey]
+
+                                              return (
+                                                <div key={stKey} className="w-full bg-white overflow-hidden">
+                                                  {/* Cabeçalho do Status do Lote (Alinhado exatamente com o cabeçalho pai) */}
+                                                  <div
+                                                    onClick={() => toggleStatusLote(stKey)}
+                                                    className={`transition-colors cursor-pointer flex items-center justify-between border-b border-slate-200 ${stGroup.status === 'EM CARTEIRA'
+                                                      ? 'bg-blue-50/90 hover:bg-blue-100/90 text-blue-950'
+                                                      : 'bg-amber-50/90 hover:bg-amber-100/90 text-amber-950'
+                                                      }`}
+                                                  >
+                                                    <div className="flex items-center gap-2 pl-4 sm:pl-6 py-2 flex-1 min-w-0">
+                                                      <span className={`inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none font-mono font-black shrink-0 ${isStExpanded
+                                                        ? (stGroup.status === 'EM CARTEIRA' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-amber-600 border-amber-600 text-white')
+                                                        : 'border-slate-400 bg-white text-slate-700'
+                                                        }`}>
+                                                        {isStExpanded ? '-' : '+'}
+                                                      </span>
+                                                      <span className="text-[11px] font-black uppercase tracking-wide truncate">
+                                                        Status: {stGroup.status}
+                                                      </span>
+                                                      <span className="text-[10px] text-slate-500 font-medium shrink-0">
+                                                        ({stGroup.itens.length} {stGroup.itens.length === 1 ? 'item' : 'itens'})
+                                                      </span>
+                                                      <span className="text-slate-300 font-normal mx-1 hidden sm:inline">|</span>
+                                                      <span className="text-[10px] font-mono text-slate-600 shrink-0 hidden sm:inline">
+                                                        Ped: <strong className="text-slate-900">{stGroup.pedidosCount.toLocaleString('pt-BR')}</strong>
+                                                      </span>
+                                                    </div>
+
+                                                    {/* Métricas do Status travadas com a mesma largura das colunas superiores */}
+                                                    <div className="flex items-center divide-x divide-slate-200/80 shrink-0 text-[10px] font-mono font-bold text-slate-800">
+                                                      <div className="w-[80px] min-w-[80px] max-w-[80px] py-1.5 px-2 text-center whitespace-nowrap">
+                                                        {Math.round(stGroup.quantidade).toLocaleString('pt-BR')}
+                                                      </div>
+                                                      <div className="w-[90px] min-w-[90px] max-w-[90px] py-1.5 px-2 text-center whitespace-nowrap">
+                                                        <div className="grid grid-cols-[18px_1fr] items-center gap-1 w-[72px] mx-auto">
+                                                          <div className="flex justify-center items-center">
+                                                            {renderCubSemaforo(stGroup.cubagem)}
+                                                          </div>
+                                                          <span className="text-right font-bold text-slate-800">
+                                                            {stGroup.cubagem.toFixed(2)}
+                                                          </span>
+                                                        </div>
+                                                      </div>
+                                                      <div className="w-[110px] min-w-[110px] max-w-[110px] py-1.5 px-2 text-center whitespace-nowrap">
+                                                        <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
+                                                        <span>{stGroup.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                      </div>
+                                                      <div className="w-[65px] min-w-[65px] max-w-[65px] py-1.5 px-2 text-center whitespace-nowrap">
+                                                        {Math.round(stGroup.pesoTotal).toLocaleString('pt-BR')}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+
+                                                  {/* Tabela Direta dos Itens (Alinhada perfeitamente coluna por coluna) */}
+                                                  {isStExpanded && (
+                                                    <div className="overflow-x-auto w-full select-text">
+                                                      <table className="w-full text-[10px] border-collapse bg-white select-text">
+                                                        <thead>
+                                                          <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
+                                                            <th className="py-1.5 px-2 text-center w-24">STATUS</th>
+                                                            <th className="py-1.5 px-2 text-center w-20">MODALIDADE</th>
+                                                            <th className="py-1.5 px-2 text-center w-28">LINHA</th>
+                                                            <th className="py-1.5 px-2 text-center w-20">CODMODAL</th>
+                                                            <th className="py-1.5 px-2 text-center w-24">PREVENTREGA</th>
+                                                            <th className="py-1.5 px-2 text-center w-24">NUMLOTE</th>
+                                                            <th className="py-1.5 px-2 text-center w-24">NUMPEDVEN</th>
+                                                            <th className="py-1.5 px-2 text-center w-20">ITEM</th>
+                                                            <th className="py-1.5 px-3 text-left">DESCRIÇÃO</th>
+                                                            <th className="py-1.5 px-2 text-center w-[80px] min-w-[80px] max-w-[80px]">QTD</th>
+                                                            <th className="py-1.5 px-2 text-center w-[90px] min-w-[90px] max-w-[90px]">CUBAGEM</th>
+                                                            <th className="py-1.5 px-2 text-center w-[110px] min-w-[110px] max-w-[110px]">VALOR$</th>
+                                                            <th className="py-1.5 px-2 text-center w-[65px] min-w-[65px] max-w-[65px]">PESO</th>
+                                                          </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100 font-sans">
+                                                          {stGroup.itens.map((det, dIdx) => (
+                                                            <tr key={`${det.item}-${det.numpedven}-${dIdx}`} className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100">
+                                                              <td className="py-1 px-2 text-center text-slate-700 font-medium">
+                                                                <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                                                                  }`}>
+                                                                  {det.statusOperacao}
+                                                                </span>
+                                                              </td>
+                                                              <td className="py-1 px-2 text-center font-bold text-slate-700">
+                                                                <span className="px-1.5 py-0.2 bg-slate-100 text-slate-800 border border-slate-200 rounded text-[9px]">
+                                                                  {det.modalidade}
+                                                                </span>
+                                                              </td>
+                                                              <td className="py-1 px-2 text-center text-slate-700 font-medium truncate max-w-[130px]" title={det.linha}>
+                                                                {det.linha || '-'}
+                                                              </td>
+                                                              <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                                {det.codmodal || '-'}
+                                                              </td>
+                                                              <td className="py-1 px-2 text-center font-mono font-medium text-slate-700 whitespace-nowrap">
+                                                                {formatDateBR(det.preventrega)}
+                                                              </td>
+                                                              <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                                {det.numlote && det.numlote !== '-' ? det.numlote : '-'}
+                                                              </td>
+                                                              <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                                {det.numpedven || '-'}
+                                                              </td>
+                                                              <td className="py-1 px-2 text-center font-mono font-bold text-blue-700">
+                                                                {formatItemCode(det.item)}
+                                                              </td>
+                                                              <td className="py-1 px-3 text-slate-800 truncate max-w-xs" title={det.descricao}>
+                                                                {det.descricao || '-'}
+                                                              </td>
+                                                              <td className="py-1 px-2 text-center font-mono font-bold text-slate-800 w-[80px] min-w-[80px] max-w-[80px]">
+                                                                {det.quantidade}
+                                                              </td>
+                                                              <td className="py-1 px-2 text-center font-mono w-[90px] min-w-[90px] max-w-[90px]">
+                                                                <div className="grid grid-cols-[18px_1fr] items-center gap-1 w-[72px] mx-auto">
+                                                                  <div className="flex justify-center items-center">
+                                                                    {renderCubSemaforo(det.cubagem)}
+                                                                  </div>
+                                                                  <span className="text-right font-bold text-slate-800">{det.cubagem.toFixed(2)}</span>
+                                                                </div>
+                                                              </td>
+                                                              <td className="py-1 px-2 text-center font-mono font-bold text-slate-800 w-[110px] min-w-[110px] max-w-[110px]">
+                                                                <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
+                                                                {det.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                              </td>
+                                                              <td className="py-1 px-2 text-center font-mono font-medium text-slate-700 w-[65px] min-w-[65px] max-w-[65px]">
+                                                                {Math.round(det.peso)}
+                                                              </td>
+                                                            </tr>
+                                                          ))}
+                                                        </tbody>
+                                                      </table>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              )
+                                            })}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </React.Fragment>
+                                )
+                              })}
+
+                              {/* Subtotal da Região (Ex: CAPITAL TOTAL) - SÓ EXIBE SE A REGIÃO ESTIVER EXPANDIDA */}
+                              {!isRegiaoCollapsed && (
+                                <tr className="bg-slate-100/90 text-slate-900 font-black border-y border-slate-200 divide-x divide-slate-200">
+                                  <td colSpan={2} className="py-1 px-2.5 tracking-wide uppercase text-[10.5px] font-black whitespace-nowrap text-slate-900">
+                                    {group.regiao} TOTAL
+                                  </td>
+                                  <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
+                                    {group.totalPedidos.toLocaleString('pt-BR')}
+                                  </td>
+                                  <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono w-[80px] min-w-[80px] max-w-[80px]">
+                                    {Math.round(group.totalQtd).toLocaleString('pt-BR')}
+                                  </td>
+                                  <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono w-[90px] min-w-[90px] max-w-[90px]">
+                                    <div className="grid grid-cols-[18px_1fr] items-center gap-1 w-[72px] mx-auto">
+                                      <div className="flex justify-center items-center">
+                                        {renderCubSemaforo(group.totalCub)}
+                                      </div>
+                                      <span className="text-right text-slate-900 font-black">
+                                        {group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
                                     </div>
-                                    <span className="text-right text-slate-900 font-black">
-                                      {group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono w-[110px] min-w-[110px] max-w-[110px]">
-                                  <div className="inline-flex items-center justify-center gap-1 w-full text-slate-900">
-                                    <span className="text-slate-500 font-normal text-[9.5px]">R$</span>
-                                    <span className="text-slate-900">
-                                      {group.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono w-[65px] min-w-[65px] max-w-[65px]">
-                                  {Math.round(group.totalPeso).toLocaleString('pt-BR')}
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
-                        )
-                      })}
+                                  </td>
+                                  <td className="py-1 px-2 text-center text-[10.5px] whitespace-nowrap font-black font-mono w-[110px] min-w-[110px] max-w-[110px]">
+                                    <div className="inline-flex items-center justify-center gap-1 w-full text-slate-900">
+                                      <span className="text-slate-500 font-normal text-[9.5px]">R$</span>
+                                      <span className="text-slate-900">
+                                        {group.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono w-[65px] min-w-[65px] max-w-[65px]">
+                                    {Math.round(group.totalPeso).toLocaleString('pt-BR')}
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          )
+                        })}
 
-                      {/* Total Geral Consolidado */}
-                      <tr className="bg-slate-200/90 text-slate-950 font-black text-[11px] border-t-2 border-slate-300 divide-x divide-slate-300">
-                        <td colSpan={2} className="py-1.5 px-2.5 uppercase tracking-wider whitespace-nowrap font-black">
-                          Total Geral
-                        </td>
-                        <td className="py-1.5 px-2 text-center text-slate-950 whitespace-nowrap font-mono font-black">
-                          {geralPedidos.toLocaleString('pt-BR')}
-                        </td>
-                        <td className="py-1.5 px-2 text-center text-slate-950 whitespace-nowrap font-mono font-black w-[80px] min-w-[80px] max-w-[80px]">
-                          {Math.round(geralQtd).toLocaleString('pt-BR')}
-                        </td>
-                        <td className="py-1.5 px-2 text-center whitespace-nowrap font-mono font-black w-[90px] min-w-[90px] max-w-[90px]">
-                          <div className="grid grid-cols-[18px_1fr] items-center gap-1 w-[72px] mx-auto">
-                            <div className="flex justify-center items-center">
-                              {renderCubSemaforo(geralCub)}
+                        {/* Total Geral Consolidado */}
+                        <tr className="bg-slate-200/90 text-slate-950 font-black text-[11px] border-t-2 border-slate-300 divide-x divide-slate-300">
+                          <td colSpan={2} className="py-1.5 px-2.5 uppercase tracking-wider whitespace-nowrap font-black">
+                            Total Geral
+                          </td>
+                          <td className="py-1.5 px-2 text-center text-slate-950 whitespace-nowrap font-mono font-black">
+                            {geralPedidos.toLocaleString('pt-BR')}
+                          </td>
+                          <td className="py-1.5 px-2 text-center text-slate-950 whitespace-nowrap font-mono font-black w-[80px] min-w-[80px] max-w-[80px]">
+                            {Math.round(geralQtd).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="py-1.5 px-2 text-center whitespace-nowrap font-mono font-black w-[90px] min-w-[90px] max-w-[90px]">
+                            <div className="grid grid-cols-[18px_1fr] items-center gap-1 w-[72px] mx-auto">
+                              <div className="flex justify-center items-center">
+                                {renderCubSemaforo(geralCub)}
+                              </div>
+                              <span className="text-right text-slate-950 font-black">
+                                {geralCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
                             </div>
-                            <span className="text-right text-slate-950 font-black">
-                              {geralCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-1.5 px-2 text-center whitespace-nowrap font-mono font-black w-[110px] min-w-[110px] max-w-[110px]">
-                          <div className="inline-flex items-center justify-center gap-1 w-full">
-                            <span className="text-slate-500 font-normal text-[9.5px]">R$</span>
-                            <span>{geralValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-                        </td>
-                        <td className="py-1.5 px-2 text-center text-slate-950 whitespace-nowrap font-mono font-black w-[65px] min-w-[65px] max-w-[65px]">
-                          {Math.round(geralPeso).toLocaleString('pt-BR')}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                          </td>
+                          <td className="py-1.5 px-2 text-center whitespace-nowrap font-mono font-black w-[110px] min-w-[110px] max-w-[110px]">
+                            <div className="inline-flex items-center justify-center gap-1 w-full">
+                              <span className="text-slate-500 font-normal text-[9.5px]">R$</span>
+                              <span>{geralValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                          </td>
+                          <td className="py-1.5 px-2 text-center text-slate-950 whitespace-nowrap font-mono font-black w-[65px] min-w-[65px] max-w-[65px]">
+                            {Math.round(geralPeso).toLocaleString('pt-BR')}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 ) : (
                   /* TABELA COMPARATIVA POR DESTINO (CARTEIRA X PROCESSO) */
                   <div className="w-full overflow-x-auto select-text">
@@ -3400,9 +3456,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                           comparativeDestinos.map((row, idx) => (
                             <tr
                               key={row.destino}
-                              className={`divide-x divide-slate-100 transition-colors hover:bg-blue-50/50 ${
-                                idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                              }`}
+                              className={`divide-x divide-slate-100 transition-colors hover:bg-blue-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                                }`}
                             >
                               {/* DESTINO */}
                               <td className="py-1.5 px-3 font-semibold text-slate-800 whitespace-nowrap text-left">
