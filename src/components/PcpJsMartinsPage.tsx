@@ -40,6 +40,9 @@ import {
   getAllPcpSummaryItems,
   clearPcpPlanningCache,
   setPcpPlanningCache,
+  forceClearAllPcpCaches,
+  fetchPcpAuxParams,
+  savePcpAuxParams,
   triggerOracleSync,
   getOracleSyncStatus,
   type OracleSyncStatus,
@@ -421,12 +424,27 @@ export const PcpJsMartinsPage: React.FC = () => {
     setExpandedStatusLotes(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
-  // Sincronizar parâmetros
+  // Carregar parâmetros centrais de Cadastros Auxiliares do Supabase na inicialização
+  useEffect(() => {
+    fetchPcpAuxParams().then(({ filialRotas, modais }) => {
+      if (filialRotas && filialRotas.length > 0) {
+        setFilialRotaParams(filialRotas)
+        try { localStorage.setItem('magalog_pcp_filial_rotas_params', JSON.stringify(filialRotas)) } catch { }
+      }
+      if (modais && modais.length > 0) {
+        setModalParams(modais)
+        try { localStorage.setItem('magalog_pcp_modal_params', JSON.stringify(modais)) } catch { }
+      }
+    }).catch(() => { })
+  }, [])
+
+  // Sincronizar parâmetros (local + Supabase para todos os usuários)
   const saveModalParams = (list: ModalParamItem[]) => {
     setModalParams(list)
     try {
       localStorage.setItem('magalog_pcp_modal_params', JSON.stringify(list))
     } catch { }
+    savePcpAuxParams('modais', list).catch(() => { })
   }
 
   const saveFilialRotaParams = (list: FilialRotaParamItem[]) => {
@@ -434,6 +452,7 @@ export const PcpJsMartinsPage: React.FC = () => {
     try {
       localStorage.setItem('magalog_pcp_filial_rotas_params', JSON.stringify(list))
     } catch { }
+    savePcpAuxParams('filial_rotas', list).catch(() => { })
   }
 
   const handleAddParam = () => {
@@ -743,12 +762,12 @@ export const PcpJsMartinsPage: React.FC = () => {
           const filEntregaKey = String(item.filentrega || '').trim().toUpperCase()
           const rotaKey = String(item.descricaorota || '').trim().toUpperCase()
 
-          if (isAba) {
-            // Prioridade máxima para FILENTREGA se Modalidade for ABA
-            rotaInfo = rotaMap[filEntregaKey] || rotaMap[rotaKey] || { destino: '-', regiao: '-' }
-          } else {
-            // Outras modalidades priorizam a rota
-            rotaInfo = rotaMap[rotaKey] || rotaMap[filEntregaKey] || { destino: '-', regiao: '-' }
+          if (filEntregaKey && rotaMap[filEntregaKey] && rotaMap[filEntregaKey].destino !== '-') {
+            // Prioridade máxima para o polo/filial de entrega oficial (ex: 1349 -> 1349-Limoeiro QUI)
+            rotaInfo = rotaMap[filEntregaKey]
+          } else if (rotaKey && rotaMap[rotaKey] && rotaMap[rotaKey].destino !== '-') {
+            // Se não houver filial cadastrada, usa o mapeamento da rota
+            rotaInfo = rotaMap[rotaKey]
           }
 
           const tipoModalCalc = getTipoModal(modalidadeCalc)
@@ -798,10 +817,10 @@ export const PcpJsMartinsPage: React.FC = () => {
           const filEntregaKey = String(r.filentrega || r.FILENTREGA || '').trim().toUpperCase()
           const rotaKey = String(r.descricaorota || r.DESCRICAOROTA || '').trim().toUpperCase()
 
-          if (isAba) {
-            rotaInfo = rotaMap[filEntregaKey] || rotaMap[rotaKey] || { destino: '-', regiao: '-' }
-          } else {
-            rotaInfo = rotaMap[rotaKey] || rotaMap[filEntregaKey] || { destino: '-', regiao: '-' }
+          if (filEntregaKey && rotaMap[filEntregaKey] && rotaMap[filEntregaKey].destino !== '-') {
+            rotaInfo = rotaMap[filEntregaKey]
+          } else if (rotaKey && rotaMap[rotaKey] && rotaMap[rotaKey].destino !== '-') {
+            rotaInfo = rotaMap[rotaKey]
           }
 
           return {
@@ -2034,12 +2053,12 @@ export const PcpJsMartinsPage: React.FC = () => {
           const filEntregaKey = String(r.filentrega || r.FILENTREGA || '').trim().toUpperCase()
           const rotaKey = String(r.descricaorota || r.DESCRICAOROTA || '').trim().toUpperCase()
 
-          if (isAba) {
-            // Se modalidade for ABA, busca com prioridade máxima pelo código da FILENTREGA no cadastro
-            rotaInfo = rotaMap[filEntregaKey] || rotaMap[rotaKey] || { destino: '-', regiao: '-' }
-          } else {
-            // Outras modalidades buscam pela rota cadastrada primeiro
-            rotaInfo = rotaMap[rotaKey] || rotaMap[filEntregaKey] || { destino: '-', regiao: '-' }
+          if (filEntregaKey && rotaMap[filEntregaKey] && rotaMap[filEntregaKey].destino !== '-') {
+            // Prioridade máxima para o polo/filial de entrega oficial (ex: 1349 -> 1349-Limoeiro QUI)
+            rotaInfo = rotaMap[filEntregaKey]
+          } else if (rotaKey && rotaMap[rotaKey] && rotaMap[rotaKey].destino !== '-') {
+            // Se não houver filial cadastrada, usa o mapeamento da rota
+            rotaInfo = rotaMap[rotaKey]
           }
 
           const regiao = rotaInfo.regiao !== '-' ? rotaInfo.regiao : 'INTERIOR'
@@ -2554,9 +2573,13 @@ export const PcpJsMartinsPage: React.FC = () => {
                       </strong>
                       <button
                         type="button"
-                        onClick={() => loadPlanningData(true)}
+                        onClick={async () => {
+                          await forceClearAllPcpCaches()
+                          await loadPlanningData(true)
+                          await refreshLastSyncTimestamp()
+                        }}
                         disabled={isLoadingPlanning}
-                        title="Recarregar dados mais recentes da nuvem agora"
+                        title="Limpar cache local e forçar recarregamento completo da nuvem"
                         className="ml-0.5 p-0.5 rounded text-slate-400 hover:text-blue-600 hover:bg-slate-200 transition-colors cursor-pointer"
                       >
                         <RefreshCw size={11} className={isLoadingPlanning ? 'animate-spin text-blue-600' : ''} />

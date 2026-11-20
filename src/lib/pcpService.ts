@@ -139,11 +139,11 @@ export async function getPcpItemsReport(params: PcpQueryParams): Promise<PcpQuer
 // CAMADA DE PERSISTÊNCIA INDEXEDDB PARA PCP (CARREGAMENTO INSTANTÂNEO 0MS)
 // ---------------------------------------------------------------------------
 const PCP_DB_NAME = 'MagalogPcpCacheDB'
-const PCP_DB_VERSION = 3
+const PCP_DB_VERSION = 4
 const PCP_STORE_NAME = 'pcp_planning_store'
-const KEY_PLANNING_DATA = 'cached_planning_items_v4'
-const KEY_TIMESTAMP = 'cached_timestamp_v4'
-const KEY_SYNC_VERSION = 'cached_sync_version_v4'
+const KEY_PLANNING_DATA = 'cached_planning_items_v5'
+const KEY_TIMESTAMP = 'cached_timestamp_v5'
+const KEY_SYNC_VERSION = 'cached_sync_version_v5'
 
 function openPcpDB(): Promise<IDBDatabase | null> {
   return new Promise((resolve) => {
@@ -252,6 +252,17 @@ export async function clearPcpPlanningCache() {
   })
 }
 
+// Limpeza profunda de caches em todos os níveis (IndexedDB + localStorage + memória)
+export async function forceClearAllPcpCaches(): Promise<void> {
+  cachedPlanningData = null
+  cachedSyncVersion = null
+  cacheTimestamp = 0
+  try {
+    localStorage.removeItem('magalog_pcp_js_martins_data')
+  } catch { }
+  await clearPcpPlanningCache()
+}
+
 async function fetchSummaryFromSupabase(knownSyncVersion?: string): Promise<PcpItem[]> {
   const batchSize = 1000
 
@@ -293,6 +304,7 @@ async function fetchSummaryFromSupabase(knownSyncVersion?: string): Promise<PcpI
       supabase
         .from('pcp_js_martins')
         .select('*')
+        .order('id', { ascending: true })
         .range(from, from + batchSize - 1)
         .then(res => {
           if (res.error) {
@@ -508,5 +520,61 @@ export async function getOracleSyncStatus(): Promise<OracleSyncStatus> {
     return { status: 'unknown' }
   } catch {
     return { status: 'unknown' }
+  }
+}
+
+// =========================================================================
+// SINCRONIZAÇÃO CENTRAL DE CADASTROS AUXILIARES (DE-PARA DE ROTAS E MODAIS)
+// =========================================================================
+
+export async function fetchPcpAuxParams(): Promise<{
+  filialRotas?: any[]
+  modais?: any[]
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('performance_metrics')
+      .select('cell_key, value')
+      .in('cell_key', ['pcp_filial_rotas_params', 'pcp_modal_params'])
+
+    if (error || !data) return {}
+
+    const result: { filialRotas?: any[]; modais?: any[] } = {}
+    for (const row of data) {
+      if (row.cell_key === 'pcp_filial_rotas_params' && row.value) {
+        try {
+          const parsed = JSON.parse(row.value)
+          if (Array.isArray(parsed) && parsed.length > 0) result.filialRotas = parsed
+        } catch { }
+      } else if (row.cell_key === 'pcp_modal_params' && row.value) {
+        try {
+          const parsed = JSON.parse(row.value)
+          if (Array.isArray(parsed) && parsed.length > 0) result.modais = parsed
+        } catch { }
+      }
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
+
+export async function savePcpAuxParams(
+  type: 'filial_rotas' | 'modais',
+  data: any[]
+): Promise<boolean> {
+  try {
+    const cell_key = type === 'filial_rotas' ? 'pcp_filial_rotas_params' : 'pcp_modal_params'
+    const payload = {
+      cell_key,
+      value: JSON.stringify(data),
+      updated_at: new Date().toISOString()
+    }
+    const { error } = await supabase
+      .from('performance_metrics')
+      .upsert(payload, { onConflict: 'cell_key' })
+    return !error
+  } catch {
+    return false
   }
 }
