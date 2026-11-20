@@ -365,6 +365,37 @@ export const PcpJsMartinsPage: React.FC = () => {
       localStorage.setItem('magalog_pcp_plan_search', planSearchTerm)
     } catch { }
   }, [planFilterRegiao, planFilterModalidade, planFilterTipoModal, planFilterFllibfat, planFilterStatusOp, planFilterLinha, planSearchTerm])
+
+  // Alternância de visualização dos painéis: 'regiao' (Quadro por Região) | 'comparativo' (Visão Comparativa por Destino)
+  const [planViewMode, setPlanViewMode] = useState<'regiao' | 'comparativo'>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_pcp_plan_view_mode')
+      return saved === 'comparativo' ? 'comparativo' : 'regiao'
+    } catch {
+      return 'regiao'
+    }
+  })
+
+  // Sincronizar modo de visualização com localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('magalog_pcp_plan_view_mode', planViewMode)
+    } catch { }
+  }, [planViewMode])
+
+  // Ordenação da Visão Comparativa (padrão: Cubagem da Carteira decrescente)
+  const [compSortField, setCompSortField] = useState<'destino' | 'carteiraQtd' | 'carteiraCub' | 'processoQtd' | 'processoCub' | 'totalQtd' | 'totalCub'>('carteiraCub')
+  const [compSortAsc, setCompSortAsc] = useState<boolean>(false)
+
+  const handleCompSort = (field: 'destino' | 'carteiraQtd' | 'carteiraCub' | 'processoQtd' | 'processoCub' | 'totalQtd' | 'totalCub') => {
+    if (compSortField === field) {
+      setCompSortAsc(prev => !prev)
+    } else {
+      setCompSortField(field)
+      setCompSortAsc(field === 'destino' ? true : false)
+    }
+  }
+
   // Controle de destinos expandidos no Planejamento
   const [expandedDestinos, setExpandedDestinos] = useState<Record<string, boolean>>({})
   // Controle de regiões recolhidas no Planejamento
@@ -1944,7 +1975,7 @@ export const PcpJsMartinsPage: React.FC = () => {
         const uniqueLinhas = ['TODOS', ...Array.from(new Set(allRows.map(r => String(r.linha || r.LINHA || '')))).filter(Boolean).sort()]
 
         // Enriquecer e filtrar a base conforme filtros da aba Planejamento
-        const enrichedFiltered = allRows.map((r: any) => {
+        const enrichedBase = allRows.map((r: any) => {
           const cod = String(r.codmodal || r.CODMODAL || '').trim().toUpperCase()
           const modalidade = modalMap[cod] || String(r.descricaomodal || r.DESCRICAOMODAL || '-')
           const isAba = modalidade.trim().toUpperCase() === 'ABA'
@@ -1994,7 +2025,9 @@ export const PcpJsMartinsPage: React.FC = () => {
               return (ps > 0 && qt > 0) ? (ps * qt) : (Number(r.pesoliq || r.PESOLIQ) || 0)
             })()
           }
-        }).filter(r => {
+        })
+
+        const enrichedFiltered = enrichedBase.filter(r => {
           if (planFilterRegiao !== 'TODOS' && r.calc_regiao !== planFilterRegiao) return false
           if (planFilterModalidade !== 'TODOS' && r.calc_modalidade !== planFilterModalidade) return false
           if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
@@ -2008,6 +2041,23 @@ export const PcpJsMartinsPage: React.FC = () => {
             })
             if (!matchStatus) return false
           }
+          if (planFilterLinha !== 'TODOS' && r.calc_linha !== planFilterLinha) return false
+          if (planSearchTerm.trim()) {
+            const term = planSearchTerm.toLowerCase()
+            const matchDest = r.calc_destino.toLowerCase().includes(term)
+            const matchReg = r.calc_regiao.toLowerCase().includes(term)
+            const matchPed = r.calc_ped.toLowerCase().includes(term)
+            if (!matchDest && !matchReg && !matchPed) return false
+          }
+          return true
+        })
+
+        // Base para a Visão Comparativa (sempre mantém Carteira + Processo para o comparativo lado a lado)
+        const enrichedForComparative = enrichedBase.filter(r => {
+          if (planFilterRegiao !== 'TODOS' && r.calc_regiao !== planFilterRegiao) return false
+          if (planFilterModalidade !== 'TODOS' && r.calc_modalidade !== planFilterModalidade) return false
+          if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
+          if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return false
           if (planFilterLinha !== 'TODOS' && r.calc_linha !== planFilterLinha) return false
           if (planSearchTerm.trim()) {
             const term = planSearchTerm.toLowerCase()
@@ -2319,6 +2369,94 @@ export const PcpJsMartinsPage: React.FC = () => {
               }}
             />
           )
+        }
+
+        // ------------------------------------------------------------
+        // Cálculo da Visão Comparativa por Destino (Carteira vs Processo)
+        // ------------------------------------------------------------
+        interface ComparativeDestinoItem {
+          destino: string
+          regiao: string
+          pedidosSet: Set<string>
+          carteiraQtd: number
+          carteiraCub: number
+          processoQtd: number
+          processoCub: number
+          totalQtd: number
+          totalCub: number
+          totalValor: number
+          totalPeso: number
+        }
+
+        const compDestMap = new Map<string, ComparativeDestinoItem>()
+        const compGeralPedidosSet = new Set<string>()
+
+        enrichedForComparative.forEach(row => {
+          const dest = row.calc_destino || 'OUTROS'
+          const reg = row.calc_regiao || 'INTERIOR'
+          const rawSt = String(row.calc_status_op || row.status_operacao || row.STATUS_OPERACAO || '').toUpperCase().trim()
+          const isProcesso = rawSt.includes('PROCESSO')
+
+          if (!compDestMap.has(dest)) {
+            compDestMap.set(dest, {
+              destino: dest,
+              regiao: reg,
+              pedidosSet: new Set<string>(),
+              carteiraQtd: 0,
+              carteiraCub: 0,
+              processoQtd: 0,
+              processoCub: 0,
+              totalQtd: 0,
+              totalCub: 0,
+              totalValor: 0,
+              totalPeso: 0
+            })
+          }
+
+          const item = compDestMap.get(dest)!
+          const qtd = row.calc_qtd || 0
+          const cub = row.calc_cub || 0
+          const vltotal = row.calc_vltotal || 0
+          const peso = row.calc_peso || 0
+
+          if (row.calc_ped) {
+            item.pedidosSet.add(row.calc_ped)
+            compGeralPedidosSet.add(row.calc_ped)
+          }
+
+          if (isProcesso) {
+            item.processoQtd += qtd
+            item.processoCub += cub
+          } else {
+            item.carteiraQtd += qtd
+            item.carteiraCub += cub
+          }
+          item.totalQtd += qtd
+          item.totalCub += cub
+          item.totalValor += vltotal
+          item.totalPeso += peso
+        })
+
+        const comparativeDestinos = Array.from(compDestMap.values()).sort((a, b) => {
+          let diff = 0
+          if (compSortField === 'destino') {
+            diff = a.destino.localeCompare(b.destino)
+          } else {
+            diff = (a[compSortField] as number) - (b[compSortField] as number)
+          }
+          return compSortAsc ? diff : -diff
+        })
+
+        const compTotals = {
+          carteiraQtd: comparativeDestinos.reduce((acc, d) => acc + d.carteiraQtd, 0),
+          carteiraCub: comparativeDestinos.reduce((acc, d) => acc + d.carteiraCub, 0),
+          processoQtd: comparativeDestinos.reduce((acc, d) => acc + d.processoQtd, 0),
+          processoCub: comparativeDestinos.reduce((acc, d) => acc + d.processoCub, 0),
+          totalQtd: comparativeDestinos.reduce((acc, d) => acc + d.totalQtd, 0),
+          totalCub: comparativeDestinos.reduce((acc, d) => acc + d.totalCub, 0),
+          totalValor: comparativeDestinos.reduce((acc, d) => acc + d.totalValor, 0),
+          totalPeso: comparativeDestinos.reduce((acc, d) => acc + d.totalPeso, 0),
+          totalPedidos: compGeralPedidosSet.size || comparativeDestinos.reduce((acc, d) => acc + d.pedidosSet.size, 0)
         }
 
         return (
@@ -2685,18 +2823,57 @@ export const PcpJsMartinsPage: React.FC = () => {
             <div className="flex flex-col xl:flex-row gap-5 items-start w-full">
               {/* CANTO ESQUERDO (TABELA COM O TEMA MODERNO BLUE/SLATE CLEAN) */}
               <div className="w-full xl:w-auto xl:min-w-[780px] 2xl:min-w-[840px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
-                <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d]">
+                <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d] gap-2 flex-wrap sm:flex-nowrap">
                   <div className="flex items-center gap-2">
-                    <FileSpreadsheet size={15} className="text-sky-300" />
-                    <span className="text-[11px] font-black tracking-wide uppercase">Quadro Consolidado por Destino & Região</span>
+                    <FileSpreadsheet size={15} className="text-sky-300 shrink-0" />
+                    <span className="text-[11px] font-black tracking-wide uppercase">
+                      {planViewMode === 'regiao' ? 'Quadro Consolidado por Destino & Região' : 'Visão Comparativa por Destino'}
+                    </span>
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#164e85] text-sky-100 border border-sky-500/30 font-bold">
-                    {regiaoGroups.reduce((acc, g) => acc + g.destinos.length, 0)} destinos
-                  </span>
+
+                  <div className="flex items-center gap-2">
+                    {/* Botão de Alternância de Visão */}
+                    <div className="flex items-center bg-[#072440] p-0.5 rounded-lg border border-sky-400/25 shadow-xs">
+                      <button
+                        type="button"
+                        onClick={() => setPlanViewMode('regiao')}
+                        title="Visualização Consolidada por Região (Hierárquica)"
+                        className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${
+                          planViewMode === 'regiao'
+                            ? 'bg-blue-600 text-white shadow-xs font-black'
+                            : 'text-sky-200/80 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        <Layers size={12} />
+                        <span>Por Região</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPlanViewMode('comparativo')}
+                        title="Visualização Comparativa por Destino (Carteira vs Processo)"
+                        className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${
+                          planViewMode === 'comparativo'
+                            ? 'bg-blue-600 text-white shadow-xs font-black'
+                            : 'text-sky-200/80 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        <BarChart3 size={12} />
+                        <span>Comparativo</span>
+                      </button>
+                    </div>
+
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#164e85] text-sky-100 border border-sky-500/30 font-bold whitespace-nowrap">
+                      {planViewMode === 'regiao'
+                        ? `${regiaoGroups.reduce((acc, g) => acc + g.destinos.length, 0)} destinos`
+                        : `${comparativeDestinos.length} destinos`}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Tabela estilizada com tema clean (linhas brancas com hover suave e bordas sutis) */}
-                <div className="w-full">
+                {/* Alternância entre as visualizações dos painéis */}
+                {planViewMode === 'regiao' ? (
+                  /* Tabela estilizada com tema clean (linhas brancas com hover suave e bordas sutis) */
+                  <div className="w-full">
                   <table className="w-full border-collapse font-sans text-slate-800 text-[10.5px] table-auto select-text">
                     <thead className="sticky top-0 z-20 bg-[#0e3b66] text-white uppercase text-[9.5px] font-black tracking-wider border-b border-slate-200">
                       <tr className="divide-x divide-white/10">
@@ -3089,6 +3266,218 @@ export const PcpJsMartinsPage: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
+                ) : (
+                  /* TABELA COMPARATIVA POR DESTINO (CARTEIRA X PROCESSO) */
+                  <div className="w-full overflow-x-auto select-text">
+                    <table className="w-full border-collapse font-sans text-slate-800 text-[10.5px] table-auto select-text">
+                      <thead className="sticky top-0 z-20 bg-[#0e3b66] text-white uppercase text-[9.5px] font-black tracking-wider border-b border-[#0a2c4d]">
+                        {/* Linha 1 de Cabeçalho: Super-headers */}
+                        <tr className="divide-x divide-white/10 text-center">
+                          <th
+                            rowSpan={2}
+                            onClick={() => handleCompSort('destino')}
+                            className="py-2.5 px-3 text-left font-extrabold cursor-pointer hover:bg-white/10 transition-colors select-none min-w-[240px]"
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <span>DESTINO</span>
+                              <span className="text-[9px] opacity-80">
+                                {compSortField === 'destino' ? (compSortAsc ? '▲' : '▼') : '▾'}
+                              </span>
+                            </div>
+                          </th>
+
+                          {/* Bloco EM CARTEIRA */}
+                          <th
+                            colSpan={2}
+                            className="py-1.5 px-2 bg-[#123e6b] text-sky-200 border-b border-white/10 font-black tracking-widest text-[10px]"
+                          >
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+                              <span>EM CARTEIRA</span>
+                            </div>
+                          </th>
+
+                          {/* Bloco EM PROCESSO */}
+                          <th
+                            colSpan={2}
+                            className="py-1.5 px-2 bg-[#184880] text-blue-100 border-b border-white/10 font-black tracking-widest text-[10px]"
+                          >
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-300"></span>
+                              <span>EM PROCESSO</span>
+                            </div>
+                          </th>
+
+                          {/* TOTAL PÇS */}
+                          <th
+                            rowSpan={2}
+                            onClick={() => handleCompSort('totalQtd')}
+                            className="py-2 px-2 text-center font-extrabold cursor-pointer hover:bg-white/10 transition-colors select-none w-[80px] min-w-[80px] bg-[#0a2c4d]"
+                          >
+                            <div className="flex items-center justify-center gap-0.5">
+                              <span>Total PÇS</span>
+                              <span className="text-[8px] opacity-70">
+                                {compSortField === 'totalQtd' ? (compSortAsc ? '▲' : '▼') : ''}
+                              </span>
+                            </div>
+                          </th>
+
+                          {/* TOTAL CUB */}
+                          <th
+                            rowSpan={2}
+                            onClick={() => handleCompSort('totalCub')}
+                            className="py-2 px-2 text-center font-extrabold cursor-pointer hover:bg-white/10 transition-colors select-none w-[75px] min-w-[75px] bg-[#0a2c4d]"
+                          >
+                            <div className="flex items-center justify-center gap-0.5">
+                              <span>Total Cub</span>
+                              <span className="text-[8px] opacity-70">
+                                {compSortField === 'totalCub' ? (compSortAsc ? '▲' : '▼') : ''}
+                              </span>
+                            </div>
+                          </th>
+                        </tr>
+
+                        {/* Linha 2 de Cabeçalho: Subcolunas */}
+                        <tr className="divide-x divide-white/10 text-center text-[9px]">
+                          {/* Subcolunas Carteira */}
+                          <th
+                            onClick={() => handleCompSort('carteiraQtd')}
+                            className="py-1.5 px-2 font-bold cursor-pointer hover:bg-white/10 transition-colors select-none w-[85px] min-w-[85px] bg-[#123e6b] text-sky-100"
+                          >
+                            <div className="flex items-center justify-center gap-0.5">
+                              <span>QUANTIDADE</span>
+                              <span className="text-[7.5px] opacity-70">
+                                {compSortField === 'carteiraQtd' ? (compSortAsc ? '▲' : '▼') : ''}
+                              </span>
+                            </div>
+                          </th>
+                          <th
+                            onClick={() => handleCompSort('carteiraCub')}
+                            className="py-1.5 px-2 font-bold cursor-pointer hover:bg-white/10 transition-colors select-none w-[75px] min-w-[75px] bg-[#123e6b] text-sky-100"
+                          >
+                            <div className="flex items-center justify-center gap-0.5">
+                              <span>CUBAGEM</span>
+                              <span className="text-[7.5px] opacity-70">
+                                {compSortField === 'carteiraCub' ? (compSortAsc ? '▲' : '▼') : ''}
+                              </span>
+                            </div>
+                          </th>
+
+                          {/* Subcolunas Processo */}
+                          <th
+                            onClick={() => handleCompSort('processoQtd')}
+                            className="py-1.5 px-2 font-bold cursor-pointer hover:bg-white/10 transition-colors select-none w-[85px] min-w-[85px] bg-[#184880] text-blue-100"
+                          >
+                            <div className="flex items-center justify-center gap-0.5">
+                              <span>QUANTIDADE</span>
+                              <span className="text-[7.5px] opacity-70">
+                                {compSortField === 'processoQtd' ? (compSortAsc ? '▲' : '▼') : ''}
+                              </span>
+                            </div>
+                          </th>
+                          <th
+                            onClick={() => handleCompSort('processoCub')}
+                            className="py-1.5 px-2 font-bold cursor-pointer hover:bg-white/10 transition-colors select-none w-[75px] min-w-[75px] bg-[#184880] text-blue-100"
+                          >
+                            <div className="flex items-center justify-center gap-0.5">
+                              <span>CUBAGEM</span>
+                              <span className="text-[7.5px] opacity-70">
+                                {compSortField === 'processoCub' ? (compSortAsc ? '▲' : '▼') : ''}
+                              </span>
+                            </div>
+                          </th>
+                        </tr>
+                      </thead>
+
+                      <tbody className="divide-y divide-slate-100 font-sans">
+                        {comparativeDestinos.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="py-12 text-center text-slate-400 italic">
+                              Nenhum destino encontrado com os filtros selecionados.
+                            </td>
+                          </tr>
+                        ) : (
+                          comparativeDestinos.map((row, idx) => (
+                            <tr
+                              key={row.destino}
+                              className={`divide-x divide-slate-100 transition-colors hover:bg-blue-50/50 ${
+                                idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                              }`}
+                            >
+                              {/* DESTINO */}
+                              <td className="py-1.5 px-3 font-semibold text-slate-800 whitespace-nowrap text-left">
+                                {row.destino}
+                              </td>
+
+                              {/* EM CARTEIRA - QUANTIDADE */}
+                              <td className="py-1.5 px-2 text-center text-slate-700 font-mono font-medium whitespace-nowrap">
+                                {row.carteiraQtd > 0 ? Math.round(row.carteiraQtd).toLocaleString('pt-BR') : '-'}
+                              </td>
+
+                              {/* EM CARTEIRA - CUBAGEM */}
+                              <td className="py-1.5 px-2 text-center text-slate-800 font-mono font-bold whitespace-nowrap">
+                                {row.carteiraCub > 0
+                                  ? row.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                  : '-'}
+                              </td>
+
+                              {/* EM PROCESSO - QUANTIDADE */}
+                              <td className="py-1.5 px-2 text-center text-blue-700 bg-blue-50/30 font-mono font-medium whitespace-nowrap">
+                                {row.processoQtd > 0 ? Math.round(row.processoQtd).toLocaleString('pt-BR') : '-'}
+                              </td>
+
+                              {/* EM PROCESSO - CUBAGEM */}
+                              <td className="py-1.5 px-2 text-center text-blue-900 bg-blue-50/30 font-mono font-bold whitespace-nowrap">
+                                {row.processoCub > 0
+                                  ? row.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                  : '-'}
+                              </td>
+
+                              {/* TOTAL PÇS */}
+                              <td className="py-1.5 px-2 text-center text-slate-900 bg-slate-100/40 font-mono font-bold whitespace-nowrap">
+                                {row.totalQtd > 0 ? Math.round(row.totalQtd).toLocaleString('pt-BR') : '-'}
+                              </td>
+
+                              {/* TOTAL CUB */}
+                              <td className="py-1.5 px-2 text-center text-slate-950 bg-slate-100/40 font-mono font-black whitespace-nowrap">
+                                {row.totalCub > 0
+                                  ? row.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                  : '-'}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+
+                        {/* TOTAL GERAL */}
+                        {comparativeDestinos.length > 0 && (
+                          <tr className="bg-[#0e3b66] text-white font-extrabold uppercase text-[10px] tracking-wide border-t-2 border-[#0a2c4d] divide-x divide-white/10 sticky bottom-0 z-10 shadow-md">
+                            <td className="py-2.5 px-3 text-left font-black">
+                              TOTAL GERAL
+                            </td>
+                            <td className="py-2.5 px-2 text-center font-mono font-bold text-sky-200">
+                              {Math.round(compTotals.carteiraQtd).toLocaleString('pt-BR')}
+                            </td>
+                            <td className="py-2.5 px-2 text-center font-mono font-black text-sky-100">
+                              {compTotals.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </td>
+                            <td className="py-2.5 px-2 text-center font-mono font-bold text-sky-200 bg-[#164e85]">
+                              {Math.round(compTotals.processoQtd).toLocaleString('pt-BR')}
+                            </td>
+                            <td className="py-2.5 px-2 text-center font-mono font-black text-sky-100 bg-[#164e85]">
+                              {compTotals.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </td>
+                            <td className="py-2.5 px-2 text-center font-mono font-black text-white bg-[#0a2c4d]">
+                              {Math.round(compTotals.totalQtd).toLocaleString('pt-BR')}
+                            </td>
+                            <td className="py-2.5 px-2 text-center font-mono font-black text-white bg-[#0a2c4d]">
+                              {compTotals.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
               {/* LADO DIREITO: ÁREA RESERVADA PARA GRÁFICOS, ONDAS E CRONOGRAMAS */}
@@ -3097,27 +3486,35 @@ export const PcpJsMartinsPage: React.FC = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
                     <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Total Pedidos</span>
-                    <span className="text-xl font-black text-slate-800">{geralPedidos.toLocaleString('pt-BR')}</span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">Backlog filtrado</span>
+                    <span className="text-xl font-black text-slate-800">
+                      {(planViewMode === 'comparativo' ? compTotals.totalPedidos : geralPedidos).toLocaleString('pt-BR')}
+                    </span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      {planViewMode === 'comparativo' ? 'Carteira + Processo' : 'Backlog filtrado'}
+                    </span>
                   </div>
                   <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
                     <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Volume Peças</span>
-                    <span className="text-xl font-black text-blue-600">{Math.round(geralQtd).toLocaleString('pt-BR')}</span>
+                    <span className="text-xl font-black text-blue-600">
+                      {Math.round(planViewMode === 'comparativo' ? compTotals.totalQtd : geralQtd).toLocaleString('pt-BR')}
+                    </span>
                     <span className="text-[10px] text-slate-400 block mt-0.5">Total de unidades</span>
                   </div>
                   <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
                     <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Cubagem (m³)</span>
                     <span className="text-xl font-black text-purple-600">
-                      {geralCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                      {(planViewMode === 'comparativo' ? compTotals.totalCub : geralCub).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                     </span>
                     <span className="text-[10px] text-slate-400 block mt-0.5">Espaço cúbico</span>
                   </div>
                   <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
                     <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Faturamento</span>
                     <span className="text-xl font-black text-emerald-600">
-                      {geralValor.toLocaleString('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' })}
+                      {(planViewMode === 'comparativo' ? compTotals.totalValor : geralValor).toLocaleString('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' })}
                     </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">Valor em carteira</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      {planViewMode === 'comparativo' ? 'Valor consolidado' : 'Valor em carteira'}
+                    </span>
                   </div>
                 </div>
 
