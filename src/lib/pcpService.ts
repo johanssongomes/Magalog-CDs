@@ -139,11 +139,11 @@ export async function getPcpItemsReport(params: PcpQueryParams): Promise<PcpQuer
 // CAMADA DE PERSISTÊNCIA INDEXEDDB PARA PCP (CARREGAMENTO INSTANTÂNEO 0MS)
 // ---------------------------------------------------------------------------
 const PCP_DB_NAME = 'MagalogPcpCacheDB'
-const PCP_DB_VERSION = 4
+const PCP_DB_VERSION = 5
 const PCP_STORE_NAME = 'pcp_planning_store'
-const KEY_PLANNING_DATA = 'cached_planning_items_v5'
-const KEY_TIMESTAMP = 'cached_timestamp_v5'
-const KEY_SYNC_VERSION = 'cached_sync_version_v5'
+const KEY_PLANNING_DATA = 'cached_planning_items_v6'
+const KEY_TIMESTAMP = 'cached_timestamp_v6'
+const KEY_SYNC_VERSION = 'cached_sync_version_v6'
 
 function openPcpDB(): Promise<IDBDatabase | null> {
   return new Promise((resolve) => {

@@ -762,12 +762,12 @@ export const PcpJsMartinsPage: React.FC = () => {
           const filEntregaKey = String(item.filentrega || '').trim().toUpperCase()
           const rotaKey = String(item.descricaorota || '').trim().toUpperCase()
 
-          if (filEntregaKey && rotaMap[filEntregaKey] && rotaMap[filEntregaKey].destino !== '-') {
-            // Prioridade máxima para o polo/filial de entrega oficial (ex: 1349 -> 1349-Limoeiro QUI)
-            rotaInfo = rotaMap[filEntregaKey]
-          } else if (rotaKey && rotaMap[rotaKey] && rotaMap[rotaKey].destino !== '-') {
-            // Se não houver filial cadastrada, usa o mapeamento da rota
-            rotaInfo = rotaMap[rotaKey]
+          if (isAba) {
+            // Se for ABA (Abastecimento), prioridade máxima para a FILENTREGA da loja/filial (ex: 1349 -> 1349-Limoeiro QUI)
+            rotaInfo = rotaMap[filEntregaKey] || rotaMap[rotaKey] || { destino: '-', regiao: '-' }
+          } else {
+            // Se for VENDA (PRO, Rodoviário, Courier) ou outros, prioridade máxima para a ROTA cadastrada (ex: 994-EC1 CE LIMOEIRO DO NORTE -> LIMOEIRO DO NORTE)
+            rotaInfo = rotaMap[rotaKey] || rotaMap[filEntregaKey] || { destino: '-', regiao: '-' }
           }
 
           const tipoModalCalc = getTipoModal(modalidadeCalc)
@@ -817,10 +817,10 @@ export const PcpJsMartinsPage: React.FC = () => {
           const filEntregaKey = String(r.filentrega || r.FILENTREGA || '').trim().toUpperCase()
           const rotaKey = String(r.descricaorota || r.DESCRICAOROTA || '').trim().toUpperCase()
 
-          if (filEntregaKey && rotaMap[filEntregaKey] && rotaMap[filEntregaKey].destino !== '-') {
-            rotaInfo = rotaMap[filEntregaKey]
-          } else if (rotaKey && rotaMap[rotaKey] && rotaMap[rotaKey].destino !== '-') {
-            rotaInfo = rotaMap[rotaKey]
+          if (isAba) {
+            rotaInfo = rotaMap[filEntregaKey] || rotaMap[rotaKey] || { destino: '-', regiao: '-' }
+          } else {
+            rotaInfo = rotaMap[rotaKey] || rotaMap[filEntregaKey] || { destino: '-', regiao: '-' }
           }
 
           return {
@@ -2053,12 +2053,12 @@ export const PcpJsMartinsPage: React.FC = () => {
           const filEntregaKey = String(r.filentrega || r.FILENTREGA || '').trim().toUpperCase()
           const rotaKey = String(r.descricaorota || r.DESCRICAOROTA || '').trim().toUpperCase()
 
-          if (filEntregaKey && rotaMap[filEntregaKey] && rotaMap[filEntregaKey].destino !== '-') {
-            // Prioridade máxima para o polo/filial de entrega oficial (ex: 1349 -> 1349-Limoeiro QUI)
-            rotaInfo = rotaMap[filEntregaKey]
-          } else if (rotaKey && rotaMap[rotaKey] && rotaMap[rotaKey].destino !== '-') {
-            // Se não houver filial cadastrada, usa o mapeamento da rota
-            rotaInfo = rotaMap[rotaKey]
+          if (isAba) {
+            // Se modalidade for ABA (Abastecimento), prioridade máxima para FILENTREGA no cadastro (ex: 1349 -> 1349-Limoeiro QUI)
+            rotaInfo = rotaMap[filEntregaKey] || rotaMap[rotaKey] || { destino: '-', regiao: '-' }
+          } else {
+            // Se for VENDA (PRO, Rodoviário, Courier) ou outras, prioridade máxima para a ROTA cadastrada (ex: 994-EC1 CE LIMOEIRO DO NORTE -> LIMOEIRO DO NORTE)
+            rotaInfo = rotaMap[rotaKey] || rotaMap[filEntregaKey] || { destino: '-', regiao: '-' }
           }
 
           const regiao = rotaInfo.regiao !== '-' ? rotaInfo.regiao : 'INTERIOR'
@@ -2116,7 +2116,10 @@ export const PcpJsMartinsPage: React.FC = () => {
             const matchDest = r.calc_destino.toLowerCase().includes(term)
             const matchReg = r.calc_regiao.toLowerCase().includes(term)
             const matchPed = r.calc_ped.toLowerCase().includes(term)
-            if (!matchDest && !matchReg && !matchPed) return false
+            const matchRota = String(r.descricaorota || r.DESCRICAOROTA || '').toLowerCase().includes(term)
+            const matchFil = String(r.filentrega || r.FILENTREGA || '').toLowerCase().includes(term)
+            const matchItem = String(r.item || r.ITEM || '').toLowerCase().includes(term)
+            if (!matchDest && !matchReg && !matchPed && !matchRota && !matchFil && !matchItem) return false
           }
           return true
         })
@@ -2133,7 +2136,10 @@ export const PcpJsMartinsPage: React.FC = () => {
             const matchDest = r.calc_destino.toLowerCase().includes(term)
             const matchReg = r.calc_regiao.toLowerCase().includes(term)
             const matchPed = r.calc_ped.toLowerCase().includes(term)
-            if (!matchDest && !matchReg && !matchPed) return false
+            const matchRota = String(r.descricaorota || r.DESCRICAOROTA || '').toLowerCase().includes(term)
+            const matchFil = String(r.filentrega || r.FILENTREGA || '').toLowerCase().includes(term)
+            const matchItem = String(r.item || r.ITEM || '').toLowerCase().includes(term)
+            if (!matchDest && !matchReg && !matchPed && !matchRota && !matchFil && !matchItem) return false
           }
           return true
         })
