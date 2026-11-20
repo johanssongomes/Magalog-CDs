@@ -2352,8 +2352,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                     {/* Badge da Última Atualização Central da Carteira */}
                     <div
                       className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] border shadow-2xs transition-all ${isSyncingOracle
-                          ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse'
-                          : 'bg-slate-50 text-slate-600 border-slate-200/90 hover:bg-slate-100'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse'
+                        : 'bg-slate-50 text-slate-600 border-slate-200/90 hover:bg-slate-100'
                         }`}
                       title={lastSyncDateStr ? `Sincronizado no Supabase: ${lastSyncDateStr}` : 'Sincronização da Carteira'}
                     >
@@ -2697,7 +2697,7 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                 {/* Tabela estilizada com tema clean (linhas brancas com hover suave e bordas sutis) */}
                 <div className="w-full">
-                  <table className="w-full border-collapse font-sans text-slate-800 select-none text-[10.5px] table-auto">
+                  <table className="w-full border-collapse font-sans text-slate-800 text-[10.5px] table-auto select-text">
                     <thead className="sticky top-0 z-20 bg-[#0e3b66] text-white uppercase text-[9.5px] font-black tracking-wider border-b border-slate-200">
                       <tr className="divide-x divide-white/10">
                         <th className="py-2 px-2.5 text-left font-bold w-24">
@@ -2745,12 +2745,12 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 - Se EXPANDIDA: vira uma barra de cabeçalho simples [-] REGIAO, os destinos vêm abaixo e o subtotal vem no rodapé.
                             */}
                             {isRegiaoCollapsed ? (
-                              <tr className="bg-slate-100/95 hover:bg-slate-200/80 transition-colors text-slate-900 font-extrabold border-y border-slate-200 divide-x divide-slate-200 select-none">
+                              <tr className="bg-slate-100/95 hover:bg-slate-200/80 transition-colors text-slate-900 font-extrabold border-y border-slate-200 divide-x divide-slate-200">
                                 <td colSpan={2} className="py-1 px-2.5 uppercase tracking-wide text-[11px] whitespace-nowrap">
                                   <button
                                     type="button"
                                     onClick={() => toggleRegiao(group.regiao)}
-                                    className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-700 transition-colors cursor-pointer w-full"
+                                    className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-700 transition-colors cursor-pointer w-full select-none"
                                   >
                                     <span className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none mr-1 font-mono font-black shadow-2xs bg-blue-600 border-blue-600 text-white">
                                       +
@@ -2790,12 +2790,12 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 </td>
                               </tr>
                             ) : (
-                              <tr className="bg-slate-100/90 hover:bg-slate-200/70 transition-colors text-slate-900 font-extrabold border-y border-slate-200 select-none">
+                              <tr className="bg-slate-100/90 hover:bg-slate-200/70 transition-colors text-slate-900 font-extrabold border-y border-slate-200">
                                 <td colSpan={7} className="py-1 px-2.5 uppercase tracking-wide text-[11px]">
                                   <button
                                     type="button"
                                     onClick={() => toggleRegiao(group.regiao)}
-                                    className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-700 transition-colors cursor-pointer w-full"
+                                    className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-700 transition-colors cursor-pointer w-full select-none"
                                   >
                                     <span className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none mr-1 font-mono font-black shadow-2xs border-slate-400/80 bg-white text-slate-700">
                                       -
@@ -2826,13 +2826,13 @@ export const PcpJsMartinsPage: React.FC = () => {
                                       <button
                                         type="button"
                                         onClick={() => toggleDestino(dest.destino)}
-                                        className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-600 transition-colors cursor-pointer select-none"
+                                        className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-600 transition-colors cursor-pointer"
                                       >
-                                        <span className={`inline-flex items-center justify-center w-3 h-3 text-[9px] border rounded-xs leading-none shrink-0 font-mono font-bold ${isExpanded ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-slate-100 text-slate-600'
+                                        <span className={`inline-flex items-center justify-center w-3 h-3 text-[9px] border rounded-xs leading-none shrink-0 font-mono font-bold select-none ${isExpanded ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-slate-100 text-slate-600'
                                           }`}>
                                           {isExpanded ? '-' : '+'}
                                         </span>
-                                        <span className={isExpanded ? 'text-blue-700 font-extrabold' : ''}>{dest.destino}</span>
+                                        <span className={isExpanded ? 'text-blue-700 font-extrabold select-text' : 'select-text'}>{dest.destino}</span>
                                       </button>
                                     </td>
                                     <td className="py-1 px-2 text-center font-bold text-slate-700 text-[11px] whitespace-nowrap font-mono">
@@ -2927,8 +2927,8 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                                                 {/* Tabela Direta dos Itens (Alinhada perfeitamente coluna por coluna) */}
                                                 {isStExpanded && (
-                                                  <div className="overflow-x-auto w-full">
-                                                    <table className="w-full text-[10px] border-collapse bg-white">
+                                                  <div className="overflow-x-auto w-full select-text">
+                                                    <table className="w-full text-[10px] border-collapse bg-white select-text">
                                                       <thead>
                                                         <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
                                                           <th className="py-1.5 px-2 text-center w-24">STATUS</th>
