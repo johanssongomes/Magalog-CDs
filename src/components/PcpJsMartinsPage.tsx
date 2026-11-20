@@ -590,7 +590,8 @@ export const PcpJsMartinsPage: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    loadPlanningData()
+    // Força checagem/carregamento dos dados frescos na montagem inicial
+    loadPlanningData(true)
   }, [loadPlanningData])
 
   // --------------------------------------------------------------------------
@@ -2897,8 +2898,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                         onClick={() => setPlanViewMode('regiao')}
                         title="Visualização Consolidada por Região (Hierárquica)"
                         className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${planViewMode === 'regiao'
-                            ? 'bg-blue-600 text-white shadow-xs font-black'
-                            : 'text-sky-200/80 hover:text-white hover:bg-white/10'
+                          ? 'bg-blue-600 text-white shadow-xs font-black'
+                          : 'text-sky-200/80 hover:text-white hover:bg-white/10'
                           }`}
                       >
                         <Layers size={12} />
@@ -2909,8 +2910,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                         onClick={() => setPlanViewMode('comparativo')}
                         title="Visualização Comparativa por Destino (Carteira vs Processo)"
                         className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${planViewMode === 'comparativo'
-                            ? 'bg-blue-600 text-white shadow-xs font-black'
-                            : 'text-sky-200/80 hover:text-white hover:bg-white/10'
+                          ? 'bg-blue-600 text-white shadow-xs font-black'
+                          : 'text-sky-200/80 hover:text-white hover:bg-white/10'
                           }`}
                       >
                         <BarChart3 size={12} />

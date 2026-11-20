@@ -139,11 +139,11 @@ export async function getPcpItemsReport(params: PcpQueryParams): Promise<PcpQuer
 // CAMADA DE PERSISTÊNCIA INDEXEDDB PARA PCP (CARREGAMENTO INSTANTÂNEO 0MS)
 // ---------------------------------------------------------------------------
 const PCP_DB_NAME = 'MagalogPcpCacheDB'
-const PCP_DB_VERSION = 2
+const PCP_DB_VERSION = 3
 const PCP_STORE_NAME = 'pcp_planning_store'
-const KEY_PLANNING_DATA = 'cached_planning_items_v2'
-const KEY_TIMESTAMP = 'cached_timestamp_v2'
-const KEY_SYNC_VERSION = 'cached_sync_version_v2'
+const KEY_PLANNING_DATA = 'cached_planning_items_v4'
+const KEY_TIMESTAMP = 'cached_timestamp_v4'
+const KEY_SYNC_VERSION = 'cached_sync_version_v4'
 
 function openPcpDB(): Promise<IDBDatabase | null> {
   return new Promise((resolve) => {
@@ -268,7 +268,7 @@ async function fetchSummaryFromSupabase(knownSyncVersion?: string): Promise<PcpI
         const parsed = JSON.parse(statusRow.value)
         latestSyncVersion = parsed.updated_at || statusRow.updated_at
       }
-    } catch {}
+    } catch { }
   }
 
   // 1. Obter total de registros para disparar requisições em paralelo
@@ -331,53 +331,60 @@ export async function getAllPcpSummaryItems(
 
   // 1. Memória imediata (< 1ms)
   if (!forceRefresh && cachedPlanningData && cachedPlanningData.length > 0) {
-    if (now - cacheTimestamp >= CACHE_TTL_MS && !isFetchingFromSupabase) {
-      isFetchingFromSupabase = true
-      fetchSummaryFromSupabase(expectedSyncVersion)
-        .then(fresh => {
-          if (fresh.length > 0 && onBackgroundUpdate) {
-            onBackgroundUpdate(fresh)
-          }
-        })
-        .finally(() => {
-          isFetchingFromSupabase = false
-        })
+    // Se a versão em memória for consistente com a versão esperada da nuvem
+    if (!expectedSyncVersion || cachedSyncVersion === expectedSyncVersion) {
+      if (now - cacheTimestamp >= CACHE_TTL_MS && !isFetchingFromSupabase) {
+        isFetchingFromSupabase = true
+        fetchSummaryFromSupabase(expectedSyncVersion)
+          .then(fresh => {
+            if (fresh.length > 0 && onBackgroundUpdate) {
+              onBackgroundUpdate(fresh)
+            }
+          })
+          .finally(() => {
+            isFetchingFromSupabase = false
+          })
+      }
+      return cachedPlanningData
     }
-    return cachedPlanningData
   }
 
-  // 2. IndexedDB persistente no navegador (< 25ms - sobrevive a F5 / reload de página)
+  // 2. IndexedDB persistente no navegador
   if (!forceRefresh) {
     const cached = await getPcpPlanningCache()
-    if (cached && cached.data && cached.data.length > 0) {
-      // Se tiver versão gravada e for mais antiga que a esperada do Supabase, não usa o cache!
-      if (expectedSyncVersion && cached.syncVersion && expectedSyncVersion !== cached.syncVersion) {
-        // Cache desatualizado detectado: força busca dos dados novos do Supabase
-      } else {
-        cachedPlanningData = cached.data
-        cacheTimestamp = cached.timestamp || Date.now()
-        if (cached.syncVersion) cachedSyncVersion = cached.syncVersion
+    // O cache só é considerado válido se possuir syncVersion E ela for compatível com o Supabase!
+    const isCacheValid = !!(
+      cached &&
+      cached.data &&
+      cached.data.length > 0 &&
+      cached.syncVersion &&
+      (!expectedSyncVersion || cached.syncVersion === expectedSyncVersion)
+    )
 
-        // Revalidação em segundo plano se tiver mais de 1 minuto
-        if (now - cacheTimestamp >= CACHE_TTL_MS && !isFetchingFromSupabase) {
-          isFetchingFromSupabase = true
-          fetchSummaryFromSupabase(expectedSyncVersion)
-            .then(fresh => {
-              if (fresh.length > 0 && onBackgroundUpdate) {
-                onBackgroundUpdate(fresh)
-              }
-            })
-            .finally(() => {
-              isFetchingFromSupabase = false
-            })
-        }
+    if (isCacheValid && cached) {
+      cachedPlanningData = cached.data
+      cacheTimestamp = cached.timestamp || Date.now()
+      cachedSyncVersion = cached.syncVersion || null
 
-        return cached.data
+      // Revalidação em segundo plano se tiver mais de 1 minuto
+      if (now - cacheTimestamp >= CACHE_TTL_MS && !isFetchingFromSupabase) {
+        isFetchingFromSupabase = true
+        fetchSummaryFromSupabase(expectedSyncVersion)
+          .then(fresh => {
+            if (fresh.length > 0 && onBackgroundUpdate) {
+              onBackgroundUpdate(fresh)
+            }
+          })
+          .finally(() => {
+            isFetchingFromSupabase = false
+          })
       }
+
+      return cached.data
     }
   }
 
-  // 3. Primeira execução ou forceRefresh: busca do Supabase
+  // 3. Primeira execução, cache desatualizado ou forceRefresh: busca DIRETA do Supabase
   if (activeFetchPromise) {
     return activeFetchPromise
   }
@@ -456,18 +463,18 @@ export async function triggerOracleSync(): Promise<{ success: boolean; message: 
 
     // 2. Tenta também acionar backend local se estiver rodando em desenvolvimento
     try {
-      fetch('/api/pcp/sync-oracle', { method: 'POST' }).catch(() => {})
-    } catch {}
+      fetch('/api/pcp/sync-oracle', { method: 'POST' }).catch(() => { })
+    } catch { }
 
-    return { 
-      success: true, 
-      message: 'Solicitação de sincronização enviada para o sincronizador corporativo.' 
+    return {
+      success: true,
+      message: 'Solicitação de sincronização enviada para o sincronizador corporativo.'
     }
   } catch (err: any) {
-    return { 
-      success: false, 
+    return {
+      success: false,
       message: 'Falha ao registrar comando de sincronização no Supabase.',
-      error: err.message 
+      error: err.message
     }
   }
 }
@@ -489,14 +496,14 @@ export async function getOracleSyncStatus(): Promise<OracleSyncStatus> {
           ...parsed,
           updated_at: parsed.updated_at || data.updated_at
         }
-      } catch {}
+      } catch { }
     }
 
     // 2. Fallback para API local se disponível
     try {
       const res = await fetch('/api/pcp/sync-status')
       if (res.ok) return await res.json()
-    } catch {}
+    } catch { }
 
     return { status: 'unknown' }
   } catch {
