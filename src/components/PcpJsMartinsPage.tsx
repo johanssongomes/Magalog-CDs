@@ -542,8 +542,11 @@ export const PcpJsMartinsPage: React.FC = () => {
   const [planFilterLinha, setPlanFilterLinha] = useState<string>(() => {
     try { return localStorage.getItem('magalog_pcp_plan_linha') || 'TODOS' } catch { return 'TODOS' }
   })
-  const [planFilterPrazo, setPlanFilterPrazo] = useState<string>(() => {
-    try { return localStorage.getItem('magalog_pcp_plan_prazo') || 'TODOS' } catch { return 'TODOS' }
+  const [planFilterPrazos, setPlanFilterPrazos] = useState<string[]>(() => {
+    try {
+      const s = localStorage.getItem('magalog_pcp_plan_prazos')
+      return s ? JSON.parse(s) : []
+    } catch { return [] }
   })
   const [planSearchTerm, setPlanSearchTerm] = useState<string>(() => {
     try { return localStorage.getItem('magalog_pcp_plan_search') || '' } catch { return '' }
@@ -558,10 +561,10 @@ export const PcpJsMartinsPage: React.FC = () => {
       localStorage.setItem('magalog_pcp_plan_fllibfat', JSON.stringify(planFilterFllibfat))
       localStorage.setItem('magalog_pcp_plan_status_op', JSON.stringify(planFilterStatusOp))
       localStorage.setItem('magalog_pcp_plan_linha', planFilterLinha)
-      localStorage.setItem('magalog_pcp_plan_prazo', planFilterPrazo)
+      localStorage.setItem('magalog_pcp_plan_prazos', JSON.stringify(planFilterPrazos))
       localStorage.setItem('magalog_pcp_plan_search', planSearchTerm)
     } catch { }
-  }, [planFilterRegiao, planFilterModalidade, planFilterTipoModal, planFilterFllibfat, planFilterStatusOp, planFilterLinha, planFilterPrazo, planSearchTerm])
+  }, [planFilterRegiao, planFilterModalidade, planFilterTipoModal, planFilterFllibfat, planFilterStatusOp, planFilterLinha, planFilterPrazos, planSearchTerm])
 
   // Alternância de visualização dos painéis: 'regiao' (Quadro por Região) | 'comparativo' (Visão Comparativa por Destino)
   const [planViewMode, setPlanViewMode] = useState<'regiao' | 'comparativo'>(() => {
@@ -2807,7 +2810,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           if (planFilterModalidade !== 'TODOS' && r.calc_modalidade !== planFilterModalidade) return false
           if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
           if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return false
-          if (planFilterPrazo !== 'TODOS' && r.calc_prazo !== planFilterPrazo) return false
+          if (planFilterPrazos.length > 0 && !planFilterPrazos.includes(r.calc_prazo)) return false
           if (planFilterStatusOp.length > 0) {
             const raw = String(r.calc_status_op || '').toUpperCase()
             const matchStatus = planFilterStatusOp.some(st => {
@@ -2838,7 +2841,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           if (planFilterModalidade !== 'TODOS' && r.calc_modalidade !== planFilterModalidade) return false
           if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
           if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return false
-          if (planFilterPrazo !== 'TODOS' && r.calc_prazo !== planFilterPrazo) return false
+          if (planFilterPrazos.length > 0 && !planFilterPrazos.includes(r.calc_prazo)) return false
           if (planFilterLinha !== 'TODOS' && r.calc_linha !== planFilterLinha) return false
           if (planSearchTerm.trim()) {
             const term = planSearchTerm.toLowerCase()
@@ -3268,7 +3271,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                       planFilterRegiao !== 'TODOS' ||
                       planFilterModalidade !== 'TODOS' ||
                       planFilterLinha !== 'TODOS' ||
-                      planFilterPrazo !== 'TODOS' ||
+                      planFilterPrazos.length > 0 ||
                       planSearchTerm.trim() !== '') && (
                         <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
                           Filtros ativos
@@ -3323,7 +3326,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                       setPlanFilterFllibfat([])
                       setPlanFilterStatusOp([])
                       setPlanFilterLinha('TODOS')
-                      setPlanFilterPrazo('TODOS')
+                      setPlanFilterPrazos([])
                       setPlanSearchTerm('')
                       try {
                         localStorage.removeItem('magalog_pcp_plan_regiao')
@@ -3332,7 +3335,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                         localStorage.removeItem('magalog_pcp_plan_fllibfat')
                         localStorage.removeItem('magalog_pcp_plan_status_op')
                         localStorage.removeItem('magalog_pcp_plan_linha')
-                        localStorage.removeItem('magalog_pcp_plan_prazo')
+                        localStorage.removeItem('magalog_pcp_plan_prazos')
                         localStorage.removeItem('magalog_pcp_plan_search')
                       } catch { }
                     }}
@@ -3619,20 +3622,33 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Linha 3: Segmentação por Prazos / SLA (Vencido, D0, D1, D2... D7, D+) */}
+              {/* Linha 3: Segmentação por Prazos / SLA (Multi-Seleção: Vencido, D0, D1, D2... D7, D+) */}
               <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
                 <div className="flex items-center gap-1 mr-1 text-slate-500">
                   <Clock size={12} className="text-blue-600" />
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600">Prazos:</span>
-                  {planFilterPrazo !== 'TODOS' && (
+                  {planFilterPrazos.length > 0 && (
                     <span className="text-[9.5px] text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded font-extrabold ml-1">
-                      1 ativo
+                      {planFilterPrazos.length}
                     </span>
                   )}
                 </div>
 
+                {/* Botão Todos */}
+                <button
+                  type="button"
+                  onClick={() => setPlanFilterPrazos([])}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                    planFilterPrazos.length === 0
+                      ? 'bg-[#0e3b66] text-white border-[#0e3b66] shadow-xs'
+                      : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  Todos
+                </button>
+
                 {PRAZO_FAIXAS.map(faixa => {
-                  const isSelected = planFilterPrazo === faixa
+                  const isSelected = planFilterPrazos.includes(faixa)
                   const count = prazoCounts[faixa] || 0
                   const isVencido = faixa === 'Vencido'
 
@@ -3641,13 +3657,17 @@ export const PcpJsMartinsPage: React.FC = () => {
                       key={faixa}
                       type="button"
                       onClick={() => {
-                        setPlanFilterPrazo(prev => prev === faixa ? 'TODOS' : faixa)
+                        setPlanFilterPrazos(prev =>
+                          prev.includes(faixa)
+                            ? prev.filter(p => p !== faixa)
+                            : [...prev, faixa]
+                        )
                       }}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer select-none ${
                         isSelected
                           ? isVencido
                             ? 'bg-rose-600 text-white border-rose-600 shadow-xs ring-2 ring-rose-200'
-                            : 'bg-[#0e3b66] text-white border-[#0e3b66] shadow-xs ring-2 ring-blue-200'
+                            : 'bg-blue-600 text-white border-blue-600 shadow-xs ring-2 ring-blue-200'
                           : isVencido
                             ? 'bg-rose-50/70 hover:bg-rose-100 text-rose-700 border-rose-200'
                             : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
@@ -3669,13 +3689,13 @@ export const PcpJsMartinsPage: React.FC = () => {
                   )
                 })}
 
-                {planFilterPrazo !== 'TODOS' && (
+                {planFilterPrazos.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => setPlanFilterPrazo('TODOS')}
+                    onClick={() => setPlanFilterPrazos([])}
                     className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1.5"
                   >
-                    Limpar Prazo
+                    Limpar
                   </button>
                 )}
               </div>
