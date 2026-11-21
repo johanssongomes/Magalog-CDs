@@ -260,5 +260,9 @@ export const INITIAL_FILIAL_ROTA_PARAMS: FilialRotaParamItem[] = [
   { filialRota: '994-TR1 PE CRATO SAT 3', destino: 'CRAJUBAR CRATO - SATs', regiao: 'INTERIOR' },
   { filialRota: '997-EC1 AL MACEIO E', destino: '997', regiao: 'ABASTECIMENTO CDs' },
   { filialRota: 'CORREIOS', destino: 'CORREIOS', regiao: 'INTERIOR' },
-  { filialRota: 'TR NE CEARA INT', destino: 'FRACIONADO', regiao: 'INTERIOR' }
+  { filialRota: 'TR NE CEARA INT', destino: 'FRACIONADO', regiao: 'INTERIOR' },
+  { filialRota: 'LOGPLACE', destino: 'LOGPLACE', regiao: 'INTERIOR' },
+  { filialRota: 'SEDEX', destino: 'SEDEX', regiao: 'CAPITAL' },
+  { filialRota: 'SEDEX - CAPITAL', destino: 'SEDEX', regiao: 'CAPITAL' },
+  { filialRota: 'SEDEX - INTERIOR', destino: 'SEDEX', regiao: 'INTERIOR' }
 ]

@@ -54,6 +54,12 @@ import initialPlanningSummary from '../data/pcp_planning_summary.json'
 import { INITIAL_MODAL_PARAMS, getTipoModal, type ModalParamItem } from '../data/pcp_modal_params'
 import { INITIAL_FILIAL_ROTA_PARAMS, type FilialRotaParamItem } from '../data/pcp_filial_rotas_params'
 import { INITIAL_CEP_ROTA_PARAMS, cleanCep, isGenericRoute, type CepRotaParamItem } from '../data/pcp_cep_rotas_params'
+import {
+  CEP_RANGES_LOGPLACE,
+  CEP_RANGES_SEDEX,
+  CEP_RANGES_CONTA_FRETE,
+  findCepInRange
+} from '../data/pcp_cep_ranges_params'
 
 // Definição das 53 Colunas Oficiais da Planilha PCP J'S MARTINS.xlsx + Coluna Auxiliar Dinâmica
 export const PCP_COLUMNS: Array<{ key: keyof PcpItem; label: string; width?: string; align?: 'left' | 'center' | 'right'; type?: 'num' | 'cur' | 'date' | 'str' }> = [
@@ -316,6 +322,10 @@ export const PcpJsMartinsPage: React.FC = () => {
 
   const rotaMap = useMemo(() => {
     const map: Record<string, { destino: string; regiao: string }> = {}
+    INITIAL_FILIAL_ROTA_PARAMS.forEach(p => {
+      const k = (p.filialRota || '').trim().toUpperCase()
+      if (k) map[k] = { destino: p.destino, regiao: p.regiao.trim().toUpperCase() }
+    })
     filialRotaParams.forEach(p => {
       const k = (p.filialRota || '').trim().toUpperCase()
       if (k) map[k] = { destino: p.destino, regiao: p.regiao.trim().toUpperCase() }
@@ -340,15 +350,60 @@ export const PcpJsMartinsPage: React.FC = () => {
     return { cepRotaMap: exact, prefix5RotaMap: p5 }
   }, [cepRotaParams])
 
-  // Helper para resolver rota oficial a partir do CEP para pedidos com rotas genéricas de trânsito/cross-docking
-  const resolveRouteByCep = useCallback((route: string | undefined | null, rawCep: any): string => {
+  // Helper para resolver rota oficial a partir do CEP para pedidos com rotas genéricas de trânsito/cross-docking ou modal SEDEX
+  const resolveRouteByCep = useCallback((
+    route: string | undefined | null,
+    rawCep: any,
+    codmodal?: string,
+    descricaomodal?: string
+  ): string => {
     const originalRoute = String(route || '').trim()
-    if (!isGenericRoute(originalRoute)) return originalRoute
     const c = cleanCep(rawCep)
-    if (!c) return originalRoute
+    const numCep = c ? Number(c) : 0
+    const cod = String(codmodal || '').toUpperCase().trim()
+    const descMod = String(descricaomodal || '').toUpperCase().trim()
+
+    // 1. Modal SEDEX prioritário (ex: CSE - CORP ESPEC SEDEX ou descrição contendo SEDEX)
+    if (cod === 'CSE' || descMod.includes('SEDEX')) {
+      if (numCep) {
+        const sedexRule = findCepInRange(numCep, CEP_RANGES_SEDEX)
+        if (sedexRule) return sedexRule.rota
+      }
+      return 'SEDEX'
+    }
+
+    // Se já é uma rota oficial conhecida e não genérica, mantém
+    if (!isGenericRoute(originalRoute) && originalRoute !== '') {
+      return originalRoute
+    }
+
+    if (!c || !numCep) return originalRoute
+
+    // 2. De-Para exato de CEP (8 dígitos) manual/base
     if (cepRotaMap[c]) return cepRotaMap[c]
+
+    // 3. De-Para por prefixo (5 dígitos)
     const p5 = c.slice(0, 5)
     if (prefix5RotaMap[p5]) return prefix5RotaMap[p5]
+
+    // 4. Faixas da LOGPLACE (Conta frete 1)
+    const logplaceRule = findCepInRange(numCep, CEP_RANGES_LOGPLACE)
+    if (logplaceRule) {
+      return 'LOGPLACE'
+    }
+
+    // 5. Faixas da Conta Frete Geral (Fortaleza Rotas A-N, Pacajus, Sobral, Limoeiro, etc.)
+    const ctaRule = findCepInRange(numCep, CEP_RANGES_CONTA_FRETE)
+    if (ctaRule && ctaRule.rota) {
+      return ctaRule.rota
+    }
+
+    // 6. Faixas da Tabela Sedex (Conta frete 2)
+    const sedexRule = findCepInRange(numCep, CEP_RANGES_SEDEX)
+    if (sedexRule) {
+      return sedexRule.rota
+    }
+
     return originalRoute
   }, [cepRotaMap, prefix5RotaMap])
 
@@ -924,8 +979,8 @@ export const PcpJsMartinsPage: React.FC = () => {
           const modalidadeCalc = modalMap[cod] || item.descricaomodal || '-'
           const isAba = modalidadeCalc.trim().toUpperCase() === 'ABA'
 
-          // Resolve rota oficial pelo CEP caso a rota cadastrada seja genérica (Candeias, 1SX 2SX, etc.)
-          const resolvedRota = resolveRouteByCep(item.descricaorota, item.cep_entrega)
+          // Resolve rota oficial pelo CEP caso a rota cadastrada seja genérica (Candeias, 1SX 2SX, etc.) ou modal SEDEX
+          const resolvedRota = resolveRouteByCep(item.descricaorota, item.cep_entrega, item.codmodal, item.descricaomodal)
 
           let rotaInfo = { destino: '-', regiao: '-' }
           const filEntregaKey = String(item.filentrega || '').trim().toUpperCase()
@@ -985,7 +1040,7 @@ export const PcpJsMartinsPage: React.FC = () => {
 
           const rawRota = String(r.descricaorota || r.DESCRICAOROTA || '').trim()
           const rawCep = r.cep_entrega || r.CEP_ENTREGA
-          const resolvedRota = resolveRouteByCep(rawRota, rawCep)
+          const resolvedRota = resolveRouteByCep(rawRota, rawCep, r.codmodal || r.CODMODAL, r.descricaomodal || r.DESCRICAOMODAL)
 
           let rotaInfo = { destino: '-', regiao: '-' }
           const filEntregaKey = String(r.filentrega || r.FILENTREGA || '').trim().toUpperCase()
@@ -2570,7 +2625,7 @@ export const PcpJsMartinsPage: React.FC = () => {
 
           const rawRota = String(r.descricaorota || r.DESCRICAOROTA || '').trim()
           const rawCep = r.cep_entrega || r.CEP_ENTREGA
-          const resolvedRota = resolveRouteByCep(rawRota, rawCep)
+          const resolvedRota = resolveRouteByCep(rawRota, rawCep, r.codmodal || r.CODMODAL, r.descricaomodal || r.DESCRICAOMODAL)
 
           let rotaInfo = { destino: '-', regiao: '-' }
           const filEntregaKey = String(r.filentrega || r.FILENTREGA || '').trim().toUpperCase()

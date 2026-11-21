@@ -574,8 +574,8 @@ export async function savePcpAuxParams(
       type === 'filial_rotas'
         ? 'pcp_filial_rotas_params'
         : type === 'modais'
-        ? 'pcp_modal_params'
-        : 'pcp_cep_rotas_params'
+          ? 'pcp_modal_params'
+          : 'pcp_cep_rotas_params'
     const payload = {
       cell_key,
       value: JSON.stringify(data),
