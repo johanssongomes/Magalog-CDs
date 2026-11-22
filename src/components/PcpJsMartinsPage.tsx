@@ -4855,7 +4855,7 @@ export const PcpJsMartinsPage: React.FC = () => {
               </div>
 
               {/* LADO DIREITO: ÁREA RESERVADA PARA GRÁFICOS, ONDAS E CRONOGRAMAS */}
-              <div className="flex-1 space-y-4 w-full">
+              <div className="flex-1 space-y-4 w-full min-w-0 xl:max-w-[800px] 2xl:max-w-[840px]">
                 {/* Cards Rápidos de Visão Geral */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
@@ -5000,7 +5000,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                     </div>
 
                     {/* Tabela de Linhas e Itens */}
-                    <div className="w-full overflow-x-auto max-h-[620px] overflow-y-auto select-text">
+                    <div className="w-full overflow-x-auto select-text">
                       <table className="w-full border-collapse font-sans text-slate-800 text-[10.5px] table-auto">
                         <thead className="sticky top-0 z-20 bg-[#0e3b66] text-white uppercase text-[9.5px] font-black tracking-wider border-b border-[#0a2c4d]">
                           <tr className="divide-x divide-white/10 text-center">
@@ -5161,7 +5161,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                     </div>
 
                     {/* Tabela DTPEDIDO x PREVENTREGA */}
-                    <div className="w-full overflow-x-auto max-h-[620px] overflow-y-auto select-text">
+                    <div className="w-full overflow-x-auto select-text">
                       <table className="w-full border-collapse font-sans text-slate-800 text-[10px] table-auto">
                         <thead className="sticky top-0 z-20 bg-[#0e3b66] text-white uppercase text-[8.5px] font-black tracking-wider border-b border-[#0a2c4d]">
                           {/* Super-headers */}
