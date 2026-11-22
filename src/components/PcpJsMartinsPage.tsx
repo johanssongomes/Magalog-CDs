@@ -4345,79 +4345,118 @@ export const PcpJsMartinsPage: React.FC = () => {
                 />
               </div>
 
-              {/* Linha 3: Segmentação por Prazos / SLA (Multi-Seleção: Vencido, D0, D1, D2... D7, D+) */}
-              <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-1 w-full xl:max-w-[780px] 2xl:max-w-[840px]">
-                <div className="flex items-center gap-1 mr-0.5 text-slate-500 shrink-0">
-                  <Clock size={11} className="text-blue-600" />
-                  <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-slate-600">Prazos:</span>
-                  {planFilterPrazos.length > 0 && (
-                    <span className="text-[9px] text-blue-700 bg-blue-100 px-1 py-0.2 rounded font-extrabold">
-                      {planFilterPrazos.length}
-                    </span>
-                  )}
-                </div>
-
-                {/* Botão Todos */}
-                <button
-                  type="button"
-                  onClick={() => setPlanFilterPrazos([])}
-                  className={`px-1.5 py-0.5 text-[10.5px] font-bold rounded-md border transition-all cursor-pointer shrink-0 ${planFilterPrazos.length === 0
-                    ? 'bg-[#0e3b66] text-white border-[#0e3b66] shadow-xs'
-                    : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
-                    }`}
-                >
-                  Todos
-                </button>
-
-                {PRAZO_FAIXAS.map(faixa => {
-                  const isSelected = planFilterPrazos.includes(faixa)
-                  const count = prazoCounts[faixa] || 0
-                  const isVencido = faixa === 'Vencido'
-
-                  return (
-                    <button
-                      key={faixa}
-                      type="button"
-                      onClick={() => {
-                        setPlanFilterPrazos(prev =>
-                          prev.includes(faixa)
-                            ? prev.filter(p => p !== faixa)
-                            : [...prev, faixa]
-                        )
-                      }}
-                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10.5px] font-bold rounded-md border transition-all cursor-pointer select-none shrink-0 ${isSelected
-                        ? isVencido
-                          ? 'bg-rose-600 text-white border-rose-600 shadow-xs ring-1 ring-rose-200'
-                          : 'bg-blue-600 text-white border-blue-600 shadow-xs ring-1 ring-blue-200'
-                        : isVencido
-                          ? 'bg-rose-50/70 hover:bg-rose-100 text-rose-700 border-rose-200'
-                          : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
-                        }`}
-                    >
-                      <span>{faixa}</span>
-                      <span
-                        className={`text-[9.5px] px-1 py-0.2 rounded font-extrabold transition-colors ${isSelected
-                          ? 'bg-white/25 text-white'
-                          : isVencido
-                            ? 'bg-rose-200/80 text-rose-800'
-                            : 'bg-slate-100 text-slate-600'
-                          }`}
-                      >
-                        {count}
+              {/* Linha 3: Segmentação por Prazos & Cards de KPIs Rápidos */}
+              <div className="pt-2 border-t border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-3 w-full">
+                {/* Lado Esquerdo: Segmentação por Prazos / SLA */}
+                <div className="flex flex-wrap items-center gap-1">
+                  <div className="flex items-center gap-1 mr-0.5 text-slate-500 shrink-0">
+                    <Clock size={11} className="text-blue-600" />
+                    <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-slate-600">Prazos:</span>
+                    {planFilterPrazos.length > 0 && (
+                      <span className="text-[9px] text-blue-700 bg-blue-100 px-1 py-0.2 rounded font-extrabold">
+                        {planFilterPrazos.length}
                       </span>
-                    </button>
-                  )
-                })}
+                    )}
+                  </div>
 
-                {planFilterPrazos.length > 0 && (
+                  {/* Botão Todos */}
                   <button
                     type="button"
                     onClick={() => setPlanFilterPrazos([])}
-                    className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-0.5 shrink-0"
+                    className={`px-1.5 py-0.5 text-[10.5px] font-bold rounded-md border transition-all cursor-pointer shrink-0 ${planFilterPrazos.length === 0
+                      ? 'bg-[#0e3b66] text-white border-[#0e3b66] shadow-xs'
+                      : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
+                      }`}
                   >
-                    Limpar
+                    Todos
                   </button>
-                )}
+
+                  {PRAZO_FAIXAS.map(faixa => {
+                    const isSelected = planFilterPrazos.includes(faixa)
+                    const count = prazoCounts[faixa] || 0
+                    const isVencido = faixa === 'Vencido'
+
+                    return (
+                      <button
+                        key={faixa}
+                        type="button"
+                        onClick={() => {
+                          setPlanFilterPrazos(prev =>
+                            prev.includes(faixa)
+                              ? prev.filter(p => p !== faixa)
+                              : [...prev, faixa]
+                          )
+                        }}
+                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10.5px] font-bold rounded-md border transition-all cursor-pointer select-none shrink-0 ${isSelected
+                          ? isVencido
+                            ? 'bg-rose-600 text-white border-rose-600 shadow-xs ring-1 ring-rose-200'
+                            : 'bg-blue-600 text-white border-blue-600 shadow-xs ring-1 ring-blue-200'
+                          : isVencido
+                            ? 'bg-rose-50/70 hover:bg-rose-100 text-rose-700 border-rose-200'
+                            : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
+                          }`}
+                      >
+                        <span>{faixa}</span>
+                        <span
+                          className={`text-[9.5px] px-1 py-0.2 rounded font-extrabold transition-colors ${isSelected
+                            ? 'bg-white/25 text-white'
+                            : isVencido
+                              ? 'bg-rose-200/80 text-rose-800'
+                              : 'bg-slate-100 text-slate-600'
+                            }`}
+                        >
+                          {count}
+                        </span>
+                      </button>
+                    )
+                  })}
+
+                  {planFilterPrazos.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPlanFilterPrazos([])}
+                      className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-0.5 shrink-0"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+
+                {/* Lado Direito: Cards Rápidos de Visão Geral (Nivelando com os painéis inferiores) */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full xl:w-auto xl:min-w-[620px] 2xl:min-w-[680px] shrink-0">
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Pedidos</span>
+                    <span className="text-base font-black text-slate-800 leading-tight block">
+                      {(planViewMode === 'comparativo' ? compTotals.totalPedidos : geralPedidos).toLocaleString('pt-BR')}
+                    </span>
+                    <span className="text-[9.5px] text-slate-400 block mt-0.5">
+                      {planViewMode === 'comparativo' ? 'Carteira + Processo' : 'Backlog filtrado'}
+                    </span>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Volume Peças</span>
+                    <span className="text-base font-black text-blue-600 leading-tight block">
+                      {Math.round(planViewMode === 'comparativo' ? compTotals.totalQtd : geralQtd).toLocaleString('pt-BR')}
+                    </span>
+                    <span className="text-[9.5px] text-slate-400 block mt-0.5">Total de unidades</span>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cubagem (m³)</span>
+                    <span className="text-base font-black text-purple-600 leading-tight block">
+                      {(planViewMode === 'comparativo' ? compTotals.totalCub : geralCub).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                    </span>
+                    <span className="text-[9.5px] text-slate-400 block mt-0.5">Espaço cúbico</span>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Faturamento</span>
+                    <span className="text-base font-black text-emerald-600 leading-tight block">
+                      {(planViewMode === 'comparativo' ? compTotals.totalValor : geralValor).toLocaleString('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' })}
+                    </span>
+                    <span className="text-[9.5px] text-slate-400 block mt-0.5">
+                      {planViewMode === 'comparativo' ? 'Valor consolidado' : 'Valor em carteira'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -5093,44 +5132,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                 )}
               </div>
 
-              {/* LADO DIREITO: ÁREA RESERVADA PARA GRÁFICOS, ONDAS E CRONOGRAMAS */}
+              {/* LADO DIREITO: ÁREA RESERVADA PARA TABELAS/VISÕES DO PAINEL LATERAL */}
               <div className="flex-1 space-y-4 w-full min-w-0 xl:max-w-[800px] 2xl:max-w-[840px]">
-                {/* Cards Rápidos de Visão Geral */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Total Pedidos</span>
-                    <span className="text-xl font-black text-slate-800">
-                      {(planViewMode === 'comparativo' ? compTotals.totalPedidos : geralPedidos).toLocaleString('pt-BR')}
-                    </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">
-                      {planViewMode === 'comparativo' ? 'Carteira + Processo' : 'Backlog filtrado'}
-                    </span>
-                  </div>
-                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Volume Peças</span>
-                    <span className="text-xl font-black text-blue-600">
-                      {Math.round(planViewMode === 'comparativo' ? compTotals.totalQtd : geralQtd).toLocaleString('pt-BR')}
-                    </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">Total de unidades</span>
-                  </div>
-                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Cubagem (m³)</span>
-                    <span className="text-xl font-black text-purple-600">
-                      {(planViewMode === 'comparativo' ? compTotals.totalCub : geralCub).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                    </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">Espaço cúbico</span>
-                  </div>
-                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Faturamento</span>
-                    <span className="text-xl font-black text-emerald-600">
-                      {(planViewMode === 'comparativo' ? compTotals.totalValor : geralValor).toLocaleString('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' })}
-                    </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">
-                      {planViewMode === 'comparativo' ? 'Valor consolidado' : 'Valor em carteira'}
-                    </span>
-                  </div>
-                </div>
-
                 {/* 3 BOTÕES DE VISÃO DO PAINEL LATERAL (CONFORME SOLICITADO) */}
                 <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/90 shadow-2xs">
                   <button
