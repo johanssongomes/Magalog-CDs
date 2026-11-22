@@ -14,6 +14,7 @@ import {
   UploadCloud,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Database,
   Building2,
   CheckCircle2,
@@ -309,6 +310,188 @@ export const parseDateOrPrazoToTimestamp = (val: any): number => {
   return 9999999999999
 }
 
+// Componente moderno de Dropdown com Múltipla Seleção (Multi-Select) para filtros de planejamento
+interface MultiSelectDropdownProps {
+  label: string
+  options: string[]
+  selected: string[]
+  onChange: (selected: string[]) => void
+  placeholder?: string
+  searchable?: boolean
+  align?: 'left' | 'right'
+}
+
+const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
+  label,
+  options,
+  selected,
+  onChange,
+  placeholder = 'Todos',
+  searchable = true,
+  align = 'left'
+}) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
+
+  const filteredOptions = useMemo(() => {
+    if (!searchTerm.trim()) return options
+    const term = searchTerm.toLowerCase()
+    return options.filter(opt => opt.toLowerCase().includes(term))
+  }, [options, searchTerm])
+
+  const toggleOption = (opt: string) => {
+    if (selected.includes(opt)) {
+      onChange(selected.filter(s => s !== opt))
+    } else {
+      onChange([...selected, opt])
+    }
+  }
+
+  const handleSelectAll = () => {
+    onChange([...options])
+  }
+
+  const handleClear = () => {
+    onChange([])
+  }
+
+  return (
+    <div className="relative space-y-1" ref={dropdownRef}>
+      <div className="flex items-center justify-between">
+        <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+          {label}
+        </label>
+        {selected.length > 0 && (
+          <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-blue-100 text-blue-700">
+            {selected.length}
+          </span>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setIsOpen(prev => !prev)}
+        className={`w-full px-2.5 py-1 text-xs rounded-lg border transition-all text-left flex items-center justify-between gap-1.5 cursor-pointer shadow-2xs ${
+          isOpen
+            ? 'ring-2 ring-blue-500 border-blue-500 bg-white'
+            : selected.length > 0
+              ? 'border-blue-400 bg-blue-50/50 text-blue-900 font-semibold'
+              : 'border-slate-200 bg-slate-50/70 hover:bg-white text-slate-700 font-medium'
+        }`}
+      >
+        <span className="truncate">
+          {selected.length === 0
+            ? placeholder
+            : selected.length === 1
+              ? selected[0]
+              : `${selected.length} selecionados`}
+        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          {selected.length > 0 && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleClear()
+              }}
+              title="Limpar seleção"
+              className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors"
+            >
+              <X size={11} />
+            </span>
+          )}
+          <ChevronDown
+            size={12}
+            className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-blue-600' : ''}`}
+          />
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-1 min-w-[220px] max-w-[320px] w-full bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 space-y-2 text-xs`}>
+          {/* Ações Rápidas */}
+          <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-[10.5px]">
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className="text-blue-600 hover:text-blue-800 font-bold cursor-pointer hover:underline"
+            >
+              Marcar Todos ({options.length})
+            </button>
+            <button
+              type="button"
+              onClick={handleClear}
+              className="text-rose-600 hover:text-rose-800 font-bold cursor-pointer hover:underline"
+            >
+              Limpar
+            </button>
+          </div>
+
+          {/* Campo de Busca Interna */}
+          {searchable && options.length > 4 && (
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Filtrar opções..."
+                className="w-full pl-6 pr-2 py-1 text-[11px] rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                autoFocus
+              />
+            </div>
+          )}
+
+          {/* Lista com Checkboxes */}
+          <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1 divide-y divide-slate-50">
+            {filteredOptions.length === 0 ? (
+              <div className="text-[10.5px] text-slate-400 text-center py-2">
+                Nenhuma opção encontrada
+              </div>
+            ) : (
+              filteredOptions.map(opt => {
+                const isChecked = selected.includes(opt)
+                return (
+                  <label
+                    key={opt}
+                    className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors text-[11px] select-none ${
+                      isChecked ? 'bg-blue-50/70 text-blue-900 font-semibold' : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleOption(opt)}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                    <span className="truncate flex-1">{opt}</span>
+                  </label>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export const PcpJsMartinsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'planejamento' | 'programacao' | 'controle' | 'cadastros'>(() => {
     try {
@@ -514,12 +697,28 @@ export const PcpJsMartinsPage: React.FC = () => {
   const [cepPage, setCepPage] = useState(1)
   const [cepPageSize] = useState(50)
 
-  // Estados dos filtros da aba Planejamento (persistentes no navegador)
-  const [planFilterRegiao, setPlanFilterRegiao] = useState<string>(() => {
-    try { return localStorage.getItem('magalog_pcp_plan_regiao') || 'TODOS' } catch { return 'TODOS' }
+  // Estados dos filtros da aba Planejamento (persistentes no navegador com suporte a multi-seleção)
+  const [planFilterRegioes, setPlanFilterRegioes] = useState<string[]>(() => {
+    try {
+      const s = localStorage.getItem('magalog_pcp_plan_regioes')
+      if (s) return JSON.parse(s)
+      const old = localStorage.getItem('magalog_pcp_plan_regiao')
+      return (old && old !== 'TODOS') ? [old] : []
+    } catch { return [] }
   })
-  const [planFilterModalidade, setPlanFilterModalidade] = useState<string>(() => {
-    try { return localStorage.getItem('magalog_pcp_plan_modalidade') || 'TODOS' } catch { return 'TODOS' }
+  const [planFilterDestinos, setPlanFilterDestinos] = useState<string[]>(() => {
+    try {
+      const s = localStorage.getItem('magalog_pcp_plan_destinos')
+      return s ? JSON.parse(s) : []
+    } catch { return [] }
+  })
+  const [planFilterModalidades, setPlanFilterModalidades] = useState<string[]>(() => {
+    try {
+      const s = localStorage.getItem('magalog_pcp_plan_modalidades')
+      if (s) return JSON.parse(s)
+      const old = localStorage.getItem('magalog_pcp_plan_modalidade')
+      return (old && old !== 'TODOS') ? [old] : []
+    } catch { return [] }
   })
   const [planFilterTipoModal, setPlanFilterTipoModal] = useState<string[]>(() => {
     try {
@@ -539,8 +738,13 @@ export const PcpJsMartinsPage: React.FC = () => {
       return s ? JSON.parse(s) : []
     } catch { return [] }
   })
-  const [planFilterLinha, setPlanFilterLinha] = useState<string>(() => {
-    try { return localStorage.getItem('magalog_pcp_plan_linha') || 'TODOS' } catch { return 'TODOS' }
+  const [planFilterLinhas, setPlanFilterLinhas] = useState<string[]>(() => {
+    try {
+      const s = localStorage.getItem('magalog_pcp_plan_linhas')
+      if (s) return JSON.parse(s)
+      const old = localStorage.getItem('magalog_pcp_plan_linha')
+      return (old && old !== 'TODOS') ? [old] : []
+    } catch { return [] }
   })
   const [planFilterPrazos, setPlanFilterPrazos] = useState<string[]>(() => {
     try {
@@ -555,16 +759,17 @@ export const PcpJsMartinsPage: React.FC = () => {
   // Sincronizar filtros com localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('magalog_pcp_plan_regiao', planFilterRegiao)
-      localStorage.setItem('magalog_pcp_plan_modalidade', planFilterModalidade)
+      localStorage.setItem('magalog_pcp_plan_regioes', JSON.stringify(planFilterRegioes))
+      localStorage.setItem('magalog_pcp_plan_destinos', JSON.stringify(planFilterDestinos))
+      localStorage.setItem('magalog_pcp_plan_modalidades', JSON.stringify(planFilterModalidades))
       localStorage.setItem('magalog_pcp_plan_tipo_modal', JSON.stringify(planFilterTipoModal))
       localStorage.setItem('magalog_pcp_plan_fllibfat', JSON.stringify(planFilterFllibfat))
       localStorage.setItem('magalog_pcp_plan_status_op', JSON.stringify(planFilterStatusOp))
-      localStorage.setItem('magalog_pcp_plan_linha', planFilterLinha)
+      localStorage.setItem('magalog_pcp_plan_linhas', JSON.stringify(planFilterLinhas))
       localStorage.setItem('magalog_pcp_plan_prazos', JSON.stringify(planFilterPrazos))
       localStorage.setItem('magalog_pcp_plan_search', planSearchTerm)
     } catch { }
-  }, [planFilterRegiao, planFilterModalidade, planFilterTipoModal, planFilterFllibfat, planFilterStatusOp, planFilterLinha, planFilterPrazos, planSearchTerm])
+  }, [planFilterRegioes, planFilterDestinos, planFilterModalidades, planFilterTipoModal, planFilterFllibfat, planFilterStatusOp, planFilterLinhas, planFilterPrazos, planSearchTerm])
 
   // Alternância de visualização dos painéis: 'regiao' (Quadro por Região) | 'comparativo' (Visão Comparativa por Destino)
   const [planViewMode, setPlanViewMode] = useState<'regiao' | 'comparativo'>(() => {
@@ -2313,9 +2518,9 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                               <td className="py-2 px-3 text-center">
                                 <span className={`px-2 py-0.5 rounded text-[9.5px] font-black uppercase ${targetInfo.regiao === 'CAPITAL' ? 'bg-blue-100 text-blue-800' :
-                                    targetInfo.regiao === 'METROPOLITANA' ? 'bg-indigo-100 text-indigo-800' :
-                                      targetInfo.regiao === 'INTERIOR' ? 'bg-emerald-100 text-emerald-800' :
-                                        'bg-slate-100 text-slate-700'
+                                  targetInfo.regiao === 'METROPOLITANA' ? 'bg-indigo-100 text-indigo-800' :
+                                    targetInfo.regiao === 'INTERIOR' ? 'bg-emerald-100 text-emerald-800' :
+                                      'bg-slate-100 text-slate-700'
                                   }`}>
                                   {targetInfo.regiao !== '-' ? targetInfo.regiao : (param.regiao || 'INTERIOR')}
                                 </span>
@@ -2694,15 +2899,6 @@ export const PcpJsMartinsPage: React.FC = () => {
         // Obter toda a base consolidada de registros (do Supabase ou cache local)
         const allRows = fullPlanningData.length > 0 ? fullPlanningData : getLocalData()
 
-        // Opções únicas para os filtros
-        const uniqueRegioes = ['TODOS', 'CAPITAL', 'METROPOLITANA', 'INTERIOR', 'ABASTECIMENTO CDs']
-        const uniqueModalidades = ['TODOS', ...Array.from(new Set(allRows.map(r => {
-          const cod = String(r.codmodal || r.CODMODAL || '').trim().toUpperCase()
-          return modalMap[cod] || String(r.descricaomodal || r.DESCRICAOMODAL || '')
-        }))).filter(Boolean).sort()]
-        const uniqueStatusOp = ['TODOS', ...Array.from(new Set(allRows.map(r => String(r.status_operacao || r.STATUS_OPERACAO || '')))).filter(Boolean).sort()]
-        const uniqueLinhas = ['TODOS', ...Array.from(new Set(allRows.map(r => String(r.linha || r.LINHA || '')))).filter(Boolean).sort()]
-
         // Data de referência operacional para cálculo de prazos/SLA
         const opRefDate = getOperationalReferenceDate(allRows)
 
@@ -2766,6 +2962,42 @@ export const PcpJsMartinsPage: React.FC = () => {
           }
         })
 
+        // Listas únicas de opções para os filtros de multi-seleção
+        const canonicalRegioes = ['CAPITAL', 'METROPOLITANA', 'INTERIOR', 'ABASTECIMENTO CDs']
+        const extraRegioes = Array.from(new Set(enrichedBase.map(r => r.calc_regiao))).filter(r => r && !canonicalRegioes.includes(r)).sort()
+        const uniqueRegioesList = [...canonicalRegioes, ...extraRegioes]
+        const uniqueDestinosList = Array.from(new Set(enrichedBase.map(r => r.calc_destino))).filter(Boolean).sort()
+        const uniqueModalidadesList = Array.from(new Set(enrichedBase.map(r => r.calc_modalidade))).filter(Boolean).sort()
+        const uniqueLinhasList = Array.from(new Set(enrichedBase.map(r => r.calc_linha))).filter(Boolean).sort()
+
+        // Suporte a múltiplos termos / itens na Busca Rápida (separados por vírgula, ponto e vírgula, tab, quebra de linha ou espaço numérico)
+        const rawSearch = planSearchTerm.trim()
+        let searchTokens: string[] = []
+        if (rawSearch) {
+          if (/[,;\t\n\r]/.test(rawSearch)) {
+            searchTokens = rawSearch.split(/[,;\t\n\r]+/).map(t => t.trim().toLowerCase()).filter(Boolean)
+          } else if (/^\d+(\s+\d+)+$/.test(rawSearch)) {
+            searchTokens = rawSearch.split(/\s+/).map(t => t.trim().toLowerCase()).filter(Boolean)
+          } else {
+            searchTokens = [rawSearch.toLowerCase()]
+          }
+        }
+
+        const matchSearch = (r: any) => {
+          if (searchTokens.length === 0) return true
+          return searchTokens.some(term => {
+            const matchDest = r.calc_destino && r.calc_destino.toLowerCase().includes(term)
+            const matchReg = r.calc_regiao && r.calc_regiao.toLowerCase().includes(term)
+            const matchPed = r.calc_ped && r.calc_ped.toLowerCase().includes(term)
+            const matchRota = String(r.descricaorota || r.DESCRICAOROTA || '').toLowerCase().includes(term)
+            const matchFil = String(r.filentrega || r.FILENTREGA || '').toLowerCase().includes(term)
+            const matchItem = String(r.item || r.ITEM || '').toLowerCase().includes(term)
+            const matchDesc = String(r.descricao || r.DESCRICAO || '').toLowerCase().includes(term)
+            const matchCep = String(r.cep_entrega || r.CEP_ENTREGA || '').replace(/\.0+$/, '').includes(term)
+            return matchDest || matchReg || matchPed || matchRota || matchFil || matchItem || matchDesc || matchCep
+          })
+        }
+
         // Contagem de pedidos por Faixa de Prazo (SLA) considerando os filtros ativos (exceto o próprio filtro de prazo)
         const prazoCounts: Record<string, number> = {}
         PRAZO_FAIXAS.forEach(f => {
@@ -2773,8 +3005,10 @@ export const PcpJsMartinsPage: React.FC = () => {
           let countItems = 0
           enrichedBase.forEach(r => {
             if (r.calc_prazo !== f) return
-            if (planFilterRegiao !== 'TODOS' && r.calc_regiao !== planFilterRegiao) return
-            if (planFilterModalidade !== 'TODOS' && r.calc_modalidade !== planFilterModalidade) return
+            if (planFilterRegioes.length > 0 && !planFilterRegioes.includes(r.calc_regiao)) return
+            if (planFilterDestinos.length > 0 && !planFilterDestinos.includes(r.calc_destino)) return
+            if (planFilterModalidades.length > 0 && !planFilterModalidades.includes(r.calc_modalidade)) return
+            if (planFilterLinhas.length > 0 && !planFilterLinhas.includes(r.calc_linha)) return
             if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return
             if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return
             if (planFilterStatusOp.length > 0) {
@@ -2786,18 +3020,7 @@ export const PcpJsMartinsPage: React.FC = () => {
               })
               if (!matchStatus) return
             }
-            if (planFilterLinha !== 'TODOS' && r.calc_linha !== planFilterLinha) return
-            if (planSearchTerm.trim()) {
-              const term = planSearchTerm.toLowerCase()
-              const matchDest = r.calc_destino.toLowerCase().includes(term)
-              const matchReg = r.calc_regiao.toLowerCase().includes(term)
-              const matchPed = r.calc_ped.toLowerCase().includes(term)
-              const matchRota = String(r.descricaorota || r.DESCRICAOROTA || '').toLowerCase().includes(term)
-              const matchFil = String(r.filentrega || r.FILENTREGA || '').toLowerCase().includes(term)
-              const matchItem = String(r.item || r.ITEM || '').toLowerCase().includes(term)
-              const matchCep = String(r.cep_entrega || r.CEP_ENTREGA || '').replace(/\.0+$/, '').includes(term)
-              if (!matchDest && !matchReg && !matchPed && !matchRota && !matchFil && !matchItem && !matchCep) return
-            }
+            if (!matchSearch(r)) return
             if (r.calc_ped) pedsSet.add(r.calc_ped)
             countItems++
           })
@@ -2805,8 +3028,10 @@ export const PcpJsMartinsPage: React.FC = () => {
         })
 
         const enrichedFiltered = enrichedBase.filter(r => {
-          if (planFilterRegiao !== 'TODOS' && r.calc_regiao !== planFilterRegiao) return false
-          if (planFilterModalidade !== 'TODOS' && r.calc_modalidade !== planFilterModalidade) return false
+          if (planFilterRegioes.length > 0 && !planFilterRegioes.includes(r.calc_regiao)) return false
+          if (planFilterDestinos.length > 0 && !planFilterDestinos.includes(r.calc_destino)) return false
+          if (planFilterModalidades.length > 0 && !planFilterModalidades.includes(r.calc_modalidade)) return false
+          if (planFilterLinhas.length > 0 && !planFilterLinhas.includes(r.calc_linha)) return false
           if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
           if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return false
           if (planFilterPrazos.length > 0 && !planFilterPrazos.includes(r.calc_prazo)) return false
@@ -2819,40 +3044,20 @@ export const PcpJsMartinsPage: React.FC = () => {
             })
             if (!matchStatus) return false
           }
-          if (planFilterLinha !== 'TODOS' && r.calc_linha !== planFilterLinha) return false
-          if (planSearchTerm.trim()) {
-            const term = planSearchTerm.toLowerCase()
-            const matchDest = r.calc_destino.toLowerCase().includes(term)
-            const matchReg = r.calc_regiao.toLowerCase().includes(term)
-            const matchPed = r.calc_ped.toLowerCase().includes(term)
-            const matchRota = String(r.descricaorota || r.DESCRICAOROTA || '').toLowerCase().includes(term)
-            const matchFil = String(r.filentrega || r.FILENTREGA || '').toLowerCase().includes(term)
-            const matchItem = String(r.item || r.ITEM || '').toLowerCase().includes(term)
-            const matchCep = String(r.cep_entrega || r.CEP_ENTREGA || '').replace(/\.0+$/, '').includes(term)
-            if (!matchDest && !matchReg && !matchPed && !matchRota && !matchFil && !matchItem && !matchCep) return false
-          }
+          if (!matchSearch(r)) return false
           return true
         })
 
         // Base para a Visão Comparativa (sempre mantém Carteira + Processo para o comparativo lado a lado)
         const enrichedForComparative = enrichedBase.filter(r => {
-          if (planFilterRegiao !== 'TODOS' && r.calc_regiao !== planFilterRegiao) return false
-          if (planFilterModalidade !== 'TODOS' && r.calc_modalidade !== planFilterModalidade) return false
+          if (planFilterRegioes.length > 0 && !planFilterRegioes.includes(r.calc_regiao)) return false
+          if (planFilterDestinos.length > 0 && !planFilterDestinos.includes(r.calc_destino)) return false
+          if (planFilterModalidades.length > 0 && !planFilterModalidades.includes(r.calc_modalidade)) return false
+          if (planFilterLinhas.length > 0 && !planFilterLinhas.includes(r.calc_linha)) return false
           if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
           if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return false
           if (planFilterPrazos.length > 0 && !planFilterPrazos.includes(r.calc_prazo)) return false
-          if (planFilterLinha !== 'TODOS' && r.calc_linha !== planFilterLinha) return false
-          if (planSearchTerm.trim()) {
-            const term = planSearchTerm.toLowerCase()
-            const matchDest = r.calc_destino.toLowerCase().includes(term)
-            const matchReg = r.calc_regiao.toLowerCase().includes(term)
-            const matchPed = r.calc_ped.toLowerCase().includes(term)
-            const matchRota = String(r.descricaorota || r.DESCRICAOROTA || '').toLowerCase().includes(term)
-            const matchFil = String(r.filentrega || r.FILENTREGA || '').toLowerCase().includes(term)
-            const matchItem = String(r.item || r.ITEM || '').toLowerCase().includes(term)
-            const matchCep = String(r.cep_entrega || r.CEP_ENTREGA || '').replace(/\.0+$/, '').includes(term)
-            if (!matchDest && !matchReg && !matchPed && !matchRota && !matchFil && !matchItem && !matchCep) return false
-          }
+          if (!matchSearch(r)) return false
           return true
         })
 
@@ -3267,9 +3472,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                     {(planFilterTipoModal.length > 0 ||
                       planFilterStatusOp.length > 0 ||
                       planFilterFllibfat.length > 0 ||
-                      planFilterRegiao !== 'TODOS' ||
-                      planFilterModalidade !== 'TODOS' ||
-                      planFilterLinha !== 'TODOS' ||
+                      planFilterRegioes.length > 0 ||
+                      planFilterDestinos.length > 0 ||
+                      planFilterModalidades.length > 0 ||
+                      planFilterLinhas.length > 0 ||
                       planFilterPrazos.length > 0 ||
                       planSearchTerm.trim() !== '') && (
                         <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
@@ -3319,21 +3525,23 @@ export const PcpJsMartinsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      setPlanFilterRegiao('TODOS')
-                      setPlanFilterModalidade('TODOS')
+                      setPlanFilterRegioes([])
+                      setPlanFilterDestinos([])
+                      setPlanFilterModalidades([])
+                      setPlanFilterLinhas([])
                       setPlanFilterTipoModal([])
                       setPlanFilterFllibfat([])
                       setPlanFilterStatusOp([])
-                      setPlanFilterLinha('TODOS')
                       setPlanFilterPrazos([])
                       setPlanSearchTerm('')
                       try {
-                        localStorage.removeItem('magalog_pcp_plan_regiao')
-                        localStorage.removeItem('magalog_pcp_plan_modalidade')
+                        localStorage.removeItem('magalog_pcp_plan_regioes')
+                        localStorage.removeItem('magalog_pcp_plan_destinos')
+                        localStorage.removeItem('magalog_pcp_plan_modalidades')
+                        localStorage.removeItem('magalog_pcp_plan_linhas')
                         localStorage.removeItem('magalog_pcp_plan_tipo_modal')
                         localStorage.removeItem('magalog_pcp_plan_fllibfat')
                         localStorage.removeItem('magalog_pcp_plan_status_op')
-                        localStorage.removeItem('magalog_pcp_plan_linha')
                         localStorage.removeItem('magalog_pcp_plan_prazos')
                         localStorage.removeItem('magalog_pcp_plan_search')
                       } catch { }
@@ -3561,64 +3769,80 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Linha 2: Segmentações por Seleção & Busca Rápida */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 pt-2 border-t border-slate-100">
-                {/* Busca Destino / Rota / Pedido */}
+              {/* Linha 2: Segmentações por Seleção & Busca Rápida (5 Colunas com Múltipla Seleção) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-2 border-t border-slate-100">
+                {/* 1. Busca Destino / Rota / Pedido (Multi-termo com separador por vírgula, espaço ou linha) */}
                 <div className="space-y-1">
-                  <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Busca Rápida</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Busca Rápida</label>
+                    {planSearchTerm.trim() && (
+                      <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-blue-100 text-blue-700">
+                        {searchTokens.length > 1 ? `${searchTokens.length} itens` : 'ativo'}
+                      </span>
+                    )}
+                  </div>
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
                     <input
                       type="text"
                       value={planSearchTerm}
                       onChange={e => setPlanSearchTerm(e.target.value)}
-                      placeholder="Destino, rota ou pedido..."
-                      className="w-full pl-8 pr-2.5 py-1 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/70 focus:bg-white transition-colors"
+                      placeholder="Destino, pedidos (ex: 1195028929, 1195029365)..."
+                      className="w-full pl-8 pr-7 py-1 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/70 focus:bg-white transition-colors"
                     />
+                    {planSearchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => setPlanSearchTerm('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        title="Limpar busca"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* Filtro de Região */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Região</label>
-                  <select
-                    value={planFilterRegiao}
-                    onChange={e => setPlanFilterRegiao(e.target.value)}
-                    className="w-full px-2.5 py-1 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/70 focus:bg-white font-medium text-slate-700 transition-colors"
-                  >
-                    {uniqueRegioes.map(r => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
-                </div>
+                {/* 2. Filtro de Destino (Multi-Seleção com Busca Interna) */}
+                <MultiSelectDropdown
+                  label="Destino"
+                  options={uniqueDestinosList}
+                  selected={planFilterDestinos}
+                  onChange={setPlanFilterDestinos}
+                  placeholder="Todos os Destinos"
+                  searchable={true}
+                />
 
-                {/* Filtro de Modalidade */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Modalidade (Aux)</label>
-                  <select
-                    value={planFilterModalidade}
-                    onChange={e => setPlanFilterModalidade(e.target.value)}
-                    className="w-full px-2.5 py-1 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/70 focus:bg-white font-medium text-slate-700 transition-colors"
-                  >
-                    {uniqueModalidades.map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
+                {/* 3. Filtro de Região (Multi-Seleção) */}
+                <MultiSelectDropdown
+                  label="Região"
+                  options={uniqueRegioesList}
+                  selected={planFilterRegioes}
+                  onChange={setPlanFilterRegioes}
+                  placeholder="Todas as Regiões"
+                  searchable={false}
+                />
 
-                {/* Filtro de Linha */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Linha</label>
-                  <select
-                    value={planFilterLinha}
-                    onChange={e => setPlanFilterLinha(e.target.value)}
-                    className="w-full px-2.5 py-1 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/70 focus:bg-white font-medium text-slate-700 transition-colors"
-                  >
-                    {uniqueLinhas.map(l => (
-                      <option key={l} value={l}>{l}</option>
-                    ))}
-                  </select>
-                </div>
+                {/* 4. Filtro de Modalidade (Multi-Seleção) */}
+                <MultiSelectDropdown
+                  label="Modalidade (Aux)"
+                  options={uniqueModalidadesList}
+                  selected={planFilterModalidades}
+                  onChange={setPlanFilterModalidades}
+                  placeholder="Todas as Modalidades"
+                  searchable={false}
+                />
+
+                {/* 5. Filtro de Linha (Multi-Seleção com Busca Interna) */}
+                <MultiSelectDropdown
+                  label="Linha"
+                  options={uniqueLinhasList}
+                  selected={planFilterLinhas}
+                  onChange={setPlanFilterLinhas}
+                  placeholder="Todas as Linhas"
+                  searchable={true}
+                  align="right"
+                />
               </div>
 
               {/* Linha 3: Segmentação por Prazos / SLA (Multi-Seleção: Vencido, D0, D1, D2... D7, D+) */}
@@ -3638,8 +3862,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                   type="button"
                   onClick={() => setPlanFilterPrazos([])}
                   className={`px-1.5 py-0.5 text-[10.5px] font-bold rounded-md border transition-all cursor-pointer shrink-0 ${planFilterPrazos.length === 0
-                      ? 'bg-[#0e3b66] text-white border-[#0e3b66] shadow-xs'
-                      : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
+                    ? 'bg-[#0e3b66] text-white border-[#0e3b66] shadow-xs'
+                    : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
                     }`}
                 >
                   Todos
@@ -3662,21 +3886,21 @@ export const PcpJsMartinsPage: React.FC = () => {
                         )
                       }}
                       className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10.5px] font-bold rounded-md border transition-all cursor-pointer select-none shrink-0 ${isSelected
-                          ? isVencido
-                            ? 'bg-rose-600 text-white border-rose-600 shadow-xs ring-1 ring-rose-200'
-                            : 'bg-blue-600 text-white border-blue-600 shadow-xs ring-1 ring-blue-200'
-                          : isVencido
-                            ? 'bg-rose-50/70 hover:bg-rose-100 text-rose-700 border-rose-200'
-                            : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
+                        ? isVencido
+                          ? 'bg-rose-600 text-white border-rose-600 shadow-xs ring-1 ring-rose-200'
+                          : 'bg-blue-600 text-white border-blue-600 shadow-xs ring-1 ring-blue-200'
+                        : isVencido
+                          ? 'bg-rose-50/70 hover:bg-rose-100 text-rose-700 border-rose-200'
+                          : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
                         }`}
                     >
                       <span>{faixa}</span>
                       <span
                         className={`text-[9.5px] px-1 py-0.2 rounded font-extrabold transition-colors ${isSelected
-                            ? 'bg-white/25 text-white'
-                            : isVencido
-                              ? 'bg-rose-200/80 text-rose-800'
-                              : 'bg-slate-100 text-slate-600'
+                          ? 'bg-white/25 text-white'
+                          : isVencido
+                            ? 'bg-rose-200/80 text-rose-800'
+                            : 'bg-slate-100 text-slate-600'
                           }`}
                       >
                         {count}
@@ -4026,10 +4250,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                                   <span>{formatDateBR(det.preventrega)}</span>
                                                                   {det.prazo && (
                                                                     <span className={`text-[8.5px] font-extrabold px-1 rounded ${det.prazo === 'Vencido'
-                                                                        ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                                                        : det.prazo === 'D0'
-                                                                          ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                                                          : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                                                      ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                                                      : det.prazo === 'D0'
+                                                                        ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                                                        : 'bg-slate-100 text-slate-700 border border-slate-200'
                                                                       }`}>
                                                                       {det.prazo}
                                                                     </span>
