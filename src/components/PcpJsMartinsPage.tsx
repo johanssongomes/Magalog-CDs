@@ -3673,6 +3673,17 @@ export const PcpJsMartinsPage: React.FC = () => {
         const datePedidoGroupsMap = new Map<string, DatePedidoGroup>()
 
         enrichedForComparative.forEach(r => {
+          // Regra: Na visão Cruzamento Dt. Pedido x Previsão Entrega, não incluir os modais RET, LEN e RLE
+          const codModal = String(r.codmodal || r.CODMODAL || '').trim().toUpperCase()
+          const descModal = String(r.descricaomodal || r.DESCRICAOMODAL || '').trim().toUpperCase()
+          if (
+            codModal === 'RET' || codModal === 'LEN' || codModal === 'RLE' ||
+            descModal === 'RET' || descModal === 'LEN' || descModal === 'RLE' ||
+            descModal.startsWith('RET ') || descModal.startsWith('LEN ') || descModal.startsWith('RLE ')
+          ) {
+            return
+          }
+
           const rawDtPed = r.dtpedido || r.DTPEDIDO
           const rawPrevEnt = r.preventrega || r.PREVENTREGA || (r.calc_tipo_modal === 'Abastecimento' ? (r.dtpedido || r.DTPEDIDO) : '')
 
