@@ -3484,9 +3484,10 @@ export const PcpJsMartinsPage: React.FC = () => {
 
         // --------------------------------------------------------------------------
         // VISÃO 1 (PAINEL LATERAL): AGRUPAMENTO POR LINHA & PRODUTOS
-        // (LINHA, ITEM, DESCRIÇÃO, QTD, CUBAGEM, VALOR$, PESO)
+        // (LINHA, IBM, ITEM, DESCRIÇÃO, QTD, CUBAGEM, VALOR$, PESO)
         // --------------------------------------------------------------------------
         interface LinhaItemSummary {
+          ibm: string
           item: string
           descricao: string
           quantidade: number
@@ -3537,10 +3538,12 @@ export const PcpJsMartinsPage: React.FC = () => {
           if (r.calc_ped) lData.pedidosSet.add(r.calc_ped)
 
           const itemCode = formatItemCode(r.item || r.ITEM || '-')
+          const ibmCode = formatItemCode(r.ibm || r.IBM || '-')
           const itemDesc = String(r.descricao || r.DESCRICAO || '-')
 
           if (!lData.itemsMap.has(itemCode)) {
             lData.itemsMap.set(itemCode, {
+              ibm: ibmCode,
               item: itemCode,
               descricao: itemDesc,
               quantidade: 0,
@@ -3552,6 +3555,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           }
 
           const itData = lData.itemsMap.get(itemCode)!
+          if (itData.ibm === '-' && ibmCode !== '-') itData.ibm = ibmCode
           itData.quantidade += r.calc_qtd
           itData.cubagem += r.calc_cub
           itData.valorTotal += r.calc_vltotal
@@ -3589,7 +3593,9 @@ export const PcpJsMartinsPage: React.FC = () => {
             .map(group => {
               const matchLinha = group.linha.toLowerCase().includes(prSearch)
               const matchingItens = group.itens.filter(
-                it => it.item.toLowerCase().includes(prSearch) || it.descricao.toLowerCase().includes(prSearch)
+                it => it.item.toLowerCase().includes(prSearch) ||
+                  it.ibm.toLowerCase().includes(prSearch) ||
+                  it.descricao.toLowerCase().includes(prSearch)
               )
               if (matchLinha) return group
               if (matchingItens.length > 0) {
@@ -4998,8 +5004,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                       <table className="w-full border-collapse font-sans text-slate-800 text-[10.5px] table-auto">
                         <thead className="sticky top-0 z-20 bg-[#0e3b66] text-white uppercase text-[9.5px] font-black tracking-wider border-b border-[#0a2c4d]">
                           <tr className="divide-x divide-white/10 text-center">
-                            <th className="py-2 px-2.5 text-left font-extrabold min-w-[200px]">LINHA / PRODUTO</th>
+                            <th className="py-2 px-2 text-center font-extrabold w-[75px] min-w-[75px]">IBM</th>
                             <th className="py-2 px-2 text-center font-extrabold w-[80px] min-w-[80px]">ITEM</th>
+                            <th className="py-2 px-2.5 text-left font-extrabold min-w-[200px]">LINHA / DESCRIÇÃO</th>
                             <th className="py-2 px-2 text-center font-extrabold w-[65px] min-w-[65px]">QTD</th>
                             <th className="py-2 px-2 text-center font-extrabold w-[75px] min-w-[75px]">CUBAGEM</th>
                             <th className="py-2 px-2 text-center font-extrabold w-[95px] min-w-[95px]">VALOR$</th>
@@ -5009,7 +5016,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                         <tbody className="divide-y divide-slate-100 bg-white">
                           {filteredLinhaSummaries.length === 0 ? (
                             <tr>
-                              <td colSpan={6} className="py-8 text-center text-slate-400 text-xs font-medium">
+                              <td colSpan={7} className="py-8 text-center text-slate-400 text-xs font-medium">
                                 Nenhum registro encontrado para os filtros ativos.
                               </td>
                             </tr>
@@ -5023,17 +5030,16 @@ export const PcpJsMartinsPage: React.FC = () => {
                                     onClick={() => toggleCollapseLinha(group.linha)}
                                     className="bg-slate-100/90 hover:bg-slate-200/80 transition-colors cursor-pointer font-bold border-y border-slate-200 divide-x divide-slate-200/80 select-none"
                                   >
-                                    <td className="py-1.5 px-2.5 text-slate-900 flex items-center gap-1.5">
-                                      <span className="w-4 h-4 rounded flex items-center justify-center bg-white border border-slate-300 text-[10px] font-black text-slate-700 shadow-2xs shrink-0">
-                                        {isCollapsed ? '+' : '−'}
-                                      </span>
-                                      <span className="font-extrabold text-[11px] text-slate-900">{group.linha}</span>
-                                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 font-extrabold ml-1 shrink-0">
-                                        {group.totalItens} {group.totalItens === 1 ? 'item' : 'itens'}
-                                      </span>
-                                    </td>
-                                    <td className="py-1.5 px-2 text-center text-[10px] font-mono text-slate-400">
-                                      -
+                                    <td colSpan={3} className="py-1.5 px-2.5 text-slate-900">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="w-4 h-4 rounded flex items-center justify-center bg-white border border-slate-300 text-[10px] font-black text-slate-700 shadow-2xs shrink-0">
+                                          {isCollapsed ? '+' : '−'}
+                                        </span>
+                                        <span className="font-extrabold text-[11px] text-slate-900">{group.linha}</span>
+                                        <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 font-extrabold ml-1 shrink-0">
+                                          {group.totalItens} {group.totalItens === 1 ? 'item' : 'itens'}
+                                        </span>
+                                      </div>
                                     </td>
                                     <td className="py-1.5 px-2 text-center font-mono font-black text-slate-900">
                                       {Math.round(group.totalQtd).toLocaleString('pt-BR')}
@@ -5056,13 +5062,16 @@ export const PcpJsMartinsPage: React.FC = () => {
                                       key={item.item}
                                       className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100 text-[10px]"
                                     >
-                                      <td className="py-1 px-3 text-slate-700 pl-7">
+                                      <td className="py-1 px-2 text-center font-mono font-medium text-slate-600 bg-slate-50/40 w-[75px] min-w-[75px]">
+                                        {item.ibm || '-'}
+                                      </td>
+                                      <td className="py-1 px-2 text-center font-mono font-bold text-blue-700 bg-blue-50/20 w-[80px] min-w-[80px]">
+                                        {item.item}
+                                      </td>
+                                      <td className="py-1 px-3 text-slate-700">
                                         <span className="line-clamp-1" title={item.descricao}>
                                           {item.descricao}
                                         </span>
-                                      </td>
-                                      <td className="py-1 px-2 text-center font-mono font-bold text-blue-700 bg-blue-50/20">
-                                        {item.item}
                                       </td>
                                       <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
                                         {Math.round(item.quantidade).toLocaleString('pt-BR')}
@@ -5088,11 +5097,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                         {/* Rodapé Total Geral */}
                         <tfoot className="sticky bottom-0 z-20 bg-[#0e3b66] text-white font-black text-[10px] uppercase border-t-2 border-[#0a2c4d]">
                           <tr className="divide-x divide-white/10">
-                            <td className="py-2 px-3 tracking-wider">
+                            <td colSpan={3} className="py-2 px-3 tracking-wider">
                               TOTAL GERAL ({linhaTotals.totalLinhas} LINHAS / {linhaTotals.totalItens} ITENS)
-                            </td>
-                            <td className="py-2 px-2 text-center font-mono text-sky-200">
-                              -
                             </td>
                             <td className="py-2 px-2 text-center font-mono font-black text-white">
                               {Math.round(linhaTotals.totalQtd).toLocaleString('pt-BR')}
