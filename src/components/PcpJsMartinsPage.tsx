@@ -386,13 +386,12 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
-        className={`w-full px-2.5 py-1 text-xs rounded-lg border transition-all text-left flex items-center justify-between gap-1.5 cursor-pointer shadow-2xs ${
-          isOpen
+        className={`w-full px-2.5 py-1 text-xs rounded-lg border transition-all text-left flex items-center justify-between gap-1.5 cursor-pointer shadow-2xs ${isOpen
             ? 'ring-2 ring-blue-500 border-blue-500 bg-white'
             : selected.length > 0
               ? 'border-blue-400 bg-blue-50/50 text-blue-900 font-semibold'
               : 'border-slate-200 bg-slate-50/70 hover:bg-white text-slate-700 font-medium'
-        }`}
+          }`}
       >
         <span className="truncate">
           {selected.length === 0
@@ -470,9 +469,8 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                 return (
                   <label
                     key={opt}
-                    className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors text-[11px] select-none ${
-                      isChecked ? 'bg-blue-50/70 text-blue-900 font-semibold' : 'hover:bg-slate-50 text-slate-700'
-                    }`}
+                    className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors text-[11px] select-none ${isChecked ? 'bg-blue-50/70 text-blue-900 font-semibold' : 'hover:bg-slate-50 text-slate-700'
+                      }`}
                   >
                     <input
                       type="checkbox"
@@ -787,6 +785,37 @@ export const PcpJsMartinsPage: React.FC = () => {
       localStorage.setItem('magalog_pcp_plan_view_mode', planViewMode)
     } catch { }
   }, [planViewMode])
+
+  // Alternância de visualização do painel lateral direito: 'linha' (Por Linha & Itens) | 'datas' (Dt. Pedido x Prev. Entrega) | 'visao3' (A definir)
+  const [planRightTab, setPlanRightTab] = useState<'linha' | 'datas' | 'visao3'>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_pcp_plan_right_tab')
+      return (saved === 'datas' || saved === 'visao3') ? saved : 'linha'
+    } catch {
+      return 'linha'
+    }
+  })
+
+  // Sincronizar aba do painel lateral direito com localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('magalog_pcp_plan_right_tab', planRightTab)
+    } catch { }
+  }, [planRightTab])
+
+  // Estado para recolher/expandir linhas na Visão 1 do painel lateral
+  const [collapsedLinhas, setCollapsedLinhas] = useState<Set<string>>(new Set())
+  const toggleCollapseLinha = (linha: string) => {
+    setCollapsedLinhas(prev => {
+      const next = new Set(prev)
+      if (next.has(linha)) next.delete(linha)
+      else next.add(linha)
+      return next
+    })
+  }
+
+  // Filtro de busca interna para o painel lateral
+  const [planRightSearch, setPlanRightSearch] = useState<string>('')
 
   // Ordenação da Visão Comparativa (padrão: Cubagem da Carteira decrescente)
   const [compSortField, setCompSortField] = useState<'destino' | 'carteiraQtd' | 'carteiraCub' | 'processoQtd' | 'processoCub' | 'totalQtd' | 'totalCub'>('carteiraCub')
@@ -3453,6 +3482,232 @@ export const PcpJsMartinsPage: React.FC = () => {
           totalPedidos: compGeralPedidosSet.size || comparativeDestinos.reduce((acc, d) => acc + d.pedidosSet.size, 0)
         }
 
+        // --------------------------------------------------------------------------
+        // VISÃO 1 (PAINEL LATERAL): AGRUPAMENTO POR LINHA & PRODUTOS
+        // (LINHA, ITEM, DESCRIÇÃO, QTD, CUBAGEM, VALOR$, PESO)
+        // --------------------------------------------------------------------------
+        interface LinhaItemSummary {
+          item: string
+          descricao: string
+          quantidade: number
+          cubagem: number
+          valorTotal: number
+          peso: number
+          pedidosSet: Set<string>
+        }
+
+        interface LinhaSummary {
+          linha: string
+          totalQtd: number
+          totalCub: number
+          totalValor: number
+          totalPeso: number
+          totalItens: number
+          pedidosSet: Set<string>
+          itens: LinhaItemSummary[]
+        }
+
+        const linhaMap = new Map<string, {
+          totalQtd: number
+          totalCub: number
+          totalValor: number
+          totalPeso: number
+          pedidosSet: Set<string>
+          itemsMap: Map<string, LinhaItemSummary>
+        }>()
+
+        enrichedFiltered.forEach(r => {
+          const linha = String(r.calc_linha || r.linha || r.LINHA || 'OUTROS').trim() || 'OUTROS'
+          if (!linhaMap.has(linha)) {
+            linhaMap.set(linha, {
+              totalQtd: 0,
+              totalCub: 0,
+              totalValor: 0,
+              totalPeso: 0,
+              pedidosSet: new Set<string>(),
+              itemsMap: new Map<string, LinhaItemSummary>()
+            })
+          }
+
+          const lData = linhaMap.get(linha)!
+          lData.totalQtd += r.calc_qtd
+          lData.totalCub += r.calc_cub
+          lData.totalValor += r.calc_vltotal
+          lData.totalPeso += r.calc_peso
+          if (r.calc_ped) lData.pedidosSet.add(r.calc_ped)
+
+          const itemCode = formatItemCode(r.item || r.ITEM || '-')
+          const itemDesc = String(r.descricao || r.DESCRICAO || '-')
+
+          if (!lData.itemsMap.has(itemCode)) {
+            lData.itemsMap.set(itemCode, {
+              item: itemCode,
+              descricao: itemDesc,
+              quantidade: 0,
+              cubagem: 0,
+              valorTotal: 0,
+              peso: 0,
+              pedidosSet: new Set<string>()
+            })
+          }
+
+          const itData = lData.itemsMap.get(itemCode)!
+          itData.quantidade += r.calc_qtd
+          itData.cubagem += r.calc_cub
+          itData.valorTotal += r.calc_vltotal
+          itData.peso += r.calc_peso
+          if (r.calc_ped) itData.pedidosSet.add(r.calc_ped)
+        })
+
+        const linhaSummaries: LinhaSummary[] = Array.from(linhaMap.entries()).map(([linha, data]) => {
+          const itens = Array.from(data.itemsMap.values()).sort((a, b) => b.quantidade - a.quantidade || a.item.localeCompare(b.item))
+          return {
+            linha,
+            totalQtd: data.totalQtd,
+            totalCub: data.totalCub,
+            totalValor: data.totalValor,
+            totalPeso: data.totalPeso,
+            totalItens: itens.length,
+            pedidosSet: data.pedidosSet,
+            itens
+          }
+        }).sort((a, b) => a.linha.localeCompare(b.linha))
+
+        const linhaTotals = {
+          totalLinhas: linhaSummaries.length,
+          totalItens: linhaSummaries.reduce((acc, l) => acc + l.totalItens, 0),
+          totalQtd: linhaSummaries.reduce((acc, l) => acc + l.totalQtd, 0),
+          totalCub: linhaSummaries.reduce((acc, l) => acc + l.totalCub, 0),
+          totalValor: linhaSummaries.reduce((acc, l) => acc + l.totalValor, 0),
+          totalPeso: linhaSummaries.reduce((acc, l) => acc + l.totalPeso, 0)
+        }
+
+        // Filtro de busca interna para Linhas/Produtos
+        const prSearch = planRightSearch.toLowerCase().trim()
+        const filteredLinhaSummaries = prSearch
+          ? linhaSummaries
+            .map(group => {
+              const matchLinha = group.linha.toLowerCase().includes(prSearch)
+              const matchingItens = group.itens.filter(
+                it => it.item.toLowerCase().includes(prSearch) || it.descricao.toLowerCase().includes(prSearch)
+              )
+              if (matchLinha) return group
+              if (matchingItens.length > 0) {
+                return {
+                  ...group,
+                  itens: matchingItens,
+                  totalItens: matchingItens.length
+                }
+              }
+              return null
+            })
+            .filter(Boolean) as LinhaSummary[]
+          : linhaSummaries
+
+        // --------------------------------------------------------------------------
+        // VISÃO 2 (PAINEL LATERAL): DTPEDIDO x PREVENTREGA (CARTEIRA VS PROCESSO)
+        // --------------------------------------------------------------------------
+        interface DateCrossSummary {
+          key: string
+          dtPedido: string
+          dtPedidoRaw: any
+          prevEntrega: string
+          prevEntregaRaw: any
+          // Carteira
+          carteiraPedidosSet: Set<string>
+          carteiraQtd: number
+          carteiraCub: number
+          // Processo
+          processoPedidosSet: Set<string>
+          processoQtd: number
+          processoCub: number
+          // Consolidado
+          totalPedidosSet: Set<string>
+          totalQtd: number
+          totalCub: number
+        }
+
+        const dateCrossMap = new Map<string, DateCrossSummary>()
+
+        enrichedForComparative.forEach(r => {
+          const rawDtPed = r.dtpedido || r.DTPEDIDO
+          const rawPrevEnt = r.preventrega || r.PREVENTREGA || (r.calc_tipo_modal === 'Abastecimento' ? (r.dtpedido || r.DTPEDIDO) : '')
+
+          const dtPedStr = rawDtPed ? formatDateBR(rawDtPed) : '-'
+          const prevEntStr = rawPrevEnt ? formatDateBR(rawPrevEnt) : '-'
+          const key = `${dtPedStr}__${prevEntStr}`
+
+          if (!dateCrossMap.has(key)) {
+            dateCrossMap.set(key, {
+              key,
+              dtPedido: dtPedStr,
+              dtPedidoRaw: rawDtPed,
+              prevEntrega: prevEntStr,
+              prevEntregaRaw: rawPrevEnt,
+              carteiraPedidosSet: new Set<string>(),
+              carteiraQtd: 0,
+              carteiraCub: 0,
+              processoPedidosSet: new Set<string>(),
+              processoQtd: 0,
+              processoCub: 0,
+              totalPedidosSet: new Set<string>(),
+              totalQtd: 0,
+              totalCub: 0
+            })
+          }
+
+          const dItem = dateCrossMap.get(key)!
+          const rawSt = String(r.calc_status_op || '').toUpperCase()
+          const isProcesso = rawSt.includes('PROCESSO')
+
+          if (isProcesso) {
+            if (r.calc_ped) dItem.processoPedidosSet.add(r.calc_ped)
+            dItem.processoQtd += r.calc_qtd
+            dItem.processoCub += r.calc_cub
+          } else {
+            if (r.calc_ped) dItem.carteiraPedidosSet.add(r.calc_ped)
+            dItem.carteiraQtd += r.calc_qtd
+            dItem.carteiraCub += r.calc_cub
+          }
+
+          if (r.calc_ped) dItem.totalPedidosSet.add(r.calc_ped)
+          dItem.totalQtd += r.calc_qtd
+          dItem.totalCub += r.calc_cub
+        })
+
+        const dateSummaries: DateCrossSummary[] = Array.from(dateCrossMap.values()).sort((a, b) => {
+          const tA = parseDateOrPrazoToTimestamp(a.prevEntregaRaw)
+          const tB = parseDateOrPrazoToTimestamp(b.prevEntregaRaw)
+          if (tA !== tB) return tA - tB
+          const pA = parseDateOrPrazoToTimestamp(a.dtPedidoRaw)
+          const pB = parseDateOrPrazoToTimestamp(b.dtPedidoRaw)
+          return pA - pB
+        })
+
+        const dateTotals = {
+          carteiraPedidosSet: new Set<string>(),
+          carteiraQtd: dateSummaries.reduce((acc, d) => acc + d.carteiraQtd, 0),
+          carteiraCub: dateSummaries.reduce((acc, d) => acc + d.carteiraCub, 0),
+          processoPedidosSet: new Set<string>(),
+          processoQtd: dateSummaries.reduce((acc, d) => acc + d.processoQtd, 0),
+          processoCub: dateSummaries.reduce((acc, d) => acc + d.processoCub, 0),
+          totalPedidosSet: new Set<string>(),
+          totalQtd: dateSummaries.reduce((acc, d) => acc + d.totalQtd, 0),
+          totalCub: dateSummaries.reduce((acc, d) => acc + d.totalCub, 0)
+        }
+        dateSummaries.forEach(d => {
+          d.carteiraPedidosSet.forEach(p => dateTotals.carteiraPedidosSet.add(p))
+          d.processoPedidosSet.forEach(p => dateTotals.processoPedidosSet.add(p))
+          d.totalPedidosSet.forEach(p => dateTotals.totalPedidosSet.add(p))
+        })
+
+        // Filtro de busca interna para Datas
+        const filteredDateSummaries = prSearch
+          ? dateSummaries.filter(
+            d => d.dtPedido.toLowerCase().includes(prSearch) || d.prevEntrega.toLowerCase().includes(prSearch)
+          )
+          : dateSummaries
+
         return (
           <div className="space-y-4">
             {/* ------------------------------------------------------------ */}
@@ -4631,29 +4886,438 @@ export const PcpJsMartinsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Painel Central Livre para Próximos Gráficos / Planejamento de Carga */}
-                <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 flex flex-col items-center justify-center text-center space-y-4 min-h-[500px]">
-                  <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shadow-xs">
-                    <Layers size={30} />
-                  </div>
-                  <div className="max-w-md space-y-1.5">
-                    <h4 className="text-lg font-bold text-slate-800">Área de Visualização Gráfica & Cronogramas</h4>
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      Este lado direito está totalmente reservado para os próximos módulos: gráficos de cubagem por região, balanceamento de linhas, previsão de saída e distribuição por turnos.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-                    <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                      📈 Gráfico de Distribuição
+                {/* 3 BOTÕES DE VISÃO DO PAINEL LATERAL (CONFORME SOLICITADO) */}
+                <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/90 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setPlanRightTab('linha')}
+                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      planRightTab === 'linha'
+                        ? 'bg-[#0e3b66] text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
+                    }`}
+                  >
+                    <Boxes size={14} className={planRightTab === 'linha' ? 'text-sky-300' : 'text-slate-400'} />
+                    <span>Por Linha & Itens</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPlanRightTab('datas')}
+                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      planRightTab === 'datas'
+                        ? 'bg-[#0e3b66] text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
+                    }`}
+                  >
+                    <CalendarDays size={14} className={planRightTab === 'datas' ? 'text-sky-300' : 'text-slate-400'} />
+                    <span>Dt. Pedido x Prev. Entrega</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPlanRightTab('visao3')}
+                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      planRightTab === 'visao3'
+                        ? 'bg-[#0e3b66] text-white shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
+                    }`}
+                  >
+                    <Layers size={14} className={planRightTab === 'visao3' ? 'text-sky-300' : 'text-slate-400'} />
+                    <span>Visão 3</span>
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-800 font-extrabold ml-1">
+                      A Definir
                     </span>
-                    <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                      🚚 Planejamento de Cargas
-                    </span>
-                    <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                      ⏱️ Sequenciamento por Doca
-                    </span>
-                  </div>
+                  </button>
                 </div>
+
+                {/* ------------------------------------------------------------ */}
+                {/* VISÃO 1: POR LINHA & DETALHE DE PRODUTOS                    */}
+                {/* ------------------------------------------------------------ */}
+                {planRightTab === 'linha' && (
+                  <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col">
+                    {/* Cabeçalho da Tabela de Linhas */}
+                    <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d] gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <Boxes size={15} className="text-sky-300 shrink-0" />
+                        <span className="text-[11px] font-black tracking-wide uppercase">
+                          Consolidação por Linha & Detalhe de Produtos
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#164e85] text-sky-100 border border-sky-500/30 font-bold whitespace-nowrap">
+                          {linhaSummaries.length} linhas ({linhaTotals.totalItens} itens)
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* Busca rápida interna de produtos/linhas */}
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
+                          <input
+                            type="text"
+                            value={planRightSearch}
+                            onChange={e => setPlanRightSearch(e.target.value)}
+                            placeholder="Buscar produto ou linha..."
+                            className="pl-6 pr-2 py-0.5 text-[10.5px] rounded-md bg-[#0a2c4d] text-white placeholder-slate-400 border border-sky-500/30 focus:outline-none focus:ring-1 focus:ring-sky-400 w-36 sm:w-44 transition-all"
+                          />
+                          {planRightSearch && (
+                            <button
+                              type="button"
+                              onClick={() => setPlanRightSearch('')}
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                              title="Limpar busca interna"
+                            >
+                              <X size={10} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Botões Expandir / Recolher Tudo */}
+                        <div className="flex items-center bg-[#072440] p-0.5 rounded-lg border border-sky-400/25">
+                          <button
+                            type="button"
+                            onClick={() => setCollapsedLinhas(new Set())}
+                            title="Expandir todas as linhas"
+                            className="px-2 py-0.5 text-[9.5px] font-bold text-sky-200/90 hover:text-white hover:bg-white/10 rounded transition-all cursor-pointer"
+                          >
+                            Expandir
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCollapsedLinhas(new Set(linhaSummaries.map(l => l.linha)))}
+                            title="Recolher todas as linhas"
+                            className="px-2 py-0.5 text-[9.5px] font-bold text-sky-200/90 hover:text-white hover:bg-white/10 rounded transition-all cursor-pointer"
+                          >
+                            Recolher
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tabela de Linhas e Itens */}
+                    <div className="w-full overflow-x-auto max-h-[620px] overflow-y-auto select-text">
+                      <table className="w-full border-collapse font-sans text-slate-800 text-[10.5px] table-auto">
+                        <thead className="sticky top-0 z-20 bg-[#0e3b66] text-white uppercase text-[9.5px] font-black tracking-wider border-b border-[#0a2c4d]">
+                          <tr className="divide-x divide-white/10 text-center">
+                            <th className="py-2 px-2.5 text-left font-extrabold min-w-[200px]">LINHA / PRODUTO</th>
+                            <th className="py-2 px-2 text-center font-extrabold w-[80px] min-w-[80px]">ITEM</th>
+                            <th className="py-2 px-2 text-center font-extrabold w-[65px] min-w-[65px]">QTD</th>
+                            <th className="py-2 px-2 text-center font-extrabold w-[75px] min-w-[75px]">CUBAGEM</th>
+                            <th className="py-2 px-2 text-center font-extrabold w-[95px] min-w-[95px]">VALOR$</th>
+                            <th className="py-2 px-2 text-center font-extrabold w-[65px] min-w-[65px]">PESO</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {filteredLinhaSummaries.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="py-8 text-center text-slate-400 text-xs font-medium">
+                                Nenhum registro encontrado para os filtros ativos.
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredLinhaSummaries.map(group => {
+                              const isCollapsed = collapsedLinhas.has(group.linha)
+                              return (
+                                <React.Fragment key={group.linha}>
+                                  {/* Linha Cabeçalho da Linha (Nível 1) */}
+                                  <tr
+                                    onClick={() => toggleCollapseLinha(group.linha)}
+                                    className="bg-slate-100/90 hover:bg-slate-200/80 transition-colors cursor-pointer font-bold border-y border-slate-200 divide-x divide-slate-200/80 select-none"
+                                  >
+                                    <td className="py-1.5 px-2.5 text-slate-900 flex items-center gap-1.5">
+                                      <span className="w-4 h-4 rounded flex items-center justify-center bg-white border border-slate-300 text-[10px] font-black text-slate-700 shadow-2xs shrink-0">
+                                        {isCollapsed ? '+' : '−'}
+                                      </span>
+                                      <span className="font-extrabold text-[11px] text-slate-900">{group.linha}</span>
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 font-extrabold ml-1 shrink-0">
+                                        {group.totalItens} {group.totalItens === 1 ? 'item' : 'itens'}
+                                      </span>
+                                    </td>
+                                    <td className="py-1.5 px-2 text-center text-[10px] font-mono text-slate-400">
+                                      -
+                                    </td>
+                                    <td className="py-1.5 px-2 text-center font-mono font-black text-slate-900">
+                                      {Math.round(group.totalQtd).toLocaleString('pt-BR')}
+                                    </td>
+                                    <td className="py-1.5 px-2 text-center font-mono font-black text-slate-900">
+                                      {group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </td>
+                                    <td className="py-1.5 px-2 text-center font-mono font-black text-slate-900">
+                                      <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
+                                      {group.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </td>
+                                    <td className="py-1.5 px-2 text-center font-mono font-black text-slate-900">
+                                      {Math.round(group.totalPeso).toLocaleString('pt-BR')}
+                                    </td>
+                                  </tr>
+
+                                  {/* Detalhe dos Itens dessa Linha (Nível 2) */}
+                                  {!isCollapsed && group.itens.map(item => (
+                                    <tr
+                                      key={item.item}
+                                      className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100 text-[10px]"
+                                    >
+                                      <td className="py-1 px-3 text-slate-700 pl-7">
+                                        <span className="line-clamp-1" title={item.descricao}>
+                                          {item.descricao}
+                                        </span>
+                                      </td>
+                                      <td className="py-1 px-2 text-center font-mono font-bold text-blue-700 bg-blue-50/20">
+                                        {item.item}
+                                      </td>
+                                      <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                        {Math.round(item.quantidade).toLocaleString('pt-BR')}
+                                      </td>
+                                      <td className="py-1 px-2 text-center font-mono font-semibold text-slate-800">
+                                        {item.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </td>
+                                      <td className="py-1 px-2 text-center font-mono text-slate-800">
+                                        <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
+                                        {item.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </td>
+                                      <td className="py-1 px-2 text-center font-mono text-slate-700">
+                                        {Math.round(item.peso).toLocaleString('pt-BR')}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </React.Fragment>
+                              )
+                            })
+                          )}
+                        </tbody>
+
+                        {/* Rodapé Total Geral */}
+                        <tfoot className="sticky bottom-0 z-20 bg-[#0e3b66] text-white font-black text-[10px] uppercase border-t-2 border-[#0a2c4d]">
+                          <tr className="divide-x divide-white/10">
+                            <td className="py-2 px-3 tracking-wider">
+                              TOTAL GERAL ({linhaTotals.totalLinhas} LINHAS / {linhaTotals.totalItens} ITENS)
+                            </td>
+                            <td className="py-2 px-2 text-center font-mono text-sky-200">
+                              -
+                            </td>
+                            <td className="py-2 px-2 text-center font-mono font-black text-white">
+                              {Math.round(linhaTotals.totalQtd).toLocaleString('pt-BR')}
+                            </td>
+                            <td className="py-2 px-2 text-center font-mono font-black text-white">
+                              {linhaTotals.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2 px-2 text-center font-mono font-black text-white">
+                              <span className="text-sky-300 font-normal text-[8.5px] mr-0.5">R$</span>
+                              {linhaTotals.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2 px-2 text-center font-mono font-black text-white">
+                              {Math.round(linhaTotals.totalPeso).toLocaleString('pt-BR')}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* ------------------------------------------------------------ */}
+                {/* VISÃO 2: CRUZAMENTO DTPEDIDO x PREVENTREGA (CARTEIRA X PROCESSO) */}
+                {/* ------------------------------------------------------------ */}
+                {planRightTab === 'datas' && (
+                  <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col">
+                    {/* Cabeçalho da Tabela de Datas */}
+                    <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d] gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <CalendarDays size={15} className="text-sky-300 shrink-0" />
+                        <span className="text-[11px] font-black tracking-wide uppercase">
+                          Cruzamento Dt. Pedido x Previsão Entrega (Carteira vs Processo)
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#164e85] text-sky-100 border border-sky-500/30 font-bold whitespace-nowrap">
+                          {dateSummaries.length} datas
+                        </span>
+                      </div>
+
+                      {/* Busca rápida de datas */}
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
+                        <input
+                          type="text"
+                          value={planRightSearch}
+                          onChange={e => setPlanRightSearch(e.target.value)}
+                          placeholder="Buscar data (ex: 25/11)..."
+                          className="pl-6 pr-2 py-0.5 text-[10.5px] rounded-md bg-[#0a2c4d] text-white placeholder-slate-400 border border-sky-500/30 focus:outline-none focus:ring-1 focus:ring-sky-400 w-36 sm:w-44 transition-all"
+                        />
+                        {planRightSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setPlanRightSearch('')}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                            title="Limpar busca interna"
+                          >
+                            <X size={10} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Tabela DTPEDIDO x PREVENTREGA */}
+                    <div className="w-full overflow-x-auto max-h-[620px] overflow-y-auto select-text">
+                      <table className="w-full border-collapse font-sans text-slate-800 text-[10px] table-auto">
+                        <thead className="sticky top-0 z-20 bg-[#0e3b66] text-white uppercase text-[8.5px] font-black tracking-wider border-b border-[#0a2c4d]">
+                          {/* Super-headers */}
+                          <tr className="divide-x divide-white/10 text-center">
+                            <th colSpan={2} className="py-1 px-2 bg-[#0e3b66] text-white tracking-widest font-extrabold">
+                              DATAS
+                            </th>
+                            <th colSpan={3} className="py-1 px-2 bg-[#123e6b] text-sky-200 tracking-widest font-black">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+                                <span>EM CARTEIRA</span>
+                              </div>
+                            </th>
+                            <th colSpan={3} className="py-1 px-2 bg-[#184880] text-blue-100 tracking-widest font-black">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-300"></span>
+                                <span>EM PROCESSO</span>
+                              </div>
+                            </th>
+                            <th colSpan={3} className="py-1 px-2 bg-[#0a2c4d] text-white tracking-widest font-black">
+                              TOTAL CONSOLIDADO
+                            </th>
+                          </tr>
+
+                          {/* Subcolunas */}
+                          <tr className="divide-x divide-white/10 text-center text-[8px]">
+                            <th className="py-1.5 px-2 font-bold w-[75px] min-w-[75px] bg-[#0c3359]">DT. PEDIDO</th>
+                            <th className="py-1.5 px-2 font-bold w-[75px] min-w-[75px] bg-[#0c3359]">PREV. ENTREGA</th>
+                            {/* Carteira */}
+                            <th className="py-1.5 px-1.5 font-bold w-[55px] min-w-[55px] bg-[#123e6b] text-sky-100">PEDIDOS</th>
+                            <th className="py-1.5 px-1.5 font-bold w-[60px] min-w-[60px] bg-[#123e6b] text-sky-100">PEÇAS</th>
+                            <th className="py-1.5 px-1.5 font-bold w-[60px] min-w-[60px] bg-[#123e6b] text-sky-100">CUBAGEM</th>
+                            {/* Processo */}
+                            <th className="py-1.5 px-1.5 font-bold w-[55px] min-w-[55px] bg-[#184880] text-blue-100">PEDIDOS</th>
+                            <th className="py-1.5 px-1.5 font-bold w-[60px] min-w-[60px] bg-[#184880] text-blue-100">PEÇAS</th>
+                            <th className="py-1.5 px-1.5 font-bold w-[60px] min-w-[60px] bg-[#184880] text-blue-100">CUBAGEM</th>
+                            {/* Total */}
+                            <th className="py-1.5 px-1.5 font-bold w-[55px] min-w-[55px] bg-[#0a2c4d] text-white">TOTAL PED</th>
+                            <th className="py-1.5 px-1.5 font-bold w-[60px] min-w-[60px] bg-[#0a2c4d] text-white">TOTAL PÇS</th>
+                            <th className="py-1.5 px-1.5 font-bold w-[60px] min-w-[60px] bg-[#0a2c4d] text-white">TOTAL CUB</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {filteredDateSummaries.length === 0 ? (
+                            <tr>
+                              <td colSpan={11} className="py-8 text-center text-slate-400 text-xs font-medium">
+                                Nenhum registro encontrado para os filtros ativos.
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredDateSummaries.map(row => (
+                              <tr
+                                key={row.key}
+                                className="hover:bg-slate-50 transition-colors divide-x divide-slate-100 text-center font-mono text-[10px]"
+                              >
+                                {/* Datas */}
+                                <td className="py-1.5 px-2 text-slate-700 font-semibold bg-slate-50/40">
+                                  {row.dtPedido}
+                                </td>
+                                <td className="py-1.5 px-2 text-blue-800 font-bold bg-blue-50/20">
+                                  {row.prevEntrega}
+                                </td>
+
+                                {/* Carteira */}
+                                <td className="py-1.5 px-1.5 text-slate-700">
+                                  {row.carteiraPedidosSet.size > 0 ? row.carteiraPedidosSet.size.toLocaleString('pt-BR') : '-'}
+                                </td>
+                                <td className="py-1.5 px-1.5 font-bold text-slate-800">
+                                  {row.carteiraQtd > 0 ? Math.round(row.carteiraQtd).toLocaleString('pt-BR') : '-'}
+                                </td>
+                                <td className="py-1.5 px-1.5 font-bold text-slate-800">
+                                  {row.carteiraCub > 0 ? row.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
+                                </td>
+
+                                {/* Processo */}
+                                <td className="py-1.5 px-1.5 text-blue-700 bg-blue-50/30">
+                                  {row.processoPedidosSet.size > 0 ? row.processoPedidosSet.size.toLocaleString('pt-BR') : '-'}
+                                </td>
+                                <td className="py-1.5 px-1.5 font-bold text-blue-800 bg-blue-50/30">
+                                  {row.processoQtd > 0 ? Math.round(row.processoQtd).toLocaleString('pt-BR') : '-'}
+                                </td>
+                                <td className="py-1.5 px-1.5 font-bold text-blue-900 bg-blue-50/30">
+                                  {row.processoCub > 0 ? row.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
+                                </td>
+
+                                {/* Total */}
+                                <td className="py-1.5 px-1.5 font-black text-slate-900 bg-slate-100/50">
+                                  {row.totalPedidosSet.size > 0 ? row.totalPedidosSet.size.toLocaleString('pt-BR') : '-'}
+                                </td>
+                                <td className="py-1.5 px-1.5 font-black text-slate-900 bg-slate-100/50">
+                                  {row.totalQtd > 0 ? Math.round(row.totalQtd).toLocaleString('pt-BR') : '-'}
+                                </td>
+                                <td className="py-1.5 px-1.5 font-black text-slate-900 bg-slate-100/50">
+                                  {row.totalCub > 0 ? row.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+
+                        {/* Rodapé Total Geral */}
+                        <tfoot className="sticky bottom-0 z-20 bg-[#0e3b66] text-white font-black text-[9px] uppercase border-t-2 border-[#0a2c4d]">
+                          <tr className="divide-x divide-white/10 text-center font-mono">
+                            <td colSpan={2} className="py-2 px-2 text-left font-sans tracking-wider text-white">
+                              TOTAL GERAL
+                            </td>
+                            {/* Carteira */}
+                            <td className="py-2 px-1.5 font-bold text-sky-200">
+                              {dateTotals.carteiraPedidosSet.size.toLocaleString('pt-BR')}
+                            </td>
+                            <td className="py-2 px-1.5 font-bold text-sky-200">
+                              {Math.round(dateTotals.carteiraQtd).toLocaleString('pt-BR')}
+                            </td>
+                            <td className="py-2 px-1.5 font-bold text-sky-200">
+                              {dateTotals.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </td>
+                            {/* Processo */}
+                            <td className="py-2 px-1.5 font-bold text-blue-200">
+                              {dateTotals.processoPedidosSet.size.toLocaleString('pt-BR')}
+                            </td>
+                            <td className="py-2 px-1.5 font-bold text-blue-200">
+                              {Math.round(dateTotals.processoQtd).toLocaleString('pt-BR')}
+                            </td>
+                            <td className="py-2 px-1.5 font-bold text-blue-200">
+                              {dateTotals.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </td>
+                            {/* Total */}
+                            <td className="py-2 px-1.5 font-black text-white">
+                              {dateTotals.totalPedidosSet.size.toLocaleString('pt-BR')}
+                            </td>
+                            <td className="py-2 px-1.5 font-black text-white">
+                              {Math.round(dateTotals.totalQtd).toLocaleString('pt-BR')}
+                            </td>
+                            <td className="py-2 px-1.5 font-black text-white">
+                              {dateTotals.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* ------------------------------------------------------------ */}
+                {/* VISÃO 3: PLACEHOLDER (AGUARDANDO DEFINIÇÃO)                 */}
+                {/* ------------------------------------------------------------ */}
+                {planRightTab === 'visao3' && (
+                  <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 flex flex-col items-center justify-center text-center space-y-4 min-h-[460px]">
+                    <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-xs">
+                      <Sparkles size={30} />
+                    </div>
+                    <div className="max-w-md space-y-2">
+                      <h4 className="text-lg font-bold text-slate-800">Visão 3 - Aguardando Definição</h4>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        As duas primeiras visões (<strong className="text-slate-700">Por Linha & Itens</strong> e <strong className="text-slate-700">Dt. Pedido x Prev. Entrega</strong>) já estão totalmente operacionais.
+                      </p>
+                      <p className="text-xs text-blue-700 font-semibold bg-blue-50 py-2 px-3 rounded-lg border border-blue-200/60 inline-block">
+                        Assim que você indicar como deseja a 3ª visão, ela será ativada aqui automaticamente!
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
