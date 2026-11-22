@@ -5372,7 +5372,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                           Cruzamento Dt. Pedido x Previsão Entrega (Carteira vs Processo)
                         </span>
                         <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#164e85] text-sky-100 border border-sky-500/30 font-bold whitespace-nowrap">
-                          {sortedDateGroups.length} datas ({dateTotals.totalPrevisoes} previsões)
+                          {sortedDateGroups.length} datas
                         </span>
                       </div>
 
@@ -5600,19 +5600,28 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 <React.Fragment key={group.dtPedido}>
                                   {/* Linha Grupo de Data do Pedido (Nível 1) */}
                                   <tr
-                                    onClick={() => toggleCollapseDate(group.dtPedido)}
-                                    className="bg-slate-100/90 hover:bg-slate-200/80 transition-colors cursor-pointer font-bold border-y border-slate-200 divide-x divide-slate-200/80 select-none text-[10px]"
+                                    onClick={() => {
+                                      if (group.itens.length > 1) toggleCollapseDate(group.dtPedido)
+                                    }}
+                                    className={`bg-slate-100/90 hover:bg-slate-200/80 transition-colors font-bold border-y border-slate-200 divide-x divide-slate-200/80 select-none text-[10px] ${
+                                      group.itens.length > 1 ? 'cursor-pointer' : ''
+                                    }`}
                                   >
-                                    <td colSpan={2} className="py-1.5 px-2.5 text-slate-900 text-left">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="w-4 h-4 rounded flex items-center justify-center bg-white border border-slate-300 text-[10px] font-black text-slate-700 shadow-2xs shrink-0">
-                                          {isCollapsed ? '+' : '−'}
-                                        </span>
-                                        <span className="font-mono font-black text-[11px] text-slate-900">{group.dtPedido}</span>
-                                        <span className="text-[8.5px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 font-extrabold ml-1 shrink-0">
-                                          {group.itens.length} {group.itens.length === 1 ? 'prev.' : 'prevs.'}
-                                        </span>
+                                    {/* DT. PEDIDO */}
+                                    <td className="py-1.5 px-2 text-slate-900 text-center font-mono font-bold bg-slate-50/40 w-[75px] min-w-[75px]">
+                                      <div className="flex items-center justify-center gap-1">
+                                        {group.itens.length > 1 && (
+                                          <span className="w-3.5 h-3.5 rounded flex items-center justify-center bg-white border border-slate-300 text-[9px] font-black text-slate-700 shadow-2xs shrink-0">
+                                            {isCollapsed ? '+' : '−'}
+                                          </span>
+                                        )}
+                                        <span className="font-black text-[10.5px]">{group.dtPedido}</span>
                                       </div>
+                                    </td>
+
+                                    {/* PREV. ENTREGA */}
+                                    <td className="py-1.5 px-2 text-center font-mono font-bold text-blue-800 bg-blue-50/20 w-[75px] min-w-[75px]">
+                                      {group.itens.length === 1 ? group.itens[0].prevEntrega : '-'}
                                     </td>
                                     {/* Carteira */}
                                     <td className="py-1.5 px-1.5 text-center font-mono font-bold text-slate-800">
@@ -5646,8 +5655,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                                     </td>
                                   </tr>
 
-                                  {/* Detalhe das Previsões de Entrega desta Data do Pedido (Nível 2) */}
-                                  {!isCollapsed && group.itens.map(item => (
+                                  {/* Detalhe das Previsões de Entrega desta Data do Pedido (Nível 2 - apenas quando houver mais de uma previsão) */}
+                                  {group.itens.length > 1 && !isCollapsed && group.itens.map(item => (
                                     <tr
                                       key={item.prevEntrega}
                                       className="hover:bg-blue-50/30 transition-colors divide-x divide-slate-100 text-center font-mono text-[9.5px]"
