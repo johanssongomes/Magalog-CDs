@@ -2672,35 +2672,100 @@ export const DashboardPage: React.FC = () => {
     return (initialNovMatrix || initialOctMatrix) as unknown as PmtDailyMatrixResponse
   })
 
+  // Estado do Filtro de Calendário para o Gráfico de Performance Operacional
+  const [chartPreset, setChartPreset] = useState<'7d' | '15d' | 'mes' | 'custom'>('7d')
+  const [chartStartDate, setChartStartDate] = useState<string>(() => {
+    const now = new Date()
+    const curYear = now.getFullYear()
+    const curMonth = now.getMonth() + 1
+    const todayNum = now.getDate()
+    const totalDaysInMonth = new Date(curYear, curMonth, 0).getDate()
+    const effectiveDay = Math.min(Math.max(todayNum, 1), totalDaysInMonth)
+    const startDay = effectiveDay <= 7 ? 1 : Math.max(1, effectiveDay - 6)
+    return `${curYear}-${curMonth.toString().padStart(2, '0')}-${startDay.toString().padStart(2, '0')}`
+  })
+  const [chartEndDate, setChartEndDate] = useState<string>(() => {
+    const now = new Date()
+    const curYear = now.getFullYear()
+    const curMonth = now.getMonth() + 1
+    const todayNum = now.getDate()
+    const totalDaysInMonth = new Date(curYear, curMonth, 0).getDate()
+    const effectiveDay = Math.min(Math.max(todayNum, 1), totalDaysInMonth)
+    const startDay = effectiveDay <= 7 ? 1 : Math.max(1, effectiveDay - 6)
+    const endDay = Math.min(startDay + 6, totalDaysInMonth)
+    return `${curYear}-${curMonth.toString().padStart(2, '0')}-${endDay.toString().padStart(2, '0')}`
+  })
+
+  // Presets rápidos de calendário (7D, 15D, Mês)
+  const applyChartPreset = (preset: '7d' | '15d' | 'mes') => {
+    setChartPreset(preset)
+    const now = new Date()
+    const curYear = now.getFullYear()
+    const curMonth = now.getMonth() + 1
+    const todayNum = now.getDate()
+    const totalDaysInMonth = new Date(curYear, curMonth, 0).getDate()
+    const effectiveDay = Math.min(Math.max(todayNum, 1), totalDaysInMonth)
+
+    let sDay = 1
+    let eDay = effectiveDay
+
+    if (preset === '7d') {
+      sDay = effectiveDay <= 7 ? 1 : Math.max(1, effectiveDay - 6)
+      eDay = Math.min(sDay + 6, totalDaysInMonth)
+    } else if (preset === '15d') {
+      sDay = effectiveDay <= 15 ? 1 : Math.max(1, effectiveDay - 14)
+      eDay = Math.min(sDay + 14, totalDaysInMonth)
+    } else if (preset === 'mes') {
+      sDay = 1
+      eDay = totalDaysInMonth
+    }
+
+    setChartStartDate(`${curYear}-${curMonth.toString().padStart(2, '0')}-${sDay.toString().padStart(2, '0')}`)
+    setChartEndDate(`${curYear}-${curMonth.toString().padStart(2, '0')}-${eDay.toString().padStart(2, '0')}`)
+  }
+
+  const parsedStart = useMemo(() => {
+    if (!chartStartDate) return new Date()
+    const parts = chartStartDate.split('-')
+    if (parts.length === 3) return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+    return new Date()
+  }, [chartStartDate])
+
+  const parsedEnd = useMemo(() => {
+    if (!chartEndDate) return new Date()
+    const parts = chartEndDate.split('-')
+    if (parts.length === 3) return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+    return new Date()
+  }, [chartEndDate])
+
+  const chartYear = parsedEnd.getFullYear()
+  const chartMonth = parsedEnd.getMonth() + 1
+
   // Carrega dados de Aderência e Matriz PMT para alimentar o gráfico
   useEffect(() => {
     let isMounted = true
     const loadChartData = async () => {
       try {
-        const now = new Date()
-        const curYear = now.getFullYear()
-        const curMonth = now.getMonth() + 1
-
         const [cloudAderencia, cloudPmt] = await Promise.all([
-          getAderenciaData(curYear, curMonth, '994').catch(() => null),
-          getPmtDailyMatrixFromSupabase(curYear, curMonth, '994', 'modal').catch(() => null)
+          getAderenciaData(chartYear, chartMonth, '994').catch(() => null),
+          getPmtDailyMatrixFromSupabase(chartYear, chartMonth, '994', 'modal').catch(() => null)
         ])
 
         if (!isMounted) return
 
         if (cloudAderencia) {
           setChartAderenciaData(cloudAderencia)
-        } else if (curYear === 2026 && curMonth === 11) {
+        } else if (chartYear === 2026 && chartMonth === 11) {
           setChartAderenciaData(initialAderenciaNov as unknown as AderenciaDataState)
-        } else if (curYear === 2026 && curMonth === 10) {
+        } else if (chartYear === 2026 && chartMonth === 10) {
           setChartAderenciaData(initialAderenciaOct as unknown as AderenciaDataState)
         }
 
         if (cloudPmt && cloudPmt.days && cloudPmt.days.length > 0) {
           setChartPmtMatrix(cloudPmt)
-        } else if (curYear === 2026 && curMonth === 11) {
+        } else if (chartYear === 2026 && chartMonth === 11) {
           setChartPmtMatrix(initialNovMatrix as unknown as PmtDailyMatrixResponse)
-        } else if (curYear === 2026 && curMonth === 10) {
+        } else if (chartYear === 2026 && chartMonth === 10) {
           setChartPmtMatrix(initialOctMatrix as unknown as PmtDailyMatrixResponse)
         }
       } catch (err) {
@@ -2709,13 +2774,13 @@ export const DashboardPage: React.FC = () => {
     }
     loadChartData()
     return () => { isMounted = false }
-  }, [])
+  }, [chartYear, chartMonth])
 
-  // Calcula a janela de 7 dias para o gráfico incluindo o dia de hoje (vinculados ao Acompanhamento Diário e PMT Planejado)
-  const performance7Days = useMemo<OperationalPerformanceDay[]>(() => {
+  // Calcula a janela dinâmica filtrada pelo calendário para o gráfico
+  const performanceDaysData = useMemo<OperationalPerformanceDay[]>(() => {
     const now = new Date()
-    const curYear = chartAderenciaData?.ano || now.getFullYear()
-    const curMonth = chartAderenciaData?.mes || (now.getMonth() + 1)
+    const curYear = chartAderenciaData?.ano || chartYear
+    const curMonth = chartAderenciaData?.mes || chartMonth
     const todayNum = now.getDate()
     const weekdayLetters = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
@@ -2727,31 +2792,34 @@ export const DashboardPage: React.FC = () => {
     // Padrão de capacidade por dia útil
     const defaultCap = chartMetric === 'cubagem' ? 1000 : chartMetric === 'pedidos' ? 2800 : 10000
 
-    // Se o dia atual for maior que 7 no mês vigente, exibe a janela que alcança até a data de hoje
-    const totalDaysInMonth = new Date(curYear, curMonth, 0).getDate()
-    const effectiveDay = Math.min(Math.max(todayNum, 1), totalDaysInMonth)
-    const startDay = effectiveDay <= 7 ? 1 : Math.max(1, effectiveDay - 6)
-    const endDay = Math.min(startDay + 6, totalDaysInMonth)
-
     const result: OperationalPerformanceDay[] = []
-    for (let dayNum = startDay; dayNum <= endDay; dayNum++) {
-      const dayStr = dayNum.toString().padStart(2, '0')
-      const dt = new Date(curYear, curMonth - 1, dayNum)
-      const isSunday = dt.getDay() === 0
-      const isToday = dayNum === todayNum && (now.getMonth() + 1) === curMonth && now.getFullYear() === curYear
-      const wLabel = weekdayLetters[dt.getDay()]
-      const dateLabel = `${dayStr}/${curMonth.toString().padStart(2, '0')}`
 
-      const rawFat = faturadoTotals[dayStr] ?? faturadoTotals[dayNum.toString()]
+    const startDt = new Date(parsedStart.getFullYear(), parsedStart.getMonth(), parsedStart.getDate())
+    const endDt = new Date(parsedEnd.getFullYear(), parsedEnd.getMonth(), parsedEnd.getDate())
+
+    let curr = new Date(startDt)
+    let count = 0
+    while (curr <= endDt && count < 62) {
+      count++
+      const cYear = curr.getFullYear()
+      const cMonth = curr.getMonth() + 1
+      const dayNum = curr.getDate()
+      const dayStr = dayNum.toString().padStart(2, '0')
+      const isSunday = curr.getDay() === 0
+      const isToday = dayNum === todayNum && cMonth === (now.getMonth() + 1) && cYear === now.getFullYear()
+      const wLabel = weekdayLetters[curr.getDay()]
+      const dateLabel = `${dayStr}/${cMonth.toString().padStart(2, '0')}`
+
+      const rawFat = (cYear === curYear && cMonth === curMonth) ? (faturadoTotals[dayStr] ?? faturadoTotals[dayNum.toString()]) : 0
       const fatVal = rawFat !== undefined ? Math.round(rawFat) : 0
 
-      const rawLib = liberadoTotals[dayStr] ?? liberadoTotals[dayNum.toString()]
+      const rawLib = (cYear === curYear && cMonth === curMonth) ? (liberadoTotals[dayStr] ?? liberadoTotals[dayNum.toString()]) : 0
       const libVal = rawLib !== undefined ? Math.round(rawLib) : 0
 
-      const rawCap = capacidadeMap[dayStr] ?? capacidadeMap[dayNum.toString()]
+      const rawCap = (cYear === curYear && cMonth === curMonth) ? (capacidadeMap[dayStr] ?? capacidadeMap[dayNum.toString()]) : (isSunday ? 0 : defaultCap)
       const capVal = rawCap !== undefined ? Math.round(rawCap) : (isSunday ? 0 : defaultCap)
 
-      const rawPmt = pmtTotalsMap[dayStr] ?? pmtTotalsMap[dayNum.toString()]
+      const rawPmt = (cYear === curYear && cMonth === curMonth) ? (pmtTotalsMap[dayStr] ?? pmtTotalsMap[dayNum.toString()]) : 0
       const pmtVal = rawPmt !== undefined ? Math.round(rawPmt) : 0
 
       result.push({
@@ -2764,9 +2832,12 @@ export const DashboardPage: React.FC = () => {
         capacidade: capVal,
         pmtPlanejado: pmtVal
       })
+
+      curr.setDate(curr.getDate() + 1)
     }
+
     return result
-  }, [chartAderenciaData, chartPmtMatrix, chartMetric])
+  }, [chartAderenciaData, chartPmtMatrix, chartMetric, parsedStart, parsedEnd, chartYear, chartMonth])
 
   // Estado do Relatório de Estoque por Categoria (EstoqueCD.xlsx) com filtro de DS_AREA_ERP (BOM vs BLOQUEADOS)
   const [estoqueFilterStatus, setEstoqueFilterStatus] = useState<'BOM' | 'BLOQUEADOS'>('BOM')
@@ -3951,44 +4022,108 @@ export const DashboardPage: React.FC = () => {
               Evolução da Performance Operacional
             </h3>
 
-            {/* Segmentação de Métricas */}
-            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 self-start sm:self-auto">
-              <button
-                type="button"
-                onClick={() => setChartMetric('cubagem')}
-                className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${chartMetric === 'cubagem'
-                  ? 'bg-white text-blue-700 shadow-2xs font-bold'
-                  : 'text-slate-600 hover:text-slate-900'
-                  }`}
-              >
-                Cubagem
-              </button>
-              <button
-                type="button"
-                onClick={() => setChartMetric('pecas')}
-                className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${chartMetric === 'pecas'
-                  ? 'bg-white text-blue-700 shadow-2xs font-bold'
-                  : 'text-slate-600 hover:text-slate-900'
-                  }`}
-              >
-                Peças
-              </button>
-              <button
-                type="button"
-                onClick={() => setChartMetric('pedidos')}
-                className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${chartMetric === 'pedidos'
-                  ? 'bg-white text-blue-700 shadow-2xs font-bold'
-                  : 'text-slate-600 hover:text-slate-900'
-                  }`}
-              >
-                Pedidos
-              </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Filtro do Calendário */}
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg shadow-2xs">
+                <CalendarDays size={13} className="text-blue-600 shrink-0" />
+                <input
+                  type="date"
+                  value={chartStartDate}
+                  onChange={e => {
+                    setChartStartDate(e.target.value)
+                    setChartPreset('custom')
+                  }}
+                  className="text-xs font-bold text-slate-700 bg-transparent outline-none cursor-pointer"
+                  title="Data Inicial do Período"
+                />
+                <span className="text-[10px] text-slate-400 font-bold uppercase">até</span>
+                <input
+                  type="date"
+                  value={chartEndDate}
+                  onChange={e => {
+                    setChartEndDate(e.target.value)
+                    setChartPreset('custom')
+                  }}
+                  className="text-xs font-bold text-slate-700 bg-transparent outline-none cursor-pointer"
+                  title="Data Final do Período"
+                />
+              </div>
+
+              {/* Segmentação de Métricas */}
+              <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setChartMetric('cubagem')}
+                  className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${chartMetric === 'cubagem'
+                    ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                >
+                  Cubagem
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartMetric('pecas')}
+                  className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${chartMetric === 'pecas'
+                    ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                >
+                  Peças
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartMetric('pedidos')}
+                  className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition-all ${chartMetric === 'pedidos'
+                    ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                >
+                  Pedidos
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Legenda Atualizada com Tamanho Maior e Destaque Visual */}
+          {/* Subtítulo com presets de período e Legenda */}
           <div className="flex flex-wrap items-center justify-between gap-2 text-slate-700 mb-2.5 pt-1 border-t border-slate-100/80">
-            <span className="text-[11px] text-slate-400 font-semibold">Visão: 7 dias (Acompanhamento Diário)</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-400 font-semibold">
+                Visão: {performanceDaysData.length} {performanceDaysData.length === 1 ? 'dia' : 'dias'}
+              </span>
+
+              {/* Botões Rápidos de Presets (7D, 15D, Mês) */}
+              <div className="flex items-center bg-slate-100 p-0.5 rounded-md border border-slate-200 text-[10px]">
+                <button
+                  type="button"
+                  onClick={() => applyChartPreset('7d')}
+                  className={`px-2 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                    chartPreset === '7d' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  7 Dias
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyChartPreset('15d')}
+                  className={`px-2 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                    chartPreset === '15d' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  15 Dias
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyChartPreset('mes')}
+                  className={`px-2 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                    chartPreset === 'mes' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Mês
+                </button>
+              </div>
+            </div>
+
             <div className="bg-slate-50/90 px-2.5 py-1 rounded-lg border border-slate-200/80 shadow-2xs">
               <Legend
                 size="md"
@@ -4002,7 +4137,7 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          <PerformanceChart data={performance7Days} metric={chartMetric} />
+          <PerformanceChart data={performanceDaysData} metric={chartMetric} />
         </Card>
         <Card className={`p-4 transition-all duration-300 ${estoqueFilterStatus === 'BLOQUEADOS' ? 'xl:col-span-2' : 'xl:col-span-3'}`}>
           <CardTitle icon={<Timer size={16} />} title="Performance por Turno"
