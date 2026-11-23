@@ -4833,7 +4833,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             {/* ------------------------------------------------------------ */}
             <div className="flex flex-col xl:flex-row gap-5 items-start w-full">
               {/* CANTO ESQUERDO (TABELA COM O TEMA MODERNO BLUE/SLATE CLEAN) */}
-              <div className="w-full xl:w-auto xl:min-w-[680px] xl:max-w-[760px] 2xl:min-w-[720px] 2xl:max-w-[800px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
+              <div className="w-full xl:w-auto xl:min-w-[700px] xl:max-w-[920px] 2xl:min-w-[760px] 2xl:max-w-[980px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
                 <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d] gap-2 flex-wrap sm:flex-nowrap">
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet size={15} className="text-sky-300 shrink-0" />
@@ -5113,50 +5113,50 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                                                   {/* Tabela Direta dos Itens (Alinhada perfeitamente coluna por coluna) */}
                                                   {isStExpanded && (
-                                                    <div className="overflow-x-auto w-full select-text">
-                                                      <table className="w-full text-[10px] border-collapse bg-white select-text">
-                                                        <thead>
+                                                    <div className="overflow-x-auto overflow-y-auto max-h-[380px] w-full select-text border-t border-slate-200">
+                                                      <table className="min-w-[840px] w-full text-[9.5px] border-collapse bg-white select-text">
+                                                        <thead className="sticky top-0 z-10">
                                                           <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
-                                                            <th className="py-1.5 px-2 text-center w-24">STATUS</th>
-                                                            <th className="py-1.5 px-2 text-center w-20">MODALIDADE</th>
-                                                            <th className="py-1.5 px-2 text-center w-28">LINHA</th>
-                                                            <th className="py-1.5 px-2 text-center w-20">CODMODAL</th>
-                                                            <th className="py-1.5 px-2 text-center w-24">PREVENTREGA</th>
-                                                            <th className="py-1.5 px-2 text-center w-24">NUMLOTE</th>
-                                                            <th className="py-1.5 px-2 text-center w-24">NUMPEDVEN</th>
-                                                            <th className="py-1.5 px-2 text-center w-20">ITEM</th>
-                                                            <th className="py-1.5 px-3 text-left">DESCRIÇÃO</th>
-                                                            <th className="py-1.5 px-2 text-center w-[80px] min-w-[80px] max-w-[80px]">QTD</th>
-                                                            <th className="py-1.5 px-2 text-center w-[90px] min-w-[90px] max-w-[90px]">CUBAGEM</th>
-                                                            <th className="py-1.5 px-2 text-center w-[110px] min-w-[110px] max-w-[110px]">VALOR$</th>
-                                                            <th className="py-1.5 px-2 text-center w-[65px] min-w-[65px] max-w-[65px]">PESO</th>
+                                                            <th className="py-1.5 px-1.5 text-center w-[72px] min-w-[72px]">STATUS</th>
+                                                            <th className="py-1.5 px-1.5 text-center w-[68px] min-w-[68px]">MODALIDADE</th>
+                                                            <th className="py-1.5 px-1.5 text-center w-[80px] min-w-[80px]">LINHA</th>
+                                                            <th className="py-1.5 px-1 text-center w-[42px] min-w-[42px]">CODMODAL</th>
+                                                            <th className="py-1.5 px-1.5 text-center w-[75px] min-w-[75px]">PREVENTREGA</th>
+                                                            <th className="py-1.5 px-1.5 text-center w-[55px] min-w-[55px]">NUMLOTE</th>
+                                                            <th className="py-1.5 px-1.5 text-center w-[70px] min-w-[70px]">NUMPEDVEN</th>
+                                                            <th className="py-1.5 px-1.5 text-center w-[55px] min-w-[55px]">ITEM</th>
+                                                            <th className="py-1.5 px-2 text-left min-w-[120px]">DESCRIÇÃO</th>
+                                                            <th className="py-1.5 px-1.5 text-center w-[50px] min-w-[50px]">QTD</th>
+                                                            <th className="py-1.5 px-1.5 text-center w-[60px] min-w-[60px]">CUBAGEM</th>
+                                                            <th className="py-1.5 px-1.5 text-center w-[80px] min-w-[80px]">VALOR$</th>
+                                                            <th className="py-1.5 px-1.5 text-center w-[50px] min-w-[50px]">PESO</th>
                                                           </tr>
                                                         </thead>
                                                         <tbody className="divide-y divide-slate-100 font-sans">
                                                           {stGroup.itens.map((det, dIdx) => (
                                                             <tr key={`${det.item}-${det.numpedven}-${dIdx}`} className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100">
-                                                              <td className="py-1 px-2 text-center text-slate-700 font-medium">
-                                                                <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                                                              <td className="py-1 px-1 text-center text-slate-700 font-medium">
+                                                                <span className={`px-1 py-0.2 rounded text-[8.5px] font-bold ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
                                                                   }`}>
                                                                   {det.statusOperacao}
                                                                 </span>
                                                               </td>
-                                                              <td className="py-1 px-2 text-center font-bold text-slate-700">
-                                                                <span className="px-1.5 py-0.2 bg-slate-100 text-slate-800 border border-slate-200 rounded text-[9px]">
+                                                              <td className="py-1 px-1 text-center font-bold text-slate-700">
+                                                                <span className="px-1 py-0.2 bg-slate-100 text-slate-800 border border-slate-200 rounded text-[8.5px]">
                                                                   {det.modalidade}
                                                                 </span>
                                                               </td>
-                                                              <td className="py-1 px-2 text-center text-slate-700 font-medium truncate max-w-[130px]" title={det.linha}>
+                                                              <td className="py-1 px-1.5 text-center text-slate-700 font-medium truncate max-w-[80px]" title={det.linha}>
                                                                 {det.linha || '-'}
                                                               </td>
-                                                              <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                              <td className="py-1 px-1 text-center font-mono font-bold text-slate-800">
                                                                 {det.codmodal || '-'}
                                                               </td>
-                                                              <td className="py-1 px-2 text-center font-mono font-medium text-slate-700 whitespace-nowrap">
-                                                                <div className="flex items-center justify-center gap-1">
+                                                              <td className="py-1 px-1.5 text-center font-mono font-medium text-slate-700 whitespace-nowrap">
+                                                                <div className="flex items-center justify-center gap-0.5">
                                                                   <span>{formatDateBR(det.preventrega)}</span>
                                                                   {det.prazo && (
-                                                                    <span className={`text-[8.5px] font-extrabold px-1 rounded ${det.prazo === 'Vencido'
+                                                                    <span className={`text-[8px] font-extrabold px-0.5 rounded ${det.prazo === 'Vencido'
                                                                       ? 'bg-rose-100 text-rose-800 border border-rose-200'
                                                                       : det.prazo === 'D0'
                                                                         ? 'bg-blue-100 text-blue-800 border border-blue-200'
@@ -5167,34 +5167,34 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                                   )}
                                                                 </div>
                                                               </td>
-                                                              <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                              <td className="py-1 px-1 text-center font-mono font-bold text-slate-800">
                                                                 {det.numlote && det.numlote !== '-' ? det.numlote : '-'}
                                                               </td>
-                                                              <td className="py-1 px-2 text-center font-mono font-bold text-slate-800">
+                                                              <td className="py-1 px-1 text-center font-mono font-bold text-slate-800">
                                                                 {det.numpedven || '-'}
                                                               </td>
-                                                              <td className="py-1 px-2 text-center font-mono font-bold text-blue-700">
+                                                              <td className="py-1 px-1 text-center font-mono font-bold text-blue-700">
                                                                 {formatItemCode(det.item)}
                                                               </td>
-                                                              <td className="py-1 px-3 text-slate-800 truncate max-w-xs" title={det.descricao}>
+                                                              <td className="py-1 px-2 text-slate-800 truncate max-w-[150px]" title={det.descricao}>
                                                                 {det.descricao || '-'}
                                                               </td>
-                                                              <td className="py-1 px-2 text-center font-mono font-bold text-slate-800 w-[80px] min-w-[80px] max-w-[80px]">
+                                                              <td className="py-1 px-1.5 text-center font-mono font-bold text-slate-800">
                                                                 {det.quantidade}
                                                               </td>
-                                                              <td className="py-1 px-2 text-center font-mono w-[90px] min-w-[90px] max-w-[90px]">
-                                                                <div className="grid grid-cols-[18px_1fr] items-center gap-1 w-[72px] mx-auto">
-                                                                  <div className="flex justify-center items-center">
+                                                              <td className="py-1 px-1.5 text-center font-mono">
+                                                                <div className="grid grid-cols-[14px_1fr] items-center gap-0.5 w-[52px] mx-auto">
+                                                                  <div className="flex justify-center items-center scale-90">
                                                                     {renderCubSemaforo(det.cubagem)}
                                                                   </div>
                                                                   <span className="text-right font-bold text-slate-800">{det.cubagem.toFixed(2)}</span>
                                                                 </div>
                                                               </td>
-                                                              <td className="py-1 px-2 text-center font-mono font-bold text-slate-800 w-[110px] min-w-[110px] max-w-[110px]">
-                                                                <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
+                                                              <td className="py-1 px-1.5 text-center font-mono font-bold text-slate-800 whitespace-nowrap">
+                                                                <span className="text-slate-400 font-normal text-[8px] mr-0.5">R$</span>
                                                                 {det.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                               </td>
-                                                              <td className="py-1 px-2 text-center font-mono font-medium text-slate-700 w-[65px] min-w-[65px] max-w-[65px]">
+                                                              <td className="py-1 px-1.5 text-center font-mono font-medium text-slate-700">
                                                                 {Math.round(det.peso)}
                                                               </td>
                                                             </tr>
