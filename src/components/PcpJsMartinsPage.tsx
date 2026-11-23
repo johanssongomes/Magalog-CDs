@@ -4751,7 +4751,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </div>
 
                 {/* Lado Direito: Cards Rápidos de Visão Geral (Alinhado exatamente com o painel lateral direito) */}
-                <div className="flex-1 w-full min-w-0">
+                <div className={`w-full min-w-0 ${planRightTab === 'visao3' ? 'flex-1' : 'flex-1 xl:max-w-[800px] 2xl:max-w-[840px]'}`}>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
                     <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Pedidos</span>
@@ -4795,7 +4795,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             {/* ------------------------------------------------------------ */}
             <div className="flex flex-col xl:flex-row gap-5 items-start w-full">
               {/* CANTO ESQUERDO (TABELA COM O TEMA MODERNO BLUE/SLATE CLEAN) */}
-              <div className="w-full xl:w-auto xl:min-w-[680px] 2xl:min-w-[740px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
+              <div className={`w-full xl:w-auto ${planRightTab === 'visao3' ? 'xl:min-w-[680px] 2xl:min-w-[740px]' : 'xl:min-w-[780px] 2xl:min-w-[840px] flex-1'} bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0`}>
                 <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d] gap-2 flex-wrap sm:flex-nowrap">
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet size={15} className="text-sky-300 shrink-0" />
@@ -5487,7 +5487,7 @@ export const PcpJsMartinsPage: React.FC = () => {
               </div>
 
               {/* LADO DIREITO: ÁREA RESERVADA PARA TABELAS/VISÕES DO PAINEL LATERAL */}
-              <div className="flex-1 space-y-4 w-full min-w-0">
+              <div className={`space-y-4 w-full min-w-0 ${planRightTab === 'visao3' ? 'flex-1' : 'flex-1 xl:max-w-[800px] 2xl:max-w-[840px]'}`}>
                 {/* 3 BOTÕES DE VISÃO DO PAINEL LATERAL (CONFORME SOLICITADO) */}
                 <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/90 shadow-2xs">
                   <button
