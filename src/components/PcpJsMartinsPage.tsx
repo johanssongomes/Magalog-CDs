@@ -840,6 +840,20 @@ export const PcpJsMartinsPage: React.FC = () => {
     }
   }
 
+  // Ordenação da Visão 1 (Por Linha & Itens)
+  type LinhaSortKey = 'linha' | 'ibm' | 'item' | 'totalQtd' | 'totalCub' | 'totalValor' | 'totalPeso'
+  const [linhaSortKey, setLinhaSortKey] = useState<LinhaSortKey>('linha')
+  const [linhaSortAsc, setLinhaSortAsc] = useState<boolean>(true)
+
+  const handleLinhaSort = (key: LinhaSortKey) => {
+    if (linhaSortKey === key) {
+      setLinhaSortAsc(prev => !prev)
+    } else {
+      setLinhaSortKey(key)
+      setLinhaSortAsc(key === 'linha' || key === 'ibm' || key === 'item')
+    }
+  }
+
   // Filtro de busca interna para o painel lateral
   const [planRightSearch, setPlanRightSearch] = useState<string>('')
 
@@ -3103,7 +3117,11 @@ export const PcpJsMartinsPage: React.FC = () => {
           return true
         })
 
-        // Base para a Visão Comparativa (sempre mantém Carteira + Processo para o comparativo lado a lado)
+        // Controle de visibilidade dinâmica das colunas conforme o filtro STATUS OPERAÇÃO
+        const showCarteira = planFilterStatusOp.length === 0 || planFilterStatusOp.includes('EM CARTEIRA')
+        const showProcesso = planFilterStatusOp.length === 0 || planFilterStatusOp.includes('EM PROCESSO')
+
+        // Base para a Visão Comparativa (aplica filtros ativos incluindo Status Operação quando filtrado)
         const enrichedForComparative = enrichedBase.filter(r => {
           if (planFilterRegioes.length > 0 && !planFilterRegioes.includes(r.calc_regiao)) return false
           if (planFilterDestinos.length > 0 && !planFilterDestinos.includes(r.calc_destino)) return false
@@ -3112,6 +3130,15 @@ export const PcpJsMartinsPage: React.FC = () => {
           if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
           if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return false
           if (planFilterPrazos.length > 0 && !planFilterPrazos.includes(r.calc_prazo)) return false
+          if (planFilterStatusOp.length > 0) {
+            const raw = String(r.calc_status_op || '').toUpperCase()
+            const matchStatus = planFilterStatusOp.some(st => {
+              if (st === 'EM CARTEIRA') return raw.includes('CARTEIRA')
+              if (st === 'EM PROCESSO') return raw.includes('PROCESSO')
+              return raw === st
+            })
+            if (!matchStatus) return false
+          }
           if (!matchSearch(r)) return false
           return true
         })
@@ -3486,12 +3513,18 @@ export const PcpJsMartinsPage: React.FC = () => {
           item.totalPeso += peso
         })
 
+        const effectiveCompSortField = (!showCarteira && (compSortField === 'carteiraQtd' || compSortField === 'carteiraCub'))
+          ? 'totalCub'
+          : (!showProcesso && (compSortField === 'processoQtd' || compSortField === 'processoCub'))
+            ? 'totalCub'
+            : compSortField
+
         const comparativeDestinos = Array.from(compDestMap.values()).sort((a, b) => {
           let diff = 0
-          if (compSortField === 'destino') {
+          if (effectiveCompSortField === 'destino') {
             diff = a.destino.localeCompare(b.destino)
           } else {
-            diff = (a[compSortField] as number) - (b[compSortField] as number)
+            diff = (a[effectiveCompSortField] as number) - (b[effectiveCompSortField] as number)
           }
           return compSortAsc ? diff : -diff
         })
@@ -3590,7 +3623,37 @@ export const PcpJsMartinsPage: React.FC = () => {
         })
 
         const linhaSummaries: LinhaSummary[] = Array.from(linhaMap.entries()).map(([linha, data]) => {
-          const itens = Array.from(data.itemsMap.values()).sort((a, b) => b.quantidade - a.quantidade || a.item.localeCompare(b.item))
+          const itens = Array.from(data.itemsMap.values())
+          itens.sort((a, b) => {
+            let diff = 0
+            switch (linhaSortKey) {
+              case 'ibm':
+                diff = a.ibm.localeCompare(b.ibm)
+                break
+              case 'item':
+                diff = a.item.localeCompare(b.item)
+                break
+              case 'linha':
+                diff = a.descricao.localeCompare(b.descricao)
+                break
+              case 'totalQtd':
+                diff = a.quantidade - b.quantidade
+                break
+              case 'totalCub':
+                diff = a.cubagem - b.cubagem
+                break
+              case 'totalValor':
+                diff = a.valorTotal - b.valorTotal
+                break
+              case 'totalPeso':
+                diff = a.peso - b.peso
+                break
+              default:
+                diff = a.descricao.localeCompare(b.descricao)
+                break
+            }
+            return linhaSortAsc ? diff : -diff
+          })
           return {
             linha,
             totalQtd: data.totalQtd,
@@ -3601,7 +3664,39 @@ export const PcpJsMartinsPage: React.FC = () => {
             pedidosSet: data.pedidosSet,
             itens
           }
-        }).sort((a, b) => a.linha.localeCompare(b.linha))
+        })
+
+        linhaSummaries.sort((a, b) => {
+          let diff = 0
+          switch (linhaSortKey) {
+            case 'linha':
+              diff = a.linha.localeCompare(b.linha)
+              break
+            case 'ibm':
+              const ibmA = a.itens.length > 0 ? a.itens[0].ibm : ''
+              const ibmB = b.itens.length > 0 ? b.itens[0].ibm : ''
+              diff = ibmA.localeCompare(ibmB)
+              break
+            case 'item':
+              const itmA = a.itens.length > 0 ? a.itens[0].item : ''
+              const itmB = b.itens.length > 0 ? b.itens[0].item : ''
+              diff = itmA.localeCompare(itmB)
+              break
+            case 'totalQtd':
+              diff = a.totalQtd - b.totalQtd
+              break
+            case 'totalCub':
+              diff = a.totalCub - b.totalCub
+              break
+            case 'totalValor':
+              diff = a.totalValor - b.totalValor
+              break
+            case 'totalPeso':
+              diff = a.totalPeso - b.totalPeso
+              break
+          }
+          return linhaSortAsc ? diff : -diff
+        })
 
         const linhaTotals = {
           totalLinhas: linhaSummaries.length,
@@ -3820,6 +3915,12 @@ export const PcpJsMartinsPage: React.FC = () => {
           dateTotals.totalPrevisoes += grp.itensMap.size
         })
 
+        const effectiveDateSortKey = (!showCarteira && (dateSortKey === 'carteiraPedidos' || dateSortKey === 'carteiraQtd' || dateSortKey === 'carteiraCub'))
+          ? 'totalQtd'
+          : (!showProcesso && (dateSortKey === 'processoPedidos' || dateSortKey === 'processoQtd' || dateSortKey === 'processoCub'))
+            ? 'totalQtd'
+            : dateSortKey
+
         const sortedDateGroups: FormattedDateGroup[] = Array.from(datePedidoGroupsMap.values()).map(grp => {
           const itens: FormattedDateDetail[] = Array.from(grp.itensMap.values()).map(it => ({
             prevEntrega: it.prevEntrega,
@@ -3838,7 +3939,7 @@ export const PcpJsMartinsPage: React.FC = () => {
 
           itens.sort((a, b) => {
             let diff = 0
-            switch (dateSortKey) {
+            switch (effectiveDateSortKey) {
               case 'prevEntrega':
                 diff = a.prevEntregaTimestamp - b.prevEntregaTimestamp
                 break
@@ -3895,7 +3996,7 @@ export const PcpJsMartinsPage: React.FC = () => {
 
         sortedDateGroups.sort((a, b) => {
           let diff = 0
-          switch (dateSortKey) {
+          switch (effectiveDateSortKey) {
             case 'dtPedido':
               diff = a.dtPedidoTimestamp - b.dtPedidoTimestamp
               break
@@ -4942,26 +5043,30 @@ export const PcpJsMartinsPage: React.FC = () => {
                           </th>
 
                           {/* Bloco EM CARTEIRA */}
-                          <th
-                            colSpan={2}
-                            className="py-1.5 px-2 bg-[#123e6b] text-sky-200 border-b border-white/10 font-black tracking-widest text-[10px]"
-                          >
-                            <div className="flex items-center justify-center gap-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
-                              <span>EM CARTEIRA</span>
-                            </div>
-                          </th>
+                          {showCarteira && (
+                            <th
+                              colSpan={2}
+                              className="py-1.5 px-2 bg-[#123e6b] text-sky-200 border-b border-white/10 font-black tracking-widest text-[10px]"
+                            >
+                              <div className="flex items-center justify-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+                                <span>EM CARTEIRA</span>
+                              </div>
+                            </th>
+                          )}
 
                           {/* Bloco EM PROCESSO */}
-                          <th
-                            colSpan={2}
-                            className="py-1.5 px-2 bg-[#184880] text-blue-100 border-b border-white/10 font-black tracking-widest text-[10px]"
-                          >
-                            <div className="flex items-center justify-center gap-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-blue-300"></span>
-                              <span>EM PROCESSO</span>
-                            </div>
-                          </th>
+                          {showProcesso && (
+                            <th
+                              colSpan={2}
+                              className="py-1.5 px-2 bg-[#184880] text-blue-100 border-b border-white/10 font-black tracking-widest text-[10px]"
+                            >
+                              <div className="flex items-center justify-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-300"></span>
+                                <span>EM PROCESSO</span>
+                              </div>
+                            </th>
+                          )}
 
                           {/* TOTAL PÇS */}
                           <th
@@ -4995,59 +5100,67 @@ export const PcpJsMartinsPage: React.FC = () => {
                         {/* Linha 2 de Cabeçalho: Subcolunas */}
                         <tr className="divide-x divide-white/10 text-center text-[9px]">
                           {/* Subcolunas Carteira */}
-                          <th
-                            onClick={() => handleCompSort('carteiraQtd')}
-                            className="py-1.5 px-2 font-bold cursor-pointer hover:bg-white/10 transition-colors select-none w-[85px] min-w-[85px] bg-[#123e6b] text-sky-100"
-                          >
-                            <div className="flex items-center justify-center gap-0.5">
-                              <span>QUANTIDADE</span>
-                              <span className="text-[7.5px] opacity-70">
-                                {compSortField === 'carteiraQtd' ? (compSortAsc ? '▲' : '▼') : ''}
-                              </span>
-                            </div>
-                          </th>
-                          <th
-                            onClick={() => handleCompSort('carteiraCub')}
-                            className="py-1.5 px-2 font-bold cursor-pointer hover:bg-white/10 transition-colors select-none w-[75px] min-w-[75px] bg-[#123e6b] text-sky-100"
-                          >
-                            <div className="flex items-center justify-center gap-0.5">
-                              <span>CUBAGEM</span>
-                              <span className="text-[7.5px] opacity-70">
-                                {compSortField === 'carteiraCub' ? (compSortAsc ? '▲' : '▼') : ''}
-                              </span>
-                            </div>
-                          </th>
+                          {showCarteira && (
+                            <>
+                              <th
+                                onClick={() => handleCompSort('carteiraQtd')}
+                                className="py-1.5 px-2 font-bold cursor-pointer hover:bg-white/10 transition-colors select-none w-[85px] min-w-[85px] bg-[#123e6b] text-sky-100"
+                              >
+                                <div className="flex items-center justify-center gap-0.5">
+                                  <span>QUANTIDADE</span>
+                                  <span className="text-[7.5px] opacity-70">
+                                    {compSortField === 'carteiraQtd' ? (compSortAsc ? '▲' : '▼') : ''}
+                                  </span>
+                                </div>
+                              </th>
+                              <th
+                                onClick={() => handleCompSort('carteiraCub')}
+                                className="py-1.5 px-2 font-bold cursor-pointer hover:bg-white/10 transition-colors select-none w-[75px] min-w-[75px] bg-[#123e6b] text-sky-100"
+                              >
+                                <div className="flex items-center justify-center gap-0.5">
+                                  <span>CUBAGEM</span>
+                                  <span className="text-[7.5px] opacity-70">
+                                    {compSortField === 'carteiraCub' ? (compSortAsc ? '▲' : '▼') : ''}
+                                  </span>
+                                </div>
+                              </th>
+                            </>
+                          )}
 
                           {/* Subcolunas Processo */}
-                          <th
-                            onClick={() => handleCompSort('processoQtd')}
-                            className="py-1.5 px-2 font-bold cursor-pointer hover:bg-white/10 transition-colors select-none w-[85px] min-w-[85px] bg-[#184880] text-blue-100"
-                          >
-                            <div className="flex items-center justify-center gap-0.5">
-                              <span>QUANTIDADE</span>
-                              <span className="text-[7.5px] opacity-70">
-                                {compSortField === 'processoQtd' ? (compSortAsc ? '▲' : '▼') : ''}
-                              </span>
-                            </div>
-                          </th>
-                          <th
-                            onClick={() => handleCompSort('processoCub')}
-                            className="py-1.5 px-2 font-bold cursor-pointer hover:bg-white/10 transition-colors select-none w-[75px] min-w-[75px] bg-[#184880] text-blue-100"
-                          >
-                            <div className="flex items-center justify-center gap-0.5">
-                              <span>CUBAGEM</span>
-                              <span className="text-[7.5px] opacity-70">
-                                {compSortField === 'processoCub' ? (compSortAsc ? '▲' : '▼') : ''}
-                              </span>
-                            </div>
-                          </th>
+                          {showProcesso && (
+                            <>
+                              <th
+                                onClick={() => handleCompSort('processoQtd')}
+                                className="py-1.5 px-2 font-bold cursor-pointer hover:bg-white/10 transition-colors select-none w-[85px] min-w-[85px] bg-[#184880] text-blue-100"
+                              >
+                                <div className="flex items-center justify-center gap-0.5">
+                                  <span>QUANTIDADE</span>
+                                  <span className="text-[7.5px] opacity-70">
+                                    {compSortField === 'processoQtd' ? (compSortAsc ? '▲' : '▼') : ''}
+                                  </span>
+                                </div>
+                              </th>
+                              <th
+                                onClick={() => handleCompSort('processoCub')}
+                                className="py-1.5 px-2 font-bold cursor-pointer hover:bg-white/10 transition-colors select-none w-[75px] min-w-[75px] bg-[#184880] text-blue-100"
+                              >
+                                <div className="flex items-center justify-center gap-0.5">
+                                  <span>CUBAGEM</span>
+                                  <span className="text-[7.5px] opacity-70">
+                                    {compSortField === 'processoCub' ? (compSortAsc ? '▲' : '▼') : ''}
+                                  </span>
+                                </div>
+                              </th>
+                            </>
+                          )}
                         </tr>
                       </thead>
 
                       <tbody className="divide-y divide-slate-100 font-sans">
                         {comparativeDestinos.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="py-12 text-center text-slate-400 italic">
+                            <td colSpan={1 + (showCarteira ? 2 : 0) + (showProcesso ? 2 : 0) + 2} className="py-12 text-center text-slate-400 italic">
                               Nenhum destino encontrado com os filtros selecionados.
                             </td>
                           </tr>
@@ -5063,29 +5176,33 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 {row.destino}
                               </td>
 
-                              {/* EM CARTEIRA - QUANTIDADE */}
-                              <td className="py-1.5 px-2 text-center text-slate-700 font-mono font-medium whitespace-nowrap">
-                                {row.carteiraQtd > 0 ? Math.round(row.carteiraQtd).toLocaleString('pt-BR') : '-'}
-                              </td>
+                              {/* EM CARTEIRA */}
+                              {showCarteira && (
+                                <>
+                                  <td className="py-1.5 px-2 text-center text-slate-700 font-mono font-medium whitespace-nowrap">
+                                    {row.carteiraQtd > 0 ? Math.round(row.carteiraQtd).toLocaleString('pt-BR') : '-'}
+                                  </td>
+                                  <td className="py-1.5 px-2 text-center text-slate-800 font-mono font-bold whitespace-nowrap">
+                                    {row.carteiraCub > 0
+                                      ? row.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                      : '-'}
+                                  </td>
+                                </>
+                              )}
 
-                              {/* EM CARTEIRA - CUBAGEM */}
-                              <td className="py-1.5 px-2 text-center text-slate-800 font-mono font-bold whitespace-nowrap">
-                                {row.carteiraCub > 0
-                                  ? row.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-                                  : '-'}
-                              </td>
-
-                              {/* EM PROCESSO - QUANTIDADE */}
-                              <td className="py-1.5 px-2 text-center text-blue-700 bg-blue-50/30 font-mono font-medium whitespace-nowrap">
-                                {row.processoQtd > 0 ? Math.round(row.processoQtd).toLocaleString('pt-BR') : '-'}
-                              </td>
-
-                              {/* EM PROCESSO - CUBAGEM */}
-                              <td className="py-1.5 px-2 text-center text-blue-900 bg-blue-50/30 font-mono font-bold whitespace-nowrap">
-                                {row.processoCub > 0
-                                  ? row.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-                                  : '-'}
-                              </td>
+                              {/* EM PROCESSO */}
+                              {showProcesso && (
+                                <>
+                                  <td className="py-1.5 px-2 text-center text-blue-700 bg-blue-50/30 font-mono font-medium whitespace-nowrap">
+                                    {row.processoQtd > 0 ? Math.round(row.processoQtd).toLocaleString('pt-BR') : '-'}
+                                  </td>
+                                  <td className="py-1.5 px-2 text-center text-blue-900 bg-blue-50/30 font-mono font-bold whitespace-nowrap">
+                                    {row.processoCub > 0
+                                      ? row.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                      : '-'}
+                                  </td>
+                                </>
+                              )}
 
                               {/* TOTAL PÇS */}
                               <td className="py-1.5 px-2 text-center text-slate-900 bg-slate-100/40 font-mono font-bold whitespace-nowrap">
@@ -5108,18 +5225,26 @@ export const PcpJsMartinsPage: React.FC = () => {
                             <td className="py-2.5 px-3 text-left font-black">
                               TOTAL GERAL
                             </td>
-                            <td className="py-2.5 px-2 text-center font-mono font-bold text-sky-200">
-                              {Math.round(compTotals.carteiraQtd).toLocaleString('pt-BR')}
-                            </td>
-                            <td className="py-2.5 px-2 text-center font-mono font-black text-sky-100">
-                              {compTotals.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                            </td>
-                            <td className="py-2.5 px-2 text-center font-mono font-bold text-sky-200 bg-[#164e85]">
-                              {Math.round(compTotals.processoQtd).toLocaleString('pt-BR')}
-                            </td>
-                            <td className="py-2.5 px-2 text-center font-mono font-black text-sky-100 bg-[#164e85]">
-                              {compTotals.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                            </td>
+                            {showCarteira && (
+                              <>
+                                <td className="py-2.5 px-2 text-center font-mono font-bold text-sky-200">
+                                  {Math.round(compTotals.carteiraQtd).toLocaleString('pt-BR')}
+                                </td>
+                                <td className="py-2.5 px-2 text-center font-mono font-black text-sky-100">
+                                  {compTotals.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                </td>
+                              </>
+                            )}
+                            {showProcesso && (
+                              <>
+                                <td className="py-2.5 px-2 text-center font-mono font-bold text-sky-200 bg-[#164e85]">
+                                  {Math.round(compTotals.processoQtd).toLocaleString('pt-BR')}
+                                </td>
+                                <td className="py-2.5 px-2 text-center font-mono font-black text-sky-100 bg-[#164e85]">
+                                  {compTotals.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                </td>
+                              </>
+                            )}
                             <td className="py-2.5 px-2 text-center font-mono font-black text-white bg-[#0a2c4d]">
                               {Math.round(compTotals.totalQtd).toLocaleString('pt-BR')}
                             </td>
@@ -5247,14 +5372,91 @@ export const PcpJsMartinsPage: React.FC = () => {
                     <div className="w-full overflow-x-auto select-text">
                       <table className="w-full border-collapse font-sans text-slate-800 text-[10.5px] table-auto">
                         <thead className="sticky top-0 z-20 bg-[#0e3b66] text-white uppercase text-[9.5px] font-black tracking-wider border-b border-[#0a2c4d]">
-                          <tr className="divide-x divide-white/10 text-center">
-                            <th className="py-2 px-2 text-center font-extrabold w-[75px] min-w-[75px]">IBM</th>
-                            <th className="py-2 px-2 text-center font-extrabold w-[80px] min-w-[80px]">ITEM</th>
-                            <th className="py-2 px-2.5 text-left font-extrabold min-w-[200px]">LINHA / DESCRIÇÃO</th>
-                            <th className="py-2 px-2 text-center font-extrabold w-[65px] min-w-[65px]">QTD</th>
-                            <th className="py-2 px-2 text-center font-extrabold w-[75px] min-w-[75px]">CUBAGEM</th>
-                            <th className="py-2 px-2 text-center font-extrabold w-[95px] min-w-[95px]">VALOR$</th>
-                            <th className="py-2 px-2 text-center font-extrabold w-[65px] min-w-[65px]">PESO</th>
+                          <tr className="divide-x divide-white/10 text-center select-none">
+                            <th
+                              onClick={() => handleLinhaSort('ibm')}
+                              title="Clique para classificar por IBM"
+                              className="py-2 px-2 text-center font-extrabold w-[75px] min-w-[75px] cursor-pointer hover:bg-white/10 transition-colors"
+                            >
+                              <div className="flex items-center justify-center gap-0.5">
+                                <span>IBM</span>
+                                <span className="text-[7.5px] text-sky-300 font-mono">
+                                  {linhaSortKey === 'ibm' ? (linhaSortAsc ? '▲' : '▼') : '↕'}
+                                </span>
+                              </div>
+                            </th>
+                            <th
+                              onClick={() => handleLinhaSort('item')}
+                              title="Clique para classificar por Código do Item"
+                              className="py-2 px-2 text-center font-extrabold w-[80px] min-w-[80px] cursor-pointer hover:bg-white/10 transition-colors"
+                            >
+                              <div className="flex items-center justify-center gap-0.5">
+                                <span>ITEM</span>
+                                <span className="text-[7.5px] text-sky-300 font-mono">
+                                  {linhaSortKey === 'item' ? (linhaSortAsc ? '▲' : '▼') : '↕'}
+                                </span>
+                              </div>
+                            </th>
+                            <th
+                              onClick={() => handleLinhaSort('linha')}
+                              title="Clique para classificar por Linha / Descrição"
+                              className="py-2 px-2.5 text-left font-extrabold min-w-[200px] cursor-pointer hover:bg-white/10 transition-colors"
+                            >
+                              <div className="flex items-center justify-between gap-1">
+                                <span>LINHA / DESCRIÇÃO</span>
+                                <span className="text-[7.5px] text-sky-300 font-mono">
+                                  {linhaSortKey === 'linha' ? (linhaSortAsc ? '▲' : '▼') : '↕'}
+                                </span>
+                              </div>
+                            </th>
+                            <th
+                              onClick={() => handleLinhaSort('totalQtd')}
+                              title="Clique para classificar por Quantidade"
+                              className="py-2 px-2 text-center font-extrabold w-[65px] min-w-[65px] cursor-pointer hover:bg-white/10 transition-colors"
+                            >
+                              <div className="flex items-center justify-center gap-0.5">
+                                <span>QTD</span>
+                                <span className="text-[7.5px] text-sky-300 font-mono">
+                                  {linhaSortKey === 'totalQtd' ? (linhaSortAsc ? '▲' : '▼') : '↕'}
+                                </span>
+                              </div>
+                            </th>
+                            <th
+                              onClick={() => handleLinhaSort('totalCub')}
+                              title="Clique para classificar por Cubagem"
+                              className="py-2 px-2 text-center font-extrabold w-[75px] min-w-[75px] cursor-pointer hover:bg-white/10 transition-colors"
+                            >
+                              <div className="flex items-center justify-center gap-0.5">
+                                <span>CUBAGEM</span>
+                                <span className="text-[7.5px] text-sky-300 font-mono">
+                                  {linhaSortKey === 'totalCub' ? (linhaSortAsc ? '▲' : '▼') : '↕'}
+                                </span>
+                              </div>
+                            </th>
+                            <th
+                              onClick={() => handleLinhaSort('totalValor')}
+                              title="Clique para classificar por Valor Total"
+                              className="py-2 px-2 text-center font-extrabold w-[95px] min-w-[95px] cursor-pointer hover:bg-white/10 transition-colors"
+                            >
+                              <div className="flex items-center justify-center gap-0.5">
+                                <span>VALOR$</span>
+                                <span className="text-[7.5px] text-sky-300 font-mono">
+                                  {linhaSortKey === 'totalValor' ? (linhaSortAsc ? '▲' : '▼') : '↕'}
+                                </span>
+                              </div>
+                            </th>
+                            <th
+                              onClick={() => handleLinhaSort('totalPeso')}
+                              title="Clique para classificar por Peso Total"
+                              className="py-2 px-2 text-center font-extrabold w-[65px] min-w-[65px] cursor-pointer hover:bg-white/10 transition-colors"
+                            >
+                              <div className="flex items-center justify-center gap-0.5">
+                                <span>PESO</span>
+                                <span className="text-[7.5px] text-sky-300 font-mono">
+                                  {linhaSortKey === 'totalPeso' ? (linhaSortAsc ? '▲' : '▼') : '↕'}
+                                </span>
+                              </div>
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 bg-white">
@@ -5435,18 +5637,22 @@ export const PcpJsMartinsPage: React.FC = () => {
                             <th colSpan={2} className="py-1 px-2 bg-[#0e3b66] text-white tracking-widest font-extrabold">
                               DATAS
                             </th>
-                            <th colSpan={3} className="py-1 px-2 bg-[#123e6b] text-sky-200 tracking-widest font-black">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
-                                <span>EM CARTEIRA</span>
-                              </div>
-                            </th>
-                            <th colSpan={3} className="py-1 px-2 bg-[#184880] text-blue-100 tracking-widest font-black">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-300"></span>
-                                <span>EM PROCESSO</span>
-                              </div>
-                            </th>
+                            {showCarteira && (
+                              <th colSpan={3} className="py-1 px-2 bg-[#123e6b] text-sky-200 tracking-widest font-black">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+                                  <span>EM CARTEIRA</span>
+                                </div>
+                              </th>
+                            )}
+                            {showProcesso && (
+                              <th colSpan={3} className="py-1 px-2 bg-[#184880] text-blue-100 tracking-widest font-black">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-300"></span>
+                                  <span>EM PROCESSO</span>
+                                </div>
+                              </th>
+                            )}
                             <th colSpan={3} className="py-1 px-2 bg-[#0a2c4d] text-white tracking-widest font-black">
                               TOTAL CONSOLIDADO
                             </th>
@@ -5479,79 +5685,87 @@ export const PcpJsMartinsPage: React.FC = () => {
                               </div>
                             </th>
                             {/* Carteira */}
-                            <th
-                              onClick={() => handleDateSort('carteiraPedidos')}
-                              title="Clique para classificar por Pedidos em Carteira"
-                              className="py-1.5 px-1.5 font-bold w-[55px] min-w-[55px] bg-[#123e6b] text-sky-100 cursor-pointer hover:bg-[#1c548e] transition-colors"
-                            >
-                              <div className="flex items-center justify-center gap-0.5">
-                                <span>PEDIDOS</span>
-                                <span className="text-[7.5px] text-sky-300 font-mono">
-                                  {dateSortKey === 'carteiraPedidos' ? (dateSortAsc ? '▲' : '▼') : '↕'}
-                                </span>
-                              </div>
-                            </th>
-                            <th
-                              onClick={() => handleDateSort('carteiraQtd')}
-                              title="Clique para classificar por Peças em Carteira"
-                              className="py-1.5 px-1.5 font-bold w-[60px] min-w-[60px] bg-[#123e6b] text-sky-100 cursor-pointer hover:bg-[#1c548e] transition-colors"
-                            >
-                              <div className="flex items-center justify-center gap-0.5">
-                                <span>PEÇAS</span>
-                                <span className="text-[7.5px] text-sky-300 font-mono">
-                                  {dateSortKey === 'carteiraQtd' ? (dateSortAsc ? '▲' : '▼') : '↕'}
-                                </span>
-                              </div>
-                            </th>
-                            <th
-                              onClick={() => handleDateSort('carteiraCub')}
-                              title="Clique para classificar por Cubagem em Carteira"
-                              className="py-1.5 px-1.5 font-bold w-[60px] min-w-[60px] bg-[#123e6b] text-sky-100 cursor-pointer hover:bg-[#1c548e] transition-colors"
-                            >
-                              <div className="flex items-center justify-center gap-0.5">
-                                <span>CUBAGEM</span>
-                                <span className="text-[7.5px] text-sky-300 font-mono">
-                                  {dateSortKey === 'carteiraCub' ? (dateSortAsc ? '▲' : '▼') : '↕'}
-                                </span>
-                              </div>
-                            </th>
+                            {showCarteira && (
+                              <>
+                                <th
+                                  onClick={() => handleDateSort('carteiraPedidos')}
+                                  title="Clique para classificar por Pedidos em Carteira"
+                                  className="py-1.5 px-1.5 font-bold w-[55px] min-w-[55px] bg-[#123e6b] text-sky-100 cursor-pointer hover:bg-[#1c548e] transition-colors"
+                                >
+                                  <div className="flex items-center justify-center gap-0.5">
+                                    <span>PEDIDOS</span>
+                                    <span className="text-[7.5px] text-sky-300 font-mono">
+                                      {dateSortKey === 'carteiraPedidos' ? (dateSortAsc ? '▲' : '▼') : '↕'}
+                                    </span>
+                                  </div>
+                                </th>
+                                <th
+                                  onClick={() => handleDateSort('carteiraQtd')}
+                                  title="Clique para classificar por Peças em Carteira"
+                                  className="py-1.5 px-1.5 font-bold w-[60px] min-w-[60px] bg-[#123e6b] text-sky-100 cursor-pointer hover:bg-[#1c548e] transition-colors"
+                                >
+                                  <div className="flex items-center justify-center gap-0.5">
+                                    <span>PEÇAS</span>
+                                    <span className="text-[7.5px] text-sky-300 font-mono">
+                                      {dateSortKey === 'carteiraQtd' ? (dateSortAsc ? '▲' : '▼') : '↕'}
+                                    </span>
+                                  </div>
+                                </th>
+                                <th
+                                  onClick={() => handleDateSort('carteiraCub')}
+                                  title="Clique para classificar por Cubagem em Carteira"
+                                  className="py-1.5 px-1.5 font-bold w-[60px] min-w-[60px] bg-[#123e6b] text-sky-100 cursor-pointer hover:bg-[#1c548e] transition-colors"
+                                >
+                                  <div className="flex items-center justify-center gap-0.5">
+                                    <span>CUBAGEM</span>
+                                    <span className="text-[7.5px] text-sky-300 font-mono">
+                                      {dateSortKey === 'carteiraCub' ? (dateSortAsc ? '▲' : '▼') : '↕'}
+                                    </span>
+                                  </div>
+                                </th>
+                              </>
+                            )}
                             {/* Processo */}
-                            <th
-                              onClick={() => handleDateSort('processoPedidos')}
-                              title="Clique para classificar por Pedidos em Processo"
-                              className="py-1.5 px-1.5 font-bold w-[55px] min-w-[55px] bg-[#184880] text-blue-100 cursor-pointer hover:bg-[#205b9e] transition-colors"
-                            >
-                              <div className="flex items-center justify-center gap-0.5">
-                                <span>PEDIDOS</span>
-                                <span className="text-[7.5px] text-sky-300 font-mono">
-                                  {dateSortKey === 'processoPedidos' ? (dateSortAsc ? '▲' : '▼') : '↕'}
-                                </span>
-                              </div>
-                            </th>
-                            <th
-                              onClick={() => handleDateSort('processoQtd')}
-                              title="Clique para classificar por Peças em Processo"
-                              className="py-1.5 px-1.5 font-bold w-[60px] min-w-[60px] bg-[#184880] text-blue-100 cursor-pointer hover:bg-[#205b9e] transition-colors"
-                            >
-                              <div className="flex items-center justify-center gap-0.5">
-                                <span>PEÇAS</span>
-                                <span className="text-[7.5px] text-sky-300 font-mono">
-                                  {dateSortKey === 'processoQtd' ? (dateSortAsc ? '▲' : '▼') : '↕'}
-                                </span>
-                              </div>
-                            </th>
-                            <th
-                              onClick={() => handleDateSort('processoCub')}
-                              title="Clique para classificar por Cubagem em Processo"
-                              className="py-1.5 px-1.5 font-bold w-[60px] min-w-[60px] bg-[#184880] text-blue-100 cursor-pointer hover:bg-[#205b9e] transition-colors"
-                            >
-                              <div className="flex items-center justify-center gap-0.5">
-                                <span>CUBAGEM</span>
-                                <span className="text-[7.5px] text-sky-300 font-mono">
-                                  {dateSortKey === 'processoCub' ? (dateSortAsc ? '▲' : '▼') : '↕'}
-                                </span>
-                              </div>
-                            </th>
+                            {showProcesso && (
+                              <>
+                                <th
+                                  onClick={() => handleDateSort('processoPedidos')}
+                                  title="Clique para classificar por Pedidos em Processo"
+                                  className="py-1.5 px-1.5 font-bold w-[55px] min-w-[55px] bg-[#184880] text-blue-100 cursor-pointer hover:bg-[#205b9e] transition-colors"
+                                >
+                                  <div className="flex items-center justify-center gap-0.5">
+                                    <span>PEDIDOS</span>
+                                    <span className="text-[7.5px] text-sky-300 font-mono">
+                                      {dateSortKey === 'processoPedidos' ? (dateSortAsc ? '▲' : '▼') : '↕'}
+                                    </span>
+                                  </div>
+                                </th>
+                                <th
+                                  onClick={() => handleDateSort('processoQtd')}
+                                  title="Clique para classificar por Peças em Processo"
+                                  className="py-1.5 px-1.5 font-bold w-[60px] min-w-[60px] bg-[#184880] text-blue-100 cursor-pointer hover:bg-[#205b9e] transition-colors"
+                                >
+                                  <div className="flex items-center justify-center gap-0.5">
+                                    <span>PEÇAS</span>
+                                    <span className="text-[7.5px] text-sky-300 font-mono">
+                                      {dateSortKey === 'processoQtd' ? (dateSortAsc ? '▲' : '▼') : '↕'}
+                                    </span>
+                                  </div>
+                                </th>
+                                <th
+                                  onClick={() => handleDateSort('processoCub')}
+                                  title="Clique para classificar por Cubagem em Processo"
+                                  className="py-1.5 px-1.5 font-bold w-[60px] min-w-[60px] bg-[#184880] text-blue-100 cursor-pointer hover:bg-[#205b9e] transition-colors"
+                                >
+                                  <div className="flex items-center justify-center gap-0.5">
+                                    <span>CUBAGEM</span>
+                                    <span className="text-[7.5px] text-sky-300 font-mono">
+                                      {dateSortKey === 'processoCub' ? (dateSortAsc ? '▲' : '▼') : '↕'}
+                                    </span>
+                                  </div>
+                                </th>
+                              </>
+                            )}
                             {/* Total */}
                             <th
                               onClick={() => handleDateSort('totalPedidos')}
@@ -5594,7 +5808,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                         <tbody className="divide-y divide-slate-100 bg-white">
                           {filteredDateGroups.length === 0 ? (
                             <tr>
-                              <td colSpan={11} className="py-8 text-center text-slate-400 text-xs font-medium">
+                              <td colSpan={2 + (showCarteira ? 3 : 0) + (showProcesso ? 3 : 0) + 3} className="py-8 text-center text-slate-400 text-xs font-medium">
                                 Nenhum registro encontrado para os filtros ativos.
                               </td>
                             </tr>
@@ -5629,25 +5843,33 @@ export const PcpJsMartinsPage: React.FC = () => {
                                       {group.itens.length === 1 ? group.itens[0].prevEntrega : '-'}
                                     </td>
                                     {/* Carteira */}
-                                    <td className="py-1.5 px-1.5 text-center font-mono font-bold text-slate-800">
-                                      {group.carteiraPedidosCount > 0 ? group.carteiraPedidosCount.toLocaleString('pt-BR') : '-'}
-                                    </td>
-                                    <td className="py-1.5 px-1.5 text-center font-mono font-black text-slate-900">
-                                      {group.carteiraQtd > 0 ? Math.round(group.carteiraQtd).toLocaleString('pt-BR') : '-'}
-                                    </td>
-                                    <td className="py-1.5 px-1.5 text-center font-mono font-black text-slate-900">
-                                      {group.carteiraCub > 0 ? group.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
-                                    </td>
+                                    {showCarteira && (
+                                      <>
+                                        <td className="py-1.5 px-1.5 text-center font-mono font-bold text-slate-800">
+                                          {group.carteiraPedidosCount > 0 ? group.carteiraPedidosCount.toLocaleString('pt-BR') : '-'}
+                                        </td>
+                                        <td className="py-1.5 px-1.5 text-center font-mono font-black text-slate-900">
+                                          {group.carteiraQtd > 0 ? Math.round(group.carteiraQtd).toLocaleString('pt-BR') : '-'}
+                                        </td>
+                                        <td className="py-1.5 px-1.5 text-center font-mono font-black text-slate-900">
+                                          {group.carteiraCub > 0 ? group.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
+                                        </td>
+                                      </>
+                                    )}
                                     {/* Processo */}
-                                    <td className="py-1.5 px-1.5 text-center font-mono font-bold text-blue-800 bg-blue-50/40">
-                                      {group.processoPedidosCount > 0 ? group.processoPedidosCount.toLocaleString('pt-BR') : '-'}
-                                    </td>
-                                    <td className="py-1.5 px-1.5 text-center font-mono font-black text-blue-900 bg-blue-50/40">
-                                      {group.processoQtd > 0 ? Math.round(group.processoQtd).toLocaleString('pt-BR') : '-'}
-                                    </td>
-                                    <td className="py-1.5 px-1.5 text-center font-mono font-black text-blue-950 bg-blue-50/40">
-                                      {group.processoCub > 0 ? group.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
-                                    </td>
+                                    {showProcesso && (
+                                      <>
+                                        <td className="py-1.5 px-1.5 text-center font-mono font-bold text-blue-800 bg-blue-50/40">
+                                          {group.processoPedidosCount > 0 ? group.processoPedidosCount.toLocaleString('pt-BR') : '-'}
+                                        </td>
+                                        <td className="py-1.5 px-1.5 text-center font-mono font-black text-blue-900 bg-blue-50/40">
+                                          {group.processoQtd > 0 ? Math.round(group.processoQtd).toLocaleString('pt-BR') : '-'}
+                                        </td>
+                                        <td className="py-1.5 px-1.5 text-center font-mono font-black text-blue-950 bg-blue-50/40">
+                                          {group.processoCub > 0 ? group.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
+                                        </td>
+                                      </>
+                                    )}
                                     {/* Total */}
                                     <td className="py-1.5 px-1.5 text-center font-mono font-black text-slate-950 bg-slate-200/50">
                                       {group.totalPedidosCount > 0 ? group.totalPedidosCount.toLocaleString('pt-BR') : '-'}
@@ -5673,25 +5895,33 @@ export const PcpJsMartinsPage: React.FC = () => {
                                         {item.prevEntrega}
                                       </td>
                                       {/* Carteira */}
-                                      <td className="py-1 px-1.5 text-slate-700">
-                                        {item.carteiraPedidosCount > 0 ? item.carteiraPedidosCount.toLocaleString('pt-BR') : '-'}
-                                      </td>
-                                      <td className="py-1 px-1.5 font-bold text-slate-800">
-                                        {item.carteiraQtd > 0 ? Math.round(item.carteiraQtd).toLocaleString('pt-BR') : '-'}
-                                      </td>
-                                      <td className="py-1 px-1.5 font-bold text-slate-800">
-                                        {item.carteiraCub > 0 ? item.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
-                                      </td>
+                                      {showCarteira && (
+                                        <>
+                                          <td className="py-1 px-1.5 text-slate-700">
+                                            {item.carteiraPedidosCount > 0 ? item.carteiraPedidosCount.toLocaleString('pt-BR') : '-'}
+                                          </td>
+                                          <td className="py-1 px-1.5 font-bold text-slate-800">
+                                            {item.carteiraQtd > 0 ? Math.round(item.carteiraQtd).toLocaleString('pt-BR') : '-'}
+                                          </td>
+                                          <td className="py-1 px-1.5 font-bold text-slate-800">
+                                            {item.carteiraCub > 0 ? item.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
+                                          </td>
+                                        </>
+                                      )}
                                       {/* Processo */}
-                                      <td className="py-1 px-1.5 text-blue-700 bg-blue-50/30">
-                                        {item.processoPedidosCount > 0 ? item.processoPedidosCount.toLocaleString('pt-BR') : '-'}
-                                      </td>
-                                      <td className="py-1 px-1.5 font-bold text-blue-800 bg-blue-50/30">
-                                        {item.processoQtd > 0 ? Math.round(item.processoQtd).toLocaleString('pt-BR') : '-'}
-                                      </td>
-                                      <td className="py-1 px-1.5 font-bold text-blue-900 bg-blue-50/30">
-                                        {item.processoCub > 0 ? item.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
-                                      </td>
+                                      {showProcesso && (
+                                        <>
+                                          <td className="py-1 px-1.5 text-blue-700 bg-blue-50/30">
+                                            {item.processoPedidosCount > 0 ? item.processoPedidosCount.toLocaleString('pt-BR') : '-'}
+                                          </td>
+                                          <td className="py-1 px-1.5 font-bold text-blue-800 bg-blue-50/30">
+                                            {item.processoQtd > 0 ? Math.round(item.processoQtd).toLocaleString('pt-BR') : '-'}
+                                          </td>
+                                          <td className="py-1 px-1.5 font-bold text-blue-900 bg-blue-50/30">
+                                            {item.processoCub > 0 ? item.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
+                                          </td>
+                                        </>
+                                      )}
                                       {/* Total */}
                                       <td className="py-1 px-1.5 font-black text-slate-900 bg-slate-100/50">
                                         {item.totalPedidosCount > 0 ? item.totalPedidosCount.toLocaleString('pt-BR') : '-'}
@@ -5717,25 +5947,33 @@ export const PcpJsMartinsPage: React.FC = () => {
                               TOTAL GERAL ({sortedDateGroups.length} DATAS DE PEDIDO)
                             </td>
                             {/* Carteira */}
-                            <td className="py-2 px-1.5 font-bold text-sky-200">
-                              {dateTotals.carteiraPedidosSet.size.toLocaleString('pt-BR')}
-                            </td>
-                            <td className="py-2 px-1.5 font-bold text-sky-200">
-                              {Math.round(dateTotals.carteiraQtd).toLocaleString('pt-BR')}
-                            </td>
-                            <td className="py-2 px-1.5 font-bold text-sky-200">
-                              {dateTotals.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                            </td>
+                            {showCarteira && (
+                              <>
+                                <td className="py-2 px-1.5 font-bold text-sky-200">
+                                  {dateTotals.carteiraPedidosSet.size.toLocaleString('pt-BR')}
+                                </td>
+                                <td className="py-2 px-1.5 font-bold text-sky-200">
+                                  {Math.round(dateTotals.carteiraQtd).toLocaleString('pt-BR')}
+                                </td>
+                                <td className="py-2 px-1.5 font-bold text-sky-200">
+                                  {dateTotals.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                </td>
+                              </>
+                            )}
                             {/* Processo */}
-                            <td className="py-2 px-1.5 font-bold text-sky-200 bg-[#123e6b]">
-                              {dateTotals.processoPedidosSet.size.toLocaleString('pt-BR')}
-                            </td>
-                            <td className="py-2 px-1.5 font-bold text-sky-200 bg-[#123e6b]">
-                              {Math.round(dateTotals.processoQtd).toLocaleString('pt-BR')}
-                            </td>
-                            <td className="py-2 px-1.5 font-bold text-sky-200 bg-[#123e6b]">
-                              {dateTotals.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                            </td>
+                            {showProcesso && (
+                              <>
+                                <td className="py-2 px-1.5 font-bold text-sky-200 bg-[#123e6b]">
+                                  {dateTotals.processoPedidosSet.size.toLocaleString('pt-BR')}
+                                </td>
+                                <td className="py-2 px-1.5 font-bold text-sky-200 bg-[#123e6b]">
+                                  {Math.round(dateTotals.processoQtd).toLocaleString('pt-BR')}
+                                </td>
+                                <td className="py-2 px-2 text-center font-mono font-bold text-sky-200 bg-[#123e6b]">
+                                  {dateTotals.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                </td>
+                              </>
+                            )}
                             {/* Total */}
                             <td className="py-2 px-1.5 font-black text-white bg-[#072440]">
                               {dateTotals.totalPedidosSet.size.toLocaleString('pt-BR')}
