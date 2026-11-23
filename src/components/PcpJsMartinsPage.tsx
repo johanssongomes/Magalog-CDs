@@ -909,15 +909,15 @@ export const PcpJsMartinsPage: React.FC = () => {
   }
 
   // Ordenação da Visão Comparativa (padrão: Cubagem da Carteira decrescente)
-  const [compSortField, setCompSortField] = useState<'destino' | 'carteiraQtd' | 'carteiraCub' | 'processoQtd' | 'processoCub' | 'totalQtd' | 'totalCub'>('carteiraCub')
+  const [compSortField, setCompSortField] = useState<'regiao' | 'destino' | 'carteiraQtd' | 'carteiraCub' | 'processoQtd' | 'processoCub' | 'totalQtd' | 'totalCub'>('carteiraCub')
   const [compSortAsc, setCompSortAsc] = useState<boolean>(false)
 
-  const handleCompSort = (field: 'destino' | 'carteiraQtd' | 'carteiraCub' | 'processoQtd' | 'processoCub' | 'totalQtd' | 'totalCub') => {
+  const handleCompSort = (field: 'regiao' | 'destino' | 'carteiraQtd' | 'carteiraCub' | 'processoQtd' | 'processoCub' | 'totalQtd' | 'totalCub') => {
     if (compSortField === field) {
       setCompSortAsc(prev => !prev)
     } else {
       setCompSortField(field)
-      setCompSortAsc(field === 'destino' ? true : false)
+      setCompSortAsc(field === 'destino' || field === 'regiao' ? true : false)
     }
   }
 
@@ -3572,7 +3572,9 @@ export const PcpJsMartinsPage: React.FC = () => {
 
         const comparativeDestinos = Array.from(compDestMap.values()).sort((a, b) => {
           let diff = 0
-          if (effectiveCompSortField === 'destino') {
+          if (effectiveCompSortField === 'regiao') {
+            diff = a.regiao.localeCompare(b.regiao)
+          } else if (effectiveCompSortField === 'destino') {
             diff = a.destino.localeCompare(b.destino)
           } else {
             diff = (a[effectiveCompSortField] as number) - (b[effectiveCompSortField] as number)
@@ -3591,6 +3593,42 @@ export const PcpJsMartinsPage: React.FC = () => {
           totalPeso: comparativeDestinos.reduce((acc, d) => acc + d.totalPeso, 0),
           totalPedidos: compGeralPedidosSet.size || comparativeDestinos.reduce((acc, d) => acc + d.pedidosSet.size, 0)
         }
+
+        // Agrupamento por Região para a Visão Comparativa
+        const compRegiaoMap = new Map<string, typeof comparativeDestinos>()
+        comparativeDestinos.forEach(d => {
+          const reg = d.regiao || 'INTERIOR'
+          if (!compRegiaoMap.has(reg)) {
+            compRegiaoMap.set(reg, [])
+          }
+          compRegiaoMap.get(reg)!.push(d)
+        })
+
+        const compRegiaoGroups = Array.from(compRegiaoMap.entries())
+          .sort(([regA], [regB]) => {
+            if (effectiveCompSortField === 'regiao') {
+              const diff = regA.localeCompare(regB)
+              return compSortAsc ? diff : -diff
+            }
+            const idxA = regiaoPriority.indexOf(regA)
+            const idxB = regiaoPriority.indexOf(regB)
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB
+            if (idxA !== -1) return -1
+            if (idxB !== -1) return 1
+            return regA.localeCompare(regB)
+          })
+          .map(([regiao, destinos]) => {
+            return {
+              regiao,
+              destinos,
+              carteiraQtd: destinos.reduce((acc, d) => acc + d.carteiraQtd, 0),
+              carteiraCub: destinos.reduce((acc, d) => acc + d.carteiraCub, 0),
+              processoQtd: destinos.reduce((acc, d) => acc + d.processoQtd, 0),
+              processoCub: destinos.reduce((acc, d) => acc + d.processoCub, 0),
+              totalQtd: destinos.reduce((acc, d) => acc + d.totalQtd, 0),
+              totalCub: destinos.reduce((acc, d) => acc + d.totalCub, 0)
+            }
+          })
 
         // --------------------------------------------------------------------------
         // VISÃO 1 (PAINEL LATERAL): AGRUPAMENTO POR LINHA & PRODUTOS
@@ -5258,8 +5296,21 @@ export const PcpJsMartinsPage: React.FC = () => {
                         <tr className="divide-x divide-white/10 text-center">
                           <th
                             rowSpan={2}
+                            onClick={() => handleCompSort('regiao')}
+                            className="py-2 px-2.5 text-left font-extrabold cursor-pointer hover:bg-white/10 transition-colors select-none w-24 min-w-[90px]"
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <span>REGIÃO</span>
+                              <span className="text-[9px] opacity-80">
+                                {compSortField === 'regiao' ? (compSortAsc ? '▲' : '▼') : '▾'}
+                              </span>
+                            </div>
+                          </th>
+
+                          <th
+                            rowSpan={2}
                             onClick={() => handleCompSort('destino')}
-                            className="py-2.5 px-3 text-left font-extrabold cursor-pointer hover:bg-white/10 transition-colors select-none min-w-[240px]"
+                            className="py-2.5 px-3 text-left font-extrabold cursor-pointer hover:bg-white/10 transition-colors select-none min-w-[170px]"
                           >
                             <div className="flex items-center justify-between gap-1">
                               <span>DESTINO</span>
@@ -5385,71 +5436,188 @@ export const PcpJsMartinsPage: React.FC = () => {
                       </thead>
 
                       <tbody className="divide-y divide-slate-100 font-sans">
-                        {comparativeDestinos.length === 0 ? (
+                        {compRegiaoGroups.length === 0 ? (
                           <tr>
-                            <td colSpan={1 + (showCarteira ? 2 : 0) + (showProcesso ? 2 : 0) + 2} className="py-12 text-center text-slate-400 italic">
+                            <td colSpan={2 + (showCarteira ? 2 : 0) + (showProcesso ? 2 : 0) + 2} className="py-12 text-center text-slate-400 italic">
                               Nenhum destino encontrado com os filtros selecionados.
                             </td>
                           </tr>
                         ) : (
-                          comparativeDestinos.map((row, idx) => (
-                            <tr
-                              key={row.destino}
-                              className={`divide-x divide-slate-100 transition-colors hover:bg-blue-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                                }`}
-                            >
-                              {/* DESTINO */}
-                              <td className="py-1.5 px-3 font-semibold text-slate-800 whitespace-nowrap text-left">
-                                {row.destino}
-                              </td>
+                          compRegiaoGroups.map((group) => {
+                            const isRegiaoCollapsed = !!collapsedRegioes[group.regiao]
+                            return (
+                              <React.Fragment key={group.regiao}>
+                                {/* Cabeçalho do Grupo da Região:
+                                    - Se RECOLHIDA: exibe subtotais em uma única linha
+                                    - Se EXPANDIDA: exibe barra de título e depois os destinos
+                                */}
+                                {isRegiaoCollapsed ? (
+                                  <tr className="bg-slate-100/95 hover:bg-slate-200/80 transition-colors text-slate-900 font-extrabold border-y border-slate-200 divide-x divide-slate-200">
+                                    <td colSpan={2} className="py-1 px-2.5 uppercase tracking-wide text-[11px] whitespace-nowrap">
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleRegiao(group.regiao)}
+                                        className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-700 transition-colors cursor-pointer w-full select-none"
+                                      >
+                                        <span className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none mr-1 font-mono font-black shadow-2xs bg-blue-600 border-blue-600 text-white">
+                                          +
+                                        </span>
+                                        <span className="text-slate-900 font-black">{group.regiao}</span>
+                                        <span className="text-[10px] text-slate-500 font-normal lowercase ml-1">
+                                          ({group.destinos.length} destinos - clique para expandir)
+                                        </span>
+                                      </button>
+                                    </td>
+                                    {showCarteira && (
+                                      <>
+                                        <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-800 whitespace-nowrap font-mono">
+                                          {group.carteiraQtd > 0 ? Math.round(group.carteiraQtd).toLocaleString('pt-BR') : '-'}
+                                        </td>
+                                        <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
+                                          {group.carteiraCub > 0 ? group.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
+                                        </td>
+                                      </>
+                                    )}
+                                    {showProcesso && (
+                                      <>
+                                        <td className="py-1 px-2 text-center text-[10.5px] font-black text-blue-700 bg-blue-50/30 whitespace-nowrap font-mono">
+                                          {group.processoQtd > 0 ? Math.round(group.processoQtd).toLocaleString('pt-BR') : '-'}
+                                        </td>
+                                        <td className="py-1 px-2 text-center text-[10.5px] font-black text-blue-900 bg-blue-50/30 whitespace-nowrap font-mono">
+                                          {group.processoCub > 0 ? group.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
+                                        </td>
+                                      </>
+                                    )}
+                                    <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 bg-slate-100/40 whitespace-nowrap font-mono">
+                                      {group.totalQtd > 0 ? Math.round(group.totalQtd).toLocaleString('pt-BR') : '-'}
+                                    </td>
+                                    <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-950 bg-slate-100/40 whitespace-nowrap font-mono">
+                                      {group.totalCub > 0 ? group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  <tr className="bg-slate-100/90 hover:bg-slate-200/70 transition-colors text-slate-900 font-extrabold border-y border-slate-200">
+                                    <td colSpan={2 + (showCarteira ? 2 : 0) + (showProcesso ? 2 : 0) + 2} className="py-1 px-2.5 uppercase tracking-wide text-[11px]">
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleRegiao(group.regiao)}
+                                        className="flex items-center gap-1.5 text-left text-slate-900 hover:text-blue-700 transition-colors cursor-pointer w-full select-none"
+                                      >
+                                        <span className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] border rounded-xs leading-none mr-1 font-mono font-black shadow-2xs border-slate-400/80 bg-white text-slate-700">
+                                          -
+                                        </span>
+                                        <span className="text-slate-900 font-black">{group.regiao}</span>
+                                        <span className="text-[10px] text-slate-500 font-normal lowercase ml-1">
+                                          ({group.destinos.length} destinos)
+                                        </span>
+                                      </button>
+                                    </td>
+                                  </tr>
+                                )}
 
-                              {/* EM CARTEIRA */}
-                              {showCarteira && (
-                                <>
-                                  <td className="py-1.5 px-2 text-center text-slate-700 font-mono font-medium whitespace-nowrap">
-                                    {row.carteiraQtd > 0 ? Math.round(row.carteiraQtd).toLocaleString('pt-BR') : '-'}
-                                  </td>
-                                  <td className="py-1.5 px-2 text-center text-slate-800 font-mono font-bold whitespace-nowrap">
-                                    {row.carteiraCub > 0
-                                      ? row.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-                                      : '-'}
-                                  </td>
-                                </>
-                              )}
+                                {/* Linhas de Destino da Região */}
+                                {!isRegiaoCollapsed && group.destinos.map((row, idx) => (
+                                  <tr
+                                    key={row.destino}
+                                    className={`divide-x divide-slate-100 transition-colors hover:bg-blue-50/50 ${
+                                      idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                                    }`}
+                                  >
+                                    {/* REGIÃO */}
+                                    <td className="py-1 px-2.5 text-slate-600 text-[10.5px] font-bold whitespace-nowrap">
+                                      {idx === 0 ? group.regiao : ''}
+                                    </td>
 
-                              {/* EM PROCESSO */}
-                              {showProcesso && (
-                                <>
-                                  <td className="py-1.5 px-2 text-center text-blue-700 bg-blue-50/30 font-mono font-medium whitespace-nowrap">
-                                    {row.processoQtd > 0 ? Math.round(row.processoQtd).toLocaleString('pt-BR') : '-'}
-                                  </td>
-                                  <td className="py-1.5 px-2 text-center text-blue-900 bg-blue-50/30 font-mono font-bold whitespace-nowrap">
-                                    {row.processoCub > 0
-                                      ? row.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-                                      : '-'}
-                                  </td>
-                                </>
-                              )}
+                                    {/* DESTINO */}
+                                    <td className="py-1.5 px-3 font-semibold text-slate-800 whitespace-nowrap text-left">
+                                      {row.destino}
+                                    </td>
 
-                              {/* TOTAL PÇS */}
-                              <td className="py-1.5 px-2 text-center text-slate-900 bg-slate-100/40 font-mono font-bold whitespace-nowrap">
-                                {row.totalQtd > 0 ? Math.round(row.totalQtd).toLocaleString('pt-BR') : '-'}
-                              </td>
+                                    {/* EM CARTEIRA */}
+                                    {showCarteira && (
+                                      <>
+                                        <td className="py-1.5 px-2 text-center text-slate-700 font-mono font-medium whitespace-nowrap">
+                                          {row.carteiraQtd > 0 ? Math.round(row.carteiraQtd).toLocaleString('pt-BR') : '-'}
+                                        </td>
+                                        <td className="py-1.5 px-2 text-center text-slate-800 font-mono font-bold whitespace-nowrap">
+                                          {row.carteiraCub > 0
+                                            ? row.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                            : '-'}
+                                        </td>
+                                      </>
+                                    )}
 
-                              {/* TOTAL CUB */}
-                              <td className="py-1.5 px-2 text-center text-slate-950 bg-slate-100/40 font-mono font-black whitespace-nowrap">
-                                {row.totalCub > 0
-                                  ? row.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-                                  : '-'}
-                              </td>
-                            </tr>
-                          ))
+                                    {/* EM PROCESSO */}
+                                    {showProcesso && (
+                                      <>
+                                        <td className="py-1.5 px-2 text-center text-blue-700 bg-blue-50/30 font-mono font-medium whitespace-nowrap">
+                                          {row.processoQtd > 0 ? Math.round(row.processoQtd).toLocaleString('pt-BR') : '-'}
+                                        </td>
+                                        <td className="py-1.5 px-2 text-center text-blue-900 bg-blue-50/30 font-mono font-bold whitespace-nowrap">
+                                          {row.processoCub > 0
+                                            ? row.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                            : '-'}
+                                        </td>
+                                      </>
+                                    )}
+
+                                    {/* TOTAL PÇS */}
+                                    <td className="py-1.5 px-2 text-center text-slate-900 bg-slate-100/40 font-mono font-bold whitespace-nowrap">
+                                      {row.totalQtd > 0 ? Math.round(row.totalQtd).toLocaleString('pt-BR') : '-'}
+                                    </td>
+
+                                    {/* TOTAL CUB */}
+                                    <td className="py-1.5 px-2 text-center text-slate-950 bg-slate-100/40 font-mono font-black whitespace-nowrap">
+                                      {row.totalCub > 0
+                                        ? row.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                        : '-'}
+                                    </td>
+                                  </tr>
+                                ))}
+
+                                {/* Subtotal da Região (Ex: CAPITAL TOTAL) */}
+                                {!isRegiaoCollapsed && (
+                                  <tr className="bg-slate-100/90 text-slate-900 font-black border-y border-slate-200 divide-x divide-slate-200">
+                                    <td colSpan={2} className="py-1 px-2.5 tracking-wide uppercase text-[10.5px] font-black whitespace-nowrap text-slate-900">
+                                      {group.regiao} TOTAL
+                                    </td>
+                                    {showCarteira && (
+                                      <>
+                                        <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-800 whitespace-nowrap font-mono">
+                                          {group.carteiraQtd > 0 ? Math.round(group.carteiraQtd).toLocaleString('pt-BR') : '-'}
+                                        </td>
+                                        <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 whitespace-nowrap font-mono">
+                                          {group.carteiraCub > 0 ? group.carteiraCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
+                                        </td>
+                                      </>
+                                    )}
+                                    {showProcesso && (
+                                      <>
+                                        <td className="py-1 px-2 text-center text-[10.5px] font-black text-blue-700 bg-blue-50/30 whitespace-nowrap font-mono">
+                                          {group.processoQtd > 0 ? Math.round(group.processoQtd).toLocaleString('pt-BR') : '-'}
+                                        </td>
+                                        <td className="py-1 px-2 text-center text-[10.5px] font-black text-blue-900 bg-blue-50/30 whitespace-nowrap font-mono">
+                                          {group.processoCub > 0 ? group.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
+                                        </td>
+                                      </>
+                                    )}
+                                    <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-900 bg-slate-100/40 whitespace-nowrap font-mono">
+                                      {group.totalQtd > 0 ? Math.round(group.totalQtd).toLocaleString('pt-BR') : '-'}
+                                    </td>
+                                    <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-950 bg-slate-100/40 whitespace-nowrap font-mono">
+                                      {group.totalCub > 0 ? group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            )
+                          })
                         )}
 
                         {/* TOTAL GERAL */}
                         {comparativeDestinos.length > 0 && (
                           <tr className="bg-[#0e3b66] text-white font-extrabold uppercase text-[10px] tracking-wide border-t-2 border-[#0a2c4d] divide-x divide-white/10 sticky bottom-0 z-10 shadow-md">
-                            <td className="py-2.5 px-3 text-left font-black">
+                            <td colSpan={2} className="py-2.5 px-3 text-left font-black">
                               TOTAL GERAL
                             </td>
                             {showCarteira && (
