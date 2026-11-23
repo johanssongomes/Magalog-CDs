@@ -33,7 +33,12 @@ import {
   Pin,
   PinOff,
   Menu,
-  MapPin
+  MapPin,
+  Activity,
+  Gauge,
+  Compass,
+  Target,
+  Thermometer
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -856,6 +861,49 @@ export const PcpJsMartinsPage: React.FC = () => {
 
   // Filtro de busca interna para o painel lateral
   const [planRightSearch, setPlanRightSearch] = useState<string>('')
+
+  // Parâmetros da Visão 3 (Painel Operacional por Modalidade)
+  const [metaFaturamento, setMetaFaturamento] = useState<number>(() => {
+    const saved = localStorage.getItem('pcp_meta_faturamento')
+    return saved ? Number(saved) : 1268000
+  })
+  const [capacidadeAbaM3, setCapacidadeAbaM3] = useState<number>(() => {
+    const saved = localStorage.getItem('pcp_cap_aba_m3')
+    return saved ? Number(saved) : 440
+  })
+  const [capacidadeVendaM3, setCapacidadeVendaM3] = useState<number>(() => {
+    const saved = localStorage.getItem('pcp_cap_venda_m3')
+    return saved ? Number(saved) : 400
+  })
+  const [capacidadeCourrierPed, setCapacidadeCourrierPed] = useState<number>(() => {
+    const saved = localStorage.getItem('pcp_cap_courrier_ped')
+    return saved ? Number(saved) : 600
+  })
+  const [showConfigOperacional, setShowConfigOperacional] = useState<boolean>(false)
+  const [tempMetaFaturamento, setTempMetaFaturamento] = useState<number>(metaFaturamento)
+  const [tempCapAba, setTempCapAba] = useState<number>(capacidadeAbaM3)
+  const [tempCapVenda, setTempCapVenda] = useState<number>(capacidadeVendaM3)
+  const [tempCapCourrier, setTempCapCourrier] = useState<number>(capacidadeCourrierPed)
+
+  const handleOpenConfigOperacional = () => {
+    setTempMetaFaturamento(metaFaturamento)
+    setTempCapAba(capacidadeAbaM3)
+    setTempCapVenda(capacidadeVendaM3)
+    setTempCapCourrier(capacidadeCourrierPed)
+    setShowConfigOperacional(true)
+  }
+
+  const handleSaveConfigOperacional = () => {
+    setMetaFaturamento(tempMetaFaturamento)
+    setCapacidadeAbaM3(tempCapAba)
+    setCapacidadeVendaM3(tempCapVenda)
+    setCapacidadeCourrierPed(tempCapCourrier)
+    localStorage.setItem('pcp_meta_faturamento', String(tempMetaFaturamento))
+    localStorage.setItem('pcp_cap_aba_m3', String(tempCapAba))
+    localStorage.setItem('pcp_cap_venda_m3', String(tempCapVenda))
+    localStorage.setItem('pcp_cap_courrier_ped', String(tempCapCourrier))
+    setShowConfigOperacional(false)
+  }
 
   // Ordenação da Visão Comparativa (padrão: Cubagem da Carteira decrescente)
   const [compSortField, setCompSortField] = useState<'destino' | 'carteiraQtd' | 'carteiraCub' | 'processoQtd' | 'processoCub' | 'totalQtd' | 'totalCub'>('carteiraCub')
@@ -4054,6 +4102,182 @@ export const PcpJsMartinsPage: React.FC = () => {
               .filter((g): g is FormattedDateGroup => g !== null)
           : sortedDateGroups
 
+        // ------------------------------------------------------------
+        // CÁLCULOS DA VISÃO 3: PAINEL OPERACIONAL POR MODALIDADE
+        // ------------------------------------------------------------
+        type OpModalKey = 'ABA' | 'VENDAS' | 'COURRIER' | 'TRANSFERENCIA'
+        const opModalOrder: OpModalKey[] = ['ABA', 'VENDAS', 'COURRIER', 'TRANSFERENCIA']
+
+        interface OpModalAccumulator {
+          pedidosSet: Set<string>
+          pecas: number
+          vol: number
+          valor: number
+        }
+
+        const opModalDataMap: Record<OpModalKey, { carteira: OpModalAccumulator; processo: OpModalAccumulator }> = {
+          ABA: {
+            carteira: { pedidosSet: new Set(), pecas: 0, vol: 0, valor: 0 },
+            processo: { pedidosSet: new Set(), pecas: 0, vol: 0, valor: 0 }
+          },
+          VENDAS: {
+            carteira: { pedidosSet: new Set(), pecas: 0, vol: 0, valor: 0 },
+            processo: { pedidosSet: new Set(), pecas: 0, vol: 0, valor: 0 }
+          },
+          COURRIER: {
+            carteira: { pedidosSet: new Set(), pecas: 0, vol: 0, valor: 0 },
+            processo: { pedidosSet: new Set(), pecas: 0, vol: 0, valor: 0 }
+          },
+          TRANSFERENCIA: {
+            carteira: { pedidosSet: new Set(), pecas: 0, vol: 0, valor: 0 },
+            processo: { pedidosSet: new Set(), pecas: 0, vol: 0, valor: 0 }
+          }
+        }
+
+        const opAtrasoVendaPedidosSet = new Set<string>()
+        let opAtrasoAbaPecas = 0
+
+        enrichedForComparative.forEach(r => {
+          const mod = String(r.calc_modalidade || r.modalidade || '').toUpperCase()
+          const cod = String(r.codmodal || r.CODMODAL || '').toUpperCase()
+          const desc = String(r.descricaomodal || r.DESCRICAOMODAL || '').toUpperCase()
+          const raw = `${mod} ${desc} ${cod}`
+
+          let cat: OpModalKey = 'VENDAS'
+          if (raw.includes('ABA')) {
+            cat = 'ABA'
+          } else if (raw.includes('COUR') || raw.includes('SEDEX') || raw.includes('RDP') || raw.includes('ESE') || raw.includes('CD0') || raw.includes('CBK')) {
+            cat = 'COURRIER'
+          } else if (raw.includes('TRANSF') || raw.includes('DIF') || raw.includes('MUL') || raw.includes('RTY') || raw.includes('RYR') || raw.includes('BAL')) {
+            cat = 'TRANSFERENCIA'
+          } else {
+            cat = 'VENDAS'
+          }
+
+          const statusOp = String(r.calc_status_op || '').toUpperCase()
+          const isProc = statusOp.includes('PROCESSO')
+          const isCart = statusOp.includes('CARTEIRA') || (!isProc)
+
+          const ped = String(r.calc_ped || r.numpedven || r.NUMPEDVEN || '').trim()
+          const qtd = Number(r.calc_qtd) || 0
+          const vol = Number(r.calc_cub) || 0
+          const vlr = Number(r.calc_vltotal) || 0
+
+          if (isProc) {
+            if (ped) opModalDataMap[cat].processo.pedidosSet.add(ped)
+            opModalDataMap[cat].processo.pecas += qtd
+            opModalDataMap[cat].processo.vol += vol
+            opModalDataMap[cat].processo.valor += vlr
+          } else if (isCart) {
+            if (ped) opModalDataMap[cat].carteira.pedidosSet.add(ped)
+            opModalDataMap[cat].carteira.pecas += qtd
+            opModalDataMap[cat].carteira.vol += vol
+            opModalDataMap[cat].carteira.valor += vlr
+          }
+
+          // Atraso Fat Venda: Pedidos vencidos
+          if (cat === 'VENDAS' && r.calc_prazo === 'Vencido' && ped) {
+            opAtrasoVendaPedidosSet.add(ped)
+          }
+
+          // Atraso Fat ABA: Peças com pedidos acima de 7 dias (calc_prazo === 'D+')
+          if (cat === 'ABA' && (r.calc_prazo === 'D+' || r.faixa_dias_reduzida === 'D+')) {
+            opAtrasoAbaPecas += qtd
+          }
+        })
+
+        const opRows = opModalOrder.map(cat => {
+          const cart = opModalDataMap[cat].carteira
+          const proc = opModalDataMap[cat].processo
+          const allPeds = new Set([...cart.pedidosSet, ...proc.pedidosSet])
+          const totalPecas = cart.pecas + proc.pecas
+          const totalVol = cart.vol + proc.vol
+          const totalValor = cart.valor + proc.valor
+
+          let cap = 1
+          let isPedCap = false
+          if (cat === 'ABA') {
+            cap = capacidadeAbaM3 > 0 ? capacidadeAbaM3 : 440
+          } else if (cat === 'VENDAS') {
+            cap = capacidadeVendaM3 > 0 ? capacidadeVendaM3 : 400
+          } else if (cat === 'COURRIER') {
+            cap = capacidadeCourrierPed > 0 ? capacidadeCourrierPed : 600
+            isPedCap = true
+          } else {
+            cap = 100
+          }
+
+          // Cálculo dos Dias: Volume Atual / Capacidade Diária (ou Pedidos / Capacidade no Courrier)
+          const diasCarteira = isPedCap ? (cart.pedidosSet.size / cap) : (cart.vol / cap)
+          const diasProcesso = isPedCap ? (proc.pedidosSet.size / cap) : (proc.vol / cap)
+          const diasGeral = isPedCap ? (allPeds.size / cap) : (totalVol / cap)
+
+          return {
+            categoria: cat,
+            carteira: {
+              pedidos: cart.pedidosSet.size,
+              pecas: cart.pecas,
+              vol: cart.vol,
+              valor: cart.valor
+            },
+            processo: {
+              pedidos: proc.pedidosSet.size,
+              pecas: proc.pecas,
+              vol: proc.vol,
+              valor: proc.valor
+            },
+            consolidado: {
+              pedidos: allPeds.size,
+              pecas: totalPecas,
+              vol: totalVol,
+              valor: totalValor
+            },
+            dias: {
+              carteira: diasCarteira,
+              processo: diasProcesso,
+              geral: diasGeral
+            }
+          }
+        })
+
+        const opCartPedsTotal = new Set<string>()
+        const opProcPedsTotal = new Set<string>()
+        const opConsPedsTotal = new Set<string>()
+        let opTotalCartPecas = 0, opTotalCartVol = 0, opTotalCartValor = 0
+        let opTotalProcPecas = 0, opTotalProcVol = 0, opTotalProcValor = 0
+        let opTotalConsPecas = 0, opTotalConsVol = 0, opTotalConsValor = 0
+
+        opRows.forEach(row => {
+          const rawCart = opModalDataMap[row.categoria].carteira
+          const rawProc = opModalDataMap[row.categoria].processo
+          rawCart.pedidosSet.forEach(p => { opCartPedsTotal.add(p); opConsPedsTotal.add(p); })
+          rawProc.pedidosSet.forEach(p => { opProcPedsTotal.add(p); opConsPedsTotal.add(p); })
+
+          opTotalCartPecas += row.carteira.pecas
+          opTotalCartVol += row.carteira.vol
+          opTotalCartValor += row.carteira.valor
+
+          opTotalProcPecas += row.processo.pecas
+          opTotalProcVol += row.processo.vol
+          opTotalProcValor += row.processo.valor
+
+          opTotalConsPecas += row.consolidado.pecas
+          opTotalConsVol += row.consolidado.vol
+          opTotalConsValor += row.consolidado.valor
+        })
+
+        const opPctCarteira = opTotalConsValor > 0 ? (opTotalCartValor / opTotalConsValor) * 100 : 0
+        const opPctProcesso = opTotalConsValor > 0 ? (opTotalProcValor / opTotalConsValor) * 100 : 0
+        const opPctMeta = metaFaturamento > 0 ? (opTotalConsValor / metaFaturamento) * 100 : 0
+        const opSaldoMeta = opTotalConsValor - metaFaturamento
+
+        const opTotalDiasGeral = opRows.reduce((acc, r) => acc + r.dias.geral, 0)
+        const opTotalDiasCarteira = opRows.reduce((acc, r) => acc + r.dias.carteira, 0)
+        const opTotalDiasProcesso = opRows.reduce((acc, r) => acc + r.dias.processo, 0)
+
+        const opCapacidadeSoma = (capacidadeAbaM3 || 440) + (capacidadeVendaM3 || 400)
+        const opVolumeExtra = Math.max(0, opTotalConsVol - opCapacidadeSoma)
+
         return (
           <div className="space-y-4">
             {/* ------------------------------------------------------------ */}
@@ -5295,14 +5519,11 @@ export const PcpJsMartinsPage: React.FC = () => {
                     className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                       planRightTab === 'visao3'
                         ? 'bg-[#0e3b66] text-white shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
                     }`}
                   >
-                    <Layers size={14} className={planRightTab === 'visao3' ? 'text-sky-300' : 'text-slate-400'} />
-                    <span>Visão 3</span>
-                    <span className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-800 font-extrabold ml-1">
-                      A Definir
-                    </span>
+                    <Activity size={14} className={planRightTab === 'visao3' ? 'text-sky-300' : 'text-slate-400'} />
+                    <span>Painel Operacional</span>
                   </button>
                 </div>
 
@@ -5992,22 +6213,635 @@ export const PcpJsMartinsPage: React.FC = () => {
                 )}
 
                 {/* ------------------------------------------------------------ */}
-                {/* VISÃO 3: PLACEHOLDER (AGUARDANDO DEFINIÇÃO)                 */}
+                {/* VISÃO 3: PAINEL OPERACIONAL POR MODALIDADE (MAGALU)          */}
                 {/* ------------------------------------------------------------ */}
                 {planRightTab === 'visao3' && (
-                  <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 flex flex-col items-center justify-center text-center space-y-4 min-h-[460px]">
-                    <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-xs">
-                      <Sparkles size={30} />
+                  <div className="bg-[#0b2834] rounded-2xl border border-teal-500/30 p-4 text-white shadow-xl flex flex-col space-y-4 w-full select-text overflow-hidden">
+                    {/* Barra Superior de Controles e Configuração da Visão 3 */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap border-b border-teal-500/20 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <Activity size={16} className="text-teal-300" />
+                        <span className="text-[12px] font-black tracking-wider uppercase text-teal-100">
+                          Painel Operacional por Modalidade
+                        </span>
+                        <span className="text-[9.5px] px-2 py-0.5 rounded-full bg-teal-900/80 text-teal-200 border border-teal-500/30 font-bold">
+                          Capacidade & Giro Diário
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleOpenConfigOperacional}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-900/60 hover:bg-teal-800 text-teal-200 hover:text-white text-[10.5px] font-bold border border-teal-400/30 transition-all cursor-pointer shadow-xs"
+                        title="Configurar Metas e Capacidades"
+                      >
+                        <Settings2 size={12} className="text-teal-300" />
+                        <span>Metas & Capacidades</span>
+                      </button>
                     </div>
-                    <div className="max-w-md space-y-2">
-                      <h4 className="text-lg font-bold text-slate-800">Visão 3 - Aguardando Definição</h4>
-                      <p className="text-xs text-slate-500 leading-relaxed">
-                        As duas primeiras visões (<strong className="text-slate-700">Por Linha & Itens</strong> e <strong className="text-slate-700">Dt. Pedido x Prev. Entrega</strong>) já estão totalmente operacionais.
-                      </p>
-                      <p className="text-xs text-blue-700 font-semibold bg-blue-50 py-2 px-3 rounded-lg border border-blue-200/60 inline-block">
-                        Assim que você indicar como deseja a 3ª visão, ela será ativada aqui automaticamente!
-                      </p>
+
+                    {/* Linha Superior: 3 Termômetros de Capacidade + 2 Velocímetros de Atraso */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 py-1 items-center justify-items-center">
+                      {/* Termômetro 1: CAPACIDADE ABA */}
+                      {(() => {
+                        const cap = capacidadeAbaM3 > 0 ? capacidadeAbaM3 : 440
+                        const atual = opRows[0]?.consolidado.vol || 0
+                        const pct = Math.min(100, Math.max(0, (atual / (cap * 1.3)) * 100))
+                        return (
+                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#071f28]/60 border border-teal-500/20 w-full min-h-[145px]">
+                            <span className="text-[8.5px] font-black text-amber-300 tracking-wider text-center uppercase mb-1">
+                              CAPACIDADE ABA M³
+                            </span>
+                            <div className="flex items-center justify-center gap-2">
+                              {/* Tubo do Termômetro */}
+                              <div className="flex items-center gap-1">
+                                <div className="flex flex-col justify-between h-[68px] text-[6.5px] font-mono text-teal-300/70 py-0.5">
+                                  <span>600</span>
+                                  <span>400</span>
+                                  <span>200</span>
+                                  <span>0</span>
+                                </div>
+                                <div className="relative w-4 h-[70px] bg-slate-900/80 rounded-full border border-teal-400/50 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
+                                  <div
+                                    className="w-full bg-linear-to-t from-emerald-500 to-green-300 rounded-full transition-all duration-500 shadow-sm"
+                                    style={{ height: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <span className="text-[17px] font-black text-white font-mono drop-shadow-sm">
+                                {cap}m³
+                              </span>
+                            </div>
+                            {/* Bulbo com valor atual */}
+                            <div className="mt-1.5 px-2 py-0.5 rounded-full bg-teal-950 border border-teal-400/40 text-[9px] font-mono font-bold text-teal-200">
+                              {atual.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Termômetro 2: CAPACIDADE VENDA */}
+                      {(() => {
+                        const cap = capacidadeVendaM3 > 0 ? capacidadeVendaM3 : 400
+                        const atual = opRows[1]?.consolidado.vol || 0
+                        const pct = Math.min(100, Math.max(0, (atual / (cap * 1.5)) * 100))
+                        return (
+                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#071f28]/60 border border-teal-500/20 w-full min-h-[145px]">
+                            <span className="text-[8.5px] font-black text-amber-300 tracking-wider text-center uppercase mb-1">
+                              CAPACIDADE VENDA M³
+                            </span>
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="flex items-center gap-1">
+                                <div className="flex flex-col justify-between h-[68px] text-[6.5px] font-mono text-teal-300/70 py-0.5">
+                                  <span>800</span>
+                                  <span>500</span>
+                                  <span>200</span>
+                                  <span>0</span>
+                                </div>
+                                <div className="relative w-4 h-[70px] bg-slate-900/80 rounded-full border border-teal-400/50 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
+                                  <div
+                                    className="w-full bg-linear-to-t from-emerald-500 to-green-300 rounded-full transition-all duration-500 shadow-sm"
+                                    style={{ height: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <span className="text-[17px] font-black text-white font-mono drop-shadow-sm">
+                                {cap}m³
+                              </span>
+                            </div>
+                            <div className="mt-1.5 px-2 py-0.5 rounded-full bg-teal-950 border border-teal-400/40 text-[9px] font-mono font-bold text-teal-200">
+                              {atual.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Termômetro 3: CAPACIDADE COURRIER PEDIDOS */}
+                      {(() => {
+                        const cap = capacidadeCourrierPed > 0 ? capacidadeCourrierPed : 600
+                        const atual = opRows[2]?.consolidado.pedidos || 0
+                        const pct = Math.min(100, Math.max(0, (atual / (cap * 1.5)) * 100))
+                        return (
+                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#071f28]/60 border border-teal-500/20 w-full min-h-[145px]">
+                            <span className="text-[8px] font-black text-amber-300 tracking-wider text-center uppercase mb-1">
+                              CAPACIDADE COURRIER PEDIDOS
+                            </span>
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="flex items-center gap-1">
+                                <div className="flex flex-col justify-between h-[68px] text-[6.5px] font-mono text-teal-300/70 py-0.5">
+                                  <span>1000</span>
+                                  <span>600</span>
+                                  <span>300</span>
+                                  <span>0</span>
+                                </div>
+                                <div className="relative w-4 h-[70px] bg-slate-900/80 rounded-full border border-teal-400/50 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
+                                  <div
+                                    className="w-full bg-linear-to-t from-emerald-500 to-green-300 rounded-full transition-all duration-500 shadow-sm"
+                                    style={{ height: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <span className="text-[17px] font-black text-white font-mono drop-shadow-sm">
+                                {cap}P
+                              </span>
+                            </div>
+                            <div className="mt-1.5 px-2 py-0.5 rounded-full bg-teal-950 border border-teal-400/40 text-[9px] font-mono font-bold text-teal-200">
+                              {atual}
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Velocímetro 1: Atraso fat venda */}
+                      {(() => {
+                        const atrasos = opAtrasoVendaPedidosSet.size
+                        // Ângulo do ponteiro: 0 -> 180° (verde/esquerda), 1-5 -> 270° (amarelo/centro), >5 -> 350° (vermelho/direita)
+                        const angle = atrasos === 0 ? 195 : atrasos <= 5 ? 270 : 345
+                        const rad = (angle * Math.PI) / 180
+                        const x2 = 50 + 28 * Math.cos(rad)
+                        const y2 = 50 + 28 * Math.sin(rad)
+                        return (
+                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#071f28]/60 border border-teal-500/20 w-full min-h-[145px]">
+                            <svg viewBox="0 0 100 65" className="w-24 h-16 overflow-visible">
+                              {/* Fundo do velocímetro */}
+                              <path d="M 12 50 A 38 38 0 0 1 88 50" fill="none" stroke="#e2e8f0" strokeWidth="18" />
+                              {/* Faixa Verde: Bom */}
+                              <path d="M 12 50 A 38 38 0 0 1 32 23" fill="none" stroke="#22c55e" strokeWidth="16" />
+                              {/* Faixa Amarela: Regular */}
+                              <path d="M 32 23 A 38 38 0 0 1 68 23" fill="none" stroke="#f59e0b" strokeWidth="16" />
+                              {/* Faixa Vermelha: Ruim */}
+                              <path d="M 68 23 A 38 38 0 0 1 88 50" fill="none" stroke="#ef4444" strokeWidth="16" />
+                              {/* Textos no arco */}
+                              <text x="21" y="38" fontSize="4.5" fill="#ffffff" fontWeight="bold">Bom</text>
+                              <text x="44" y="24" fontSize="4.5" fill="#ffffff" fontWeight="bold">Regular</text>
+                              <text x="71" y="38" fontSize="4.5" fill="#ffffff" fontWeight="bold">Ruim</text>
+                              {/* Ponteiro */}
+                              <line x1="50" y1="50" x2={x2} y2={y2} stroke="#0f172a" strokeWidth="2.5" strokeLinecap="round" />
+                              <circle cx="50" cy="50" r="4.5" fill="#0f172a" />
+                              {/* Valor */}
+                              <text x="50" y="47" fontSize="11" fontWeight="bold" fill="#0f172a" textAnchor="middle" fontFamily="monospace">
+                                {atrasos}
+                              </text>
+                            </svg>
+                            <span className="text-[8.5px] italic text-slate-200 mt-1 text-center">
+                              Atraso fat venda
+                            </span>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Velocímetro 2: Atraso fat ABA (peças) */}
+                      {(() => {
+                        const atrasos = opAtrasoAbaPecas
+                        // Ângulo do ponteiro: 0 -> 195° (verde), 1-100 -> 270° (amarelo), >100 -> 345° (vermelho)
+                        const angle = atrasos === 0 ? 195 : atrasos <= 100 ? 270 : 345
+                        const rad = (angle * Math.PI) / 180
+                        const x2 = 50 + 28 * Math.cos(rad)
+                        const y2 = 50 + 28 * Math.sin(rad)
+                        return (
+                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#071f28]/60 border border-teal-500/20 w-full min-h-[145px]">
+                            <svg viewBox="0 0 100 65" className="w-24 h-16 overflow-visible">
+                              <path d="M 12 50 A 38 38 0 0 1 88 50" fill="none" stroke="#e2e8f0" strokeWidth="18" />
+                              <path d="M 12 50 A 38 38 0 0 1 32 23" fill="none" stroke="#22c55e" strokeWidth="16" />
+                              <path d="M 32 23 A 38 38 0 0 1 68 23" fill="none" stroke="#f59e0b" strokeWidth="16" />
+                              <path d="M 68 23 A 38 38 0 0 1 88 50" fill="none" stroke="#ef4444" strokeWidth="16" />
+                              <text x="21" y="38" fontSize="4.5" fill="#ffffff" fontWeight="bold">Bom</text>
+                              <text x="44" y="24" fontSize="4.5" fill="#ffffff" fontWeight="bold">Regular</text>
+                              <text x="71" y="38" fontSize="4.5" fill="#ffffff" fontWeight="bold">Ruim</text>
+                              <line x1="50" y1="50" x2={x2} y2={y2} stroke="#0f172a" strokeWidth="2.5" strokeLinecap="round" />
+                              <circle cx="50" cy="50" r="4.5" fill="#0f172a" />
+                              <text x="50" y="47" fontSize="10" fontWeight="bold" fill="#0f172a" textAnchor="middle" fontFamily="monospace">
+                                {atrasos}
+                              </text>
+                            </svg>
+                            <span className="text-[8.5px] italic text-slate-200 mt-1 text-center">
+                              Atraso fat ABA (peças)
+                            </span>
+                          </div>
+                        )
+                      })()}
                     </div>
+
+                    {/* Linha Central: Tabela Operacional Completa Conforme Layout Original */}
+                    <div className="w-full overflow-x-auto select-text pt-2">
+                      <div className="bg-[#071f28] p-3 rounded-2xl border border-teal-500/30 shadow-2xl flex items-stretch gap-2 min-w-[760px]">
+                        {/* 1. Colunas de Dias / Giro (Extremo Esquerdo) */}
+                        <div className="flex gap-1 items-stretch shrink-0">
+                          {/* Coluna Dias Geral */}
+                          <div className="flex flex-col items-center justify-between space-y-1">
+                            <span className="text-[8px] font-black tracking-tighter text-teal-200/90 whitespace-nowrap h-4 flex items-center">
+                              Dias Geral
+                            </span>
+                            {opRows.map(r => (
+                              <div
+                                key={r.categoria}
+                                className="w-9 h-7 bg-linear-to-b from-slate-200 to-slate-300 text-slate-800 text-[9.5px] font-mono font-black rounded flex items-center justify-center border border-slate-400 shadow-2xs"
+                              >
+                                {r.dias.geral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                              </div>
+                            ))}
+                            {/* Total Dias Geral */}
+                            <div className="w-9 h-7 bg-linear-to-b from-slate-400 to-slate-500 text-slate-950 text-[10.5px] font-mono font-black rounded flex items-center justify-center border border-slate-600 shadow-sm mt-0.5">
+                              {opTotalDiasGeral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </div>
+                          </div>
+
+                          {/* Coluna Carteira */}
+                          <div className="flex flex-col items-center justify-between space-y-1">
+                            <span className="text-[8px] font-black tracking-tighter text-teal-200/90 whitespace-nowrap h-4 flex items-center">
+                              Carteira
+                            </span>
+                            {opRows.map(r => (
+                              <div
+                                key={r.categoria}
+                                className="w-9 h-7 bg-linear-to-b from-slate-200 to-slate-300 text-slate-800 text-[9.5px] font-mono font-black rounded flex items-center justify-center border border-slate-400 shadow-2xs"
+                              >
+                                {r.dias.carteira.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                              </div>
+                            ))}
+                            {/* Total Dias Carteira */}
+                            <div className="w-9 h-7 bg-linear-to-b from-slate-400 to-slate-500 text-slate-950 text-[10.5px] font-mono font-black rounded flex items-center justify-center border border-slate-600 shadow-sm mt-0.5">
+                              {opTotalDiasCarteira.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </div>
+                          </div>
+
+                          {/* Coluna Processo */}
+                          <div className="flex flex-col items-center justify-between space-y-1">
+                            <span className="text-[8px] font-black tracking-tighter text-teal-200/90 whitespace-nowrap h-4 flex items-center">
+                              Processo
+                            </span>
+                            {opRows.map(r => (
+                              <div
+                                key={r.categoria}
+                                className="w-9 h-7 bg-linear-to-b from-slate-200 to-slate-300 text-slate-800 text-[9.5px] font-mono font-black rounded flex items-center justify-center border border-slate-400 shadow-2xs"
+                              >
+                                {r.dias.processo.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                              </div>
+                            ))}
+                            {/* Total Dias Processo */}
+                            <div className="w-9 h-7 bg-linear-to-b from-slate-400 to-slate-500 text-slate-950 text-[10.5px] font-mono font-black rounded flex items-center justify-center border border-slate-600 shadow-sm mt-0.5">
+                              {opTotalDiasProcesso.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 2. Bloco EM CARTEIRA */}
+                        <div className="flex flex-col space-y-1 shrink-0">
+                          <span className="text-[8.5px] font-black tracking-wider text-sky-200 uppercase text-center h-4 flex items-center justify-center">
+                            EM CARTEIRA
+                          </span>
+                          {/* Cabeçalho da Tabela Carteira */}
+                          <div className="grid grid-cols-4 gap-1 text-[8px] font-black uppercase text-center">
+                            <div className="w-18 py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center">
+                              EM CARTEIRA
+                            </div>
+                            <div className="w-13 py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center">
+                              PEDIDO
+                            </div>
+                            <div className="w-13 py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center">
+                              PEÇAS
+                            </div>
+                            <div className="w-13 py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center">
+                              Vol M³
+                            </div>
+                          </div>
+                          {/* Linhas */}
+                          {opRows.map(r => (
+                            <div key={r.categoria} className="grid grid-cols-4 gap-1 text-[9px] font-mono font-bold text-center">
+                              <div className="w-18 h-7 rounded bg-slate-300 text-slate-900 font-sans font-extrabold flex items-center justify-center uppercase text-[8.5px]">
+                                {r.categoria}
+                              </div>
+                              <div className="w-13 h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                                {r.carteira.pedidos}
+                              </div>
+                              <div className="w-13 h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                                {r.carteira.pecas}
+                              </div>
+                              <div className="w-13 h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                                {r.carteira.vol.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                              </div>
+                            </div>
+                          ))}
+                          {/* Linha Total Geral Carteira */}
+                          <div className="grid grid-cols-4 gap-1 text-[9px] font-mono font-black text-center mt-0.5">
+                            <div className="w-18 h-7 rounded bg-[#0284c7] text-white font-sans uppercase text-[8.5px] flex items-center justify-center shadow-xs">
+                              Total geral
+                            </div>
+                            <div className="w-13 h-7 rounded bg-[#0284c7] text-white flex items-center justify-center shadow-xs">
+                              {opCartPedsTotal.size}
+                            </div>
+                            <div className="w-13 h-7 rounded bg-[#0284c7] text-white flex items-center justify-center shadow-xs">
+                              {opTotalCartPecas}
+                            </div>
+                            <div className="w-13 h-7 rounded bg-[#0284c7] text-white flex items-center justify-center shadow-xs">
+                              {opTotalCartVol.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </div>
+                          </div>
+                          {/* Rodapé Faturamento & % Carteira */}
+                          <div className="flex gap-1 pt-1">
+                            <div className="flex-1 py-1 px-1.5 rounded-lg bg-[#0369a1] text-white text-[9.5px] font-mono font-black text-center shadow-xs">
+                              R$ {opTotalCartValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                            <div className="w-12 py-1 rounded-lg bg-[#0284c7] text-white text-[9.5px] font-mono font-black text-center shadow-xs">
+                              {Math.round(opPctCarteira)}%
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 3. Bloco EM PROCESSO */}
+                        <div className="flex flex-col space-y-1 shrink-0">
+                          <span className="text-[8.5px] font-black tracking-wider text-emerald-300 uppercase text-center h-4 flex items-center justify-center">
+                            EM PROCESSO
+                          </span>
+                          {/* Cabeçalho Processo */}
+                          <div className="grid grid-cols-4 gap-1 text-[8px] font-black uppercase text-center">
+                            <div className="w-18 py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center">
+                              EM PROCESSO
+                            </div>
+                            <div className="w-13 py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center">
+                              PEDIDO
+                            </div>
+                            <div className="w-13 py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center">
+                              PEÇAS
+                            </div>
+                            <div className="w-13 py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center">
+                              Vol M³
+                            </div>
+                          </div>
+                          {/* Linhas */}
+                          {opRows.map(r => (
+                            <div key={r.categoria} className="grid grid-cols-4 gap-1 text-[9px] font-mono font-bold text-center">
+                              <div className="w-18 h-7 rounded bg-slate-300 text-slate-900 font-sans font-extrabold flex items-center justify-center uppercase text-[8.5px]">
+                                {r.categoria}
+                              </div>
+                              <div className="w-13 h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                                {r.processo.pedidos}
+                              </div>
+                              <div className="w-13 h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                                {r.processo.pecas}
+                              </div>
+                              <div className="w-13 h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                                {r.processo.vol.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                              </div>
+                            </div>
+                          ))}
+                          {/* Linha Total Geral Processo */}
+                          <div className="grid grid-cols-4 gap-1 text-[9px] font-mono font-black text-center mt-0.5">
+                            <div className="w-18 h-7 rounded bg-[#059669] text-white font-sans uppercase text-[8.5px] flex items-center justify-center shadow-xs">
+                              Total geral
+                            </div>
+                            <div className="w-13 h-7 rounded bg-[#059669] text-white flex items-center justify-center shadow-xs">
+                              {opProcPedsTotal.size}
+                            </div>
+                            <div className="w-13 h-7 rounded bg-[#059669] text-white flex items-center justify-center shadow-xs">
+                              {opTotalProcPecas}
+                            </div>
+                            <div className="w-13 h-7 rounded bg-[#059669] text-white flex items-center justify-center shadow-xs">
+                              {opTotalProcVol.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </div>
+                          </div>
+                          {/* Rodapé Faturamento & % Processo */}
+                          <div className="flex gap-1 pt-1">
+                            <div className="flex-1 py-1 px-1.5 rounded-lg bg-[#047857] text-white text-[9.5px] font-mono font-black text-center shadow-xs">
+                              R$ {opTotalProcValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                            <div className="w-12 py-1 rounded-lg bg-[#059669] text-white text-[9.5px] font-mono font-black text-center shadow-xs">
+                              {Math.round(opPctProcesso)}%
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 4. Bloco EM CARTEIRA + EM PROCESSO (CONSOLIDADO) */}
+                        <div className="flex flex-col space-y-1 shrink-0">
+                          <span className="text-[8.5px] font-black tracking-wider text-teal-200 uppercase text-center h-4 flex items-center justify-center">
+                            EM CARTEIRA + EM PROCESSO
+                          </span>
+                          {/* Cabeçalho Consolidado */}
+                          <div className="grid grid-cols-3 gap-1 text-[8px] font-black uppercase text-center">
+                            <div className="w-14 py-1 rounded bg-[#093c4c] text-teal-100 flex items-center justify-center">
+                              Pedidos
+                            </div>
+                            <div className="w-14 py-1 rounded bg-[#093c4c] text-teal-100 flex items-center justify-center">
+                              Peças
+                            </div>
+                            <div className="w-16 py-1 rounded bg-[#093c4c] text-teal-100 flex items-center justify-center">
+                              Cubagem
+                            </div>
+                          </div>
+                          {/* Linhas */}
+                          {opRows.map(r => (
+                            <div key={r.categoria} className="grid grid-cols-3 gap-1 text-[9px] font-mono font-bold text-center">
+                              <div className="w-14 h-7 rounded bg-[#0c4a5c] text-white flex items-center justify-center shadow-2xs">
+                                {r.consolidado.pedidos}
+                              </div>
+                              <div className="w-14 h-7 rounded bg-[#0c4a5c] text-white flex items-center justify-center shadow-2xs">
+                                {r.consolidado.pecas}
+                              </div>
+                              <div className="w-16 h-7 rounded bg-[#0c4a5c] text-white flex items-center justify-center shadow-2xs font-black">
+                                {Math.round(r.consolidado.vol)} m³
+                              </div>
+                            </div>
+                          ))}
+                          {/* Linha Total Geral Consolidado */}
+                          <div className="grid grid-cols-3 gap-1 text-[9px] font-mono font-black text-center mt-0.5">
+                            <div className="w-14 h-7 rounded bg-[#063340] text-teal-200 flex items-center justify-center shadow-xs">
+                              {opConsPedsTotal.size}
+                            </div>
+                            <div className="w-14 h-7 rounded bg-[#063340] text-teal-200 flex items-center justify-center shadow-xs">
+                              {opTotalConsPecas}
+                            </div>
+                            <div className="w-16 h-7 rounded bg-[#063340] text-white flex items-center justify-center shadow-xs">
+                              {Math.round(opTotalConsVol)} m³
+                            </div>
+                          </div>
+                          {/* Rodapé Faturamento Geral, Meta & Atingimento */}
+                          <div className="flex items-center gap-1 pt-1 flex-wrap">
+                            <div className="py-1 px-2 rounded-lg bg-[#063340] text-white text-[9.5px] font-mono font-black shadow-xs whitespace-nowrap">
+                              R$ {opTotalConsValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                            <div className="py-1 px-1.5 rounded-lg bg-[#b45309] text-amber-100 text-[9px] font-mono font-black shadow-xs whitespace-nowrap">
+                              R$ {opSaldoMeta.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({Math.round(opPctMeta)}%)
+                            </div>
+                            <div
+                              onClick={handleOpenConfigOperacional}
+                              className="py-1 px-1.5 rounded-lg bg-[#831843] hover:bg-[#9d174d] text-rose-100 text-[8.5px] font-mono font-black cursor-pointer shadow-xs transition-colors whitespace-nowrap"
+                              title="Clique para editar a Meta"
+                            >
+                              META R$ {metaFaturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 5. Bloco de CAPACIDADE & VOLUME EXTRA */}
+                        <div className="flex flex-col space-y-1 shrink-0">
+                          <span className="text-[8.5px] font-black tracking-wider text-rose-300 uppercase text-center h-4 flex items-center justify-center">
+                            CAPACIDADE
+                          </span>
+                          <div className="w-20 py-1 rounded bg-[#701a28] text-rose-100 text-[8px] font-black uppercase text-center">
+                            CAPACIDADE {opCapacidadeSoma}M³
+                          </div>
+                          {/* Capacidades Individuais */}
+                          <div className="w-20 h-7 rounded bg-[#831843] text-rose-100 text-[9px] font-mono font-black flex items-center justify-center shadow-2xs">
+                            {capacidadeAbaM3} M³
+                          </div>
+                          <div className="w-20 h-7 rounded bg-[#831843] text-rose-100 text-[9px] font-mono font-black flex items-center justify-center shadow-2xs">
+                            {capacidadeVendaM3} M³
+                          </div>
+                          <div className="w-20 h-7 rounded bg-[#831843] text-rose-100 text-[9px] font-mono font-black flex items-center justify-center shadow-2xs">
+                            {capacidadeCourrierPed} Pedido
+                          </div>
+                          <div className="w-20 h-7 rounded bg-[#831843] text-rose-100 text-[9px] font-mono font-bold flex items-center justify-center shadow-2xs">
+                            -
+                          </div>
+                          {/* Volume Extra */}
+                          <div className="w-20 py-1 px-1 rounded bg-[#854d0e] text-amber-200 text-center flex flex-col justify-center shadow-xs mt-0.5">
+                            <span className="text-[7px] font-black tracking-tight text-amber-300 uppercase">Volume Extra</span>
+                            <span className="text-[10px] font-mono font-black text-white">
+                              {Math.round(opVolumeExtra)}M³
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 6. Extremo Direito: RODO DIAS, COURRIER DIAS & ASSINATURA MAGALU */}
+                        <div className="flex flex-col justify-between items-center pl-1 border-l border-teal-500/20 shrink-0 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            {/* Card RODO */}
+                            <div className="flex flex-col items-center">
+                              <div className="px-2 py-0.5 rounded bg-[#0284c7] text-white text-[7.5px] font-black uppercase tracking-tight text-center">
+                                RODO<br />DIAS EM CARTEIRA
+                              </div>
+                              <div className="mt-1 w-10 h-7 rounded bg-[#0284c7] text-white text-[11px] font-mono font-black flex items-center justify-center shadow-xs">
+                                {opRows[1]?.dias.geral.toFixed(1)}
+                              </div>
+                              <div className="mt-1 w-10 h-5 rounded bg-slate-300 text-slate-900 text-[9.5px] font-mono font-black flex items-center justify-center">
+                                {opRows[1]?.dias.carteira.toFixed(1)}
+                              </div>
+                            </div>
+
+                            <span className="text-white text-base font-black">+</span>
+
+                            {/* Card COURRIER */}
+                            <div className="flex flex-col items-center">
+                              <div className="px-2 py-0.5 rounded bg-[#0f766e] text-white text-[7.5px] font-black uppercase tracking-tight text-center">
+                                COURRIER (RDP)<br />DIAS EM CARTEIRA
+                              </div>
+                              <div className="mt-1 w-10 h-7 rounded bg-[#0f766e] text-white text-[11px] font-mono font-black flex items-center justify-center shadow-xs">
+                                {opRows[2]?.dias.geral.toFixed(1)}
+                              </div>
+                              <div className="mt-1 w-10 h-5 rounded bg-slate-300 text-slate-900 text-[9.5px] font-mono font-black flex items-center justify-center">
+                                {opRows[2]?.dias.carteira.toFixed(1)}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Estrela de 4 pontas e Marca Magalu */}
+                          <div className="flex flex-col items-center justify-center pt-1 space-y-0.5">
+                            <svg viewBox="0 0 40 40" className="w-8 h-8 fill-slate-300 drop-shadow-sm">
+                              <polygon points="20,2 24,16 38,20 24,24 20,38 16,24 2,20 16,16" />
+                            </svg>
+                            <span className="text-[7px] text-slate-300 italic tracking-tight font-sans whitespace-nowrap">
+                              Johansson Martins de Meneses Gomes
+                            </span>
+                            <div className="flex flex-col items-center">
+                              <span className="text-sm font-black tracking-tighter lowercase text-sky-400 font-sans leading-none">
+                                magalu
+                              </span>
+                              <div className="w-14 h-0.5 bg-linear-to-r from-blue-500 via-green-400 via-yellow-400 to-red-500 rounded-full mt-0.5" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Modal de Configuração de Metas e Capacidades */}
+                    {showConfigOperacional && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+                        <div className="bg-[#0b2834] border border-teal-500/40 rounded-2xl p-5 shadow-2xl max-w-sm w-full space-y-4 text-white">
+                          <div className="flex items-center justify-between border-b border-teal-500/30 pb-2">
+                            <div className="flex items-center gap-2">
+                              <Settings2 size={16} className="text-teal-300" />
+                              <h3 className="text-sm font-black uppercase text-teal-100">
+                                Parâmetros Operacionais
+                              </h3>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setShowConfigOperacional(false)}
+                              className="text-slate-400 hover:text-white cursor-pointer"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+
+                          <div className="space-y-3 text-xs">
+                            <div>
+                              <label className="block text-[11px] font-bold text-teal-200 mb-1">
+                                Meta de Faturamento (R$)
+                              </label>
+                              <input
+                                type="number"
+                                value={tempMetaFaturamento}
+                                onChange={e => setTempMetaFaturamento(Number(e.target.value) || 0)}
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-[#071f28] border border-teal-500/40 text-white font-mono font-bold focus:outline-none focus:ring-1 focus:ring-teal-400"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-bold text-teal-200 mb-1">
+                                Capacidade ABA (M³)
+                              </label>
+                              <input
+                                type="number"
+                                value={tempCapAba}
+                                onChange={e => setTempCapAba(Number(e.target.value) || 0)}
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-[#071f28] border border-teal-500/40 text-white font-mono font-bold focus:outline-none focus:ring-1 focus:ring-teal-400"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-bold text-teal-200 mb-1">
+                                Capacidade Venda (M³)
+                              </label>
+                              <input
+                                type="number"
+                                value={tempCapVenda}
+                                onChange={e => setTempCapVenda(Number(e.target.value) || 0)}
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-[#071f28] border border-teal-500/40 text-white font-mono font-bold focus:outline-none focus:ring-1 focus:ring-teal-400"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-bold text-teal-200 mb-1">
+                                Capacidade Courrier (Pedidos)
+                              </label>
+                              <input
+                                type="number"
+                                value={tempCapCourrier}
+                                onChange={e => setTempCapCourrier(Number(e.target.value) || 0)}
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-[#071f28] border border-teal-500/40 text-white font-mono font-bold focus:outline-none focus:ring-1 focus:ring-teal-400"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-end gap-2 pt-2 border-t border-teal-500/30">
+                            <button
+                              type="button"
+                              onClick={() => setShowConfigOperacional(false)}
+                              className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-bold text-slate-200 transition-colors cursor-pointer"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSaveConfigOperacional}
+                              className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-xs font-bold text-white transition-colors cursor-pointer shadow-xs"
+                            >
+                              Salvar Parâmetros
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
