@@ -143,3 +143,83 @@ export async function getSupplyFiltersMeta() {
   }
 }
 
+// ============================================================
+// SINCRONIZAÇÃO ORACLE -> SUPABASE (Supply Lojas)
+// ============================================================
+
+export interface SupplyOracleSyncStatus {
+  status: 'idle' | 'running' | 'success' | 'warning' | 'error' | 'unknown' | 'requested'
+  step?: string
+  progress?: number
+  current?: number
+  total?: number
+  message?: string
+  elapsed_seconds?: number
+  error?: string
+  updated_at?: string
+}
+
+/** Disparar sincronização do Supply via canal Supabase (supply_sync_command) */
+export async function triggerSupplyOracleSync(): Promise<{ success: boolean; message: string; error?: string }> {
+  try {
+    const requestPayload = {
+      action: 'sync_supply',
+      status: 'requested',
+      progress: 10,
+      message: 'Solicitação enviada. Conectando ao sincronizador do Supply...',
+      requested_at: new Date().toISOString()
+    }
+
+    const { error: supaErr } = await supabase
+      .from('performance_metrics')
+      .upsert({
+        cell_key: 'supply_sync_command',
+        value: JSON.stringify(requestPayload)
+      }, { onConflict: 'cell_key' })
+
+    if (supaErr) {
+      console.warn('Aviso ao registrar comando Supply no Supabase:', supaErr.message)
+    }
+
+    // Tenta também acionar backend local se disponível
+    try {
+      fetch('/api/supply/sync-oracle', { method: 'POST' }).catch(() => { })
+    } catch { }
+
+    return {
+      success: true,
+      message: 'Solicitação de sincronização do Supply enviada ao sincronizador.'
+    }
+  } catch (err: any) {
+    return {
+      success: false,
+      message: 'Falha ao registrar comando de sincronização do Supply no Supabase.',
+      error: err.message
+    }
+  }
+}
+
+/** Consultar status atual da sincronização do Supply (via Supabase supply_sync_command) */
+export async function getSupplyOracleSyncStatus(): Promise<SupplyOracleSyncStatus> {
+  try {
+    const { data, error } = await supabase
+      .from('performance_metrics')
+      .select('value, updated_at')
+      .eq('cell_key', 'supply_sync_command')
+      .maybeSingle()
+
+    if (!error && data && data.value) {
+      try {
+        const parsed = JSON.parse(data.value)
+        return {
+          ...parsed,
+          updated_at: parsed.updated_at || data.updated_at
+        }
+      } catch { }
+    }
+
+    return { status: 'unknown' }
+  } catch {
+    return { status: 'unknown' }
+  }
+}

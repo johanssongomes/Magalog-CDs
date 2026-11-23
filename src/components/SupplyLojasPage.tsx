@@ -20,11 +20,20 @@ import {
   ArrowUpDown,
   Boxes,
   Check,
-  X
+  X,
+  Database,
+  Loader2
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
-import { getSupplyLojasReport, getSupplyFiltersMeta, type SupplyItem } from '../lib/supplyService'
+import {
+  getSupplyLojasReport,
+  getSupplyFiltersMeta,
+  triggerSupplyOracleSync,
+  getSupplyOracleSyncStatus,
+  type SupplyItem,
+  type SupplyOracleSyncStatus
+} from '../lib/supplyService'
 import initialPivotData from '../data/supply_pivot_summary.json'
 import { SupplyDashboardOverview } from './SupplyDashboardOverview'
 
@@ -343,6 +352,68 @@ export const SupplyLojasPage: React.FC = () => {
   const [isUploading, setIsUploading] = useState<boolean>(false)
   const [uploadProgress, setUploadProgress] = useState<string>('')
   const [uploadFeedback, setUploadFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
+  // Estado do Modal de Sincronização Oracle (Supply)
+  const [isSupplySyncModalOpen, setIsSupplySyncModalOpen] = useState(false)
+  const [isSupplySyncing, setIsSupplySyncing] = useState(false)
+  const [supplySyncStatus, setSupplySyncStatus] = useState<SupplyOracleSyncStatus>({
+    status: 'idle',
+    step: '',
+    progress: 0,
+    message: ''
+  })
+
+  // Função para disparar sync do Supply via Oracle
+  const handleSyncSupplyOracle = async () => {
+    setIsSupplySyncModalOpen(true)
+    setIsSupplySyncing(true)
+    setSupplySyncStatus({
+      status: 'running',
+      step: 'starting',
+      progress: 10,
+      message: '🔌 Conectando ao Oracle MLPDW para buscar dados do Supply (verificando VPN)...'
+    })
+
+    const res = await triggerSupplyOracleSync()
+    if (!res.success) {
+      setIsSupplySyncing(false)
+      setSupplySyncStatus({
+        status: 'error',
+        step: 'failed',
+        progress: 0,
+        message: res.message || 'Falha ao iniciar sincronização do Supply.'
+      })
+      return
+    }
+
+    let ticks = 0
+    const pollInterval = window.setInterval(async () => {
+      ticks++
+      try {
+        const current = await getSupplyOracleSyncStatus()
+
+        if (current.status === 'requested' && ticks >= 5) {
+          setSupplySyncStatus({
+            ...current,
+            message: 'Aguardando o sincronizador no computador. Dê 2 cliques em "iniciar_sincronizador.bat" na pasta do projeto.'
+          })
+        } else {
+          setSupplySyncStatus(current)
+        }
+
+        if (current.status === 'success') {
+          window.clearInterval(pollInterval)
+          setIsSupplySyncing(false)
+          loadData(1, searchTerm)
+        } else if (current.status === 'error' || current.status === 'warning') {
+          window.clearInterval(pollInterval)
+          setIsSupplySyncing(false)
+        }
+      } catch {
+        // Polling contínuo
+      }
+    }, 1500)
+  }
 
   // Carregar filtros dinâmicos
   useEffect(() => {
@@ -1067,24 +1138,49 @@ export const SupplyLojasPage: React.FC = () => {
                 <RefreshCw size={14} className={isLoading ? 'animate-spin text-blue-600' : ''} />
               </button>
 
-              {/* Botão de Upload da Planilha Supply.xlsx */}
+              {/* Botão Principal: Atualizar Base via Oracle (igual ao PCP) */}
+              <button
+                type="button"
+                onClick={handleSyncSupplyOracle}
+                disabled={isSupplySyncing}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white shadow-xs transition-all cursor-pointer ${
+                  isSupplySyncing
+                    ? 'bg-slate-400 cursor-wait'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95'
+                }`}
+                title="Consultar Supply diretamente do Oracle MLPDW e sincronizar com Supabase"
+              >
+                {isSupplySyncing ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>Sincronizando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Database size={14} />
+                    <span>Atualizar Base (Oracle)</span>
+                  </>
+                )}
+              </button>
+
+              {/* Botão Secundário: Upload Manual Supply.xlsx (fallback) */}
               <label
                 htmlFor="supply-file-upload"
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white shadow-xs transition-all cursor-pointer ${isUploading
-                  ? 'bg-slate-400 cursor-wait'
-                  : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95'
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer border ${isUploading
+                  ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-wait'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300 active:scale-95'
                   }`}
-                title="Sincronizar banco com nova planilha Supply.xlsx"
+                title="Fallback: sincronizar banco com planilha Supply.xlsx"
               >
                 {isUploading ? (
                   <>
-                    <RefreshCw size={13} className="animate-spin" />
+                    <RefreshCw size={12} className="animate-spin" />
                     <span>{uploadProgress || 'Processando...'}</span>
                   </>
                 ) : (
                   <>
-                    <UploadCloud size={14} />
-                    <span>Atualizar Banco (Supply.xlsx)</span>
+                    <UploadCloud size={13} />
+                    <span>Supply.xlsx</span>
                   </>
                 )}
                 <input
@@ -1217,6 +1313,123 @@ export const SupplyLojasPage: React.FC = () => {
                 >
                   <ChevronRight size={16} />
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* MODAL DE SINCRONIZAÇÃO DO SUPPLY ORACLE                       */}
+      {/* ============================================================ */}
+      {isSupplySyncModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md mx-4 overflow-hidden">
+            {/* Header do Modal */}
+            <div className="px-5 py-4 bg-gradient-to-r from-blue-700 to-indigo-700 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Database size={18} className="text-sky-300" />
+                <span className="text-sm font-black text-white tracking-wide">
+                  Sincronização Oracle → Supabase
+                </span>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white border border-white/30">
+                Supply Lojas
+              </span>
+            </div>
+
+            {/* Corpo do Modal */}
+            <div className="px-5 py-5 space-y-4">
+              {/* Barra de Progresso */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-700">Progresso da Sincronização</span>
+                  <span className="font-mono font-black text-blue-600">
+                    {supplySyncStatus.progress || 0}%
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className={`h-2.5 rounded-full transition-all duration-500 ${
+                      supplySyncStatus.status === 'success'
+                        ? 'bg-emerald-500'
+                        : supplySyncStatus.status === 'error'
+                          ? 'bg-rose-500'
+                          : 'bg-gradient-to-r from-blue-500 to-indigo-500 animate-pulse'
+                    }`}
+                    style={{ width: `${supplySyncStatus.progress || 0}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Mensagem de Status */}
+              <div className={`flex items-start gap-3 p-3 rounded-xl border text-xs ${
+                supplySyncStatus.status === 'success'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : supplySyncStatus.status === 'error'
+                    ? 'bg-rose-50 border-rose-200 text-rose-800'
+                    : supplySyncStatus.status === 'warning'
+                      ? 'bg-amber-50 border-amber-200 text-amber-800'
+                      : 'bg-blue-50 border-blue-200 text-blue-800'
+              }`}>
+                {supplySyncStatus.status === 'success' && <CheckCircle2 size={15} className="shrink-0 mt-0.5 text-emerald-600" />}
+                {supplySyncStatus.status === 'error' && <AlertCircle size={15} className="shrink-0 mt-0.5 text-rose-600" />}
+                {(supplySyncStatus.status === 'running' || supplySyncStatus.status === 'requested') && (
+                  <Loader2 size={15} className="shrink-0 mt-0.5 animate-spin text-blue-600" />
+                )}
+                <span className="font-medium leading-relaxed">
+                  {supplySyncStatus.message || 'Aguardando...'}
+                </span>
+              </div>
+
+              {/* Detalhes se em progresso */}
+              {supplySyncStatus.status === 'running' && supplySyncStatus.current !== undefined && supplySyncStatus.total && (
+                <div className="text-center text-xs text-slate-500 font-mono">
+                  {supplySyncStatus.current.toLocaleString('pt-BR')} / {supplySyncStatus.total.toLocaleString('pt-BR')} registros
+                </div>
+              )}
+
+              {/* Resultado de Sucesso */}
+              {supplySyncStatus.status === 'success' && supplySyncStatus.total && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-center">
+                    <div className="text-lg font-black text-emerald-700">
+                      {Number(supplySyncStatus.total).toLocaleString('pt-BR')}
+                    </div>
+                    <div className="text-[10px] text-emerald-600 font-semibold">Registros Sincronizados</div>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-center">
+                    <div className="text-lg font-black text-blue-700">
+                      {supplySyncStatus.elapsed_seconds || 0}s
+                    </div>
+                    <div className="text-[10px] text-blue-600 font-semibold">Tempo Total</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Rodapé com Botões */}
+            <div className="px-5 py-3.5 border-t border-slate-100 flex items-center justify-between gap-2 bg-slate-50/60">
+              <span className="text-[10px] text-slate-400">
+                Oracle MLPDW → supply_lojas
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSupplySyncModalOpen(false)}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+                {(supplySyncStatus.status === 'error' || supplySyncStatus.status === 'warning') && (
+                  <button
+                    type="button"
+                    onClick={handleSyncSupplyOracle}
+                    className="px-3.5 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs cursor-pointer"
+                  >
+                    Tentar Novamente
+                  </button>
+                )}
               </div>
             </div>
           </div>
