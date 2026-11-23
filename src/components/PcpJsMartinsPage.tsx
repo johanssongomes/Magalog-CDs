@@ -38,7 +38,9 @@ import {
   Gauge,
   Compass,
   Target,
-  Thermometer
+  Thermometer,
+  Maximize2,
+  Minimize2
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -880,6 +882,7 @@ export const PcpJsMartinsPage: React.FC = () => {
     return saved ? Number(saved) : 600
   })
   const [showConfigOperacional, setShowConfigOperacional] = useState<boolean>(false)
+  const [opFullWidth, setOpFullWidth] = useState<boolean>(true)
   const [tempMetaFaturamento, setTempMetaFaturamento] = useState<number>(metaFaturamento)
   const [tempCapAba, setTempCapAba] = useState<number>(capacidadeAbaM3)
   const [tempCapVenda, setTempCapVenda] = useState<number>(capacidadeVendaM3)
@@ -4748,7 +4751,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </div>
 
                 {/* Lado Direito: Cards Rápidos de Visão Geral (Alinhado exatamente com o painel lateral direito) */}
-                <div className="flex-1 w-full min-w-0 xl:max-w-[800px] 2xl:max-w-[840px]">
+                <div className={`w-full min-w-0 ${planRightTab === 'visao3' && opFullWidth ? 'flex-1' : 'flex-1 xl:max-w-[800px] 2xl:max-w-[840px]'}`}>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
                     <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Pedidos</span>
@@ -4790,9 +4793,10 @@ export const PcpJsMartinsPage: React.FC = () => {
             {/* ------------------------------------------------------------ */}
             {/* CORPO: CANTO ESQUERDO (TABELA FORMATO OFICIAL) + LADO DIREITO */}
             {/* ------------------------------------------------------------ */}
-            <div className="flex flex-col xl:flex-row gap-5 items-start w-full">
+            <div className={`flex flex-col ${planRightTab === 'visao3' && opFullWidth ? 'gap-4' : 'xl:flex-row gap-5'} items-start w-full`}>
               {/* CANTO ESQUERDO (TABELA COM O TEMA MODERNO BLUE/SLATE CLEAN) */}
-              <div className="w-full xl:w-auto xl:min-w-[780px] 2xl:min-w-[840px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
+              {!(planRightTab === 'visao3' && opFullWidth) && (
+                <div className="w-full xl:w-auto xl:min-w-[780px] 2xl:min-w-[840px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
                 <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d] gap-2 flex-wrap sm:flex-nowrap">
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet size={15} className="text-sky-300 shrink-0" />
@@ -5482,9 +5486,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                   </div>
                 )}
               </div>
+              )}
 
               {/* LADO DIREITO: ÁREA RESERVADA PARA TABELAS/VISÕES DO PAINEL LATERAL */}
-              <div className="flex-1 space-y-4 w-full min-w-0 xl:max-w-[800px] 2xl:max-w-[840px]">
+              <div className={`space-y-4 w-full min-w-0 ${planRightTab === 'visao3' && opFullWidth ? 'flex-1 w-full max-w-none' : 'flex-1 xl:max-w-[800px] 2xl:max-w-[840px]'}`}>
                 {/* 3 BOTÕES DE VISÃO DO PAINEL LATERAL (CONFORME SOLICITADO) */}
                 <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/90 shadow-2xs">
                   <button
@@ -6229,15 +6234,36 @@ export const PcpJsMartinsPage: React.FC = () => {
                         </span>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={handleOpenConfigOperacional}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-900/60 hover:bg-teal-800 text-teal-200 hover:text-white text-[10.5px] font-bold border border-teal-400/30 transition-all cursor-pointer shadow-xs"
-                        title="Configurar Metas e Capacidades"
-                      >
-                        <Settings2 size={12} className="text-teal-300" />
-                        <span>Metas & Capacidades</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setOpFullWidth(prev => !prev)}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-900/60 hover:bg-teal-800 text-teal-200 hover:text-white text-[10.5px] font-bold border border-teal-400/30 transition-all cursor-pointer shadow-xs"
+                          title={opFullWidth ? "Exibir lado a lado com a Visão Comparativa" : "Expandir para 100% da tela"}
+                        >
+                          {opFullWidth ? (
+                            <>
+                              <Minimize2 size={12} className="text-teal-300" />
+                              <span>Dividir Tela</span>
+                            </>
+                          ) : (
+                            <>
+                              <Maximize2 size={12} className="text-teal-300" />
+                              <span>100% da Tela</span>
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleOpenConfigOperacional}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-900/60 hover:bg-teal-800 text-teal-200 hover:text-white text-[10.5px] font-bold border border-teal-400/30 transition-all cursor-pointer shadow-xs"
+                          title="Configurar Metas e Capacidades"
+                        >
+                          <Settings2 size={12} className="text-teal-300" />
+                          <span>Metas & Capacidades</span>
+                        </button>
+                      </div>
                     </div>
 
                     {/* Linha Superior: 3 Termômetros de Capacidade + 2 Velocímetros de Atraso */}
@@ -6423,8 +6449,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                     </div>
 
                     {/* Linha Central: Tabela Operacional Completa Conforme Layout Original */}
-                    <div className="w-full overflow-x-auto select-text pt-2">
-                      <div className="bg-[#071f28] p-3 rounded-2xl border border-teal-500/30 shadow-2xl flex items-stretch gap-2 min-w-[760px]">
+                    <div className="w-full select-text pt-2">
+                      <div className="bg-[#071f28] p-3 rounded-2xl border border-teal-500/30 shadow-2xl flex items-stretch gap-2 w-full">
                         {/* 1. Colunas de Dias / Giro (Extremo Esquerdo) */}
                         <div className="flex gap-1 items-stretch shrink-0">
                           {/* Coluna Dias Geral */}
@@ -6435,13 +6461,13 @@ export const PcpJsMartinsPage: React.FC = () => {
                             {opRows.map(r => (
                               <div
                                 key={r.categoria}
-                                className="w-9 h-7 bg-linear-to-b from-slate-200 to-slate-300 text-slate-800 text-[9.5px] font-mono font-black rounded flex items-center justify-center border border-slate-400 shadow-2xs"
+                                className="w-8 sm:w-9 h-7 bg-linear-to-b from-slate-200 to-slate-300 text-slate-800 text-[9px] sm:text-[9.5px] font-mono font-black rounded flex items-center justify-center border border-slate-400 shadow-2xs"
                               >
                                 {r.dias.geral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                               </div>
                             ))}
                             {/* Total Dias Geral */}
-                            <div className="w-9 h-7 bg-linear-to-b from-slate-400 to-slate-500 text-slate-950 text-[10.5px] font-mono font-black rounded flex items-center justify-center border border-slate-600 shadow-sm mt-0.5">
+                            <div className="w-8 sm:w-9 h-7 bg-linear-to-b from-slate-400 to-slate-500 text-slate-950 text-[10px] sm:text-[10.5px] font-mono font-black rounded flex items-center justify-center border border-slate-600 shadow-sm mt-0.5">
                               {opTotalDiasGeral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                             </div>
                           </div>
@@ -6454,13 +6480,13 @@ export const PcpJsMartinsPage: React.FC = () => {
                             {opRows.map(r => (
                               <div
                                 key={r.categoria}
-                                className="w-9 h-7 bg-linear-to-b from-slate-200 to-slate-300 text-slate-800 text-[9.5px] font-mono font-black rounded flex items-center justify-center border border-slate-400 shadow-2xs"
+                                className="w-8 sm:w-9 h-7 bg-linear-to-b from-slate-200 to-slate-300 text-slate-800 text-[9px] sm:text-[9.5px] font-mono font-black rounded flex items-center justify-center border border-slate-400 shadow-2xs"
                               >
                                 {r.dias.carteira.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                               </div>
                             ))}
                             {/* Total Dias Carteira */}
-                            <div className="w-9 h-7 bg-linear-to-b from-slate-400 to-slate-500 text-slate-950 text-[10.5px] font-mono font-black rounded flex items-center justify-center border border-slate-600 shadow-sm mt-0.5">
+                            <div className="w-8 sm:w-9 h-7 bg-linear-to-b from-slate-400 to-slate-500 text-slate-950 text-[10px] sm:text-[10.5px] font-mono font-black rounded flex items-center justify-center border border-slate-600 shadow-sm mt-0.5">
                               {opTotalDiasCarteira.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                             </div>
                           </div>
@@ -6473,198 +6499,198 @@ export const PcpJsMartinsPage: React.FC = () => {
                             {opRows.map(r => (
                               <div
                                 key={r.categoria}
-                                className="w-9 h-7 bg-linear-to-b from-slate-200 to-slate-300 text-slate-800 text-[9.5px] font-mono font-black rounded flex items-center justify-center border border-slate-400 shadow-2xs"
+                                className="w-8 sm:w-9 h-7 bg-linear-to-b from-slate-200 to-slate-300 text-slate-800 text-[9px] sm:text-[9.5px] font-mono font-black rounded flex items-center justify-center border border-slate-400 shadow-2xs"
                               >
                                 {r.dias.processo.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                               </div>
                             ))}
                             {/* Total Dias Processo */}
-                            <div className="w-9 h-7 bg-linear-to-b from-slate-400 to-slate-500 text-slate-950 text-[10.5px] font-mono font-black rounded flex items-center justify-center border border-slate-600 shadow-sm mt-0.5">
+                            <div className="w-8 sm:w-9 h-7 bg-linear-to-b from-slate-400 to-slate-500 text-slate-950 text-[10px] sm:text-[10.5px] font-mono font-black rounded flex items-center justify-center border border-slate-600 shadow-sm mt-0.5">
                               {opTotalDiasProcesso.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                             </div>
                           </div>
                         </div>
 
                         {/* 2. Bloco EM CARTEIRA */}
-                        <div className="flex flex-col space-y-1 shrink-0">
+                        <div className="flex-1 min-w-0 flex flex-col space-y-1">
                           <span className="text-[8.5px] font-black tracking-wider text-sky-200 uppercase text-center h-4 flex items-center justify-center">
                             EM CARTEIRA
                           </span>
                           {/* Cabeçalho da Tabela Carteira */}
-                          <div className="grid grid-cols-4 gap-1 text-[8px] font-black uppercase text-center">
-                            <div className="w-18 py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center">
+                          <div className="grid grid-cols-4 gap-1 text-[8px] font-black uppercase text-center w-full">
+                            <div className="py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center truncate px-0.5">
                               EM CARTEIRA
                             </div>
-                            <div className="w-13 py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center">
+                            <div className="py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center truncate px-0.5">
                               PEDIDO
                             </div>
-                            <div className="w-13 py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center">
+                            <div className="py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center truncate px-0.5">
                               PEÇAS
                             </div>
-                            <div className="w-13 py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center">
+                            <div className="py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center truncate px-0.5">
                               Vol M³
                             </div>
                           </div>
                           {/* Linhas */}
                           {opRows.map(r => (
-                            <div key={r.categoria} className="grid grid-cols-4 gap-1 text-[9px] font-mono font-bold text-center">
-                              <div className="w-18 h-7 rounded bg-slate-300 text-slate-900 font-sans font-extrabold flex items-center justify-center uppercase text-[8.5px]">
+                            <div key={r.categoria} className="grid grid-cols-4 gap-1 text-[9px] font-mono font-bold text-center w-full">
+                              <div className="h-7 rounded bg-slate-300 text-slate-900 font-sans font-extrabold flex items-center justify-center uppercase text-[8px] sm:text-[8.5px] truncate px-0.5">
                                 {r.categoria}
                               </div>
-                              <div className="w-13 h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
                                 {r.carteira.pedidos}
                               </div>
-                              <div className="w-13 h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
                                 {r.carteira.pecas}
                               </div>
-                              <div className="w-13 h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
                                 {r.carteira.vol.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                               </div>
                             </div>
                           ))}
                           {/* Linha Total Geral Carteira */}
-                          <div className="grid grid-cols-4 gap-1 text-[9px] font-mono font-black text-center mt-0.5">
-                            <div className="w-18 h-7 rounded bg-[#0284c7] text-white font-sans uppercase text-[8.5px] flex items-center justify-center shadow-xs">
+                          <div className="grid grid-cols-4 gap-1 text-[9px] font-mono font-black text-center mt-0.5 w-full">
+                            <div className="h-7 rounded bg-[#0284c7] text-white font-sans uppercase text-[8px] sm:text-[8.5px] flex items-center justify-center shadow-xs truncate px-0.5">
                               Total geral
                             </div>
-                            <div className="w-13 h-7 rounded bg-[#0284c7] text-white flex items-center justify-center shadow-xs">
+                            <div className="h-7 rounded bg-[#0284c7] text-white flex items-center justify-center shadow-xs">
                               {opCartPedsTotal.size}
                             </div>
-                            <div className="w-13 h-7 rounded bg-[#0284c7] text-white flex items-center justify-center shadow-xs">
+                            <div className="h-7 rounded bg-[#0284c7] text-white flex items-center justify-center shadow-xs">
                               {opTotalCartPecas}
                             </div>
-                            <div className="w-13 h-7 rounded bg-[#0284c7] text-white flex items-center justify-center shadow-xs">
+                            <div className="h-7 rounded bg-[#0284c7] text-white flex items-center justify-center shadow-xs">
                               {opTotalCartVol.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                             </div>
                           </div>
                           {/* Rodapé Faturamento & % Carteira */}
-                          <div className="flex gap-1 pt-1">
-                            <div className="flex-1 py-1 px-1.5 rounded-lg bg-[#0369a1] text-white text-[9.5px] font-mono font-black text-center shadow-xs">
+                          <div className="flex gap-1 pt-1 w-full">
+                            <div className="flex-1 py-1 px-1 rounded-lg bg-[#0369a1] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black text-center shadow-xs truncate">
                               R$ {opTotalCartValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
-                            <div className="w-12 py-1 rounded-lg bg-[#0284c7] text-white text-[9.5px] font-mono font-black text-center shadow-xs">
+                            <div className="w-10 sm:w-12 py-1 rounded-lg bg-[#0284c7] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black text-center shadow-xs shrink-0">
                               {Math.round(opPctCarteira)}%
                             </div>
                           </div>
                         </div>
 
                         {/* 3. Bloco EM PROCESSO */}
-                        <div className="flex flex-col space-y-1 shrink-0">
+                        <div className="flex-1 min-w-0 flex flex-col space-y-1">
                           <span className="text-[8.5px] font-black tracking-wider text-emerald-300 uppercase text-center h-4 flex items-center justify-center">
                             EM PROCESSO
                           </span>
                           {/* Cabeçalho Processo */}
-                          <div className="grid grid-cols-4 gap-1 text-[8px] font-black uppercase text-center">
-                            <div className="w-18 py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center">
+                          <div className="grid grid-cols-4 gap-1 text-[8px] font-black uppercase text-center w-full">
+                            <div className="py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center truncate px-0.5">
                               EM PROCESSO
                             </div>
-                            <div className="w-13 py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center">
+                            <div className="py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center truncate px-0.5">
                               PEDIDO
                             </div>
-                            <div className="w-13 py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center">
+                            <div className="py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center truncate px-0.5">
                               PEÇAS
                             </div>
-                            <div className="w-13 py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center">
+                            <div className="py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center truncate px-0.5">
                               Vol M³
                             </div>
                           </div>
                           {/* Linhas */}
                           {opRows.map(r => (
-                            <div key={r.categoria} className="grid grid-cols-4 gap-1 text-[9px] font-mono font-bold text-center">
-                              <div className="w-18 h-7 rounded bg-slate-300 text-slate-900 font-sans font-extrabold flex items-center justify-center uppercase text-[8.5px]">
+                            <div key={r.categoria} className="grid grid-cols-4 gap-1 text-[9px] font-mono font-bold text-center w-full">
+                              <div className="h-7 rounded bg-slate-300 text-slate-900 font-sans font-extrabold flex items-center justify-center uppercase text-[8px] sm:text-[8.5px] truncate px-0.5">
                                 {r.categoria}
                               </div>
-                              <div className="w-13 h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
                                 {r.processo.pedidos}
                               </div>
-                              <div className="w-13 h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
                                 {r.processo.pecas}
                               </div>
-                              <div className="w-13 h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
                                 {r.processo.vol.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                               </div>
                             </div>
                           ))}
                           {/* Linha Total Geral Processo */}
-                          <div className="grid grid-cols-4 gap-1 text-[9px] font-mono font-black text-center mt-0.5">
-                            <div className="w-18 h-7 rounded bg-[#059669] text-white font-sans uppercase text-[8.5px] flex items-center justify-center shadow-xs">
+                          <div className="grid grid-cols-4 gap-1 text-[9px] font-mono font-black text-center mt-0.5 w-full">
+                            <div className="h-7 rounded bg-[#059669] text-white font-sans uppercase text-[8.5px] flex items-center justify-center shadow-xs truncate px-0.5">
                               Total geral
                             </div>
-                            <div className="w-13 h-7 rounded bg-[#059669] text-white flex items-center justify-center shadow-xs">
+                            <div className="h-7 rounded bg-[#059669] text-white flex items-center justify-center shadow-xs">
                               {opProcPedsTotal.size}
                             </div>
-                            <div className="w-13 h-7 rounded bg-[#059669] text-white flex items-center justify-center shadow-xs">
+                            <div className="h-7 rounded bg-[#059669] text-white flex items-center justify-center shadow-xs">
                               {opTotalProcPecas}
                             </div>
-                            <div className="w-13 h-7 rounded bg-[#059669] text-white flex items-center justify-center shadow-xs">
+                            <div className="h-7 rounded bg-[#059669] text-white flex items-center justify-center shadow-xs">
                               {opTotalProcVol.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                             </div>
                           </div>
                           {/* Rodapé Faturamento & % Processo */}
-                          <div className="flex gap-1 pt-1">
-                            <div className="flex-1 py-1 px-1.5 rounded-lg bg-[#047857] text-white text-[9.5px] font-mono font-black text-center shadow-xs">
+                          <div className="flex gap-1 pt-1 w-full">
+                            <div className="flex-1 py-1 px-1 rounded-lg bg-[#047857] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black text-center shadow-xs truncate">
                               R$ {opTotalProcValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
-                            <div className="w-12 py-1 rounded-lg bg-[#059669] text-white text-[9.5px] font-mono font-black text-center shadow-xs">
+                            <div className="w-10 sm:w-12 py-1 rounded-lg bg-[#059669] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black text-center shadow-xs shrink-0">
                               {Math.round(opPctProcesso)}%
                             </div>
                           </div>
                         </div>
 
                         {/* 4. Bloco EM CARTEIRA + EM PROCESSO (CONSOLIDADO) */}
-                        <div className="flex flex-col space-y-1 shrink-0">
+                        <div className="flex-1 min-w-0 flex flex-col space-y-1">
                           <span className="text-[8.5px] font-black tracking-wider text-teal-200 uppercase text-center h-4 flex items-center justify-center">
                             EM CARTEIRA + EM PROCESSO
                           </span>
                           {/* Cabeçalho Consolidado */}
-                          <div className="grid grid-cols-3 gap-1 text-[8px] font-black uppercase text-center">
-                            <div className="w-14 py-1 rounded bg-[#093c4c] text-teal-100 flex items-center justify-center">
+                          <div className="grid grid-cols-3 gap-1 text-[8px] font-black uppercase text-center w-full">
+                            <div className="py-1 rounded bg-[#093c4c] text-teal-100 flex items-center justify-center truncate px-0.5">
                               Pedidos
                             </div>
-                            <div className="w-14 py-1 rounded bg-[#093c4c] text-teal-100 flex items-center justify-center">
+                            <div className="py-1 rounded bg-[#093c4c] text-teal-100 flex items-center justify-center truncate px-0.5">
                               Peças
                             </div>
-                            <div className="w-16 py-1 rounded bg-[#093c4c] text-teal-100 flex items-center justify-center">
+                            <div className="py-1 rounded bg-[#093c4c] text-teal-100 flex items-center justify-center truncate px-0.5">
                               Cubagem
                             </div>
                           </div>
                           {/* Linhas */}
                           {opRows.map(r => (
-                            <div key={r.categoria} className="grid grid-cols-3 gap-1 text-[9px] font-mono font-bold text-center">
-                              <div className="w-14 h-7 rounded bg-[#0c4a5c] text-white flex items-center justify-center shadow-2xs">
+                            <div key={r.categoria} className="grid grid-cols-3 gap-1 text-[9px] font-mono font-bold text-center w-full">
+                              <div className="h-7 rounded bg-[#0c4a5c] text-white flex items-center justify-center shadow-2xs">
                                 {r.consolidado.pedidos}
                               </div>
-                              <div className="w-14 h-7 rounded bg-[#0c4a5c] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#0c4a5c] text-white flex items-center justify-center shadow-2xs">
                                 {r.consolidado.pecas}
                               </div>
-                              <div className="w-16 h-7 rounded bg-[#0c4a5c] text-white flex items-center justify-center shadow-2xs font-black">
+                              <div className="h-7 rounded bg-[#0c4a5c] text-white flex items-center justify-center shadow-2xs font-black">
                                 {Math.round(r.consolidado.vol)} m³
                               </div>
                             </div>
                           ))}
                           {/* Linha Total Geral Consolidado */}
-                          <div className="grid grid-cols-3 gap-1 text-[9px] font-mono font-black text-center mt-0.5">
-                            <div className="w-14 h-7 rounded bg-[#063340] text-teal-200 flex items-center justify-center shadow-xs">
+                          <div className="grid grid-cols-3 gap-1 text-[9px] font-mono font-black text-center mt-0.5 w-full">
+                            <div className="h-7 rounded bg-[#063340] text-teal-200 flex items-center justify-center shadow-xs">
                               {opConsPedsTotal.size}
                             </div>
-                            <div className="w-14 h-7 rounded bg-[#063340] text-teal-200 flex items-center justify-center shadow-xs">
+                            <div className="h-7 rounded bg-[#063340] text-teal-200 flex items-center justify-center shadow-xs">
                               {opTotalConsPecas}
                             </div>
-                            <div className="w-16 h-7 rounded bg-[#063340] text-white flex items-center justify-center shadow-xs">
+                            <div className="h-7 rounded bg-[#063340] text-white flex items-center justify-center shadow-xs">
                               {Math.round(opTotalConsVol)} m³
                             </div>
                           </div>
                           {/* Rodapé Faturamento Geral, Meta & Atingimento */}
-                          <div className="flex items-center gap-1 pt-1 flex-wrap">
-                            <div className="py-1 px-2 rounded-lg bg-[#063340] text-white text-[9.5px] font-mono font-black shadow-xs whitespace-nowrap">
+                          <div className="flex items-center gap-1 pt-1 flex-wrap w-full">
+                            <div className="flex-1 py-1 px-1 rounded-lg bg-[#063340] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black shadow-xs whitespace-nowrap text-center truncate">
                               R$ {opTotalConsValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
-                            <div className="py-1 px-1.5 rounded-lg bg-[#b45309] text-amber-100 text-[9px] font-mono font-black shadow-xs whitespace-nowrap">
+                            <div className="py-1 px-1 rounded-lg bg-[#b45309] text-amber-100 text-[8px] sm:text-[9px] font-mono font-black shadow-xs whitespace-nowrap">
                               R$ {opSaldoMeta.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({Math.round(opPctMeta)}%)
                             </div>
                             <div
                               onClick={handleOpenConfigOperacional}
-                              className="py-1 px-1.5 rounded-lg bg-[#831843] hover:bg-[#9d174d] text-rose-100 text-[8.5px] font-mono font-black cursor-pointer shadow-xs transition-colors whitespace-nowrap"
+                              className="py-1 px-1 rounded-lg bg-[#831843] hover:bg-[#9d174d] text-rose-100 text-[8px] sm:text-[8.5px] font-mono font-black cursor-pointer shadow-xs transition-colors whitespace-nowrap"
                               title="Clique para editar a Meta"
                             >
                               META R$ {metaFaturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -6673,30 +6699,30 @@ export const PcpJsMartinsPage: React.FC = () => {
                         </div>
 
                         {/* 5. Bloco de CAPACIDADE & VOLUME EXTRA */}
-                        <div className="flex flex-col space-y-1 shrink-0">
+                        <div className="w-20 sm:w-22 shrink-0 flex flex-col space-y-1">
                           <span className="text-[8.5px] font-black tracking-wider text-rose-300 uppercase text-center h-4 flex items-center justify-center">
                             CAPACIDADE
                           </span>
-                          <div className="w-20 py-1 rounded bg-[#701a28] text-rose-100 text-[8px] font-black uppercase text-center">
-                            CAPACIDADE {opCapacidadeSoma}M³
+                          <div className="w-full py-1 rounded bg-[#701a28] text-rose-100 text-[7.5px] sm:text-[8px] font-black uppercase text-center truncate px-0.5">
+                            CAP {opCapacidadeSoma}M³
                           </div>
                           {/* Capacidades Individuais */}
-                          <div className="w-20 h-7 rounded bg-[#831843] text-rose-100 text-[9px] font-mono font-black flex items-center justify-center shadow-2xs">
+                          <div className="w-full h-7 rounded bg-[#831843] text-rose-100 text-[8.5px] sm:text-[9px] font-mono font-black flex items-center justify-center shadow-2xs">
                             {capacidadeAbaM3} M³
                           </div>
-                          <div className="w-20 h-7 rounded bg-[#831843] text-rose-100 text-[9px] font-mono font-black flex items-center justify-center shadow-2xs">
+                          <div className="w-full h-7 rounded bg-[#831843] text-rose-100 text-[8.5px] sm:text-[9px] font-mono font-black flex items-center justify-center shadow-2xs">
                             {capacidadeVendaM3} M³
                           </div>
-                          <div className="w-20 h-7 rounded bg-[#831843] text-rose-100 text-[9px] font-mono font-black flex items-center justify-center shadow-2xs">
-                            {capacidadeCourrierPed} Pedido
+                          <div className="w-full h-7 rounded bg-[#831843] text-rose-100 text-[8.5px] sm:text-[9px] font-mono font-black flex items-center justify-center shadow-2xs">
+                            {capacidadeCourrierPed} P
                           </div>
-                          <div className="w-20 h-7 rounded bg-[#831843] text-rose-100 text-[9px] font-mono font-bold flex items-center justify-center shadow-2xs">
+                          <div className="w-full h-7 rounded bg-[#831843] text-rose-100 text-[9px] font-mono font-bold flex items-center justify-center shadow-2xs">
                             -
                           </div>
                           {/* Volume Extra */}
-                          <div className="w-20 py-1 px-1 rounded bg-[#854d0e] text-amber-200 text-center flex flex-col justify-center shadow-xs mt-0.5">
-                            <span className="text-[7px] font-black tracking-tight text-amber-300 uppercase">Volume Extra</span>
-                            <span className="text-[10px] font-mono font-black text-white">
+                          <div className="w-full py-1 px-1 rounded bg-[#854d0e] text-amber-200 text-center flex flex-col justify-center shadow-xs mt-0.5">
+                            <span className="text-[7px] font-black tracking-tight text-amber-300 uppercase">Vol. Extra</span>
+                            <span className="text-[9.5px] sm:text-[10px] font-mono font-black text-white">
                               {Math.round(opVolumeExtra)}M³
                             </span>
                           </div>
