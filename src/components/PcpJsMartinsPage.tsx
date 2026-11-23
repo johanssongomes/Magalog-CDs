@@ -4795,7 +4795,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             {/* ------------------------------------------------------------ */}
             <div className="flex flex-col xl:flex-row gap-5 items-start w-full">
               {/* CANTO ESQUERDO (TABELA COM O TEMA MODERNO BLUE/SLATE CLEAN) */}
-              <div className={`w-full xl:w-auto ${planRightTab === 'visao3' ? 'xl:min-w-[680px] 2xl:min-w-[740px]' : 'xl:min-w-[780px] 2xl:min-w-[840px] flex-1'} bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0`}>
+              <div className="w-full xl:w-auto xl:min-w-[680px] xl:max-w-[760px] 2xl:min-w-[720px] 2xl:max-w-[800px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
                 <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d] gap-2 flex-wrap sm:flex-nowrap">
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet size={15} className="text-sky-300 shrink-0" />
