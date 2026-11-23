@@ -4751,7 +4751,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </div>
 
                 {/* Lado Direito: Cards Rápidos de Visão Geral (Alinhado exatamente com o painel lateral direito) */}
-                <div className={`w-full min-w-0 ${planRightTab === 'visao3' && opFullWidth ? 'flex-1' : 'flex-1 xl:max-w-[800px] 2xl:max-w-[840px]'}`}>
+                <div className="flex-1 w-full min-w-0">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
                     <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Pedidos</span>
@@ -4793,10 +4793,9 @@ export const PcpJsMartinsPage: React.FC = () => {
             {/* ------------------------------------------------------------ */}
             {/* CORPO: CANTO ESQUERDO (TABELA FORMATO OFICIAL) + LADO DIREITO */}
             {/* ------------------------------------------------------------ */}
-            <div className={`flex flex-col ${planRightTab === 'visao3' && opFullWidth ? 'gap-4' : 'xl:flex-row gap-5'} items-start w-full`}>
+            <div className="flex flex-col xl:flex-row gap-5 items-start w-full">
               {/* CANTO ESQUERDO (TABELA COM O TEMA MODERNO BLUE/SLATE CLEAN) */}
-              {!(planRightTab === 'visao3' && opFullWidth) && (
-                <div className="w-full xl:w-auto xl:min-w-[780px] 2xl:min-w-[840px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
+              <div className="w-full xl:w-auto xl:min-w-[680px] 2xl:min-w-[740px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
                 <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d] gap-2 flex-wrap sm:flex-nowrap">
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet size={15} className="text-sky-300 shrink-0" />
@@ -5486,10 +5485,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                   </div>
                 )}
               </div>
-              )}
 
               {/* LADO DIREITO: ÁREA RESERVADA PARA TABELAS/VISÕES DO PAINEL LATERAL */}
-              <div className={`space-y-4 w-full min-w-0 ${planRightTab === 'visao3' && opFullWidth ? 'flex-1 w-full max-w-none' : 'flex-1 xl:max-w-[800px] 2xl:max-w-[840px]'}`}>
+              <div className="flex-1 space-y-4 w-full min-w-0">
                 {/* 3 BOTÕES DE VISÃO DO PAINEL LATERAL (CONFORME SOLICITADO) */}
                 <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/90 shadow-2xs">
                   <button
@@ -6234,36 +6232,15 @@ export const PcpJsMartinsPage: React.FC = () => {
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setOpFullWidth(prev => !prev)}
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-900/60 hover:bg-teal-800 text-teal-200 hover:text-white text-[10.5px] font-bold border border-teal-400/30 transition-all cursor-pointer shadow-xs"
-                          title={opFullWidth ? "Exibir lado a lado com a Visão Comparativa" : "Expandir para 100% da tela"}
-                        >
-                          {opFullWidth ? (
-                            <>
-                              <Minimize2 size={12} className="text-teal-300" />
-                              <span>Dividir Tela</span>
-                            </>
-                          ) : (
-                            <>
-                              <Maximize2 size={12} className="text-teal-300" />
-                              <span>100% da Tela</span>
-                            </>
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={handleOpenConfigOperacional}
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-900/60 hover:bg-teal-800 text-teal-200 hover:text-white text-[10.5px] font-bold border border-teal-400/30 transition-all cursor-pointer shadow-xs"
-                          title="Configurar Metas e Capacidades"
-                        >
-                          <Settings2 size={12} className="text-teal-300" />
-                          <span>Metas & Capacidades</span>
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={handleOpenConfigOperacional}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-900/60 hover:bg-teal-800 text-teal-200 hover:text-white text-[10.5px] font-bold border border-teal-400/30 transition-all cursor-pointer shadow-xs"
+                        title="Configurar Metas e Capacidades"
+                      >
+                        <Settings2 size={12} className="text-teal-300" />
+                        <span>Metas & Capacidades</span>
+                      </button>
                     </div>
 
                     {/* Linha Superior: 3 Termômetros de Capacidade + 2 Velocímetros de Atraso */}
