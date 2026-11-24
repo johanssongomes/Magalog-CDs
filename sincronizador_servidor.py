@@ -175,6 +175,8 @@ LEFT JOIN GEMCO.CAD_ITPROD@PRODUCAO B ON B.CODITPROD = A.CODITPROD
 LEFT JOIN GEMCO.CAD_PROD@PRODUCAO C ON C.CODPROD = B.CODPROD
 LEFT JOIN ADM.MAG_T_ARVORE_PRODUTO D ON D.CODITPROD = A.CODITPROD
 WHERE A.CODFIL = 994
+  AND (NVL(A.FISICO, 0) + NVL(A.TECNICO, 0) > 0)
+ORDER BY A.CODITPROD, L.CODFIL
 """
 
 def write_status(data):
@@ -476,19 +478,28 @@ def sync_supply():
         })
 
         conn, driver_used = get_oracle_connection()
+        print(f"[ORACLE] Conexão estabelecida com sucesso usando '{driver_used}'.")
         write_supply_status({
             "status": "running",
             "step": "querying",
             "progress": 30,
-            "message": "Consultando estoque Supply de 45 lojas..."
+            "message": "Consultando estoque Supply de 45 lojas no Oracle..."
         })
 
+        print("[ORACLE] Executando consulta SQL do Supply (CD 994 com estoque > 0 x 45 Lojas)...")
+        print("[ORACLE] Aguardando retorno da query no banco Oracle MLPDW...")
+        q_start = time.time()
         cursor = conn.cursor()
         cursor.execute(SUPPLY_QUERY)
         col_names = [d[0] for d in cursor.description]
         rows = cursor.fetchall()
         total_rows = len(rows)
-        print(f"[ORACLE] Total retornado Supply: {total_rows:,} registros.")
+        q_time = round(time.time() - q_start, 1)
+        print(f"[ORACLE] Total retornado Supply: {total_rows:,} registros em {q_time}s.")
+
+        cursor.close()
+        conn.close()
+        conn = None
 
         if total_rows == 0:
             write_supply_status({
@@ -505,20 +516,31 @@ def sync_supply():
             "step": "clearing",
             "progress": 50,
             "total_found": total_rows,
-            "message": "Limpando tabela antiga de Supply..."
+            "message": f"Obtidos {total_rows:,} registros. Limpando tabela antiga no Supabase..."
         })
 
         # Limpa dados de supply_lojas
-        requests.delete(
+        print("[SUPABASE] Limpando tabela antiga de supply_lojas...")
+        del_res = requests.delete(
             f"{SUPABASE_URL}/rest/v1/supply_lojas?codfil=eq.994",
             headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"},
             verify=False,
             timeout=30
         )
+        print(f"[SUPABASE] Limpeza concluída (Status {del_res.status_code}).")
 
-        batch_size = 300
+        write_supply_status({
+            "status": "running",
+            "step": "uploading",
+            "progress": 60,
+            "total_found": total_rows,
+            "message": f"Gravando {total_rows:,} registros em lotes no Supabase..."
+        })
+
+        batch_size = 500
         serialized = [serialize_row(col_names, r) for r in rows]
         inserted = 0
+        total_batches = (total_rows + batch_size - 1) // batch_size
         headers = {
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -528,6 +550,7 @@ def sync_supply():
 
         for i in range(0, total_rows, batch_size):
             batch = serialized[i : i + batch_size]
+            b_idx = i // batch_size + 1
             res = requests.post(
                 f"{SUPABASE_URL}/rest/v1/supply_lojas",
                 headers=headers,
@@ -535,15 +558,21 @@ def sync_supply():
                 verify=False,
                 timeout=45
             )
+            if res.status_code not in (200, 201):
+                raise RuntimeError(f"Erro ao inserir lote Supply {b_idx}: {res.status_code} - {res.text}")
             inserted += len(batch)
             pct = 60 + int((inserted / total_rows) * 35)
+            if b_idx % 10 == 0 or inserted == total_rows:
+                print(f"[SUPABASE] Progresso Supply: lote {b_idx}/{total_batches} ({inserted:,}/{total_rows:,} registros)...")
             write_supply_status({
                 "status": "running",
                 "step": "uploading",
                 "progress": pct,
+                "current_batch": b_idx,
+                "total_batches": total_batches,
                 "inserted": inserted,
                 "total": total_rows,
-                "message": f"Gravando Supply ({inserted:,}/{total_rows:,})..."
+                "message": f"Gravando lote {b_idx}/{total_batches} ({inserted:,}/{total_rows:,})..."
             })
 
         elapsed = round(time.time() - start_time, 1)
