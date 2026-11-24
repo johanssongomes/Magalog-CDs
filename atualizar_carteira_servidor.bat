@@ -33,13 +33,22 @@ if %errorlevel% neq 0 (
 :: 3. Executa o script python imediatamente sem menus ou pausas
 set "SCRIPT_FILE=%~dp0sincronizador_servidor.py"
 if not exist "%SCRIPT_FILE%" (
+    set "SCRIPT_FILE=%~dp0sync_pcp_oracle.py"
+)
+if not exist "%SCRIPT_FILE%" (
+    set "SCRIPT_FILE=%~dp0scripts\sync_pcp_oracle.py"
+)
+if not exist "%SCRIPT_FILE%" (
     set "SCRIPT_FILE=%~dp0scripts\standalone_oracle_sync.py"
+)
+if not exist "%SCRIPT_FILE%" (
+    set "SCRIPT_FILE=%~dp0standalone_oracle_sync.py"
 )
 
 if not exist "%SCRIPT_FILE%" (
     color 0C
-    echo [ERRO] O arquivo sincronizador_servidor.py nao foi encontrado na mesma pasta!
-    echo Certifique-se de copiar ambos os arquivos (atualizar_carteira_servidor.bat e sincronizador_servidor.py).
+    echo [ERRO] O arquivo sincronizador_servidor.py ou sync_pcp_oracle.py nao foi encontrado na mesma pasta!
+    echo Certifique-se de copiar os arquivos para a mesma pasta.
     echo.
     pause
     exit /b 1

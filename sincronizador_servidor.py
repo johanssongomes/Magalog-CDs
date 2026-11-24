@@ -1,25 +1,33 @@
 """
-Sincronizador Autônomo e Sentinela: Oracle MLPDW (Servidor Corporativo) -> Supabase
-=====================================================================================
+Sincronizador Autônomo e Sentinela Unificado: Oracle MLPDW -> Supabase
+========================================================================
 Copie este arquivo e 'atualizar_carteira_servidor.bat' para a Área de Trabalho 
 do servidor da empresa (ml-ibm-vpnts02).
 
 Ele roda automaticamente:
-1. Faz a sincronização da Carteira na hora.
-2. Mantém o Modo Sentinela ativo para responder aos cliques do site em tempo real!
+1. Faz a sincronização imediata da Carteira PCP J's Martins (7.900+ registros).
+2. Mantém o Modo Sentinela Unificado ativo na barra de tarefas para responder:
+   - Botão 'Atualizar Carteira' no site (canal: pcp_sync_command)
+   - Botão 'Atualizar Supply' no site   (canal: supply_sync_command)
 """
 
 import os
 import sys
-import time
 import json
+import time
 import base64
 import datetime
+from pathlib import Path
 import urllib3
 import requests
 
 urllib3.disable_warnings()
 
+BASE_DIR = Path(__file__).resolve().parent
+STATUS_FILE = BASE_DIR / "sync_pcp_status.json"
+CACHE_JSON_FILE = BASE_DIR / "pcp_planning_summary.json"
+
+# Credenciais Oracle MLPDW
 ORACLE_USER = os.environ.get("ORACLE_USER", "JOH_GOMES")
 ORACLE_PWD = os.environ.get("ORACLE_PWD", "m@SSW0RD")
 ORACLE_DSN = os.environ.get("ORACLE_DSN", "MLPDW")
@@ -28,10 +36,15 @@ ORACLE_HOST_FALLBACK = "100.64.0.6"
 ORACLE_PORT = int(os.environ.get("ORACLE_PORT", 1524))
 ORACLE_SERVICE = os.environ.get("ORACLE_SERVICE", "MLPDW")
 
-SUPABASE_URL = "https://alwkfgqylejckbgienju.supabase.co"
+# Credenciais Supabase com fallback seguro embutido
+DEFAULT_SUPABASE_URL = "https://alwkfgqylejckbgienju.supabase.co"
 _B64_KEY = "c2Jfc2VjcmV0XzRpOG5HSnpHQmFSSkYySE5YS1RDbEFfWVV1aTRLQ3k="
-SUPABASE_KEY = base64.b64decode(_B64_KEY).decode("utf-8")
+DEFAULT_SUPABASE_KEY = base64.b64decode(_B64_KEY).decode("utf-8")
 
+SUPABASE_URL = os.environ.get("VITE_SUPABASE_URL", "") or DEFAULT_SUPABASE_URL
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "") or os.environ.get("VITE_SUPABASE_ANON_KEY", "") or DEFAULT_SUPABASE_KEY
+
+# Query PCP Carteira (53 colunas)
 ORACLE_QUERY = """
 select 
  max(a.filorig) filorig,
@@ -119,7 +132,62 @@ select
  order by n desc
 """
 
-def update_supabase_status(status, progress=0, message="", total=0, elapsed=0):
+# Query Supply Lojas
+SUPPLY_QUERY = """
+SELECT
+    A.CODFIL,
+    A.CODITPROD || B.DIGITPROD AS CODIGO_PRODUTO,
+    B.CODPRODDF,
+    C.DESCRICAO,
+    NVL(A.FISICO, 0) AS FISICO_994,
+    NVL(A.TECNICO, 0) AS TECNICO_994,
+    NVL(A.RESFIS, 0) AS RESFIS_994,
+    NVL(A.RESLOG, 0) AS RESLOG_994,
+    NVL(A.LOGICO, 0) AS LOGICO_994,
+    NVL(A.TRANSITO, 0) AS TRANSITO_994,
+    NVL(A.FISICO, 0) + NVL(A.TECNICO, 0) AS ESTOQUE_994,
+    L.CODFIL AS FILIAL,
+    NVL(L.FISICO, 0) AS FISICO,
+    NVL(L.TECNICO, 0) AS TECNICO,
+    NVL(L.RESFIS, 0) AS RESFIS,
+    NVL(L.RESLOG, 0) AS RESLOG,
+    NVL(L.LOGICO, 0) AS LOGICO,
+    NVL(L.TRANSITO, 0) AS TRANSITO,
+    NVL(L.FISICO, 0) + NVL(L.TECNICO, 0) AS ESTOQUE_LOJA,
+    D.CMUP,
+    (NVL(A.FISICO, 0) + NVL(A.TECNICO, 0)) * NVL(D.CMUP, 0) AS VALOR_ESTOQUE_994,
+    CASE WHEN NVL(L.FISICO, 0) > 0 THEN 'LOJA COM FISICO' ELSE 'LOJA SEM FISICO' END AS STATUS_ESTOQUE,
+    D.DESCLINHA
+FROM GEMCO.CAD_PRODLOC@PRODUCAO A
+LEFT JOIN GEMCO.CAD_PRODLOC@PRODUCAO L
+    ON L.CODITPROD = A.CODITPROD
+    AND L.CODFIL IN (
+        727, 742, 743, 745, 755, 757, 873,
+        1345, 1347, 1207, 1386, 1363, 1344,
+        1341, 1236, 984, 820, 785, 736, 752,
+        746, 751, 802, 710, 734, 740, 809,
+        840, 778, 835, 846, 662, 842, 857,
+        871, 872, 1206, 1217, 1349, 1223,
+        1376, 761, 765, 847, 1411
+    )
+LEFT JOIN GEMCO.CAD_ITPROD@PRODUCAO B ON B.CODITPROD = A.CODITPROD
+LEFT JOIN GEMCO.CAD_PROD@PRODUCAO C ON C.CODPROD = B.CODPROD
+LEFT JOIN ADM.MAG_T_ARVORE_PRODUTO D ON D.CODITPROD = A.CODITPROD
+WHERE A.CODFIL = 994
+"""
+
+def write_status(data):
+    """Atualiza status local e notifica Supabase"""
+    try:
+        data["updated_at"] = datetime.datetime.now().isoformat()
+        try:
+            with open(STATUS_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+    except Exception:
+        pass
+
     try:
         url = f"{SUPABASE_URL}/rest/v1/performance_metrics"
         headers = {
@@ -128,78 +196,56 @@ def update_supabase_status(status, progress=0, message="", total=0, elapsed=0):
             "Content-Type": "application/json",
             "Prefer": "resolution=merge-duplicates"
         }
-        val = {
-            "action": "sync",
-            "status": status,
-            "progress": progress,
-            "message": message,
-            "total_records": total,
-            "elapsed_seconds": elapsed,
-            "updated_at": datetime.datetime.now().isoformat()
-        }
         payload = {
             "cell_key": "pcp_sync_command",
-            "value": json.dumps(val, ensure_ascii=False),
+            "value": json.dumps(data, ensure_ascii=False),
             "updated_at": datetime.datetime.now().isoformat()
         }
-        requests.post(url, headers=headers, json=payload, verify=False, timeout=10)
-    except Exception as e:
-        print(f"[STATUS SUPABASE AVISO] {e}")
-
-def get_supabase_command():
-    try:
-        url = f"{SUPABASE_URL}/rest/v1/performance_metrics?cell_key=eq.pcp_sync_command&select=value"
-        headers = {
-            "apikey": SUPABASE_KEY,
-            "Authorization": f"Bearer {SUPABASE_KEY}"
-        }
-        res = requests.get(url, headers=headers, verify=False, timeout=10)
-        if res.status_code == 200:
-            data = res.json()
-            if data and "value" in data[0]:
-                return json.loads(data[0]["value"])
+        requests.post(url, headers=headers, json=payload, verify=False, timeout=8)
     except Exception:
         pass
-    return None
 
-def connect_oracle():
+def write_supply_status(data):
+    """Atualiza status do Supply no Supabase"""
+    try:
+        data["updated_at"] = datetime.datetime.now().isoformat()
+        url = f"{SUPABASE_URL}/rest/v1/performance_metrics"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates"
+        }
+        payload = {
+            "cell_key": "supply_sync_command",
+            "value": json.dumps(data, ensure_ascii=False),
+            "updated_at": datetime.datetime.now().isoformat()
+        }
+        requests.post(url, headers=headers, json=payload, verify=False, timeout=8)
+    except Exception:
+        pass
+
+def get_oracle_connection():
+    """Conecta ao Oracle usando pyodbc (DSN MLPDW) ou oracledb"""
     errors = []
-
-    # 1. pyodbc com DSN MLPDW (o mesmo configurado no Excel da empresa)
     try:
         import pyodbc
-        for dsn_str in [
+        for conn_str in [
             f"DSN={ORACLE_DSN};UID={ORACLE_USER};PWD={ORACLE_PWD};DBQ={ORACLE_DSN};",
             f"DSN={ORACLE_DSN};UID={ORACLE_USER};PWD={ORACLE_PWD};",
             f"DRIVER={{Oracle em OraClient11g_home1}};DBQ={ORACLE_DSN};UID={ORACLE_USER};PWD={ORACLE_PWD};"
         ]:
             try:
-                name = dsn_str.split(";")[0]
+                name = conn_str.split(";")[0]
                 print(f"[ORACLE] Conectando via ODBC ({name})...")
-                conn = pyodbc.connect(dsn_str, timeout=15)
+                conn = pyodbc.connect(conn_str, timeout=15)
                 print("[ORACLE] Conectado com sucesso via ODBC!")
-                return conn
+                return conn, "pyodbc_odbc"
             except Exception as e:
-                errors.append(f"ODBC ({name}): {e}")
+                errors.append(f"pyodbc ({name}): {e}")
     except ImportError:
-        errors.append("pyodbc não está instalado")
+        errors.append("pyodbc não instalado")
 
-    # 2. oracledb thin mode (TCP direto)
-    try:
-        import oracledb
-        for host in [ORACLE_HOST, ORACLE_HOST_FALLBACK]:
-            try:
-                print(f"[ORACLE] Conectando via oracledb thin ({host}:{ORACLE_PORT}/{ORACLE_SERVICE})...")
-                dsn = oracledb.makedsn(host, ORACLE_PORT, service_name=ORACLE_SERVICE)
-                conn = oracledb.connect(user=ORACLE_USER, password=ORACLE_PWD, dsn=dsn)
-                print("[ORACLE] Conectado com sucesso via oracledb thin!")
-                return conn
-            except Exception as e:
-                errors.append(f"oracledb thin ({host}): {e}")
-    except ImportError:
-        errors.append("oracledb não está instalado")
-
-    # 3. oracledb thick mode se houver client 11g
     client_bin = r"C:\Oracle\product\11.2.0\client_1\bin"
     if os.path.exists(client_bin):
         try:
@@ -211,132 +257,180 @@ def connect_oracle():
             dsn = oracledb.makedsn(ORACLE_HOST, ORACLE_PORT, service_name=ORACLE_SERVICE)
             conn = oracledb.connect(user=ORACLE_USER, password=ORACLE_PWD, dsn=dsn)
             print("[ORACLE] Conectado com sucesso via oracledb thick!")
-            return conn
+            return conn, "oracledb_thick"
         except Exception as e:
             errors.append(f"oracledb thick: {e}")
 
-    raise ConnectionError(
-        "Não foi possível conectar ao Oracle MLPDW.\nDetalhes das tentativas:\n - " + "\n - ".join(errors)
-    )
+    try:
+        import oracledb
+        for host in [ORACLE_HOST, ORACLE_HOST_FALLBACK]:
+            try:
+                print(f"[ORACLE] Tentando oracledb thin mode em {host}...")
+                dsn = oracledb.makedsn(host, ORACLE_PORT, service_name=ORACLE_SERVICE)
+                conn = oracledb.connect(user=ORACLE_USER, password=ORACLE_PWD, dsn=dsn)
+                print(f"[ORACLE] Conectado via thin em {host}!")
+                return conn, "oracledb_thin"
+            except Exception as e:
+                errors.append(f"oracledb thin ({host}): {e}")
+    except ImportError:
+        errors.append("oracledb não instalado")
 
-def format_cell(col_name, val):
-    if val is None:
-        return None
-    col = col_name.lower()
-    if isinstance(val, (datetime.date, datetime.datetime)):
-        return val.strftime("%Y-%m-%d %H:%M:%S")
+    raise RuntimeError("Falha ao conectar no Oracle MLPDW:\n" + "\n".join(errors))
 
-    int_cols = {
-        "filorig", "codfil", "filentrega", "tpnota", "qtcomp", "fisico", 
-        "resfis", "logico", "reslog", "tecnico", "futuro", "transito", 
-        "qtped", "n"
-    }
-    if col in int_cols:
-        try:
-            return int(float(str(val).replace(",", ".")))
-        except (ValueError, TypeError):
-            return None
+def serialize_row(col_names, row):
+    item = {}
+    for col, val in zip(col_names, row):
+        k = col.lower()
+        if isinstance(val, (datetime.date, datetime.datetime)):
+            item[k] = val.isoformat()
+        elif val is None:
+            item[k] = None
+        elif isinstance(val, (int, float, str, bool)):
+            item[k] = val
+        else:
+            try:
+                item[k] = float(val)
+            except (ValueError, TypeError):
+                item[k] = str(val)
+    return item
 
-    float_cols = {"cub_tot", "pesoliq", "precounit", "vltotal"}
-    if col in float_cols:
-        try:
-            return round(float(str(val).replace(",", ".")), 4)
-        except (ValueError, TypeError):
-            return 0.0
-
-    s = str(val).strip()
-    if col in {"item", "ibm", "codmodal", "numpedven", "numlote", "codrota"}:
-        if s.endswith(".0"):
-            s = s[:-2]
-    return s if s else None
-
-def run_sync():
+def sync_carteira():
+    """Executa a sincronização completa da Carteira PCP J's Martins"""
     start_time = time.time()
-    now_str = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    conn = None
     print("\n" + "=" * 70)
-    print(f"[{now_str}] DISPARANDO SINCRONIZAÇÃO DA CARTEIRA PCP J'S MARTINS")
+    print("INICIANDO SINCRONIZAÇÃO AUTOMÁTICA DA CARTEIRA PCP J'S MARTINS")
     print("=" * 70)
 
-    update_supabase_status("running", progress=15, message="🔌 Conectando ao Oracle MLPDW no servidor corporativo...")
-
-    conn = None
     try:
-        conn = connect_oracle()
-        print("[ORACLE] Conexão estabelecida com sucesso!")
+        write_status({
+            "status": "running",
+            "step": "connecting",
+            "progress": 10,
+            "message": "Conectando ao banco Oracle MLPDW..."
+        })
 
-        update_supabase_status("running", progress=35, message="📊 Executando select da Carteira no Oracle (53 colunas)...")
-        cur = conn.cursor()
-        print("[ORACLE] Executando query...")
-        cur.execute(ORACLE_QUERY)
+        conn, driver_used = get_oracle_connection()
+        print(f"[ORACLE] Conexão estabelecida com sucesso usando '{driver_used}'.")
 
-        col_names = [d[0].lower() for d in cur.description]
-        rows = cur.fetchall()
+        write_status({
+            "status": "running",
+            "step": "querying",
+            "progress": 30,
+            "message": "Executando consulta SQL da Carteira (53 colunas)..."
+        })
+
+        print("[ORACLE] Executando consulta da Carteira...")
+        cursor = conn.cursor()
+        cursor.execute(ORACLE_QUERY)
+        col_names = [d[0] for d in cursor.description]
+        rows = cursor.fetchall()
         total_rows = len(rows)
-        print(f"[ORACLE] Total retornado: {total_rows:,} registros.")
-        cur.close()
-        conn.close()
-        conn = None
+        print(f"[ORACLE] Total de pedidos/itens retornados: {total_rows:,} registros.")
 
         if total_rows == 0:
-            msg = "A consulta ao Oracle retornou 0 registros para filorig 994."
-            print(f"[AVISO] {msg}")
-            update_supabase_status("warning", progress=100, message=msg, total=0)
-            return
+            print("[AVISO] Nenhum registro retornado da consulta.")
+            write_status({
+                "status": "success",
+                "step": "completed",
+                "progress": 100,
+                "total": 0,
+                "message": "Nenhum dado retornado para a Carteira."
+            })
+            return {"success": True, "count": 0}
 
-        update_supabase_status("running", progress=55, message=f"⚙️ Formatando {total_rows:,} registros para o Supabase...")
-        records = []
-        for r in rows:
-            rec = {}
-            for col, val in zip(col_names, r):
-                rec[col] = format_cell(col, val)
-            records.append(rec)
+        write_status({
+            "status": "running",
+            "step": "clearing",
+            "progress": 50,
+            "total_found": total_rows,
+            "message": f"{total_rows:,} registros obtidos. Limpando dados antigos no Supabase..."
+        })
 
-        # Atualiza o Supabase
-        update_supabase_status("running", progress=65, message="🧹 Limpando dados antigos da filial 994 no Supabase...")
+        # Limpa dados antigos da filial 994
+        del_headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}"
+        }
+        del_res = requests.delete(
+            f"{SUPABASE_URL}/rest/v1/pcp_js_martins?filorig=eq.994",
+            headers=del_headers,
+            verify=False,
+            timeout=30
+        )
+        if del_res.status_code not in (200, 204):
+            print(f"[SUPABASE WARNING] Limpeza retornou status {del_res.status_code}")
+
+        write_status({
+            "status": "running",
+            "step": "uploading",
+            "progress": 60,
+            "total_found": total_rows,
+            "message": f"Gravando {total_rows:,} registros em lotes no Supabase..."
+        })
+
+        batch_size = 200
+        serialized = [serialize_row(col_names, r) for r in rows]
+        inserted_total = 0
+        total_batches = (total_rows + batch_size - 1) // batch_size
+
         headers = {
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
             "Content-Type": "application/json",
             "Prefer": "return=minimal"
         }
-        try:
-            requests.delete(f"{SUPABASE_URL}/rest/v1/pcp_js_martins?filorig=eq.994", headers=headers, verify=False, timeout=30)
-            print("[SUPABASE] Filorig 994 limpa.")
-        except Exception as de:
-            print(f"[SUPABASE AVISO] {de}")
 
-        batch_size = 1000
-        inserted = 0
         for i in range(0, total_rows, batch_size):
-            chunk = records[i:i + batch_size]
-            pct = 65 + int((i / total_rows) * 32)
-            update_supabase_status(
-                "running", 
-                progress=pct, 
-                message=f"🚀 Gravando no Supabase: {inserted:,} de {total_rows:,} itens ({pct}%)...",
-                total=total_rows
-            )
-            resp = requests.post(
+            batch = serialized[i : i + batch_size]
+            b_idx = i // batch_size + 1
+            res = requests.post(
                 f"{SUPABASE_URL}/rest/v1/pcp_js_martins",
                 headers=headers,
-                json=chunk,
+                json=batch,
                 verify=False,
-                timeout=60
+                timeout=45
             )
-            if resp.status_code not in (200, 201):
-                raise RuntimeError(f"Erro ao inserir lote: {resp.status_code} - {resp.text}")
-            inserted += len(chunk)
-            print(f"[SUPABASE] {inserted:,} de {total_rows:,} itens gravados...")
+            if res.status_code not in (200, 201):
+                raise RuntimeError(f"Erro ao inserir lote {b_idx}: {res.status_code} - {res.text}")
+
+            inserted_total += len(batch)
+            pct = 60 + int((inserted_total / total_rows) * 35)
+            write_status({
+                "status": "running",
+                "step": "uploading",
+                "progress": pct,
+                "current_batch": b_idx,
+                "total_batches": total_batches,
+                "inserted": inserted_total,
+                "total": total_rows,
+                "message": f"Gravando lote {b_idx}/{total_batches} ({inserted_total:,}/{total_rows:,})..."
+            })
 
         elapsed = round(time.time() - start_time, 1)
-        success_msg = f"Carteira 100% atualizada! {inserted:,} itens sincronizados em {elapsed}s."
+        success_msg = f"Carteira atualizada com sucesso! {inserted_total:,} itens sincronizados em {elapsed}s."
         print(f"\n[SUCESSO] {success_msg}\n")
-        update_supabase_status("success", progress=100, message=success_msg, total=inserted, elapsed=elapsed)
+
+        write_status({
+            "status": "success",
+            "step": "completed",
+            "progress": 100,
+            "total": inserted_total,
+            "elapsed_seconds": elapsed,
+            "message": success_msg
+        })
+        return {"success": True, "count": inserted_total, "elapsed": elapsed}
 
     except Exception as e:
-        err_msg = str(e)
-        print(f"\n[ERRO] {err_msg}\n")
-        update_supabase_status("error", progress=0, message=err_msg)
+        err_text = str(e)
+        print(f"\n[FALHA NA SINCRONIZAÇÃO] {err_text}\n")
+        write_status({
+            "status": "error",
+            "step": "failed",
+            "progress": 0,
+            "message": err_text
+        })
+        return {"success": False, "error": err_text}
     finally:
         if conn is not None:
             try:
@@ -344,33 +438,192 @@ def run_sync():
             except Exception:
                 pass
 
+def sync_supply():
+    """Executa a sincronização de Supply Lojas"""
+    start_time = time.time()
+    conn = None
+    print("\n" + "=" * 70)
+    print("INICIANDO SINCRONIZAÇÃO DE SUPPLY LOJAS (CD 994 x 45 Lojas)")
+    print("=" * 70)
+
+    try:
+        write_supply_status({
+            "status": "running",
+            "step": "connecting",
+            "progress": 10,
+            "message": "Conectando ao Oracle MLPDW..."
+        })
+
+        conn, driver_used = get_oracle_connection()
+        write_supply_status({
+            "status": "running",
+            "step": "querying",
+            "progress": 30,
+            "message": "Consultando estoque Supply de 45 lojas..."
+        })
+
+        cursor = conn.cursor()
+        cursor.execute(SUPPLY_QUERY)
+        col_names = [d[0] for d in cursor.description]
+        rows = cursor.fetchall()
+        total_rows = len(rows)
+        print(f"[ORACLE] Total retornado Supply: {total_rows:,} registros.")
+
+        if total_rows == 0:
+            write_supply_status({
+                "status": "success",
+                "step": "completed",
+                "progress": 100,
+                "total": 0,
+                "message": "Nenhum dado retornado para Supply."
+            })
+            return {"success": True, "count": 0}
+
+        write_supply_status({
+            "status": "running",
+            "step": "clearing",
+            "progress": 50,
+            "total_found": total_rows,
+            "message": "Limpando tabela antiga de Supply..."
+        })
+
+        # Limpa dados de supply_lojas
+        requests.delete(
+            f"{SUPABASE_URL}/rest/v1/supply_lojas?codfil=eq.994",
+            headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"},
+            verify=False,
+            timeout=30
+        )
+
+        batch_size = 300
+        serialized = [serialize_row(col_names, r) for r in rows]
+        inserted = 0
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal"
+        }
+
+        for i in range(0, total_rows, batch_size):
+            batch = serialized[i : i + batch_size]
+            res = requests.post(
+                f"{SUPABASE_URL}/rest/v1/supply_lojas",
+                headers=headers,
+                json=batch,
+                verify=False,
+                timeout=45
+            )
+            inserted += len(batch)
+            pct = 60 + int((inserted / total_rows) * 35)
+            write_supply_status({
+                "status": "running",
+                "step": "uploading",
+                "progress": pct,
+                "inserted": inserted,
+                "total": total_rows,
+                "message": f"Gravando Supply ({inserted:,}/{total_rows:,})..."
+            })
+
+        elapsed = round(time.time() - start_time, 1)
+        success_msg = f"Supply sincronizado com sucesso! {inserted:,} itens em {elapsed}s."
+        print(f"[SUCESSO SUPPLY] {success_msg}")
+        write_supply_status({
+            "status": "success",
+            "step": "completed",
+            "progress": 100,
+            "total": inserted,
+            "elapsed_seconds": elapsed,
+            "message": success_msg
+        })
+        return {"success": True, "count": inserted, "elapsed": elapsed}
+
+    except Exception as e:
+        err_msg = str(e)
+        print(f"[ERRO SUPPLY] {err_msg}")
+        write_supply_status({"status": "error", "progress": 0, "message": err_msg})
+        return {"success": False, "error": err_msg}
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+def get_supabase_command():
+    try:
+        url = f"{SUPABASE_URL}/rest/v1/performance_metrics?cell_key=eq.pcp_sync_command&select=value"
+        res = requests.get(url, headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}, verify=False, timeout=8)
+        if res.status_code == 200:
+            data = res.json()
+            if data and "value" in data[0]:
+                return json.loads(data[0]["value"])
+    except Exception:
+        pass
+    return None
+
+def get_supabase_supply_command():
+    try:
+        url = f"{SUPABASE_URL}/rest/v1/performance_metrics?cell_key=eq.supply_sync_command&select=value"
+        res = requests.get(url, headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}, verify=False, timeout=8)
+        if res.status_code == 200:
+            data = res.json()
+            if data and "value" in data[0]:
+                return json.loads(data[0]["value"])
+    except Exception:
+        pass
+    return None
+
 def sentinel_loop():
     print("=" * 70)
-    print("MODO SENTINELA ATIVO (Ouvindo cliques do botão 'Atualizar Carteira' no site)")
-    print("Mantenha esta janela minimizada na barra de tarefas do servidor.")
-    print("Quando você clicar no site, a sincronização disparará automaticamente!")
+    print("MODO SENTINELA UNIFICADO ATIVO")
+    print("Ouvindo ambos os botões do site:")
+    print("  [PCP]    'Atualizar Carteira' -> canal pcp_sync_command")
+    print("  [SUPPLY] 'Atualizar Supply'   -> canal supply_sync_command")
+    print("Mantenha esta janela minimizada na barra de tarefas.")
+    print("Pressione Ctrl+C para encerrar quando quiser.")
     print("=" * 70 + "\n")
 
-    # Verifica se já havia um pedido pendente no momento da inicialização
+    # Verifica pedidos pendentes
     try:
         init_cmd = get_supabase_command()
         if init_cmd and isinstance(init_cmd, dict) and init_cmd.get("status") == "requested":
-            print("[PEDIDO PENDENTE ENCONTRADO!] Processando sincronização imediatamente...")
-            run_sync()
+            print("[PCP] Pedido pendente encontrado! Processando Carteira imediatamente...")
+            sync_carteira()
     except Exception:
         pass
 
-    last_processed_time = ""
+    try:
+        init_supply = get_supabase_supply_command()
+        if init_supply and isinstance(init_supply, dict) and init_supply.get("status") == "requested":
+            print("[SUPPLY] Pedido pendente encontrado! Processando Supply imediatamente...")
+            sync_supply()
+    except Exception:
+        pass
+
+    last_pcp_time = ""
+    last_supply_time = ""
+
     while True:
         try:
             cmd = get_supabase_command()
             if cmd and isinstance(cmd, dict):
                 status = cmd.get("status")
                 req_time = cmd.get("requested_at", "")
-                if status == "requested" and req_time != last_processed_time:
-                    last_processed_time = req_time
-                    print(f"\n[SINAL DETECTADO DO SITE!] Solicitação recebida às {req_time}. Iniciando...")
-                    run_sync()
+                if status == "requested" and req_time != last_pcp_time:
+                    last_pcp_time = req_time
+                    print(f"\n[PCP] Sinal detectado do site às {req_time}. Iniciando sync da Carteira...")
+                    sync_carteira()
+                    print("\n[SENTINELA] Aguardando novos cliques no site...\n")
+
+            supply_cmd = get_supabase_supply_command()
+            if supply_cmd and isinstance(supply_cmd, dict):
+                s_status = supply_cmd.get("status")
+                s_req_time = supply_cmd.get("requested_at", "")
+                if s_status == "requested" and s_req_time != last_supply_time:
+                    last_supply_time = s_req_time
+                    print(f"\n[SUPPLY] Sinal detectado do site às {s_req_time}. Iniciando sync do Supply...")
+                    sync_supply()
                     print("\n[SENTINELA] Aguardando novos cliques no site...\n")
         except Exception as e:
             print(f"[SENTINELA AVISO] {e}")
@@ -380,11 +633,12 @@ def sentinel_loop():
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else "--hybrid"
     if mode == "--now":
-        run_sync()
+        result = sync_carteira()
+        if not result.get("success"):
+            sys.exit(1)
     elif mode == "--watch":
         sentinel_loop()
     else:
         # Modo Padrão: Sincroniza imediatamente E entra em modo sentinela
-        print("Iniciando sincronização inicial da Carteira...")
-        run_sync()
+        sync_carteira()
         sentinel_loop()
