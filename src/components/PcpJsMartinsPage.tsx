@@ -1001,17 +1001,18 @@ export const PcpJsMartinsPage: React.FC = () => {
   })
   const [capacidadeAbaM3, setCapacidadeAbaM3] = useState<number>(() => {
     const saved = localStorage.getItem('pcp_cap_aba_m3')
-    return saved ? Number(saved) : 440
+    return saved ? Number(saved) : 500
   })
   const [capacidadeVendaM3, setCapacidadeVendaM3] = useState<number>(() => {
     const saved = localStorage.getItem('pcp_cap_venda_m3')
-    return saved ? Number(saved) : 400
+    return saved ? Number(saved) : 555
   })
   const [capacidadeCourrierPed, setCapacidadeCourrierPed] = useState<number>(() => {
     const saved = localStorage.getItem('pcp_cap_courrier_ped')
-    return saved ? Number(saved) : 600
+    return saved ? Number(saved) : 1200
   })
   const [showConfigOperacional, setShowConfigOperacional] = useState<boolean>(false)
+  const [isSavingConfigOp, setIsSavingConfigOp] = useState<boolean>(false)
   const [opFullWidth, setOpFullWidth] = useState<boolean>(true)
   const [tempMetaFaturamento, setTempMetaFaturamento] = useState<number>(metaFaturamento)
   const [tempCapAba, setTempCapAba] = useState<number>(capacidadeAbaM3)
@@ -1025,6 +1026,50 @@ export const PcpJsMartinsPage: React.FC = () => {
       return ['VENDAS', 'ABA']
     }
   })
+
+  // Carregar Metas & Capacidades compartilhadas do Supabase para todos os usuários/máquinas
+  useEffect(() => {
+    let isMounted = true
+    const fetchSharedMetas = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('performance_metrics')
+          .select('cell_key, value')
+          .in('cell_key', [
+            'pcp_op_meta_faturamento',
+            'pcp_op_cap_aba_m3',
+            'pcp_op_cap_venda_m3',
+            'pcp_op_cap_courrier_ped'
+          ])
+
+        if (!error && data && data.length > 0 && isMounted) {
+          data.forEach(item => {
+            const num = Number(item.value)
+            if (!isNaN(num) && num > 0) {
+              if (item.cell_key === 'pcp_op_meta_faturamento') {
+                setMetaFaturamento(num)
+                localStorage.setItem('pcp_meta_faturamento', String(num))
+              } else if (item.cell_key === 'pcp_op_cap_aba_m3') {
+                setCapacidadeAbaM3(num)
+                localStorage.setItem('pcp_cap_aba_m3', String(num))
+              } else if (item.cell_key === 'pcp_op_cap_venda_m3') {
+                setCapacidadeVendaM3(num)
+                localStorage.setItem('pcp_cap_venda_m3', String(num))
+              } else if (item.cell_key === 'pcp_op_cap_courrier_ped') {
+                setCapacidadeCourrierPed(num)
+                localStorage.setItem('pcp_cap_courrier_ped', String(num))
+              }
+            }
+          })
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar metas compartilhadas do Supabase:', err)
+      }
+    }
+
+    fetchSharedMetas()
+    return () => { isMounted = false }
+  }, [])
 
   useEffect(() => {
     try {
@@ -1040,16 +1085,35 @@ export const PcpJsMartinsPage: React.FC = () => {
     setShowConfigOperacional(true)
   }
 
-  const handleSaveConfigOperacional = () => {
+  const handleSaveConfigOperacional = async () => {
+    setIsSavingConfigOp(true)
     setMetaFaturamento(tempMetaFaturamento)
     setCapacidadeAbaM3(tempCapAba)
     setCapacidadeVendaM3(tempCapVenda)
     setCapacidadeCourrierPed(tempCapCourrier)
+
+    // 1. Salvar no cache local para resposta imediata
     localStorage.setItem('pcp_meta_faturamento', String(tempMetaFaturamento))
     localStorage.setItem('pcp_cap_aba_m3', String(tempCapAba))
     localStorage.setItem('pcp_cap_venda_m3', String(tempCapVenda))
     localStorage.setItem('pcp_cap_courrier_ped', String(tempCapCourrier))
-    setShowConfigOperacional(false)
+
+    // 2. Salvar na nuvem (Supabase) para refletir instantaneamente em todas as máquinas e usuários
+    try {
+      const now = new Date().toISOString()
+      const payload = [
+        { cell_key: 'pcp_op_meta_faturamento', value: String(tempMetaFaturamento), updated_at: now },
+        { cell_key: 'pcp_op_cap_aba_m3', value: String(tempCapAba), updated_at: now },
+        { cell_key: 'pcp_op_cap_venda_m3', value: String(tempCapVenda), updated_at: now },
+        { cell_key: 'pcp_op_cap_courrier_ped', value: String(tempCapCourrier), updated_at: now }
+      ]
+      await supabase.from('performance_metrics').upsert(payload, { onConflict: 'cell_key' })
+    } catch (err) {
+      console.error('Erro ao sincronizar metas no Supabase:', err)
+    } finally {
+      setIsSavingConfigOp(false)
+      setShowConfigOperacional(false)
+    }
   }
 
   // Ordenação da Visão Comparativa (padrão: Cubagem da Carteira decrescente)
@@ -7314,9 +7378,17 @@ export const PcpJsMartinsPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={handleSaveConfigOperacional}
-                              className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white transition-colors cursor-pointer shadow-xs"
+                              disabled={isSavingConfigOp}
+                              className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-xs font-bold text-white transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
                             >
-                              Salvar Parâmetros
+                              {isSavingConfigOp ? (
+                                <>
+                                  <RefreshCw size={13} className="animate-spin" />
+                                  <span>Salvando na nuvem...</span>
+                                </>
+                              ) : (
+                                <span>Salvar Parâmetros</span>
+                              )}
                             </button>
                           </div>
                         </div>
