@@ -4366,8 +4366,8 @@ export const PcpJsMartinsPage: React.FC = () => {
             opAtrasoVendaPedidosSet.add(ped)
           }
 
-          // Atraso Fat ABA: Peças com pedidos acima de 7 dias (calc_prazo === 'D+')
-          if (cat === 'ABA' && (r.calc_prazo === 'D+' || r.faixa_dias_reduzida === 'D+')) {
+          // Atraso Fat ABA: Peças com pedidos de Abastecimento acima de 7 dias (calc_prazo === 'D+'), sem contar RET, LEN e RLE
+          if (cat === 'ABA' && !isRetLenRle && (r.calc_prazo === 'D+' || r.faixa_dias_reduzida === 'D+')) {
             opAtrasoAbaPecas += qtd
           }
         })
