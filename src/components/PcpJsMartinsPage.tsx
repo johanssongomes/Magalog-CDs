@@ -991,6 +991,20 @@ export const PcpJsMartinsPage: React.FC = () => {
   const [tempCapAba, setTempCapAba] = useState<number>(capacidadeAbaM3)
   const [tempCapVenda, setTempCapVenda] = useState<number>(capacidadeVendaM3)
   const [tempCapCourrier, setTempCapCourrier] = useState<number>(capacidadeCourrierPed)
+  const [opFiltroValores, setOpFiltroValores] = useState<('VENDAS' | 'ABA')[]>(() => {
+    try {
+      const s = localStorage.getItem('pcp_op_filtro_valores')
+      return s ? JSON.parse(s) : ['VENDAS', 'ABA']
+    } catch {
+      return ['VENDAS', 'ABA']
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('pcp_op_filtro_valores', JSON.stringify(opFiltroValores))
+    } catch { }
+  }, [opFiltroValores])
 
   const handleOpenConfigOperacional = () => {
     setTempMetaFaturamento(metaFaturamento)
@@ -4283,22 +4297,31 @@ export const PcpJsMartinsPage: React.FC = () => {
         const opAtrasoVendaPedidosSet = new Set<string>()
         let opAtrasoAbaPecas = 0
 
-        enrichedForComparative.forEach(r => {
-          const mod = String(r.calc_modalidade || r.modalidade || '').toUpperCase()
-          const cod = String(r.codmodal || r.CODMODAL || '').toUpperCase()
-          const desc = String(r.descricaomodal || r.DESCRICAOMODAL || '').toUpperCase()
-          const raw = `${mod} ${desc} ${cod}`
+        enrichedBase
+          .filter(r => String(r.calc_fllibfat || r.fllibfat || '').trim().toUpperCase() === 'S')
+          .forEach(r => {
+            const mod = String(r.calc_modalidade || r.modalidade || '').toUpperCase()
+            const cod = String(r.codmodal || r.CODMODAL || '').toUpperCase()
+            const desc = String(r.descricaomodal || r.DESCRICAOMODAL || '').toUpperCase()
+            const raw = `${mod} ${desc} ${cod}`
 
-          let cat: OpModalKey = 'VENDAS'
-          if (raw.includes('ABA')) {
-            cat = 'ABA'
-          } else if (raw.includes('COUR') || raw.includes('SEDEX') || raw.includes('RDP') || raw.includes('ESE') || raw.includes('CD0') || raw.includes('CBK')) {
-            cat = 'COURRIER'
-          } else if (raw.includes('TRANSF') || raw.includes('DIF') || raw.includes('MUL') || raw.includes('RTY') || raw.includes('RYR') || raw.includes('BAL')) {
-            cat = 'TRANSFERENCIA'
-          } else {
-            cat = 'VENDAS'
-          }
+            const isRetLenRle =
+              cod === 'RET' || cod === 'LEN' || cod === 'RLE' ||
+              desc.includes('RET') || desc.includes('LEN') || desc.includes('RLE') ||
+              mod.includes('RET') || mod.includes('LEN') || mod.includes('RLE')
+
+            let cat: OpModalKey = 'VENDAS'
+            if (isRetLenRle) {
+              cat = 'VENDAS'
+            } else if (raw.includes('ABA')) {
+              cat = 'ABA'
+            } else if (raw.includes('COUR') || raw.includes('SEDEX') || raw.includes('RDP') || raw.includes('ESE') || raw.includes('CD0') || raw.includes('CBK')) {
+              cat = 'COURRIER'
+            } else if (raw.includes('TRANSF') || raw.includes('DIF') || raw.includes('MUL') || raw.includes('RTY') || raw.includes('RYR') || raw.includes('BAL')) {
+              cat = 'TRANSFERENCIA'
+            } else {
+              cat = 'VENDAS'
+            }
 
           const statusOp = String(r.calc_status_op || '').toUpperCase()
           const isProc = statusOp.includes('PROCESSO')
@@ -4407,6 +4430,28 @@ export const PcpJsMartinsPage: React.FC = () => {
         const opPctProcesso = opTotalConsValor > 0 ? (opTotalProcValor / opTotalConsValor) * 100 : 0
         const opPctMeta = metaFaturamento > 0 ? (opTotalConsValor / metaFaturamento) * 100 : 0
         const opSaldoMeta = opTotalConsValor - metaFaturamento
+
+        // Valores filtrados pela segmentação dos botões no cabeçalho (Vendas / ABA)
+        let opValoresCart = 0
+        let opValoresProc = 0
+        if (opFiltroValores.includes('VENDAS')) {
+          opValoresCart += opModalDataMap['VENDAS'].carteira.valor
+          opValoresProc += opModalDataMap['VENDAS'].processo.valor
+        }
+        if (opFiltroValores.includes('ABA')) {
+          opValoresCart += opModalDataMap['ABA'].carteira.valor
+          opValoresProc += opModalDataMap['ABA'].processo.valor
+        }
+        if (!opFiltroValores.includes('VENDAS') && !opFiltroValores.includes('ABA')) {
+          opValoresCart = opTotalCartValor
+          opValoresProc = opTotalProcValor
+        }
+
+        const opValoresCons = opValoresCart + opValoresProc
+        const opValoresPctCarteira = opValoresCons > 0 ? (opValoresCart / opValoresCons) * 100 : 0
+        const opValoresPctProcesso = opValoresCons > 0 ? (opValoresProc / opValoresCons) * 100 : 0
+        const opValoresPctMeta = metaFaturamento > 0 ? (opValoresCons / metaFaturamento) * 100 : 0
+        const opValoresSaldoMeta = opValoresCons - metaFaturamento
 
         const opTotalDiasCarteira = opRows.reduce((acc, r) => acc + r.dias.carteira, 0)
         const opTotalDiasProcesso = opRows.reduce((acc, r) => acc + r.dias.processo, 0)
@@ -6485,7 +6530,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                   <div className="bg-[#0a192f] rounded-2xl border border-sky-500/25 p-4 text-white shadow-2xl flex flex-col space-y-4 w-full select-text overflow-hidden">
                     {/* Barra Superior de Controles e Configuração da Visão 3 */}
                     <div className="flex items-center justify-between gap-2 flex-wrap border-b border-sky-500/20 pb-2.5">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Activity size={16} className="text-sky-400" />
                         <span className="text-[12px] font-black tracking-wider uppercase text-sky-100">
                           Painel Operacional por Modalidade
@@ -6493,6 +6538,50 @@ export const PcpJsMartinsPage: React.FC = () => {
                         <span className="text-[9.5px] px-2 py-0.5 rounded-full bg-sky-950/80 text-sky-300 border border-sky-500/30 font-bold">
                           Capacidade & Giro Diário
                         </span>
+
+                        {/* Segmentação dos Valores em R$: Vendas e ABA (podendo marcar um ou ambos) */}
+                        <div className="flex items-center gap-1 bg-[#06192e] p-0.5 rounded-lg border border-sky-500/30 shadow-xs ml-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpFiltroValores(prev => {
+                                if (prev.includes('VENDAS')) {
+                                  if (prev.length === 1) return prev
+                                  return prev.filter(x => x !== 'VENDAS')
+                                }
+                                return [...prev, 'VENDAS']
+                              })
+                            }}
+                            title="Filtrar valores para Vendas (incluindo RET, LEN e RLE)"
+                            className={`px-2.5 py-0.5 rounded-md text-[10px] font-black tracking-wide uppercase transition-all cursor-pointer select-none ${
+                              opFiltroValores.includes('VENDAS')
+                                ? 'bg-blue-600 text-white shadow-xs'
+                                : 'text-sky-300/60 hover:text-white hover:bg-white/5'
+                            }`}
+                          >
+                            Vendas
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpFiltroValores(prev => {
+                                if (prev.includes('ABA')) {
+                                  if (prev.length === 1) return prev
+                                  return prev.filter(x => x !== 'ABA')
+                                }
+                                return [...prev, 'ABA']
+                              })
+                            }}
+                            title="Filtrar valores para ABA (Abastecimento)"
+                            className={`px-2.5 py-0.5 rounded-md text-[10px] font-black tracking-wide uppercase transition-all cursor-pointer select-none ${
+                              opFiltroValores.includes('ABA')
+                                ? 'bg-emerald-600 text-white shadow-xs'
+                                : 'text-sky-300/60 hover:text-white hover:bg-white/5'
+                            }`}
+                          >
+                            ABA
+                          </button>
+                        </div>
                       </div>
 
                       <button
@@ -6796,10 +6885,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                           {/* Rodapé Faturamento & % Carteira */}
                           <div className="flex gap-1 pt-1 w-full">
                             <div className="flex-1 py-1 px-1 rounded-lg bg-[#0369a1] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black text-center shadow-xs truncate">
-                              R$ {opTotalCartValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              R$ {opValoresCart.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                             <div className="w-10 sm:w-12 py-1 rounded-lg bg-[#0284c7] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black text-center shadow-xs shrink-0">
-                              {Math.round(opPctCarteira)}%
+                              {Math.round(opValoresPctCarteira)}%
                             </div>
                           </div>
                         </div>
@@ -6859,10 +6948,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                           {/* Rodapé Faturamento & % Processo */}
                           <div className="flex gap-1 pt-1 w-full">
                             <div className="flex-1 py-1 px-1 rounded-lg bg-[#047857] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black text-center shadow-xs truncate">
-                              R$ {opTotalProcValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              R$ {opValoresProc.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                             <div className="w-10 sm:w-12 py-1 rounded-lg bg-[#059669] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black text-center shadow-xs shrink-0">
-                              {Math.round(opPctProcesso)}%
+                              {Math.round(opValoresPctProcesso)}%
                             </div>
                           </div>
                         </div>
@@ -6913,10 +7002,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                           {/* Rodapé Faturamento Geral, Meta & Atingimento */}
                           <div className="flex items-center gap-1 pt-1 flex-wrap w-full">
                             <div className="flex-1 py-1 px-1 rounded-lg bg-[#0e2a47] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black shadow-xs whitespace-nowrap text-center truncate border border-sky-500/30">
-                              R$ {opTotalConsValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              R$ {opValoresCons.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                             <div className="py-1 px-1 rounded-lg bg-[#b45309] text-amber-100 text-[8px] sm:text-[9px] font-mono font-black shadow-xs whitespace-nowrap">
-                              R$ {opSaldoMeta.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({Math.round(opPctMeta)}%)
+                              R$ {opValoresSaldoMeta.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({Math.round(opValoresPctMeta)}%)
                             </div>
                             <div
                               onClick={handleOpenConfigOperacional}
