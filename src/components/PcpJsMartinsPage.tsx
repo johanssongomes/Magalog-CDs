@@ -1571,6 +1571,10 @@ export const PcpJsMartinsPage: React.FC = () => {
           setIsSyncingOracle(false)
           await loadPlanningData(true)
           await refreshLastSyncTimestamp()
+          // Concluir e fechar automaticamente após a sincronização finalizar com sucesso
+          setTimeout(() => {
+            setIsSyncModalOpen(false)
+          }, 1200)
         } else if (current.status === 'error' || current.status === 'warning') {
           window.clearInterval(pollInterval)
           setIsSyncingOracle(false)
