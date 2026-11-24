@@ -4332,6 +4332,9 @@ export const PcpJsMartinsPage: React.FC = () => {
           }
         })
 
+        const opCapacidadeSoma = (capacidadeAbaM3 || 440) + (capacidadeVendaM3 || 400)
+        const capGeral = opCapacidadeSoma > 0 ? opCapacidadeSoma : 1055
+
         const opRows = opModalOrder.map(cat => {
           const cart = opModalDataMap[cat].carteira
           const proc = opModalDataMap[cat].processo
@@ -4340,22 +4343,10 @@ export const PcpJsMartinsPage: React.FC = () => {
           const totalVol = cart.vol + proc.vol
           const totalValor = cart.valor + proc.valor
 
-          let cap = 1
-          let isPedCap = false
-          if (cat === 'ABA') {
-            cap = capacidadeAbaM3 > 0 ? capacidadeAbaM3 : 440
-          } else if (cat === 'VENDAS') {
-            cap = capacidadeVendaM3 > 0 ? capacidadeVendaM3 : 400
-          } else if (cat === 'COURRIER') {
-            cap = capacidadeCourrierPed > 0 ? capacidadeCourrierPed : 600
-            isPedCap = true
-          } else {
-            cap = 100
-          }
-
-          // Cálculo dos Dias: Cart = Vol em carteira / Cap | Proc = Vol em processo / Cap | Geral = Cart + Proc (ou Pedidos no Courrier)
-          const diasCarteira = isPedCap ? (cart.pedidosSet.size / cap) : (cart.vol / cap)
-          const diasProcesso = isPedCap ? (proc.pedidosSet.size / cap) : (proc.vol / cap)
+          // Cálculo dos Dias com base na Capacidade Geral (opCapacidadeSoma):
+          // Cart = Vol em carteira / Cap Geral | Proc = Vol em processo / Cap Geral | Geral = Cart + Proc
+          const diasCarteira = capGeral > 0 ? (cart.vol / capGeral) : 0
+          const diasProcesso = capGeral > 0 ? (proc.vol / capGeral) : 0
           const diasGeral = diasCarteira + diasProcesso
 
           return {
@@ -4421,7 +4412,6 @@ export const PcpJsMartinsPage: React.FC = () => {
         const opTotalDiasProcesso = opRows.reduce((acc, r) => acc + r.dias.processo, 0)
         const opTotalDiasGeral = opTotalDiasCarteira + opTotalDiasProcesso
 
-        const opCapacidadeSoma = (capacidadeAbaM3 || 440) + (capacidadeVendaM3 || 400)
         const opVolumeExtra = Math.max(0, opTotalConsVol - opCapacidadeSoma)
 
         return (
