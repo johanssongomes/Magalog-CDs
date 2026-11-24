@@ -277,21 +277,41 @@ def get_oracle_connection():
 
     raise RuntimeError("Falha ao conectar no Oracle MLPDW:\n" + "\n".join(errors))
 
+INT_COLS = {
+    "filorig", "codfil", "filentrega", "tpnota", "filial",
+    "qtcomp", "fisico", "resfis", "logico", "reslog", "tecnico",
+    "futuro", "transito", "qtped"
+}
+
+FLOAT_COLS = {
+    "cub_tot", "pesoliq", "precounit", "vltotal",
+    "fisico_994", "tecnico_994", "resfis_994", "reslog_994", "logico_994", "transito_994", "estoque_994",
+    "estoque_loja", "cmup", "valor_estoque_994"
+}
+
 def serialize_row(col_names, row):
     item = {}
     for col, val in zip(col_names, row):
         k = col.lower()
-        if isinstance(val, (datetime.date, datetime.datetime)):
-            item[k] = val.isoformat()
-        elif val is None:
+        if val is None or str(val).strip() in ("", "None", "null", "NULL"):
             item[k] = None
-        elif isinstance(val, (int, float, str, bool)):
-            item[k] = val
-        else:
+        elif k in INT_COLS:
             try:
-                item[k] = float(val)
+                item[k] = int(round(float(str(val).replace(",", "."))))
             except (ValueError, TypeError):
-                item[k] = str(val)
+                item[k] = None
+        elif k in FLOAT_COLS:
+            try:
+                item[k] = round(float(str(val).replace(",", ".")), 4)
+            except (ValueError, TypeError):
+                item[k] = 0.0
+        elif isinstance(val, (datetime.date, datetime.datetime)):
+            item[k] = val.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            s = str(val).strip()
+            if s.endswith(".0") and k in {"item", "ibm", "codmodal", "numpedven", "numlote", "codrota"}:
+                s = s[:-2]
+            item[k] = s if s else None
     return item
 
 def sync_carteira():

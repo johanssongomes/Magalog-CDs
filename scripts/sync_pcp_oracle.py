@@ -261,13 +261,13 @@ def format_value(col_name, val):
 
     # Inteiros
     int_cols = {
-        "filorig", "codfil", "filentrega", "tpnota", "qtcomp", "fisico", 
+        "filorig", "codfil", "filentrega", "tpnota", "filial", "qtcomp", "fisico", 
         "resfis", "logico", "reslog", "tecnico", "futuro", "transito", 
-        "qtped", "n"
+        "qtped"
     }
     if col in int_cols:
         try:
-            return int(float(str(val).replace(",", ".")))
+            return int(round(float(str(val).replace(",", "."))))
         except (ValueError, TypeError):
             return None
 
