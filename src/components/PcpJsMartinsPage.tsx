@@ -5113,23 +5113,23 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                                                   {/* Tabela Direta dos Itens (Alinhada perfeitamente coluna por coluna) */}
                                                   {isStExpanded && (
-                                                    <div className="overflow-x-auto overflow-y-auto max-h-[380px] w-full select-text border-t border-slate-200">
-                                                      <table className="min-w-[840px] w-full text-[9.5px] border-collapse bg-white select-text">
+                                                    <div className="w-full select-text border-t border-slate-200">
+                                                      <table className="w-full text-[9px] border-collapse bg-white select-text table-fixed">
                                                         <thead className="sticky top-0 z-10">
-                                                          <tr className="bg-[#0e3b66] text-white font-bold text-[9px] uppercase tracking-wider divide-x divide-white/10">
-                                                            <th className="py-1.5 px-1.5 text-center w-[72px] min-w-[72px]">STATUS</th>
-                                                            <th className="py-1.5 px-1.5 text-center w-[68px] min-w-[68px]">MODALIDADE</th>
-                                                            <th className="py-1.5 px-1.5 text-center w-[80px] min-w-[80px]">LINHA</th>
-                                                            <th className="py-1.5 px-1 text-center w-[42px] min-w-[42px]">CODMODAL</th>
-                                                            <th className="py-1.5 px-1.5 text-center w-[75px] min-w-[75px]">PREVENTREGA</th>
-                                                            <th className="py-1.5 px-1.5 text-center w-[55px] min-w-[55px]">NUMLOTE</th>
-                                                            <th className="py-1.5 px-1.5 text-center w-[70px] min-w-[70px]">NUMPEDVEN</th>
-                                                            <th className="py-1.5 px-1.5 text-center w-[55px] min-w-[55px]">ITEM</th>
-                                                            <th className="py-1.5 px-2 text-left min-w-[120px]">DESCRIÇÃO</th>
-                                                            <th className="py-1.5 px-1.5 text-center w-[50px] min-w-[50px]">QTD</th>
-                                                            <th className="py-1.5 px-1.5 text-center w-[60px] min-w-[60px]">CUBAGEM</th>
-                                                            <th className="py-1.5 px-1.5 text-center w-[80px] min-w-[80px]">VALOR$</th>
-                                                            <th className="py-1.5 px-1.5 text-center w-[50px] min-w-[50px]">PESO</th>
+                                                          <tr className="bg-[#0e3b66] text-white font-bold text-[8.5px] uppercase tracking-wider divide-x divide-white/10">
+                                                            <th className="py-1.5 px-0.5 text-center w-[58px]">STATUS</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[50px]">MODALIDADE</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[68px]">LINHA</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[30px]">MODAL</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[66px]">PREV. ENT.</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[40px]">LOTE</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[60px]">PEDIDO</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[46px]">ITEM</th>
+                                                            <th className="py-1.5 px-1.5 text-left">DESCRIÇÃO</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[34px]">QTD</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[44px]">CUB</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[64px]">VALOR$</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[36px]">PESO</th>
                                                           </tr>
                                                         </thead>
                                                         <tbody className="divide-y divide-slate-100 font-sans">
