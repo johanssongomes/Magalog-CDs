@@ -4832,8 +4832,8 @@ export const PcpJsMartinsPage: React.FC = () => {
             {/* CORPO: CANTO ESQUERDO (TABELA FORMATO OFICIAL) + LADO DIREITO */}
             {/* ------------------------------------------------------------ */}
             <div className="flex flex-col xl:flex-row gap-5 items-start w-full">
-              {/* CANTO ESQUERDO (TABELA COM O TEMA MODERNO BLUE/SLATE CLEAN) */}
-              <div className="w-full xl:w-auto xl:min-w-[700px] xl:max-w-[920px] 2xl:min-w-[760px] 2xl:max-w-[980px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
+              {/* CANTO ESQUERDO (TABELA COM O TEMA MODERNO BLUE/SLATE CLEAN - ESPAÇO AMPLIADO) */}
+              <div className="w-full xl:w-auto xl:min-w-[820px] xl:max-w-[1050px] 2xl:min-w-[900px] 2xl:max-w-[1180px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
                 <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d] gap-2 flex-wrap sm:flex-nowrap">
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet size={15} className="text-sky-300 shrink-0" />
@@ -5118,14 +5118,14 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                         <thead className="sticky top-0 z-10">
                                                           <tr className="bg-[#0e3b66] text-white font-bold text-[8.5px] uppercase tracking-wider divide-x divide-white/10">
                                                             <th className="py-1.5 px-1 text-center w-[84px] min-w-[84px] whitespace-nowrap">STATUS</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[44px] min-w-[44px]">MODAL</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[66px] min-w-[66px]">LINHA</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[30px] min-w-[30px]">COD</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[64px] min-w-[64px]">PREV. ENT.</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[40px] min-w-[40px]">LOTE</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[58px] min-w-[58px]">PEDIDO</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[44px] min-w-[44px]">ITEM</th>
-                                                            <th className="py-1.5 px-1.5 text-left min-w-[90px]">DESCRIÇÃO</th>
+                                                            <th className="py-1.5 px-1 text-center w-[48px] min-w-[48px]">MODAL</th>
+                                                            <th className="py-1.5 px-1 text-center w-[82px] min-w-[82px]">LINHA</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[34px] min-w-[34px]">COD</th>
+                                                            <th className="py-1.5 px-1 text-center w-[72px] min-w-[72px]">PREV. ENT.</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[46px] min-w-[46px]">LOTE</th>
+                                                            <th className="py-1.5 px-1 text-center w-[66px] min-w-[66px]">PEDIDO</th>
+                                                            <th className="py-1.5 px-1 text-center w-[48px] min-w-[48px]">ITEM</th>
+                                                            <th className="py-1.5 px-2 text-left min-w-[120px]">DESCRIÇÃO</th>
                                                             <th className="py-1.5 px-1 text-center w-[80px] min-w-[80px] max-w-[80px]">QTD</th>
                                                             <th className="py-1.5 px-1 text-center w-[90px] min-w-[90px] max-w-[90px]">CUB</th>
                                                             <th className="py-1.5 px-1 text-center w-[110px] min-w-[110px] max-w-[110px]">VALOR$</th>
@@ -5135,24 +5135,24 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                         <tbody className="divide-y divide-slate-100 font-sans">
                                                           {stGroup.itens.map((det, dIdx) => (
                                                             <tr key={`${det.item}-${det.numpedven}-${dIdx}`} className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100">
-                                                              <td className="py-1 px-0.5 text-center whitespace-nowrap w-[84px] min-w-[84px]">
+                                                              <td className="py-1 px-1 text-center whitespace-nowrap w-[84px] min-w-[84px]">
                                                                 <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-bold whitespace-nowrap leading-none ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
                                                                   }`}>
                                                                   {det.statusOperacao}
                                                                 </span>
                                                               </td>
-                                                              <td className="py-1 px-0.5 text-center font-bold text-slate-700 w-[44px] min-w-[44px]">
+                                                              <td className="py-1 px-1 text-center font-bold text-slate-700 w-[48px] min-w-[48px]">
                                                                 <span className="px-1 py-0.5 bg-slate-100 text-slate-800 border border-slate-200 rounded text-[8px] whitespace-nowrap">
                                                                   {det.modalidade}
                                                                 </span>
                                                               </td>
-                                                              <td className="py-1 px-0.5 text-center text-slate-700 font-medium truncate w-[66px] min-w-[66px] max-w-[66px]" title={det.linha}>
+                                                              <td className="py-1 px-1 text-center text-slate-700 font-medium truncate w-[82px] min-w-[82px] max-w-[82px]" title={det.linha}>
                                                                 {det.linha || '-'}
                                                               </td>
-                                                              <td className="py-1 px-0.5 text-center font-mono font-bold text-slate-800 w-[30px] min-w-[30px]">
+                                                              <td className="py-1 px-0.5 text-center font-mono font-bold text-slate-800 w-[34px] min-w-[34px]">
                                                                 {det.codmodal || '-'}
                                                               </td>
-                                                              <td className="py-1 px-0.5 text-center font-mono font-medium text-slate-700 whitespace-nowrap w-[64px] min-w-[64px]">
+                                                              <td className="py-1 px-1 text-center font-mono font-medium text-slate-700 whitespace-nowrap w-[72px] min-w-[72px]">
                                                                 <div className="flex items-center justify-center gap-0.5">
                                                                   <span>{formatDateBR(det.preventrega)}</span>
                                                                   {det.prazo && (
@@ -5167,16 +5167,16 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                                   )}
                                                                 </div>
                                                               </td>
-                                                              <td className="py-1 px-0.5 text-center font-mono font-bold text-slate-800 w-[40px] min-w-[40px]">
+                                                              <td className="py-1 px-0.5 text-center font-mono font-bold text-slate-800 w-[46px] min-w-[46px]">
                                                                 {det.numlote && det.numlote !== '-' ? det.numlote : '-'}
                                                               </td>
-                                                              <td className="py-1 px-0.5 text-center font-mono font-bold text-slate-800 w-[58px] min-w-[58px]">
+                                                              <td className="py-1 px-1 text-center font-mono font-bold text-slate-800 w-[66px] min-w-[66px]">
                                                                 {det.numpedven || '-'}
                                                               </td>
-                                                              <td className="py-1 px-0.5 text-center font-mono font-bold text-blue-700 w-[44px] min-w-[44px]">
+                                                              <td className="py-1 px-1 text-center font-mono font-bold text-blue-700 w-[48px] min-w-[48px]">
                                                                 {formatItemCode(det.item)}
                                                               </td>
-                                                              <td className="py-1 px-1.5 text-slate-800 truncate" title={det.descricao}>
+                                                              <td className="py-1 px-2 text-slate-800 truncate" title={det.descricao}>
                                                                 {det.descricao || '-'}
                                                               </td>
                                                               <td className="py-1 px-1 text-center font-mono font-bold text-slate-800 w-[80px] min-w-[80px] max-w-[80px] text-[10.5px]">
@@ -5655,7 +5655,7 @@ export const PcpJsMartinsPage: React.FC = () => {
               </div>
 
               {/* LADO DIREITO: ÁREA RESERVADA PARA TABELAS/VISÕES DO PAINEL LATERAL */}
-              <div className={`space-y-4 w-full min-w-0 ${planRightTab === 'visao3' ? 'flex-1' : 'flex-1 xl:max-w-[800px] 2xl:max-w-[840px]'}`}>
+              <div className={`space-y-4 w-full min-w-0 ${planRightTab === 'visao3' ? 'flex-1' : 'flex-1 xl:max-w-[740px] 2xl:max-w-[780px]'}`}>
                 {/* 3 BOTÕES DE VISÃO DO PAINEL LATERAL (CONFORME SOLICITADO) */}
                 <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/90 shadow-2xs">
                   <button
