@@ -4833,7 +4833,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             {/* ------------------------------------------------------------ */}
             <div className="flex flex-col xl:flex-row gap-5 items-start w-full">
               {/* CANTO ESQUERDO (TABELA COM O TEMA MODERNO BLUE/SLATE CLEAN - ESPAÇO AMPLIADO) */}
-              <div className="w-full xl:w-auto xl:min-w-[860px] xl:max-w-[1100px] 2xl:min-w-[940px] 2xl:max-w-[1240px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
+              <div className="w-full xl:w-auto xl:min-w-[860px] xl:max-w-[1120px] 2xl:min-w-[940px] 2xl:max-w-[1260px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
                 <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d] gap-2 flex-wrap sm:flex-nowrap">
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet size={15} className="text-sky-300 shrink-0" />
@@ -5118,7 +5118,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                         <thead className="sticky top-0 z-10">
                                                           <tr className="bg-[#0e3b66] text-white font-bold text-[8.5px] uppercase tracking-wider divide-x divide-white/10">
                                                             <th className="py-1.5 px-1 text-center w-[84px] min-w-[84px] whitespace-nowrap">STATUS</th>
-                                                            <th className="py-1.5 px-1 text-center w-[48px] min-w-[48px]">MODAL</th>
+                                                            <th className="py-1.5 px-1 text-center w-[78px] min-w-[78px]">MODAL</th>
                                                             <th className="py-1.5 px-1 text-center w-[150px] min-w-[150px]">LINHA</th>
                                                             <th className="py-1.5 px-0.5 text-center w-[34px] min-w-[34px]">COD</th>
                                                             <th className="py-1.5 px-1 text-center w-[72px] min-w-[72px]">PREV. ENT.</th>
@@ -5141,8 +5141,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                                   {det.statusOperacao}
                                                                 </span>
                                                               </td>
-                                                              <td className="py-1 px-1 text-center font-bold text-slate-700 w-[48px] min-w-[48px]">
-                                                                <span className="px-1 py-0.5 bg-slate-100 text-slate-800 border border-slate-200 rounded text-[8px] whitespace-nowrap">
+                                                              <td className="py-1 px-1 text-center font-bold text-slate-700 w-[78px] min-w-[78px]">
+                                                                <span className="inline-block px-1.5 py-0.5 bg-slate-100 text-slate-800 border border-slate-200 rounded text-[8px] whitespace-nowrap">
                                                                   {det.modalidade}
                                                                 </span>
                                                               </td>
