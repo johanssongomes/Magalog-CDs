@@ -7109,50 +7109,51 @@ export const PcpJsMartinsPage: React.FC = () => {
                         </div>
 
                         {/* 6. Extremo Direito: RODO DIAS, COURRIER DIAS & ASSINATURA MAGALU */}
-                        <div className="flex flex-col justify-between items-center pl-1 border-l border-sky-500/20 shrink-0 space-y-1">
-                          <div className="flex items-center gap-1.5">
+                        <div className="flex flex-col justify-around items-center px-2.5 py-1.5 border-l border-sky-500/25 shrink-0 min-w-[145px] sm:min-w-[160px] self-stretch">
+                          {/* Cards Superiores: RODO + COURRIER (Ampliados e com destaque) */}
+                          <div className="flex items-center gap-2">
                             {/* Card RODO */}
                             <div className="flex flex-col items-center">
-                              <div className="px-2 py-0.5 rounded bg-[#0284c7] text-white text-[7.5px] font-black uppercase tracking-tight text-center">
+                              <div className="px-2.5 py-1 rounded bg-[#0284c7] text-white text-[8px] sm:text-[8.5px] font-black uppercase tracking-tight text-center w-full shadow-xs whitespace-nowrap">
                                 RODO<br />DIAS EM CARTEIRA
                               </div>
-                              <div className="mt-1 w-10 h-7 rounded bg-[#0284c7] text-white text-[11px] font-mono font-black flex items-center justify-center shadow-xs">
+                              <div className="mt-1 w-13 sm:w-14 h-8 rounded-lg bg-[#0284c7] text-white text-[13px] font-mono font-black flex items-center justify-center shadow-xs border border-sky-300/30">
                                 {opRows[1]?.dias.geral.toFixed(1)}
                               </div>
-                              <div className="mt-1 w-10 h-5 rounded bg-slate-800 text-sky-200 border border-sky-400/20 text-[9.5px] font-mono font-black flex items-center justify-center">
+                              <div className="mt-1 w-13 sm:w-14 h-6 rounded-md bg-[#071d37] text-sky-200 border border-sky-400/30 text-[10.5px] font-mono font-black flex items-center justify-center shadow-xs">
                                 {opRows[1]?.dias.carteira.toFixed(1)}
                               </div>
                             </div>
 
-                            <span className="text-white text-base font-black">+</span>
+                            <span className="text-sky-300 text-lg font-black my-auto select-none">+</span>
 
                             {/* Card COURRIER */}
                             <div className="flex flex-col items-center">
-                              <div className="px-2 py-0.5 rounded bg-[#0d9488] text-white text-[7.5px] font-black uppercase tracking-tight text-center">
+                              <div className="px-2.5 py-1 rounded bg-[#0d9488] text-white text-[8px] sm:text-[8.5px] font-black uppercase tracking-tight text-center w-full shadow-xs whitespace-nowrap">
                                 COURRIER (RDP)<br />DIAS EM CARTEIRA
                               </div>
-                              <div className="mt-1 w-10 h-7 rounded bg-[#0d9488] text-white text-[11px] font-mono font-black flex items-center justify-center shadow-xs">
+                              <div className="mt-1 w-13 sm:w-14 h-8 rounded-lg bg-[#0d9488] text-white text-[13px] font-mono font-black flex items-center justify-center shadow-xs border border-teal-300/30">
                                 {opRows[2]?.dias.geral.toFixed(1)}
                               </div>
-                              <div className="mt-1 w-10 h-5 rounded bg-slate-800 text-sky-200 border border-sky-400/20 text-[9.5px] font-mono font-black flex items-center justify-center">
+                              <div className="mt-1 w-13 sm:w-14 h-6 rounded-md bg-[#071d37] text-teal-200 border border-teal-400/30 text-[10.5px] font-mono font-black flex items-center justify-center shadow-xs">
                                 {opRows[2]?.dias.carteira.toFixed(1)}
                               </div>
                             </div>
                           </div>
 
-                          {/* Estrela de 4 pontas e Marca Magalu */}
-                          <div className="flex flex-col items-center justify-center pt-1 space-y-0.5">
-                            <svg viewBox="0 0 40 40" className="w-8 h-8 fill-sky-200 drop-shadow-sm">
+                          {/* Estrela de 4 pontas e Marca Magalu (Centralizado e Ampliado) */}
+                          <div className="flex flex-col items-center justify-center py-2 space-y-1">
+                            <svg viewBox="0 0 40 40" className="w-11 h-11 fill-sky-300 drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]">
                               <polygon points="20,2 24,16 38,20 24,24 20,38 16,24 2,20 16,16" />
                             </svg>
-                            <span className="text-[7px] text-sky-200/80 italic tracking-tight font-sans whitespace-nowrap">
+                            <span className="text-[9px] sm:text-[9.5px] text-sky-100 font-bold tracking-tight font-sans whitespace-nowrap drop-shadow-sm">
                               Johansson Martins de Meneses Gomes
                             </span>
-                            <div className="flex flex-col items-center">
-                              <span className="text-sm font-black tracking-tighter lowercase text-sky-400 font-sans leading-none">
+                            <div className="flex flex-col items-center pt-0.5">
+                              <span className="text-base sm:text-lg font-black tracking-tighter lowercase text-sky-400 font-sans leading-none drop-shadow-sm">
                                 magalu
                               </span>
-                              <div className="w-14 h-0.5 bg-linear-to-r from-blue-500 via-green-400 via-yellow-400 to-red-500 rounded-full mt-0.5" />
+                              <div className="w-20 h-1 bg-gradient-to-r from-blue-500 via-green-400 via-yellow-400 to-red-500 rounded-full mt-1 shadow-sm" />
                             </div>
                           </div>
                         </div>
