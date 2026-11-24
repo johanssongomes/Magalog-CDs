@@ -546,7 +546,16 @@ export const PcpJsMartinsPage: React.FC = () => {
       const saved = localStorage.getItem('magalog_pcp_modal_params')
       if (saved) {
         const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Atualiza RET, LEN e RLE para RODOVIARIO/Venda caso estejam salvos como ABA antigamente
+          return parsed.map((p: ModalParamItem) => {
+            const cod = String(p.codmodal || '').trim().toUpperCase()
+            if (cod === 'RET' || cod === 'LEN' || cod === 'RLE') {
+              return { ...p, modalidade: 'RODOVIARIO' }
+            }
+            return p
+          })
+        }
       }
     } catch (e) {
       console.warn('Erro ao carregar parâmetros locais de modal:', e)
@@ -3162,7 +3171,16 @@ export const PcpJsMartinsPage: React.FC = () => {
         const enrichedBase = allRows.map((r: any) => {
           const cod = String(r.codmodal || r.CODMODAL || '').trim().toUpperCase()
           const modalidade = modalMap[cod] || String(r.descricaomodal || r.DESCRICAOMODAL || '-')
-          const isAba = modalidade.trim().toUpperCase() === 'ABA'
+          const isRetLenRle =
+            cod === 'RET' || cod === 'LEN' || cod === 'RLE' ||
+            String(r.descricaomodal || r.DESCRICAOMODAL || '').toUpperCase().includes('RET') ||
+            String(r.descricaomodal || r.DESCRICAOMODAL || '').toUpperCase().includes('LEN') ||
+            String(r.descricaomodal || r.DESCRICAOMODAL || '').toUpperCase().includes('RLE') ||
+            modalidade.toUpperCase().includes('RET') ||
+            modalidade.toUpperCase().includes('LEN') ||
+            modalidade.toUpperCase().includes('RLE')
+
+          const isAba = (!isRetLenRle) && (modalidade.trim().toUpperCase() === 'ABA')
 
           const rawRota = String(r.descricaorota || r.DESCRICAOROTA || '').trim()
           const rawCep = r.cep_entrega || r.CEP_ENTREGA
@@ -3185,7 +3203,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           const statusOperacao = String(r.status_operacao || r.STATUS_OPERACAO || '')
           const linha = String(r.linha || r.LINHA || '')
           const fllibfat = String(r.fllibfat || r.FLLIBFAT || 'S').trim().toUpperCase()
-          const tipoModal = getTipoModal(modalidade)
+          const tipoModal = getTipoModal(modalidade, cod, r.descricaomodal || r.DESCRICAOMODAL)
           const prazoFaixa = getPrazoFaixa(r, isAba, opRefDate)
 
           return {

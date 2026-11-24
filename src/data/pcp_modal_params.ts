@@ -13,8 +13,20 @@ export const MODALIDADE_TIPO_MAP: Record<string, string> = {
   'TRANSFERENCIA': 'Tranfs'
 }
 
-export function getTipoModal(modalidade: string): string {
-  const mod = (modalidade || '').trim().toUpperCase()
+export function getTipoModal(modalidade: string, codmodal?: string, descricaomodal?: string): string {
+  const cod = String(codmodal || '').trim().toUpperCase()
+  const desc = String(descricaomodal || '').trim().toUpperCase()
+  const mod = String(modalidade || '').trim().toUpperCase()
+
+  // Regra Oficial: RET, LEN e RLE são considerados Vendas
+  if (
+    cod === 'RET' || cod === 'LEN' || cod === 'RLE' ||
+    desc.includes('RET') || desc.includes('LEN') || desc.includes('RLE') ||
+    mod.includes('RET') || mod.includes('LEN') || mod.includes('RLE')
+  ) {
+    return 'Venda'
+  }
+
   return MODALIDADE_TIPO_MAP[mod] || 'Venda'
 }
 
@@ -27,15 +39,15 @@ export const INITIAL_MODAL_PARAMS: ModalParamItem[] = [
   { codmodal: 'CD0', modalidade: 'COURRIER' },
   { codmodal: 'RDP', modalidade: 'COURRIER' },
   { codmodal: 'DIF', modalidade: 'TRANSFERENCIA' },
-  { codmodal: 'LEN', modalidade: 'ABA' },
+  { codmodal: 'LEN', modalidade: 'RODOVIARIO' },
   { codmodal: 'COU', modalidade: 'COURRIER' },
   { codmodal: 'ESE', modalidade: 'COURRIER' },
   { codmodal: 'SOA', modalidade: 'ABA' },
-  { codmodal: 'RET', modalidade: 'ABA' },
+  { codmodal: 'RET', modalidade: 'RODOVIARIO' },
   { codmodal: 'ROM', modalidade: 'RODOVIARIO' },
   { codmodal: 'PRM', modalidade: 'ABA' },
   { codmodal: 'SPO', modalidade: 'ABA' },
-  { codmodal: 'RLE', modalidade: 'ABA' },
+  { codmodal: 'RLE', modalidade: 'RODOVIARIO' },
   { codmodal: 'MUL', modalidade: 'TRANSFERENCIA' },
   { codmodal: 'ABR', modalidade: 'ABA' },
   { codmodal: 'INA', modalidade: 'ABA' },
