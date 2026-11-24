@@ -40,7 +40,9 @@ import {
   Target,
   Thermometer,
   Maximize2,
-  Minimize2
+  Minimize2,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -913,6 +915,21 @@ export const PcpJsMartinsPage: React.FC = () => {
       localStorage.setItem('magalog_pcp_plan_right_tab', planRightTab)
     } catch { }
   }, [planRightTab])
+
+  // Estado para recolher/expandir o painel esquerdo (Quadro por Destino & Região)
+  const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('magalog_pcp_left_panel_collapsed') === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('magalog_pcp_left_panel_collapsed', String(isLeftPanelCollapsed))
+    } catch { }
+  }, [isLeftPanelCollapsed])
 
   // Estado para recolher/expandir linhas na Visão 1 do painel lateral
   const [collapsedLinhas, setCollapsedLinhas] = useState<Set<string>>(new Set())
@@ -4929,7 +4946,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </div>
 
                 {/* Lado Direito: Cards Rápidos de Visão Geral (Alinhado exatamente com o painel lateral direito) */}
-                <div className={`w-full min-w-0 ${planRightTab === 'visao3' ? 'flex-1' : 'flex-1 xl:max-w-[800px] 2xl:max-w-[840px]'}`}>
+                <div className={`w-full min-w-0 ${planRightTab === 'visao3' || isLeftPanelCollapsed ? 'flex-1' : 'flex-1 xl:max-w-[800px] 2xl:max-w-[840px]'}`}>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
                     <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Pedidos</span>
@@ -4972,52 +4989,84 @@ export const PcpJsMartinsPage: React.FC = () => {
             {/* CORPO: CANTO ESQUERDO (TABELA FORMATO OFICIAL) + LADO DIREITO */}
             {/* ------------------------------------------------------------ */}
             <div className="flex flex-col xl:flex-row gap-5 items-start w-full">
-              {/* CANTO ESQUERDO (TABELA COM O TEMA MODERNO BLUE/SLATE CLEAN - ESPAÇO AMPLIADO) */}
-              <div className="w-full xl:w-auto xl:min-w-[860px] xl:max-w-[1120px] 2xl:min-w-[940px] 2xl:max-w-[1260px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
-                <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d] gap-2 flex-wrap sm:flex-nowrap">
-                  <div className="flex items-center gap-2">
-                    <FileSpreadsheet size={15} className="text-sky-300 shrink-0" />
-                    <span className="text-[11px] font-black tracking-wide uppercase">
-                      {planViewMode === 'regiao' ? 'Quadro Consolidado por Destino & Região' : 'Visão Comparativa por Destino'}
+              {/* CANTO ESQUERDO RECOLHIDO: BARRA RETRÁTIL DISCRETA */}
+              {isLeftPanelCollapsed ? (
+                <div className="hidden xl:flex flex-col items-center bg-[#0e3b66] text-white rounded-2xl border border-slate-200/90 shadow-2xs py-4 px-2.5 shrink-0 transition-all select-none">
+                  <button
+                    type="button"
+                    onClick={() => setIsLeftPanelCollapsed(false)}
+                    title="Expandir Quadro de Destinos & Regiões"
+                    className="p-2 rounded-xl bg-sky-500/20 hover:bg-sky-400 text-sky-200 hover:text-white transition-all cursor-pointer flex flex-col items-center gap-1.5 shadow-xs group"
+                  >
+                    <PanelLeftOpen size={18} className="transition-transform group-hover:scale-110" />
+                    <span className="text-[10px] font-black uppercase tracking-wider text-sky-100 [writing-mode:vertical-rl] rotate-180 py-2">
+                      Expandir Destinos
                     </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {/* Botão de Alternância de Visão */}
-                    <div className="flex items-center bg-[#072440] p-0.5 rounded-lg border border-sky-400/25 shadow-xs">
-                      <button
-                        type="button"
-                        onClick={() => setPlanViewMode('regiao')}
-                        title="Visualização Consolidada por Região (Hierárquica)"
-                        className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${planViewMode === 'regiao'
-                          ? 'bg-blue-600 text-white shadow-xs font-black'
-                          : 'text-sky-200/80 hover:text-white hover:bg-white/10'
-                          }`}
-                      >
-                        <Layers size={12} />
-                        <span>Por Região</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPlanViewMode('comparativo')}
-                        title="Visualização Comparativa por Destino (Carteira vs Processo)"
-                        className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${planViewMode === 'comparativo'
-                          ? 'bg-blue-600 text-white shadow-xs font-black'
-                          : 'text-sky-200/80 hover:text-white hover:bg-white/10'
-                          }`}
-                      >
-                        <BarChart3 size={12} />
-                        <span>Comparativo</span>
-                      </button>
-                    </div>
-
-                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#164e85] text-sky-100 border border-sky-500/30 font-bold whitespace-nowrap">
-                      {planViewMode === 'regiao'
-                        ? `${regiaoGroups.reduce((acc, g) => acc + g.destinos.length, 0)} destinos`
-                        : `${comparativeDestinos.length} destinos`}
-                    </span>
+                  </button>
+                  <div className="mt-3 text-[9px] font-mono text-sky-300/80 [writing-mode:vertical-rl] rotate-180 font-bold tracking-widest">
+                    {planViewMode === 'regiao'
+                      ? `${regiaoGroups.reduce((acc, g) => acc + g.destinos.length, 0)} DESTINOS`
+                      : `${comparativeDestinos.length} DESTINOS`}
                   </div>
                 </div>
+              ) : (
+                /* CANTO ESQUERDO ABERTO (TABELA COM O TEMA MODERNO BLUE/SLATE CLEAN - ESPAÇO AMPLIADO) */
+                <div className="w-full xl:w-auto xl:min-w-[860px] xl:max-w-[1120px] 2xl:min-w-[940px] 2xl:max-w-[1260px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
+                  <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d] gap-2 flex-wrap sm:flex-nowrap">
+                    <div className="flex items-center gap-2">
+                      <FileSpreadsheet size={15} className="text-sky-300 shrink-0" />
+                      <span className="text-[11px] font-black tracking-wide uppercase">
+                        {planViewMode === 'regiao' ? 'Quadro Consolidado por Destino & Região' : 'Visão Comparativa por Destino'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {/* Botão de Alternância de Visão */}
+                      <div className="flex items-center bg-[#072440] p-0.5 rounded-lg border border-sky-400/25 shadow-xs">
+                        <button
+                          type="button"
+                          onClick={() => setPlanViewMode('regiao')}
+                          title="Visualização Consolidada por Região (Hierárquica)"
+                          className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${planViewMode === 'regiao'
+                            ? 'bg-blue-600 text-white shadow-xs font-black'
+                            : 'text-sky-200/80 hover:text-white hover:bg-white/10'
+                            }`}
+                        >
+                          <Layers size={12} />
+                          <span>Por Região</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPlanViewMode('comparativo')}
+                          title="Visualização Comparativa por Destino (Carteira vs Processo)"
+                          className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${planViewMode === 'comparativo'
+                            ? 'bg-blue-600 text-white shadow-xs font-black'
+                            : 'text-sky-200/80 hover:text-white hover:bg-white/10'
+                            }`}
+                        >
+                          <BarChart3 size={12} />
+                          <span>Comparativo</span>
+                        </button>
+                      </div>
+
+                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#164e85] text-sky-100 border border-sky-500/30 font-bold whitespace-nowrap">
+                        {planViewMode === 'regiao'
+                          ? `${regiaoGroups.reduce((acc, g) => acc + g.destinos.length, 0)} destinos`
+                          : `${comparativeDestinos.length} destinos`}
+                      </span>
+
+                      {/* Botão Recolher Painel Esquerdo */}
+                      <button
+                        type="button"
+                        onClick={() => setIsLeftPanelCollapsed(true)}
+                        title="Recolher painel esquerdo para expandir o painel direito"
+                        className="flex items-center gap-1 px-2.5 py-1 text-[10.5px] font-bold text-sky-100 bg-[#072440] hover:bg-sky-600 hover:text-white border border-sky-400/30 rounded-lg transition-all cursor-pointer shadow-xs"
+                      >
+                        <PanelLeftClose size={13} className="text-sky-300" />
+                        <span>Recolher</span>
+                      </button>
+                    </div>
+                  </div>
 
                 {/* Alternância entre as visualizações dos painéis */}
                 {planViewMode === 'regiao' ? (
@@ -5793,9 +5842,24 @@ export const PcpJsMartinsPage: React.FC = () => {
                   </div>
                 )}
               </div>
+            )}
 
               {/* LADO DIREITO: ÁREA RESERVADA PARA TABELAS/VISÕES DO PAINEL LATERAL */}
-              <div className={`space-y-4 w-full min-w-0 ${planRightTab === 'visao3' ? 'flex-1' : 'flex-1 xl:max-w-[700px] 2xl:max-w-[740px]'}`}>
+              <div className={`space-y-4 w-full min-w-0 ${planRightTab === 'visao3' || isLeftPanelCollapsed ? 'flex-1' : 'flex-1 xl:max-w-[700px] 2xl:max-w-[740px]'}`}>
+                {/* BOTÃO EXPANDIR MOBILE SE ESTIVER RECOLHIDO */}
+                {isLeftPanelCollapsed && (
+                  <div className="xl:hidden flex items-center justify-between p-2.5 bg-[#0e3b66] text-white rounded-xl shadow-xs">
+                    <span className="text-xs font-bold text-sky-200">Painel de Destinos & Regiões recolhido</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsLeftPanelCollapsed(false)}
+                      className="flex items-center gap-1.5 px-3 py-1 bg-sky-500 hover:bg-sky-400 text-white rounded-lg text-xs font-bold cursor-pointer transition-all"
+                    >
+                      <PanelLeftOpen size={14} />
+                      <span>Expandir Painel</span>
+                    </button>
+                  </div>
+                )}
                 {/* 3 BOTÕES DE VISÃO DO PAINEL LATERAL (CONFORME SOLICITADO) */}
                 <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/90 shadow-2xs">
                   <button
