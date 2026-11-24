@@ -2871,6 +2871,63 @@ export const DashboardPage: React.FC = () => {
   })
   const [isProcessingEstoque, setIsProcessingEstoque] = useState(false)
 
+  // Carregar dados de Estoque por Categoria do Supabase automaticamente (tempo real e ao abrir)
+  useEffect(() => {
+    let isMounted = true
+    const fetchEstoqueFromSupabase = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('performance_metrics')
+          .select('value, updated_at')
+          .eq('cell_key', 'estoque_categoria_summary')
+          .maybeSingle()
+
+        if (!error && data?.value && isMounted) {
+          const parsed = JSON.parse(data.value)
+          if (parsed?.bomOnly && parsed?.todos) {
+            setEstoqueBaseSummary(parsed)
+            localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(parsed))
+          }
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar estoque_categoria_summary do Supabase:', err)
+      }
+    }
+
+    fetchEstoqueFromSupabase()
+
+    // Ouvir atualizações de estoque em tempo real
+    const channel = supabase
+      .channel('realtime_estoque_summary')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'performance_metrics',
+          filter: 'cell_key=eq.estoque_categoria_summary'
+        },
+        payload => {
+          try {
+            const raw = (payload.new as any)?.value
+            if (raw) {
+              const parsed = JSON.parse(raw)
+              if (parsed?.bomOnly && parsed?.todos) {
+                setEstoqueBaseSummary(parsed)
+                localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(parsed))
+              }
+            }
+          } catch { }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      isMounted = false
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
   // Dados ativos conforme o filtro selecionado (BOM vs BLOQUEADOS)
   const activeEstoqueData: EstoqueSummaryData = useMemo(() => {
     const isBloq = estoqueFilterStatus === 'BLOQUEADOS'
