@@ -601,6 +601,110 @@ export const PcpJsMartinsPage: React.FC = () => {
     return map
   }, [filialRotaParams])
 
+  // Função inteligente para resolver Destino e Região de qualquer Rota ou Filial com suporte a variações de SAT e palavras-chave
+  const findRotaInfo = useCallback((key: string | undefined | null): { destino: string; regiao: string } | null => {
+    if (!key) return null
+    const cleanKey = String(key).trim().toUpperCase()
+    if (!cleanKey || cleanKey === '-') return null
+
+    // 1. Match exato
+    if (rotaMap[cleanKey]) return rotaMap[cleanKey]
+
+    // 2. Se tiver variação de SAT com 2 dígitos (ex: SAT 11 -> SAT 1, SAT 21 -> SAT 2, SAT 31 -> SAT 3, SAT 41 -> SAT 4)
+    const satSingleDigit = cleanKey.replace(/\bSAT\s+(\d)\d+\b/i, 'SAT $1')
+    if (satSingleDigit !== cleanKey && rotaMap[satSingleDigit]) {
+      return rotaMap[satSingleDigit]
+    }
+
+    // 3. Match pela rota base sem o sufixo SAT (ex: "994-EC1 CE MARACANAU SAT 21" -> "994-EC1 CE MARACANAU")
+    const withoutSat = cleanKey.replace(/\s+SAT\s*\d*$/i, '').trim()
+    if (withoutSat && withoutSat !== cleanKey && rotaMap[withoutSat]) {
+      return rotaMap[withoutSat]
+    }
+
+    // 4. Reconhecimento inteligente por cidades e rotas conhecidas (Agrupamento junto ao destino principal)
+    if (cleanKey.includes('MARACANAU') || cleanKey.includes('MARACANAÚ')) {
+      return { destino: 'MARACANAU', regiao: 'METROPOLITANA' }
+    }
+    if (cleanKey.includes('MARANGUAPE')) {
+      return { destino: 'MARANGUAPE', regiao: 'METROPOLITANA' }
+    }
+    if (cleanKey.includes('CAUCAIA')) {
+      return { destino: 'ROTA CAUCAIA A', regiao: 'METROPOLITANA' }
+    }
+    if (cleanKey.includes('EUSEBIO') || cleanKey.includes('EUSÉBIO')) {
+      return { destino: 'EUSEBIO', regiao: 'METROPOLITANA' }
+    }
+    if (cleanKey.includes('CASCAVEL')) {
+      return { destino: 'CASCAVEL', regiao: 'METROPOLITANA' }
+    }
+    if (cleanKey.includes('PACAJUS')) {
+      return { destino: 'PACAJUS', regiao: 'METROPOLITANA' }
+    }
+    if (cleanKey.includes('AQUIRAZ')) {
+      return { destino: 'AQUIRAZ', regiao: 'METROPOLITANA' }
+    }
+    if (cleanKey.includes('HORIZONTE')) {
+      return { destino: 'HORIZONTE', regiao: 'METROPOLITANA' }
+    }
+    if (cleanKey.includes('ITAITINGA')) {
+      return { destino: 'ITAITINGA', regiao: 'METROPOLITANA' }
+    }
+    if (cleanKey.includes('SOBRAL')) {
+      return { destino: 'SOBRAL', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('JUAZ DO NORTE') || cleanKey.includes('JUAZEIRO')) {
+      return { destino: 'JUAZEIRO DO NORTE', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('CRATO')) {
+      return { destino: 'CRATO', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('BARBALHA')) {
+      return { destino: 'BARBALHA', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('IGUATU')) {
+      return { destino: 'IGUATU', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('QUIXADA') || cleanKey.includes('QUIXADÁ')) {
+      return { destino: 'QUIXADA', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('QUIXERAMOBIM')) {
+      return { destino: 'QUIXERAMOBIM', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('LIMOEIRO')) {
+      return { destino: 'LIMOEIRO DO NORTE', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('ITAPIPOCA')) {
+      return { destino: 'ITAPIPOCA', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('TIANGUA') || cleanKey.includes('TIANGUÁ')) {
+      return { destino: 'TIANGUA', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('CAMOCIM')) {
+      return { destino: 'CAMOCIM', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('CANINDE') || cleanKey.includes('CANINDÉ')) {
+      return { destino: 'CANINDE', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('CRATEUS') || cleanKey.includes('CRATEÚS')) {
+      return { destino: 'CRATEUS', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('ARACATI')) {
+      return { destino: 'ARACATI', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('ACARAU') || cleanKey.includes('ACARAÚ')) {
+      return { destino: 'ACARAU', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('BREJO SANTO')) {
+      return { destino: 'BREJO SANTO', regiao: 'INTERIOR' }
+    }
+    if (cleanKey.includes('SANTA QUITERIA') || cleanKey.includes('SANTA QUITÉRIA')) {
+      return { destino: 'SANTA QUITERIA', regiao: 'INTERIOR' }
+    }
+
+    return null
+  }, [rotaMap])
+
   // Mapas de consulta de CEP (8 dígitos exatos e prefixos de 5 dígitos)
   const { cepRotaMap, prefix5RotaMap } = useMemo(() => {
     const exact: Record<string, string> = {}
@@ -1146,12 +1250,13 @@ export const PcpJsMartinsPage: React.FC = () => {
     return cepRotaParams.filter(p => {
       const c = cleanCep(p.cep)
       const r = (p.descricaorota || '').toUpperCase()
-      const d = (rotaMap[r.toUpperCase()]?.destino || '').toUpperCase()
-      const reg = (rotaMap[r.toUpperCase()]?.regiao || '').toUpperCase()
+      const info = findRotaInfo(r)
+      const d = (info?.destino || '').toUpperCase()
+      const reg = (info?.regiao || '').toUpperCase()
       const cid = (p.cidade || '').toUpperCase()
       return c.includes(term) || r.includes(term) || d.includes(term) || reg.includes(term) || cid.includes(term)
     })
-  }, [cepRotaParams, searchCepParam, rotaMap])
+  }, [cepRotaParams, searchCepParam, findRotaInfo])
 
   const paginatedCepParams = useMemo(() => {
     const from = (cepPage - 1) * cepPageSize
@@ -1400,10 +1505,10 @@ export const PcpJsMartinsPage: React.FC = () => {
 
           if (isAba) {
             // Se for ABA (Abastecimento), prioridade máxima para a FILENTREGA da loja/filial (ex: 1349 -> 1349-Limoeiro QUI)
-            rotaInfo = rotaMap[filEntregaKey] || rotaMap[rotaKey] || { destino: '-', regiao: '-' }
+            rotaInfo = findRotaInfo(filEntregaKey) || findRotaInfo(rotaKey) || { destino: '-', regiao: '-' }
           } else {
             // Se for VENDA (PRO, Rodoviário, Courier) ou outros, prioridade máxima para a ROTA cadastrada (ex: 994-EC1 CE LIMOEIRO DO NORTE -> LIMOEIRO DO NORTE)
-            rotaInfo = rotaMap[rotaKey] || rotaMap[filEntregaKey] || { destino: '-', regiao: '-' }
+            rotaInfo = findRotaInfo(rotaKey) || findRotaInfo(filEntregaKey) || { destino: '-', regiao: '-' }
           }
 
           const tipoModalCalc = getTipoModal(modalidadeCalc)
@@ -1459,9 +1564,9 @@ export const PcpJsMartinsPage: React.FC = () => {
           const rotaKey = resolvedRota.trim().toUpperCase()
 
           if (isAba) {
-            rotaInfo = rotaMap[filEntregaKey] || rotaMap[rotaKey] || { destino: '-', regiao: '-' }
+            rotaInfo = findRotaInfo(filEntregaKey) || findRotaInfo(rotaKey) || { destino: '-', regiao: '-' }
           } else {
-            rotaInfo = rotaMap[rotaKey] || rotaMap[filEntregaKey] || { destino: '-', regiao: '-' }
+            rotaInfo = findRotaInfo(rotaKey) || findRotaInfo(filEntregaKey) || { destino: '-', regiao: '-' }
           }
 
           return {
@@ -1532,7 +1637,7 @@ export const PcpJsMartinsPage: React.FC = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [page, pageSize, selectedStatusOperacao, selectedFilEntrega, searchTerm, modalMap, rotaMap, resolveRouteByCep])
+  }, [page, pageSize, selectedStatusOperacao, selectedFilEntrega, searchTerm, modalMap, rotaMap, resolveRouteByCep, findRotaInfo])
 
   useEffect(() => {
     if (activeTab === 'controle') {
@@ -2601,7 +2706,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                           const cleanC = cleanCep(param.cep)
                           const formattedCep = cleanC.length === 8 ? `${cleanC.slice(0, 5)}-${cleanC.slice(5)}` : `${cleanC} (prefixo)`
                           const rotaUpper = (param.descricaorota || '').toUpperCase()
-                          const targetInfo = rotaMap[rotaUpper] || { destino: '-', regiao: '-' }
+                          const targetInfo = findRotaInfo(rotaUpper) || { destino: '-', regiao: '-' }
 
                           return (
                             <tr key={`${param.cep}-${idx}`} className="hover:bg-slate-50/60 transition-colors">
@@ -3038,10 +3143,10 @@ export const PcpJsMartinsPage: React.FC = () => {
 
           if (isAba) {
             // Se modalidade for ABA (Abastecimento), prioridade máxima para FILENTREGA no cadastro (ex: 1349 -> 1349-Limoeiro QUI)
-            rotaInfo = rotaMap[filEntregaKey] || rotaMap[rotaKey] || { destino: '-', regiao: '-' }
+            rotaInfo = findRotaInfo(filEntregaKey) || findRotaInfo(rotaKey) || { destino: '-', regiao: '-' }
           } else {
             // Se for VENDA (PRO, Rodoviário, Courier) ou outras, prioridade máxima para a ROTA cadastrada (ex: 994-EC1 CE LIMOEIRO DO NORTE -> LIMOEIRO DO NORTE)
-            rotaInfo = rotaMap[rotaKey] || rotaMap[filEntregaKey] || { destino: '-', regiao: '-' }
+            rotaInfo = findRotaInfo(rotaKey) || findRotaInfo(filEntregaKey) || { destino: '-', regiao: '-' }
           }
 
           const regiao = rotaInfo.regiao !== '-' ? rotaInfo.regiao : 'INTERIOR'
