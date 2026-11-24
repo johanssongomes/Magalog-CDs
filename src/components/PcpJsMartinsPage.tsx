@@ -5117,42 +5117,42 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                       <table className="w-full text-[9px] border-collapse bg-white select-text table-fixed">
                                                         <thead className="sticky top-0 z-10">
                                                           <tr className="bg-[#0e3b66] text-white font-bold text-[8.5px] uppercase tracking-wider divide-x divide-white/10">
-                                                            <th className="py-1.5 px-0.5 text-center w-[58px]">STATUS</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[50px]">MODALIDADE</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[68px]">LINHA</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[30px]">MODAL</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[66px]">PREV. ENT.</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[40px]">LOTE</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[60px]">PEDIDO</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[46px]">ITEM</th>
-                                                            <th className="py-1.5 px-1.5 text-left">DESCRIÇÃO</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[34px]">QTD</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[44px]">CUB</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[64px]">VALOR$</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[36px]">PESO</th>
+                                                            <th className="py-1.5 px-1 text-center w-[84px] min-w-[84px] whitespace-nowrap">STATUS</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[44px] min-w-[44px]">MODAL</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[66px] min-w-[66px]">LINHA</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[30px] min-w-[30px]">COD</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[64px] min-w-[64px]">PREV. ENT.</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[40px] min-w-[40px]">LOTE</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[58px] min-w-[58px]">PEDIDO</th>
+                                                            <th className="py-1.5 px-0.5 text-center w-[44px] min-w-[44px]">ITEM</th>
+                                                            <th className="py-1.5 px-1.5 text-left min-w-[90px]">DESCRIÇÃO</th>
+                                                            <th className="py-1.5 px-1 text-center w-[80px] min-w-[80px] max-w-[80px]">QTD</th>
+                                                            <th className="py-1.5 px-1 text-center w-[90px] min-w-[90px] max-w-[90px]">CUB</th>
+                                                            <th className="py-1.5 px-1 text-center w-[110px] min-w-[110px] max-w-[110px]">VALOR$</th>
+                                                            <th className="py-1.5 px-1 text-center w-[65px] min-w-[65px] max-w-[65px]">PESO</th>
                                                           </tr>
                                                         </thead>
                                                         <tbody className="divide-y divide-slate-100 font-sans">
                                                           {stGroup.itens.map((det, dIdx) => (
                                                             <tr key={`${det.item}-${det.numpedven}-${dIdx}`} className="hover:bg-blue-50/40 transition-colors divide-x divide-slate-100">
-                                                              <td className="py-1 px-1 text-center text-slate-700 font-medium">
-                                                                <span className={`px-1 py-0.2 rounded text-[8.5px] font-bold ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                                                              <td className="py-1 px-0.5 text-center whitespace-nowrap w-[84px] min-w-[84px]">
+                                                                <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-bold whitespace-nowrap leading-none ${det.statusOperacao === 'EM PROCESSO' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
                                                                   }`}>
                                                                   {det.statusOperacao}
                                                                 </span>
                                                               </td>
-                                                              <td className="py-1 px-1 text-center font-bold text-slate-700">
-                                                                <span className="px-1 py-0.2 bg-slate-100 text-slate-800 border border-slate-200 rounded text-[8.5px]">
+                                                              <td className="py-1 px-0.5 text-center font-bold text-slate-700 w-[44px] min-w-[44px]">
+                                                                <span className="px-1 py-0.5 bg-slate-100 text-slate-800 border border-slate-200 rounded text-[8px] whitespace-nowrap">
                                                                   {det.modalidade}
                                                                 </span>
                                                               </td>
-                                                              <td className="py-1 px-1.5 text-center text-slate-700 font-medium truncate max-w-[80px]" title={det.linha}>
+                                                              <td className="py-1 px-0.5 text-center text-slate-700 font-medium truncate w-[66px] min-w-[66px] max-w-[66px]" title={det.linha}>
                                                                 {det.linha || '-'}
                                                               </td>
-                                                              <td className="py-1 px-1 text-center font-mono font-bold text-slate-800">
+                                                              <td className="py-1 px-0.5 text-center font-mono font-bold text-slate-800 w-[30px] min-w-[30px]">
                                                                 {det.codmodal || '-'}
                                                               </td>
-                                                              <td className="py-1 px-1.5 text-center font-mono font-medium text-slate-700 whitespace-nowrap">
+                                                              <td className="py-1 px-0.5 text-center font-mono font-medium text-slate-700 whitespace-nowrap w-[64px] min-w-[64px]">
                                                                 <div className="flex items-center justify-center gap-0.5">
                                                                   <span>{formatDateBR(det.preventrega)}</span>
                                                                   {det.prazo && (
@@ -5167,34 +5167,34 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                                   )}
                                                                 </div>
                                                               </td>
-                                                              <td className="py-1 px-1 text-center font-mono font-bold text-slate-800">
+                                                              <td className="py-1 px-0.5 text-center font-mono font-bold text-slate-800 w-[40px] min-w-[40px]">
                                                                 {det.numlote && det.numlote !== '-' ? det.numlote : '-'}
                                                               </td>
-                                                              <td className="py-1 px-1 text-center font-mono font-bold text-slate-800">
+                                                              <td className="py-1 px-0.5 text-center font-mono font-bold text-slate-800 w-[58px] min-w-[58px]">
                                                                 {det.numpedven || '-'}
                                                               </td>
-                                                              <td className="py-1 px-1 text-center font-mono font-bold text-blue-700">
+                                                              <td className="py-1 px-0.5 text-center font-mono font-bold text-blue-700 w-[44px] min-w-[44px]">
                                                                 {formatItemCode(det.item)}
                                                               </td>
-                                                              <td className="py-1 px-2 text-slate-800 truncate max-w-[150px]" title={det.descricao}>
+                                                              <td className="py-1 px-1.5 text-slate-800 truncate" title={det.descricao}>
                                                                 {det.descricao || '-'}
                                                               </td>
-                                                              <td className="py-1 px-1.5 text-center font-mono font-bold text-slate-800">
+                                                              <td className="py-1 px-1 text-center font-mono font-bold text-slate-800 w-[80px] min-w-[80px] max-w-[80px] text-[10.5px]">
                                                                 {det.quantidade}
                                                               </td>
-                                                              <td className="py-1 px-1.5 text-center font-mono">
-                                                                <div className="grid grid-cols-[14px_1fr] items-center gap-0.5 w-[52px] mx-auto">
-                                                                  <div className="flex justify-center items-center scale-90">
+                                                              <td className="py-1 px-1 text-center font-mono w-[90px] min-w-[90px] max-w-[90px] text-[10.5px]">
+                                                                <div className="grid grid-cols-[18px_1fr] items-center gap-1 w-[72px] mx-auto text-[10px]">
+                                                                  <div className="flex justify-center items-center">
                                                                     {renderCubSemaforo(det.cubagem)}
                                                                   </div>
                                                                   <span className="text-right font-bold text-slate-800">{det.cubagem.toFixed(2)}</span>
                                                                 </div>
                                                               </td>
-                                                              <td className="py-1 px-1.5 text-center font-mono font-bold text-slate-800 whitespace-nowrap">
-                                                                <span className="text-slate-400 font-normal text-[8px] mr-0.5">R$</span>
-                                                                {det.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                              <td className="py-1 px-1 text-center font-mono font-bold text-slate-800 w-[110px] min-w-[110px] max-w-[110px] whitespace-nowrap text-[10px]">
+                                                                <span className="text-slate-400 font-normal text-[8.5px] mr-0.5">R$</span>
+                                                                <span>{det.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                                               </td>
-                                                              <td className="py-1 px-1.5 text-center font-mono font-medium text-slate-700">
+                                                              <td className="py-1 px-1 text-center font-mono font-medium text-slate-700 w-[65px] min-w-[65px] max-w-[65px] text-[10.5px]">
                                                                 {Math.round(det.peso)}
                                                               </td>
                                                             </tr>
