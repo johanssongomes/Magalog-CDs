@@ -75,17 +75,15 @@ def get_faixa_dias(dias):
         return '120 DIAS'
     return 'ACIMA DE 120 DIAS'
 
-def update_sync_status(status, message, progress=0):
+def update_sync_status(status, message, progress=0, total=0, elapsed_seconds=0):
     try:
         now = datetime.datetime.now().isoformat()
-        payload = {
-            "cell_key": "estoque_sync_status",
-            "value": json.dumps({
-                "status": status,
-                "message": message,
-                "progress": progress,
-                "updated_at": now
-            }),
+        status_obj = {
+            "status": status,
+            "message": message,
+            "progress": progress,
+            "total": total,
+            "elapsed_seconds": elapsed_seconds,
             "updated_at": now
         }
         headers = {
@@ -94,7 +92,13 @@ def update_sync_status(status, message, progress=0):
             "Content-Type": "application/json",
             "Prefer": "resolution=merge-duplicates"
         }
-        requests.post(f"{SUPABASE_URL}/rest/v1/performance_metrics", json=payload, headers=headers, timeout=10)
+        for key in ["estoque_sync_status", "estoque_sync_command"]:
+            payload = {
+                "cell_key": key,
+                "value": json.dumps(status_obj, ensure_ascii=False),
+                "updated_at": now
+            }
+            requests.post(f"{SUPABASE_URL}/rest/v1/performance_metrics", json=payload, headers=headers, timeout=10)
     except Exception as e:
         print("Erro ao atualizar status:", e)
 
@@ -408,8 +412,9 @@ def run_sync():
     except Exception as e:
         print("Erro ao gravar no Supabase:", e)
 
-    msg_sucesso = f"Estoque 100% atualizado via Oracle WIS! {len(rows):,} registros processados."
-    update_sync_status("success", msg_sucesso, 100)
+    elapsed = round(time.time() - t0, 1)
+    msg_sucesso = f"Estoque 100% atualizado via Oracle WIS! {len(rows):,} registros processados em {elapsed}s."
+    update_sync_status("success", msg_sucesso, 100, len(rows), elapsed)
     print(f"🎉 {msg_sucesso}")
     return True
 

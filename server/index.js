@@ -965,6 +965,34 @@ app.get('/api/pcp/sync-status', (req, res) => {
   }
 })
 
+let estoqueSyncProcess = null
+
+// Disparar sincronização do Estoque WIS (EstoqueCD.sql)
+app.post('/api/estoque/sync-wis', (req, res) => {
+  if (estoqueSyncProcess) {
+    return res.status(409).json({ 
+      error: 'Uma sincronização de estoque já está em andamento.',
+      status: 'running' 
+    })
+  }
+
+  const scriptPath = path.join(__dirname, '../scripts/sync_estoque_wis.py')
+  estoqueSyncProcess = exec(`python "${scriptPath}"`, { windowsHide: true }, (error, stdout, stderr) => {
+    estoqueSyncProcess = null
+    if (error) {
+      console.error('Erro no sync Estoque WIS:', stderr || error.message)
+    } else {
+      console.log('Sync Estoque WIS concluído com sucesso!')
+    }
+  })
+
+  return res.json({ 
+    success: true, 
+    message: 'Sincronização de Estoque WIS iniciada com sucesso.',
+    status: 'running'
+  })
+})
+
 app.listen(PORT, () => {
   console.log(`Backend API rodando com Supabase em http://localhost:${PORT}`)
 })

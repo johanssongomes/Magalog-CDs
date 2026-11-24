@@ -5,10 +5,11 @@ import {
   Bell, CheckCircle2, Info, Boxes, Truck, Warehouse, Wrench, Users, DollarSign, CalendarDays,
   TrendingUp, TrendingDown, MessageSquareWarning, ArrowUpRight, ArrowDownRight, Layers,
   PieChart, RefreshCw, UploadCloud, Tv, BedDouble, Trees, ShoppingCart, ShieldCheck, Disc3,
-  X, Search, Copy, Check, Target, Award, Flag, Scale
+  X, Search, Copy, Check, Target, Award, Flag, Scale, Database, AlertCircle
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
+import { triggerEstoqueWisSync, getEstoqueSyncStatus, type EstoqueSyncStatus } from '../lib/estoqueService'
 import { PmtDashboardOverview } from './PmtDashboardOverview'
 import { QuadroOverview } from './QuadroOverview'
 import initialAderenciaOct from '../data/initialAderencia202610.json'
@@ -1219,7 +1220,9 @@ const EstoqueCategoriasCard: React.FC<{
   bloqueioFaixa: string
   onBloqueioFaixaChange: (faixa: string) => void
   totalEstoqueGeralValor?: number
-}> = ({ data, filterStatus, onFilterChange, onFileUpload, isProcessing, bloqueioFaixa, onBloqueioFaixaChange, totalEstoqueGeralValor }) => {
+  onSyncDatabase?: () => void
+  isSyncingDatabase?: boolean
+}> = ({ data, filterStatus, onFilterChange, onFileUpload, isProcessing, bloqueioFaixa, onBloqueioFaixaChange, totalEstoqueGeralValor, onSyncDatabase, isSyncingDatabase }) => {
   const isBloqueios = filterStatus === 'BLOQUEADOS'
   const bloqueiosData = data.bloqueios
 
@@ -1498,7 +1501,7 @@ const EstoqueCategoriasCard: React.FC<{
                 {isBloqueios ? 'Estoque Bloqueado por Motivo' : 'Estoque por Categoria (m³)'}
               </h3>
               <p className="text-[10px] text-slate-400">
-                Base: EstoqueCD.xlsx &bull; {data.totalLinhas.toLocaleString('pt-BR')} itens
+                Base: Oracle WIS (EstoqueCD.sql) &bull; {data.totalLinhas.toLocaleString('pt-BR')} itens
               </p>
             </div>
           </div>
@@ -1530,18 +1533,29 @@ const EstoqueCategoriasCard: React.FC<{
               </button>
             </div>
 
-            {/* Botão de Upload */}
+            {/* Botão de Atualização via Banco Oracle WIS */}
+            <button
+              type="button"
+              onClick={onSyncDatabase}
+              disabled={isSyncingDatabase}
+              className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 px-2.5 py-1 rounded-md shadow-2xs transition-all cursor-pointer disabled:opacity-50 shrink-0"
+              title="Consultar estoque diretamente do banco Oracle WIS via ODBC e atualizar o painel"
+            >
+              <Database size={11} className={isSyncingDatabase ? 'animate-spin' : ''} />
+              <span>{isSyncingDatabase ? 'Atualizando...' : 'Atualizar'}</span>
+            </button>
+
+            {/* Botão de Upload Manual / Importar Planilha Excel */}
             <label
               htmlFor="estoque-file-input"
-              className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md border border-blue-200 cursor-pointer transition-all shrink-0"
-              title="Importar nova planilha EstoqueCD.xlsx"
+              className="p-1 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-md border border-slate-200 cursor-pointer transition-all shrink-0"
+              title="Importar planilha EstoqueCD.xlsx manualmente do computador"
             >
               {isProcessing ? (
                 <RefreshCw size={11} className="animate-spin text-blue-600" />
               ) : (
                 <UploadCloud size={11} />
               )}
-              <span>{isProcessing ? 'Lendo...' : 'Atualizar'}</span>
               <input
                 id="estoque-file-input"
                 type="file"
@@ -2870,6 +2884,65 @@ export const DashboardPage: React.FC = () => {
     return { bomOnly: defaultData, todos: defaultData, bloqueios: raw?.bloqueios }
   })
   const [isProcessingEstoque, setIsProcessingEstoque] = useState(false)
+  const [isEstoqueSyncModalOpen, setIsEstoqueSyncModalOpen] = useState(false)
+  const [isSyncingEstoque, setIsSyncingEstoque] = useState(false)
+  const [estoqueSyncStatus, setEstoqueSyncStatus] = useState<EstoqueSyncStatus>({ status: 'idle' })
+
+  const handleSyncEstoqueWis = async () => {
+    setIsEstoqueSyncModalOpen(true)
+    setIsSyncingEstoque(true)
+    setEstoqueSyncStatus({
+      status: 'running',
+      step: 'starting',
+      progress: 10,
+      message: 'Conectando ao banco de dados Oracle WIS (ODBC)...'
+    })
+
+    const res = await triggerEstoqueWisSync()
+    if (!res.success) {
+      setIsSyncingEstoque(false)
+      setEstoqueSyncStatus({
+        status: 'error',
+        step: 'failed',
+        progress: 0,
+        message: res.message || 'Falha ao registrar comando no Supabase.'
+      })
+      return
+    }
+
+    // Polling do progresso
+    const pollInterval = window.setInterval(async () => {
+      try {
+        const current = await getEstoqueSyncStatus()
+        setEstoqueSyncStatus(current)
+
+        if (current.status === 'success') {
+          window.clearInterval(pollInterval)
+          setIsSyncingEstoque(false)
+          // Recarrega os dados de estoque do Supabase
+          const { data } = await supabase
+            .from('performance_metrics')
+            .select('value')
+            .eq('cell_key', 'estoque_categoria_summary')
+            .maybeSingle()
+          if (data?.value) {
+            const parsed = JSON.parse(data.value)
+            if (parsed?.bomOnly && parsed?.todos) {
+              setEstoqueBaseSummary(parsed)
+              localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(parsed))
+            }
+          }
+          // Fechar modal automaticamente após sucesso
+          window.setTimeout(() => {
+            setIsEstoqueSyncModalOpen(false)
+          }, 1200)
+        } else if (current.status === 'error' || current.status === 'warning') {
+          window.clearInterval(pollInterval)
+          setIsSyncingEstoque(false)
+        }
+      } catch { }
+    }, 1500)
+  }
 
   // Carregar dados de Estoque por Categoria do Supabase automaticamente (tempo real e ao abrir)
   useEffect(() => {
@@ -4201,7 +4274,7 @@ export const DashboardPage: React.FC = () => {
             right={<Legend items={[{ label: 'Realizado', color: '#3b82f6' }, { label: 'Meta', color: '#cbd5e1' }]} />} />
           <TurnoChart />
         </Card>
-        {/* Relatório de Categorias de Estoque / Bloqueios de Qualidade (EstoqueCD.xlsx) */}
+        {/* Relatório de Categorias de Estoque / Bloqueios de Qualidade (EstoqueCD.xlsx / Oracle WIS) */}
         <EstoqueCategoriasCard
           data={activeEstoqueData}
           filterStatus={estoqueFilterStatus}
@@ -4211,6 +4284,8 @@ export const DashboardPage: React.FC = () => {
           bloqueioFaixa={bloqueioFaixa}
           onBloqueioFaixaChange={setBloqueioFaixa}
           totalEstoqueGeralValor={estoqueBaseSummary.bomOnly?.totalValor}
+          onSyncDatabase={handleSyncEstoqueWis}
+          isSyncingDatabase={isSyncingEstoque}
         />
       </div>
 
@@ -4498,6 +4573,151 @@ export const DashboardPage: React.FC = () => {
 
       {/* Acompanhamento do Quadro Médio OP e C&D */}
       <QuadroOverview />
+
+      {/* MODAL DE SINCRONIZAÇÃO DE ESTOQUE (ORACLE WIS) */}
+      {isEstoqueSyncModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col">
+            {/* Cabeçalho do Modal */}
+            <div className="px-5 py-4 bg-gradient-to-r from-[#002f5c] to-[#0a4a82] text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-white/10 rounded-xl">
+                  <Database size={20} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-white">Sincronização de Estoque WIS</h3>
+                  <p className="text-[11px] text-blue-200">Oracle WIS50 (EstoqueCD.sql) &rarr; Supabase</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isSyncingEstoque) setIsEstoqueSyncModalOpen(false)
+                }}
+                disabled={isSyncingEstoque}
+                className="p-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer disabled:opacity-40"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Conteúdo do Modal */}
+            <div className="p-5 space-y-4">
+              {/* Barra de Progresso */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-slate-600">Progresso</span>
+                  <span className="text-blue-600 font-bold">{estoqueSyncStatus.progress || (isSyncingEstoque ? 15 : 0)}%</span>
+                </div>
+                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      estoqueSyncStatus.status === 'success'
+                        ? 'bg-emerald-500'
+                        : 'bg-gradient-to-r from-blue-500 to-indigo-600 animate-pulse'
+                    }`}
+                    style={{ width: `${Math.max(5, estoqueSyncStatus.progress || (isSyncingEstoque ? 15 : 0))}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Status do card */}
+              <div
+                className={`p-3.5 rounded-xl border flex items-start gap-3 transition-all ${
+                  estoqueSyncStatus.status === 'success'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    : estoqueSyncStatus.status === 'error'
+                    ? 'bg-rose-50 border-rose-200 text-rose-900'
+                    : 'bg-blue-50 border-blue-200 text-blue-900'
+                }`}
+              >
+                <div className="p-1 rounded-lg bg-white/70 mt-0.5 shrink-0">
+                  {estoqueSyncStatus.status === 'success' ? (
+                    <CheckCircle2 size={16} className="text-emerald-600" />
+                  ) : estoqueSyncStatus.status === 'error' ? (
+                    <AlertCircle size={16} className="text-rose-600" />
+                  ) : (
+                    <RefreshCw size={16} className="text-blue-600 animate-spin" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold">
+                    {estoqueSyncStatus.status === 'success'
+                      ? 'Sincronização Concluída'
+                      : estoqueSyncStatus.status === 'error'
+                      ? 'Falha na Sincronização'
+                      : 'Executando Consulta no WIS50'}
+                  </p>
+                  <p className="text-[11.5px] opacity-90 break-words whitespace-pre-line">
+                    {estoqueSyncStatus.message || (isSyncingEstoque ? 'Aguardando resposta do banco WIS...' : 'Pronto para atualizar.')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Etapas */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">Etapas da Consulta WIS:</p>
+                <div className="space-y-1.5 text-xs text-slate-600">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">1</span>
+                    <span>Conexão ODBC no banco Oracle WIS50 (DSN wis)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">2</span>
+                    <span>Execução da Query de Estoque (EstoqueCD.sql)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">3</span>
+                    <span>Cruzamento de Custos e Categorização (BOM x Bloqueios)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">4</span>
+                    <span>Atualização Instantânea do Painel no Supabase</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2">
+              {isSyncingEstoque ? (
+                <button
+                  type="button"
+                  onClick={() => setIsEstoqueSyncModalOpen(false)}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg shadow-2xs hover:bg-slate-100 cursor-pointer"
+                >
+                  Minimizar (continua em segundo plano)
+                </button>
+              ) : estoqueSyncStatus.status === 'error' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsEstoqueSyncModalOpen(false)}
+                    className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg shadow-2xs hover:bg-slate-100 cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSyncEstoqueWis}
+                    className="px-3.5 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-2xs cursor-pointer"
+                  >
+                    Tentar Novamente
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsEstoqueSyncModalOpen(false)}
+                  className="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-2xs cursor-pointer"
+                >
+                  Concluir
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

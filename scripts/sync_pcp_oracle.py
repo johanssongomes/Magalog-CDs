@@ -495,6 +495,35 @@ def get_supabase_supply_command():
         pass
     return None
 
+def get_supabase_estoque_command():
+    """Lê o comando na fila do Supabase para saber se o site solicitou sincronização do Estoque WIS"""
+    try:
+        url = f"{SUPABASE_URL}/rest/v1/performance_metrics?cell_key=eq.estoque_sync_command&select=value"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}"
+        }
+        res = requests.get(url, headers=headers, verify=False, timeout=8)
+        if res.status_code == 200:
+            data = res.json()
+            if data and "value" in data[0]:
+                return json.loads(data[0]["value"])
+    except Exception:
+        pass
+    return None
+
+def sync_estoque():
+    """Executa a sincronização de Estoque WIS (EstoqueCD.sql)"""
+    try:
+        scripts_dir = Path(__file__).resolve().parent
+        if str(scripts_dir) not in sys.path:
+            sys.path.insert(0, str(scripts_dir))
+        import sync_estoque_wis
+        return sync_estoque_wis.run_sync()
+    except Exception as e:
+        print(f"[ERRO ESTOQUE WIS] {e}")
+        return False
+
 # ============================================================
 # QUERY SQL: SUPPLY LOJAS (CD 994 x 45 Lojas)
 # ============================================================
@@ -784,9 +813,10 @@ def sync_supply():
 def sentinel_loop():
     print("=" * 70)
     print("MODO SENTINELA UNIFICADO ATIVO")
-    print("Ouvindo ambos os botões do site:")
-    print("  [PCP]    'Atualizar Carteira' -> canal pcp_sync_command")
-    print("  [SUPPLY] 'Atualizar Supply'   -> canal supply_sync_command")
+    print("Ouvindo os três botões do site:")
+    print("  [PCP]     'Atualizar Carteira' -> canal pcp_sync_command")
+    print("  [SUPPLY]  'Atualizar Supply'   -> canal supply_sync_command")
+    print("  [ESTOQUE] 'Atualizar Estoque'  -> canal estoque_sync_command")
     print("Mantenha esta janela minimizada na barra de tarefas.")
     print("Pressione Ctrl+C para encerrar quando quiser.")
     print("=" * 70 + "\n")
@@ -808,8 +838,17 @@ def sentinel_loop():
     except Exception:
         pass
 
+    try:
+        init_estoque = get_supabase_estoque_command()
+        if init_estoque and isinstance(init_estoque, dict) and init_estoque.get("status") == "requested":
+            print("[ESTOQUE] Pedido pendente encontrado! Processando Estoque WIS imediatamente...")
+            sync_estoque()
+    except Exception:
+        pass
+
     last_pcp_time = ""
     last_supply_time = ""
+    last_estoque_time = ""
 
     while True:
         try:
@@ -833,6 +872,17 @@ def sentinel_loop():
                     last_supply_time = s_req_time
                     print(f"\n[SUPPLY] Sinal detectado do site às {s_req_time}. Iniciando sync do Supply...")
                     sync_supply()
+                    print("\n[SENTINELA] Aguardando novos cliques no site...\n")
+
+            # --- Canal Estoque WIS ---
+            estoque_cmd = get_supabase_estoque_command()
+            if estoque_cmd and isinstance(estoque_cmd, dict):
+                e_status = estoque_cmd.get("status")
+                e_req_time = estoque_cmd.get("requested_at", "")
+                if e_status == "requested" and e_req_time != last_estoque_time:
+                    last_estoque_time = e_req_time
+                    print(f"\n[ESTOQUE] Sinal detectado do site às {e_req_time}. Iniciando sync do Estoque WIS...")
+                    sync_estoque()
                     print("\n[SENTINELA] Aguardando novos cliques no site...\n")
 
         except Exception as e:
