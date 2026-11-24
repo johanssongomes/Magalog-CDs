@@ -606,19 +606,505 @@ def get_supabase_estoque_command():
         pass
     return None
 
-def sync_estoque():
-    """Executa a sincronização de Estoque WIS (EstoqueCD.sql)"""
+# Configuração ODBC WIS
+WIS_DSN = os.environ.get("WIS_DSN", "wis")
+WIS_USER = os.environ.get("WIS_USER", "joh_gomes")
+WIS_PWD = os.environ.get("WIS_PWD", "vAstLW3Ut4Opr2FAhoD251uj!H")
+
+MAPPING_CATEGORIAS = {
+    '99ACE': 'Madeira',
+    '99AER': 'Mercado',
+    '99ALM': 'Mercado',
+    '99BDC': 'Mercado',
+    '99BEB': 'Mercado',
+    '99COF': 'Cofre',
+    '99COL': 'Colchão/Estofado',
+    '99DIV': 'Diversos',
+    '99ECC': 'Colchão/Estofado',
+    '99EIS': 'Diversos',
+    '99HIG': 'Mercado',
+    '99LIM': 'Mercado',
+    '99LIV': 'Mercado',
+    '99LNB': 'Eletro Pesado',
+    '99MOV': 'Madeira',
+    '99PDE': 'Diversos',
+    '99PET': 'Mercado',
+    '99PNE': 'Pneu',
+    '99TV': 'Imagem'
+}
+
+CAPACIDADES = {
+    'Cofre': 127,
+    'Colchão/Estofado': 5226,
+    'Diversos': 2975,
+    'Eletro Pesado': 13128,
+    'Linha Branca': 13128,
+    'Imagem': 2535,
+    'Madeira': 2798,
+    'Mercado': 358,
+    'Pneu': 372
+}
+
+def get_faixa_dias(dias):
+    if dias is None or dias == 0:
+        return '0 DIAS'
+    if dias <= 7:
+        return '7 DIAS'
+    if dias <= 30:
+        return '30 DIAS'
+    if dias <= 90:
+        return '90 DIAS'
+    if dias <= 120:
+        return '120 DIAS'
+    return 'ACIMA DE 120 DIAS'
+
+WIS_ESTOQUE_QUERY = """
+SELECT 
+    TRIM(A.CD_EMPRESA) || ' - ' || TRIM(B.NM_EMPRESA) AS EMPRESA,
+    CASE WHEN MOD(TO_NUMBER(SUBSTR(TRIM(A.CD_ENDERECO), 4, 3)), 2) = 0 THEN 'PAR' ELSE 'IMPAR' END AS PARIDADE,
+    SUBSTR(TRIM(A.CD_ENDERECO), 1, 1) AS END1,
+    SUBSTR(TRIM(A.CD_ENDERECO), 1, 3) AS END2,
+    TRIM(A.CD_ENDERECO) AS END3,
+    TRIM(L.CD_PRODUTO) AS CODIGO,
+    CASE 
+        WHEN INSTR(TRIM(L.CD_PRODUTO), '/') > 0 THEN SUBSTR(TRIM(L.CD_PRODUTO), 1, INSTR(TRIM(L.CD_PRODUTO), '/') - 1)
+        ELSE TRIM(L.CD_PRODUTO)
+    END AS COD_GEMCO,
+    TRIM(S.DS_PRODUTO) AS DS_ITEM,
+    TO_NUMBER(TRIM(L.QT_ESTOQUE)) AS QNTS,
+    TO_NUMBER(TRIM(L.QT_RESERVA_SAIDA)) AS RESERVA,
+    TO_NUMBER(TRIM(L.QT_TRANSITO_ENTRADA)) AS TRANSITO,
+    (K.VL_ALTURA * K.VL_LARGURA * K.VL_PROFUNDIDADE) / 1000000 AS CUBAGEM,
+    ROUND((K.VL_ALTURA * K.VL_LARGURA * K.VL_PROFUNDIDADE) / 1000000 * L.QT_ESTOQUE, 3) AS CUB_TOTAL,
+    TRIM(S.CD_CLASSE) AS CLASSE_ITEM,
+    TRIM(S.CD_CLASSE) || ' - ' || D.DS_CLASSE AS DS_CLASSE_ITEM,
+    TO_NUMBER(TRIM(LI.CD_LINHA)) AS CD_LINHA,
+    LI.DS_LINHA,
+    TO_NUMBER(TRIM(FA.CD_FAMILIA)) AS CD_FAMILIA,
+    FA.DS_FAMILIA,
+    TRIM(A.CD_TIPO_ENDERECO) || ' - ' || TRIM(C.DS_TIPO_ENDERECO) AS TIPO_DE_END,
+    C.CD_TIPO_ENDERECO,
+    C.DS_TIPO_ENDERECO,
+    C.QT_CAPAC_PALETES,
+    C.QT_PRODUTOS_DISTINTOS,
+    C.ID_VARIOS_PRODUTOS,
+    C.CD_TIPO_ESTRUTURA,
+    C.VL_ALTURA,
+    C.VL_LARGURA,
+    C.VL_PROFUNDIDADE,
+    C.VL_PESO_MAXIMO,
+    K.PS_LIQUIDO,
+    K.PS_BRUTO,
+    TO_NUMBER(REPLACE(((C.VL_ALTURA * C.VL_LARGURA * C.VL_PROFUNDIDADE * C.QT_CAPAC_PALETES)/1000000), '.', '')) AS CUB_ESTRUTURA,
+    TRIM(A.CD_CLASSE) || ' - ' || TRIM(D.DS_CLASSE) AS CLASSE_ENDERECO,
+    TRIM(A.CD_ROTATIVIDADE) || ' - ' || TRIM(F.DS_ROTATIVIDADE) AS ROTATIVIDADE,
+    TRIM(A.CD_SITUACAO) || ' - ' || TRIM(E.DS_SITUACAO) AS SITUACAO,
+    TRIM(TA.CD_AREA_ARMAZ) || ' - ' || TRIM(TA.DS_AREA_ARMAZ) AS AREA_ARMEZENAGEM,
+    TA.DS_AREA_ERP,
+    CASE WHEN TRIM(A.ID_ARMAZ_FLEXIVEL) = 'S' THEN 'SIM' WHEN TRIM(A.ID_ARMAZ_FLEXIVEL) = 'N' THEN 'NAO' END AS FLEXIVEL,
+    CASE WHEN TRIM(A.ID_ENDERECO_BAIXO) = 'S' THEN 'BAIXO' WHEN TRIM(A.ID_ENDERECO_BAIXO) = 'N' THEN 'ALTO' END AS NIVEL,
+    TRIM(A.TP_PALETE) || ' - ' || TRIM(G.DS_PALETE) AS TIPO_DE_PALETE,
+    CASE WHEN (SELECT COUNT(DISTINCT L2.CD_PRODUTO) FROM WIS50.T_ESTOQUE L2 WHERE L2.CD_ENDERECO = A.CD_ENDERECO AND L2.CD_EMPRESA = A.CD_EMPRESA) > 1 THEN 1 ELSE 0 END AS MULTIPLO_CODIGO,
+    L.DT_FABRICACAO,
+    L.DT_VALIDADE,
+    CASE WHEN L.DT_VALIDADE IS NULL THEN NULL WHEN L.DT_VALIDADE < SYSDATE THEN 'VENCIDO' ELSE TO_CHAR(TRUNC(L.DT_VALIDADE - SYSDATE)) END AS DIAS_PARA_VENCIMENTO,
+    S.ID_CONTROLE_VALIDADE,
+    S.QT_DIAS_BLOQUEIO_VALIDADE,
+    TO_CHAR(L.DT_ULTIMO_INVENTARIO, 'DD/MM/YYYY') AS DATA_ARMAZENAGEM,
+    TO_CHAR(DET.MAX_DT_SEPARACAO, 'DD/MM/YYYY') AS DATA_SEPARACAO,
+    ROUND(SYSDATE - L.DT_ULTIMO_INVENTARIO) AS DIAS_ARMAZENAGEM,
+    CASE WHEN DET.MAX_DT_SEPARACAO IS NULL THEN NULL ELSE ROUND(SYSDATE - DET.MAX_DT_SEPARACAO) END AS DIAS_SEPARACAO,
+    CASE 
+        WHEN DET.MAX_DT_SEPARACAO IS NULL AND L.DT_ULTIMO_INVENTARIO IS NOT NULL THEN
+            CASE 
+                WHEN (ROUND(SYSDATE - L.DT_ULTIMO_INVENTARIO)) > 120 THEN 'ACIMA DE 120 DIAS'
+                WHEN (ROUND(SYSDATE - L.DT_ULTIMO_INVENTARIO)) BETWEEN 91 AND 120 THEN '120 DIAS'
+                WHEN (ROUND(SYSDATE - L.DT_ULTIMO_INVENTARIO)) BETWEEN 31 AND 90 THEN '90 DIAS'
+                ELSE '30 DIAS'
+            END
+        WHEN DET.MAX_DT_SEPARACAO IS NOT NULL THEN
+            CASE 
+                WHEN (ROUND(SYSDATE - DET.MAX_DT_SEPARACAO)) > 120 THEN 'ACIMA DE 120 DIAS'
+                WHEN (ROUND(SYSDATE - DET.MAX_DT_SEPARACAO)) BETWEEN 91 AND 120 THEN '120 DIAS'
+                WHEN (ROUND(SYSDATE - DET.MAX_DT_SEPARACAO)) BETWEEN 31 AND 90 THEN '90 DIAS'
+                ELSE '30 DIAS'
+            END
+        ELSE NULL 
+    END AS PERIODO_MOVIMENTACAO,
+    TO_CHAR(L.DT_ULTIMO_INVENTARIO, 'YYYY') AS ANO_ARMAZENAGEM,
+    TO_CHAR(L.DT_ULTIMO_INVENTARIO, 'MM') AS MES_ARMAZENAGEM,
+    NVL(TO_CHAR(DET.MAX_DT_SEPARACAO, 'YYYY'), '') AS ANO_SEPARACAO,
+    NVL(TO_CHAR(DET.MAX_DT_SEPARACAO, 'MM'), '') AS MES_SEPARACAO,
+    L.DT_ULTIMO_INVENTARIO
+FROM WIS50.T_ENDERECO_ESTOQUE A
+JOIN WIS50.T_EMPRESA B ON A.CD_EMPRESA = B.CD_EMPRESA
+JOIN WIS50.T_TIPO_ENDERECO C ON A.CD_TIPO_ENDERECO = C.CD_TIPO_ENDERECO
+JOIN WIS50.T_CLASSE D ON A.CD_CLASSE = D.CD_CLASSE
+JOIN WIS50.T_SITUACAO E ON A.CD_SITUACAO = E.CD_SITUACAO
+JOIN WIS50.T_ROTATIVIDADE F ON A.CD_ROTATIVIDADE = F.CD_ROTATIVIDADE
+JOIN WIS50.T_TIPO_PALETE G ON A.TP_PALETE = G.TP_PALETE
+LEFT JOIN WIS50.T_ESTOQUE L ON L.CD_ENDERECO = A.CD_ENDERECO AND L.CD_EMPRESA = A.CD_EMPRESA
+LEFT JOIN WIS50.T_PRODUTO S ON S.CD_PRODUTO = L.CD_PRODUTO AND L.CD_EMPRESA = S.CD_EMPRESA
+LEFT JOIN WIS50.T_CAB_PRODUTO K ON K.CD_PRODUTO = S.CD_PRODUTO
+LEFT JOIN WIS50.T_LINHA LI ON K.CD_LINHA = LI.CD_LINHA
+LEFT JOIN WIS50.T_FAMILIA_PRODUTO FA ON K.CD_FAMILIA = FA.CD_FAMILIA
+LEFT JOIN WIS50.T_TIPO_AREA TA ON A.CD_AREA_ARMAZ = TA.CD_AREA_ARMAZ
+LEFT JOIN (
+    SELECT 
+        CD_EMPRESA, 
+        CD_PRODUTO, 
+        MAX(DT_SEPARACAO) AS MAX_DT_SEPARACAO
+    FROM WIS50.T_DET_SEPARACAO
+    WHERE CD_EMPRESA in (1994)
+      AND SUBSTR(CD_ENDERECO, 1, 1) <> 'T'
+    GROUP BY CD_EMPRESA, CD_PRODUTO
+) DET ON L.CD_EMPRESA = DET.CD_EMPRESA AND L.CD_PRODUTO = DET.CD_PRODUTO
+WHERE A.CD_EMPRESA IN (1994)
+ORDER BY TRIM(L.QT_ESTOQUE), TRIM(A.CD_ENDERECO)
+"""
+
+def update_estoque_status(status, message, progress=0, total=0, elapsed_seconds=0):
     try:
-        base_p = Path(__file__).resolve().parent
-        scripts_p = base_p / "scripts"
-        for p in [str(base_p), str(scripts_p)]:
-            if p not in sys.path:
-                sys.path.insert(0, p)
-        import sync_estoque_wis
-        return sync_estoque_wis.run_sync()
+        now = datetime.datetime.now().isoformat()
+        status_obj = {
+            "status": status,
+            "message": message,
+            "progress": progress,
+            "total": total,
+            "elapsed_seconds": elapsed_seconds,
+            "updated_at": now
+        }
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates"
+        }
+        for key in ["estoque_sync_status", "estoque_sync_command"]:
+            payload = {
+                "cell_key": key,
+                "value": json.dumps(status_obj, ensure_ascii=False),
+                "updated_at": now
+            }
+            requests.post(f"{SUPABASE_URL}/rest/v1/performance_metrics", json=payload, headers=headers, timeout=10)
     except Exception as e:
-        print(f"[ERRO ESTOQUE WIS] {e}")
+        print("[STATUS ERROR ESTOQUE]", e)
+
+def sync_estoque():
+    """Executa a sincronização completa do Estoque WIS (EstoqueCD.sql) diretamente no banco"""
+    t0 = time.time()
+    print("\n" + "=" * 70)
+    print("INICIANDO SINCRONIZAÇÃO DE ESTOQUE WIS50 -> DASHBOARD")
+    print("=" * 70)
+    update_estoque_status("running", "Conectando ao banco de dados Oracle WIS (ODBC)...", 10)
+
+    try:
+        import pyodbc
+    except ImportError:
+        err = "pyodbc não está instalado neste ambiente."
+        print(f"[ERRO ESTOQUE WIS] {err}")
+        update_estoque_status("error", err, 0)
         return False
+
+    mapa_custos = {}
+    base_dir = Path(__file__).resolve().parent
+    for p in [
+        base_dir / "src" / "data" / "base_valores_custos.json",
+        base_dir.parent / "src" / "data" / "base_valores_custos.json",
+        base_dir / "base_valores_custos.json"
+    ]:
+        if p.exists():
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    mapa_custos = json.load(f)
+                break
+            except Exception:
+                pass
+
+    conn_str = f"DSN={WIS_DSN};UID={WIS_USER};PWD={WIS_PWD}"
+    print(f"[WIS] Conectando com DSN '{WIS_DSN}'...")
+    try:
+        cnxn = pyodbc.connect(conn_str, timeout=15)
+        cursor = cnxn.cursor()
+    except Exception as e:
+        err = f"Erro na conexão ODBC com '{WIS_DSN}': {e}"
+        print(f"[ERRO ESTOQUE WIS] {err}")
+        update_estoque_status("error", err, 0)
+        return False
+
+    update_estoque_status("running", "Executando consulta SQL de Estoque no WIS50...", 30)
+    print("[WIS] Executando consulta SQL de Estoque...")
+
+    try:
+        cursor.execute(WIS_ESTOQUE_QUERY)
+        rows = cursor.fetchall()
+        cols = [c[0] for c in cursor.description]
+        print(f"[WIS] Consulta finalizada! {len(rows):,} linhas retornadas.")
+    except Exception as e:
+        err = f"Erro na execução do SQL: {e}"
+        print(f"[ERRO ESTOQUE WIS] {err}")
+        update_estoque_status("error", err, 0)
+        try:
+            cnxn.close()
+        except Exception:
+            pass
+        return False
+
+    try:
+        cnxn.close()
+    except Exception:
+        pass
+
+    update_estoque_status("running", f"Processando {len(rows):,} itens e calculando cubagem/valores...", 70)
+
+    master_volumes_count = {}
+    for r in rows:
+        row_dict = dict(zip(cols, r))
+        codigo = str(row_dict.get("CODIGO") or "").strip()
+        gemco = str(row_dict.get("COD_GEMCO") or "").strip()
+        ds_item = str(row_dict.get("DS_ITEM") or "").upper()
+        if "/" in codigo:
+            parts = codigo.split("/")
+            master = parts[0]
+            try:
+                vol_num = int(parts[1])
+                master_volumes_count[master] = max(master_volumes_count.get(master, 0), vol_num)
+            except Exception:
+                pass
+        import re
+        m = re.search(r"VOL:?\s*(\d+)\s*/\s*(\d+)", ds_item)
+        if m:
+            master = gemco or (codigo.split("/")[0] if codigo else "")
+            try:
+                tot_vols = int(m.group(2))
+                master_volumes_count[master] = max(master_volumes_count.get(master, 0), tot_vols)
+            except Exception:
+                pass
+
+    def summarize_dataset(filter_bom=False):
+        cat_totals = {}
+        total_cub = 0.0
+        total_qtd = 0
+        total_valor = 0.0
+        count_rows = 0
+
+        for r in rows:
+            row_dict = dict(zip(cols, r))
+            area = str(row_dict.get("DS_AREA_ERP") or "").strip().upper()
+            if filter_bom and area != "BOM":
+                continue
+
+            count_rows += 1
+            codigo = str(row_dict.get("CODIGO") or "").strip()
+            gemco = str(row_dict.get("COD_GEMCO") or "").strip()
+            master = gemco or (codigo.split("/")[0] if codigo else "")
+            classe = str(row_dict.get("CLASSE_ITEM") or "").strip()
+            cat = MAPPING_CATEGORIAS.get(classe, "Diversos")
+
+            cub = float(row_dict.get("CUB_TOTAL") or 0.0)
+            qnts = int(row_dict.get("QNTS") or 0)
+
+            custo_master = float(mapa_custos.get(master) or mapa_custos.get(codigo) or 0.0)
+            num_vols = master_volumes_count.get(master, 1)
+            custo_unit_vol = (custo_master / num_vols) if num_vols > 1 else custo_master
+            valor_item = qnts * custo_unit_vol
+
+            if cat not in cat_totals:
+                cat_totals[cat] = {"cubagem": 0.0, "pecas": 0, "valor": 0.0, "itens": 0}
+            cat_totals[cat]["cubagem"] += cub
+            cat_totals[cat]["pecas"] += qnts
+            cat_totals[cat]["valor"] += valor_item
+            cat_totals[cat]["itens"] += 1
+
+            total_cub += cub
+            total_qtd += qnts
+            total_valor += valor_item
+
+        total_capacidade = 27519
+        categorias_list = []
+        for nome, val in cat_totals.items():
+            cap = CAPACIDADES.get(nome, 0)
+            cub_round = round(val["cubagem"], 2)
+            ocupacao = round((cub_round / cap * 100), 1) if cap > 0 else 0.0
+            categorias_list.append({
+                "nome": nome,
+                "cubagem": cub_round,
+                "capacidade": cap,
+                "ocupacao": ocupacao,
+                "pecas": val["pecas"],
+                "valor": round(val["valor"], 2),
+                "itens": val["itens"],
+                "percentual": round((cub_round / total_cub * 100), 1) if total_cub > 0 else 0.0
+            })
+
+        categorias_list.sort(key=lambda x: x["cubagem"], reverse=True)
+
+        return {
+            "totalCubagem": round(total_cub, 2),
+            "totalCapacidade": total_capacidade,
+            "totalOcupacao": round((total_cub / total_capacidade * 100), 1) if total_capacidade > 0 else 0.0,
+            "totalPecas": total_qtd,
+            "totalValor": round(total_valor, 2),
+            "totalLinhas": count_rows,
+            "categorias": categorias_list
+        }
+
+    def summarize_bloqueios():
+        bloq_rows = []
+        for r in rows:
+            row_dict = dict(zip(cols, r))
+            if str(row_dict.get("DS_AREA_ERP") or "").strip().upper() == "BLOQUEADO":
+                bloq_rows.append(row_dict)
+
+        motivos_map = {}
+        total_pecas = 0
+        total_cub = 0.0
+        total_valor = 0.0
+        all_skus = set()
+        total_faixas = {
+            '0 DIAS': 0.0,
+            '7 DIAS': 0.0,
+            '30 DIAS': 0.0,
+            '90 DIAS': 0.0,
+            '120 DIAS': 0.0,
+            'ACIMA DE 120 DIAS': 0.0
+        }
+
+        for r in bloq_rows:
+            raw_motivo = str(r.get("AREA_ARMEZENAGEM") or "OUTROS").strip()
+            import re
+            motivo = re.sub(r"^\d+\s*-\s*", "", raw_motivo).strip()
+            codigo = str(r.get("CODIGO") or "").strip()
+            gemco = str(r.get("COD_GEMCO") or "").strip()
+            master = gemco or (codigo.split("/")[0] if codigo else "")
+
+            qnts = int(r.get("QNTS") or 0)
+            cub = float(r.get("CUB_TOTAL") or 0.0)
+            dias = int(r.get("DIAS_ARMAZENAGEM") or 0)
+            faixa = get_faixa_dias(dias)
+
+            custo_master = float(mapa_custos.get(master) or mapa_custos.get(codigo) or 0.0)
+            num_vols = master_volumes_count.get(master, 1)
+            custo_unit_vol = (custo_master / num_vols) if num_vols > 1 else custo_master
+            valor_item = qnts * custo_unit_vol
+
+            all_skus.add(master)
+            total_pecas += qnts
+            total_cub += cub
+            total_valor += valor_item
+            total_faixas[faixa] += valor_item
+
+            if motivo not in motivos_map:
+                motivos_map[motivo] = {
+                    "motivo": motivo,
+                    "skusSet": set(),
+                    "pecas": 0,
+                    "cubagem": 0.0,
+                    "valorTotal": 0.0,
+                    "faixas": {
+                        '0 DIAS': 0.0,
+                        '7 DIAS': 0.0,
+                        '30 DIAS': 0.0,
+                        '90 DIAS': 0.0,
+                        '120 DIAS': 0.0,
+                        'ACIMA DE 120 DIAS': 0.0
+                    },
+                    "itemsMap": {}
+                }
+
+            item = motivos_map[motivo]
+            item["skusSet"].add(master)
+            item["pecas"] += qnts
+            item["cubagem"] += cub
+            item["valorTotal"] += valor_item
+            item["faixas"][faixa] += valor_item
+
+            if master:
+                if master not in item["itemsMap"]:
+                    item["itemsMap"][master] = {
+                        "empresa": r.get("EMPRESA") or "1994 - CD994-MARACANAU",
+                        "sku": master,
+                        "descricao": r.get("DS_ITEM") or "",
+                        "linha": r.get("DS_LINHA") or "",
+                        "classe": r.get("CLASSE_ITEM") or "",
+                        "endereco": r.get("END3") or "",
+                        "diasBloq": dias,
+                        "pecas": 0,
+                        "cubagem": 0.0,
+                        "valorTotal": 0.0
+                    }
+                it = item["itemsMap"][master]
+                it["pecas"] += qnts
+                it["cubagem"] += cub
+                it["valorTotal"] += valor_item
+                if dias > it["diasBloq"]:
+                    it["diasBloq"] = dias
+
+        motivos_list = []
+        for m in motivos_map.values():
+            items_list = list(m["itemsMap"].values())
+            for it in items_list:
+                it["cubagem"] = round(it["cubagem"], 3)
+                it["valorTotal"] = round(it["valorTotal"], 2)
+            items_list.sort(key=lambda x: x["valorTotal"], reverse=True)
+
+            motivos_list.append({
+                "motivo": m["motivo"],
+                "skus": len(m["skusSet"]),
+                "pecas": m["pecas"],
+                "cubagem": round(m["cubagem"], 2),
+                "valorTotal": round(m["valorTotal"], 2),
+                "faixas": {k: round(v, 2) for k, v in m["faixas"].items()},
+                "items": items_list
+            })
+
+        motivos_list.sort(key=lambda x: x["valorTotal"], reverse=True)
+
+        return {
+            "totalLinhas": len(bloq_rows),
+            "totalSkus": len(all_skus),
+            "totalPecas": total_pecas,
+            "totalCubagem": round(total_cub, 2),
+            "totalValor": round(total_valor, 2),
+            "totalFaixas": {k: round(v, 2) for k, v in total_faixas.items()},
+            "motivos": motivos_list
+        }
+
+    bom_summary = summarize_dataset(filter_bom=True)
+    todos_summary = summarize_dataset(filter_bom=False)
+    bloq_summary = summarize_bloqueios()
+
+    full_payload = {
+        "updatedAt": datetime.datetime.now().isoformat(),
+        "capacidades": CAPACIDADES,
+        "bomOnly": bom_summary,
+        "todos": todos_summary,
+        "bloqueios": bloq_summary
+    }
+
+    try:
+        now_str = datetime.datetime.now().isoformat()
+        sb_payload = {
+            "cell_key": "estoque_categoria_summary",
+            "value": json.dumps(full_payload, ensure_ascii=False),
+            "updated_at": now_str
+        }
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates"
+        }
+        requests.post(f"{SUPABASE_URL}/rest/v1/performance_metrics", json=sb_payload, headers=headers, timeout=15)
+        print("[WIS] Supabase atualizado com sucesso em estoque_categoria_summary!")
+    except Exception as e:
+        print("[ERRO SUPABASE ESTOQUE]", e)
+
+    elapsed = round(time.time() - t0, 1)
+    msg_sucesso = f"Estoque atualizado com sucesso! {len(rows):,} registros processados em {elapsed}s."
+    update_estoque_status("success", msg_sucesso, 100, len(rows), elapsed)
+    print(f"\n[SUCESSO ESTOQUE] {msg_sucesso}\n")
+    return True
 
 def sentinel_loop():
     print("=" * 70)

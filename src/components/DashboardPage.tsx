@@ -4227,27 +4227,24 @@ export const DashboardPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => applyChartPreset('7d')}
-                  className={`px-2 py-0.2 rounded font-bold transition-all cursor-pointer ${
-                    chartPreset === '7d' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-2 py-0.2 rounded font-bold transition-all cursor-pointer ${chartPreset === '7d' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   7 Dias
                 </button>
                 <button
                   type="button"
                   onClick={() => applyChartPreset('15d')}
-                  className={`px-2 py-0.2 rounded font-bold transition-all cursor-pointer ${
-                    chartPreset === '15d' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-2 py-0.2 rounded font-bold transition-all cursor-pointer ${chartPreset === '15d' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   15 Dias
                 </button>
                 <button
                   type="button"
                   onClick={() => applyChartPreset('mes')}
-                  className={`px-2 py-0.2 rounded font-bold transition-all cursor-pointer ${
-                    chartPreset === 'mes' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-2 py-0.2 rounded font-bold transition-all cursor-pointer ${chartPreset === 'mes' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   Mês
                 </button>
@@ -4611,11 +4608,10 @@ export const DashboardPage: React.FC = () => {
                 </div>
                 <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                   <div
-                    className={`h-full transition-all duration-300 ${
-                      estoqueSyncStatus.status === 'success'
+                    className={`h-full transition-all duration-300 ${estoqueSyncStatus.status === 'success'
                         ? 'bg-emerald-500'
                         : 'bg-gradient-to-r from-blue-500 to-indigo-600 animate-pulse'
-                    }`}
+                      }`}
                     style={{ width: `${Math.max(5, estoqueSyncStatus.progress || (isSyncingEstoque ? 15 : 0))}%` }}
                   />
                 </div>
@@ -4623,13 +4619,12 @@ export const DashboardPage: React.FC = () => {
 
               {/* Status do card */}
               <div
-                className={`p-3.5 rounded-xl border flex items-start gap-3 transition-all ${
-                  estoqueSyncStatus.status === 'success'
+                className={`p-3.5 rounded-xl border flex items-start gap-3 transition-all ${estoqueSyncStatus.status === 'success'
                     ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
                     : estoqueSyncStatus.status === 'error'
-                    ? 'bg-rose-50 border-rose-200 text-rose-900'
-                    : 'bg-blue-50 border-blue-200 text-blue-900'
-                }`}
+                      ? 'bg-rose-50 border-rose-200 text-rose-900'
+                      : 'bg-blue-50 border-blue-200 text-blue-900'
+                  }`}
               >
                 <div className="p-1 rounded-lg bg-white/70 mt-0.5 shrink-0">
                   {estoqueSyncStatus.status === 'success' ? (
@@ -4645,8 +4640,8 @@ export const DashboardPage: React.FC = () => {
                     {estoqueSyncStatus.status === 'success'
                       ? 'Sincronização Concluída'
                       : estoqueSyncStatus.status === 'error'
-                      ? 'Falha na Sincronização'
-                      : 'Executando Consulta no WIS50'}
+                        ? 'Falha na Sincronização'
+                        : 'Executando Consulta no WIS50'}
                   </p>
                   <p className="text-[11.5px] opacity-90 break-words whitespace-pre-line">
                     {estoqueSyncStatus.message || (isSyncingEstoque ? 'Aguardando resposta do banco WIS...' : 'Pronto para atualizar.')}

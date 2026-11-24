@@ -515,14 +515,18 @@ def get_supabase_estoque_command():
 def sync_estoque():
     """Executa a sincronização de Estoque WIS (EstoqueCD.sql)"""
     try:
-        scripts_dir = Path(__file__).resolve().parent
-        if str(scripts_dir) not in sys.path:
-            sys.path.insert(0, str(scripts_dir))
-        import sync_estoque_wis
-        return sync_estoque_wis.run_sync()
-    except Exception as e:
-        print(f"[ERRO ESTOQUE WIS] {e}")
-        return False
+        root_dir = Path(__file__).resolve().parent.parent
+        if str(root_dir) not in sys.path:
+            sys.path.insert(0, str(root_dir))
+        import sincronizador_servidor
+        return sincronizador_servidor.sync_estoque()
+    except Exception:
+        try:
+            import sync_estoque_wis
+            return sync_estoque_wis.run_sync()
+        except Exception as e:
+            print(f"[ERRO ESTOQUE WIS] {e}")
+            return False
 
 # ============================================================
 # QUERY SQL: SUPPLY LOJAS (CD 994 x 45 Lojas)
