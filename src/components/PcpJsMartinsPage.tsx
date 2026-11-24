@@ -6861,7 +6861,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                           </div>
                           {/* Linhas 1 a 4 por Categoria (h-7 exato, alinhado 1 a 1 com cada linha da tabela) */}
                           {opRows.map(r => (
-                            <div key={r.categoria} className="grid grid-cols-3 gap-1 text-[9px] sm:text-[9.5px] font-mono font-bold text-center">
+                            <div key={r.categoria} className="grid grid-cols-3 gap-1 text-[10.5px] sm:text-[11px] font-mono font-bold text-center">
                               <div className="w-8 sm:w-9 h-7 bg-[#173252] text-slate-100 rounded flex items-center justify-center border border-sky-400/20 shadow-2xs">
                                 {r.dias.geral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                               </div>
@@ -6874,7 +6874,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                             </div>
                           ))}
                           {/* Linha 5: Total Geral de Dias (h-7 mt-0.5 exato, alinhado ao Total Geral da tabela) */}
-                          <div className="grid grid-cols-3 gap-1 text-[10px] sm:text-[10.5px] font-mono font-black text-center mt-0.5">
+                          <div className="grid grid-cols-3 gap-1 text-[11.5px] sm:text-[12px] font-mono font-black text-center mt-0.5">
                             <div className="w-8 sm:w-9 h-7 bg-[#0369a1] text-white rounded flex items-center justify-center border border-sky-500/40 shadow-xs">
                               {opTotalDiasGeral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                             </div>
@@ -6913,7 +6913,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                           </div>
                           {/* Linhas */}
                           {opRows.map(r => (
-                            <div key={r.categoria} className="grid grid-cols-4 gap-1 text-[9px] font-mono font-bold text-center w-full">
+                            <div key={r.categoria} className="grid grid-cols-4 gap-1 text-[11px] sm:text-[11.5px] font-mono font-bold text-center w-full">
                               <div className="h-7 rounded bg-[#173252] text-sky-100 font-sans font-extrabold flex items-center justify-center uppercase text-[8px] sm:text-[8.5px] truncate px-0.5 border border-sky-400/20">
                                 {r.categoria}
                               </div>
@@ -6929,7 +6929,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                             </div>
                           ))}
                           {/* Linha Total Geral Carteira */}
-                          <div className="grid grid-cols-4 gap-1 text-[9px] font-mono font-black text-center mt-0.5 w-full">
+                          <div className="grid grid-cols-4 gap-1 text-[11.5px] sm:text-[12px] font-mono font-black text-center mt-0.5 w-full">
                             <div className="h-7 rounded bg-[#0284c7] text-white font-sans uppercase text-[8px] sm:text-[8.5px] flex items-center justify-center shadow-xs truncate px-0.5">
                               Total geral
                             </div>
@@ -6945,10 +6945,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                           </div>
                           {/* Rodapé Faturamento & % Carteira */}
                           <div className="flex gap-1 pt-1 w-full">
-                            <div className="flex-1 py-1 px-1 rounded-lg bg-[#0369a1] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black text-center shadow-xs truncate">
+                            <div className="flex-1 py-1 px-1 rounded-lg bg-[#0369a1] text-white text-[10px] sm:text-[11px] font-mono font-black text-center shadow-xs truncate">
                               R$ {opValoresCart.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
-                            <div className="w-10 sm:w-12 py-1 rounded-lg bg-[#0284c7] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black text-center shadow-xs shrink-0">
+                            <div className="w-10 sm:w-12 py-1 rounded-lg bg-[#0284c7] text-white text-[10.5px] sm:text-[11px] font-mono font-black text-center shadow-xs shrink-0">
                               {Math.round(opValoresPctCarteira)}%
                             </div>
                           </div>
@@ -6976,7 +6976,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                           </div>
                           {/* Linhas */}
                           {opRows.map(r => (
-                            <div key={r.categoria} className="grid grid-cols-4 gap-1 text-[9px] font-mono font-bold text-center w-full">
+                            <div key={r.categoria} className="grid grid-cols-4 gap-1 text-[11px] sm:text-[11.5px] font-mono font-bold text-center w-full">
                               <div className="h-7 rounded bg-[#173252] text-sky-100 font-sans font-extrabold flex items-center justify-center uppercase text-[8px] sm:text-[8.5px] truncate px-0.5 border border-sky-400/20">
                                 {r.categoria}
                               </div>
@@ -6992,7 +6992,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                             </div>
                           ))}
                           {/* Linha Total Geral Processo */}
-                          <div className="grid grid-cols-4 gap-1 text-[9px] font-mono font-black text-center mt-0.5 w-full">
+                          <div className="grid grid-cols-4 gap-1 text-[11.5px] sm:text-[12px] font-mono font-black text-center mt-0.5 w-full">
                             <div className="h-7 rounded bg-[#047857] text-white font-sans uppercase text-[8.5px] flex items-center justify-center shadow-xs truncate px-0.5">
                               Total geral
                             </div>
@@ -7008,10 +7008,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                           </div>
                           {/* Rodapé Faturamento & % Processo */}
                           <div className="flex gap-1 pt-1 w-full">
-                            <div className="flex-1 py-1 px-1 rounded-lg bg-[#047857] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black text-center shadow-xs truncate">
+                            <div className="flex-1 py-1 px-1 rounded-lg bg-[#047857] text-white text-[10px] sm:text-[11px] font-mono font-black text-center shadow-xs truncate">
                               R$ {opValoresProc.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
-                            <div className="w-10 sm:w-12 py-1 rounded-lg bg-[#059669] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black text-center shadow-xs shrink-0">
+                            <div className="w-10 sm:w-12 py-1 rounded-lg bg-[#059669] text-white text-[10.5px] sm:text-[11px] font-mono font-black text-center shadow-xs shrink-0">
                               {Math.round(opValoresPctProcesso)}%
                             </div>
                           </div>
@@ -7036,7 +7036,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                           </div>
                           {/* Linhas */}
                           {opRows.map(r => (
-                            <div key={r.categoria} className="grid grid-cols-3 gap-1 text-[9px] font-mono font-bold text-center w-full">
+                            <div key={r.categoria} className="grid grid-cols-3 gap-1 text-[11px] sm:text-[11.5px] font-mono font-bold text-center w-full">
                               <div className="h-7 rounded bg-[#163b60] text-sky-100 flex items-center justify-center shadow-2xs border border-sky-500/20">
                                 {r.consolidado.pedidos}
                               </div>
@@ -7049,7 +7049,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                             </div>
                           ))}
                           {/* Linha Total Geral Consolidado */}
-                          <div className="grid grid-cols-3 gap-1 text-[9px] font-mono font-black text-center mt-0.5 w-full">
+                          <div className="grid grid-cols-3 gap-1 text-[11.5px] sm:text-[12px] font-mono font-black text-center mt-0.5 w-full">
                             <div className="h-7 rounded bg-[#0e2a47] text-sky-200 flex items-center justify-center shadow-xs border border-sky-400/30">
                               {opConsPedsTotal.size}
                             </div>
@@ -7062,15 +7062,15 @@ export const PcpJsMartinsPage: React.FC = () => {
                           </div>
                           {/* Rodapé Faturamento Geral, Meta & Atingimento */}
                           <div className="flex items-center gap-1 pt-1 flex-wrap w-full">
-                            <div className="flex-1 py-1 px-1 rounded-lg bg-[#0e2a47] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black shadow-xs whitespace-nowrap text-center truncate border border-sky-500/30">
+                            <div className="flex-1 py-1 px-1 rounded-lg bg-[#0e2a47] text-white text-[10px] sm:text-[11px] font-mono font-black shadow-xs whitespace-nowrap text-center truncate border border-sky-500/30">
                               R$ {opValoresCons.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
-                            <div className="py-1 px-1 rounded-lg bg-[#b45309] text-amber-100 text-[8px] sm:text-[9px] font-mono font-black shadow-xs whitespace-nowrap">
+                            <div className="py-1 px-1 rounded-lg bg-[#b45309] text-amber-100 text-[9.5px] sm:text-[10px] font-mono font-black shadow-xs whitespace-nowrap">
                               R$ {opValoresSaldoMeta.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({Math.round(opValoresPctMeta)}%)
                             </div>
                             <div
                               onClick={handleOpenConfigOperacional}
-                              className="py-1 px-1 rounded-lg bg-[#831843] hover:bg-[#9d174d] text-rose-100 text-[8px] sm:text-[8.5px] font-mono font-black cursor-pointer shadow-xs transition-colors whitespace-nowrap"
+                              className="py-1 px-1 rounded-lg bg-[#831843] hover:bg-[#9d174d] text-rose-100 text-[9.5px] sm:text-[10px] font-mono font-black cursor-pointer shadow-xs transition-colors whitespace-nowrap"
                               title="Clique para editar a Meta"
                             >
                               META R$ {metaFaturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -7083,26 +7083,26 @@ export const PcpJsMartinsPage: React.FC = () => {
                           <span className="text-[8.5px] font-black tracking-wider text-rose-300 uppercase text-center h-4 flex items-center justify-center">
                             CAPACIDADE
                           </span>
-                          <div className="w-full py-1 rounded bg-[#4c0519] text-rose-200 text-[7.5px] sm:text-[8px] font-black uppercase text-center truncate px-0.5 border border-rose-500/30">
+                          <div className="w-full py-1 rounded bg-[#4c0519] text-rose-200 text-[8.5px] sm:text-[9px] font-black uppercase text-center truncate px-0.5 border border-rose-500/30">
                             CAP {opCapacidadeSoma}M³
                           </div>
                           {/* Capacidades Individuais */}
-                          <div className="w-full h-7 rounded bg-[#831843]/85 text-rose-100 text-[8.5px] sm:text-[9px] font-mono font-black flex items-center justify-center shadow-2xs border border-rose-500/30">
+                          <div className="w-full h-7 rounded bg-[#831843]/85 text-rose-100 text-[11px] sm:text-[11.5px] font-mono font-black flex items-center justify-center shadow-2xs border border-rose-500/30">
                             {capacidadeAbaM3} M³
                           </div>
-                          <div className="w-full h-7 rounded bg-[#831843]/85 text-rose-100 text-[8.5px] sm:text-[9px] font-mono font-black flex items-center justify-center shadow-2xs border border-rose-500/30">
+                          <div className="w-full h-7 rounded bg-[#831843]/85 text-rose-100 text-[11px] sm:text-[11.5px] font-mono font-black flex items-center justify-center shadow-2xs border border-rose-500/30">
                             {capacidadeVendaM3} M³
                           </div>
-                          <div className="w-full h-7 rounded bg-[#831843]/85 text-rose-100 text-[8.5px] sm:text-[9px] font-mono font-black flex items-center justify-center shadow-2xs border border-rose-500/30">
+                          <div className="w-full h-7 rounded bg-[#831843]/85 text-rose-100 text-[11px] sm:text-[11.5px] font-mono font-black flex items-center justify-center shadow-2xs border border-rose-500/30">
                             {capacidadeCourrierPed} P
                           </div>
-                          <div className="w-full h-7 rounded bg-[#831843]/85 text-rose-100 text-[9px] font-mono font-bold flex items-center justify-center shadow-2xs border border-rose-500/30">
+                          <div className="w-full h-7 rounded bg-[#831843]/85 text-rose-100 text-[11px] sm:text-[11.5px] font-mono font-bold flex items-center justify-center shadow-2xs border border-rose-500/30">
                             -
                           </div>
                           {/* Volume Extra */}
                           <div className="w-full py-1 px-1 rounded bg-[#78350f] text-amber-200 text-center flex flex-col justify-center shadow-xs mt-0.5 border border-amber-500/30">
-                            <span className="text-[7px] font-black tracking-tight text-amber-300 uppercase">Vol. Extra</span>
-                            <span className="text-[9.5px] sm:text-[10px] font-mono font-black text-white">
+                            <span className="text-[7.5px] font-black tracking-tight text-amber-300 uppercase">Vol. Extra</span>
+                            <span className="text-[11px] sm:text-[11.5px] font-mono font-black text-white">
                               {Math.round(opVolumeExtra)}M³
                             </span>
                           </div>
