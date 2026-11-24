@@ -17,6 +17,7 @@ import json
 import time
 import base64
 import datetime
+import threading
 from pathlib import Path
 import urllib3
 import requests
@@ -1106,39 +1107,66 @@ def sync_estoque():
     print(f"\n[SUCESSO ESTOQUE] {msg_sucesso}\n")
     return True
 
+active_syncs = {
+    "pcp": False,
+    "supply": False,
+    "estoque": False
+}
+
+def _run_pcp_thread():
+    active_syncs["pcp"] = True
+    try:
+        sync_carteira()
+    finally:
+        active_syncs["pcp"] = False
+
+def _run_supply_thread():
+    active_syncs["supply"] = True
+    try:
+        sync_supply()
+    finally:
+        active_syncs["supply"] = False
+
+def _run_estoque_thread():
+    active_syncs["estoque"] = True
+    try:
+        sync_estoque()
+    finally:
+        active_syncs["estoque"] = False
+
 def sentinel_loop():
     print("=" * 70)
-    print("MODO SENTINELA UNIFICADO ATIVO")
-    print("Ouvindo os três botões do site:")
+    print("MODO SENTINELA UNIFICADO ATIVO (MULTITHREADING PARALELO)")
+    print("Ouvindo os três botões do site simultaneamente:")
     print("  [PCP]     'Atualizar Carteira' -> canal pcp_sync_command")
     print("  [SUPPLY]  'Atualizar Supply'   -> canal supply_sync_command")
     print("  [ESTOQUE] 'Atualizar Estoque'  -> canal estoque_sync_command")
-    print("Mantenha esta janela minimizada na barra de tarefas.")
+    print("Consultas rodam em paralelo! Mantenha esta janela minimizada.")
     print("Pressione Ctrl+C para encerrar quando quiser.")
     print("=" * 70 + "\n")
 
-    # Verifica pedidos pendentes
+    # Verifica se já havia pedidos pendentes no momento da inicialização
     try:
         init_cmd = get_supabase_command()
         if init_cmd and isinstance(init_cmd, dict) and init_cmd.get("status") == "requested":
-            print("[PCP] Pedido pendente encontrado! Processando Carteira imediatamente...")
-            sync_carteira()
+            print("[PCP] Pedido pendente encontrado! Disparando Carteira...")
+            threading.Thread(target=_run_pcp_thread, daemon=True).start()
     except Exception:
         pass
 
     try:
         init_supply = get_supabase_supply_command()
         if init_supply and isinstance(init_supply, dict) and init_supply.get("status") == "requested":
-            print("[SUPPLY] Pedido pendente encontrado! Processando Supply imediatamente...")
-            sync_supply()
+            print("[SUPPLY] Pedido pendente encontrado! Disparando Supply...")
+            threading.Thread(target=_run_supply_thread, daemon=True).start()
     except Exception:
         pass
 
     try:
         init_estoque = get_supabase_estoque_command()
         if init_estoque and isinstance(init_estoque, dict) and init_estoque.get("status") == "requested":
-            print("[ESTOQUE] Pedido pendente encontrado! Processando Estoque WIS imediatamente...")
-            sync_estoque()
+            print("[ESTOQUE] Pedido pendente encontrado! Disparando Estoque WIS...")
+            threading.Thread(target=_run_estoque_thread, daemon=True).start()
     except Exception:
         pass
 
@@ -1148,38 +1176,45 @@ def sentinel_loop():
 
     while True:
         try:
+            # --- Canal PCP ---
             cmd = get_supabase_command()
             if cmd and isinstance(cmd, dict):
                 status = cmd.get("status")
                 req_time = cmd.get("requested_at", "")
                 if status == "requested" and req_time != last_pcp_time:
                     last_pcp_time = req_time
-                    print(f"\n[PCP] Sinal detectado do site às {req_time}. Iniciando sync da Carteira...")
-                    sync_carteira()
-                    print("\n[SENTINELA] Aguardando novos cliques no site...\n")
+                    if not active_syncs["pcp"]:
+                        print(f"\n[PCP] Sinal detectado do site às {req_time}. Iniciando sync da Carteira em paralelo...")
+                        threading.Thread(target=_run_pcp_thread, daemon=True).start()
+                    else:
+                        print(f"\n[PCP] Sincronização da Carteira já em andamento. Aguardando...")
 
+            # --- Canal Supply ---
             supply_cmd = get_supabase_supply_command()
             if supply_cmd and isinstance(supply_cmd, dict):
                 s_status = supply_cmd.get("status")
                 s_req_time = supply_cmd.get("requested_at", "")
                 if s_status == "requested" and s_req_time != last_supply_time:
                     last_supply_time = s_req_time
-                    print(f"\n[SUPPLY] Sinal detectado do site às {s_req_time}. Iniciando sync do Supply...")
-                    sync_supply()
-                    print("\n[SENTINELA] Aguardando novos cliques no site...\n")
+                    if not active_syncs["supply"]:
+                        print(f"\n[SUPPLY] Sinal detectado do site às {s_req_time}. Iniciando sync do Supply em paralelo...")
+                        threading.Thread(target=_run_supply_thread, daemon=True).start()
+                    else:
+                        print(f"\n[SUPPLY] Sincronização do Supply já em andamento. Aguardando...")
 
+            # --- Canal Estoque WIS ---
             estoque_cmd = get_supabase_estoque_command()
             if estoque_cmd and isinstance(estoque_cmd, dict):
                 e_status = estoque_cmd.get("status")
                 e_req_time = estoque_cmd.get("requested_at", "")
                 if e_status == "requested" and e_req_time != last_estoque_time:
                     last_estoque_time = e_req_time
-                    print(f"\n[ESTOQUE] Sinal detectado do site às {e_req_time}. Iniciando sync do Estoque WIS...")
-                    sync_estoque()
-                    print("\n[SENTINELA] Aguardando novos cliques no site...\n")
-                    print(f"\n[SUPPLY] Sinal detectado do site às {s_req_time}. Iniciando sync do Supply...")
-                    sync_supply()
-                    print("\n[SENTINELA] Aguardando novos cliques no site...\n")
+                    if not active_syncs["estoque"]:
+                        print(f"\n[ESTOQUE] Sinal detectado do site às {e_req_time}. Iniciando sync do Estoque WIS em paralelo...")
+                        threading.Thread(target=_run_estoque_thread, daemon=True).start()
+                    else:
+                        print(f"\n[ESTOQUE] Sincronização do Estoque WIS já em andamento. Aguardando...")
+
         except Exception as e:
             print(f"[SENTINELA AVISO] {e}")
 
