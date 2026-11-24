@@ -6492,15 +6492,15 @@ export const PcpJsMartinsPage: React.FC = () => {
                 {/* VISÃO 3: PAINEL OPERACIONAL POR MODALIDADE (MAGALU)          */}
                 {/* ------------------------------------------------------------ */}
                 {planRightTab === 'visao3' && (
-                  <div className="bg-[#0b2834] rounded-2xl border border-teal-500/30 p-4 text-white shadow-xl flex flex-col space-y-4 w-full select-text overflow-hidden">
+                  <div className="bg-[#0a192f] rounded-2xl border border-sky-500/25 p-4 text-white shadow-2xl flex flex-col space-y-4 w-full select-text overflow-hidden">
                     {/* Barra Superior de Controles e Configuração da Visão 3 */}
-                    <div className="flex items-center justify-between gap-2 flex-wrap border-b border-teal-500/20 pb-2.5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap border-b border-sky-500/20 pb-2.5">
                       <div className="flex items-center gap-2">
-                        <Activity size={16} className="text-teal-300" />
-                        <span className="text-[12px] font-black tracking-wider uppercase text-teal-100">
+                        <Activity size={16} className="text-sky-400" />
+                        <span className="text-[12px] font-black tracking-wider uppercase text-sky-100">
                           Painel Operacional por Modalidade
                         </span>
-                        <span className="text-[9.5px] px-2 py-0.5 rounded-full bg-teal-900/80 text-teal-200 border border-teal-500/30 font-bold">
+                        <span className="text-[9.5px] px-2 py-0.5 rounded-full bg-sky-950/80 text-sky-300 border border-sky-500/30 font-bold">
                           Capacidade & Giro Diário
                         </span>
                       </div>
@@ -6508,10 +6508,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleOpenConfigOperacional}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-900/60 hover:bg-teal-800 text-teal-200 hover:text-white text-[10.5px] font-bold border border-teal-400/30 transition-all cursor-pointer shadow-xs"
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-950/70 hover:bg-sky-900 text-sky-200 hover:text-white text-[10.5px] font-bold border border-sky-400/30 transition-all cursor-pointer shadow-xs"
                         title="Configurar Metas e Capacidades"
                       >
-                        <Settings2 size={12} className="text-teal-300" />
+                        <Settings2 size={12} className="text-sky-300" />
                         <span>Metas & Capacidades</span>
                       </button>
                     </div>
@@ -6524,22 +6524,22 @@ export const PcpJsMartinsPage: React.FC = () => {
                         const atual = opRows[0]?.consolidado.vol || 0
                         const pct = Math.min(100, Math.max(0, (atual / (cap * 1.3)) * 100))
                         return (
-                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#071f28]/60 border border-teal-500/20 w-full min-h-[145px]">
+                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#0f243a]/70 border border-sky-500/20 w-full min-h-[145px]">
                             <span className="text-[8.5px] font-black text-amber-300 tracking-wider text-center uppercase mb-1">
                               CAPACIDADE ABA M³
                             </span>
                             <div className="flex items-center justify-center gap-2">
                               {/* Tubo do Termômetro */}
                               <div className="flex items-center gap-1">
-                                <div className="flex flex-col justify-between h-[68px] text-[6.5px] font-mono text-teal-300/70 py-0.5">
+                                <div className="flex flex-col justify-between h-[68px] text-[6.5px] font-mono text-sky-300/70 py-0.5">
                                   <span>600</span>
                                   <span>400</span>
                                   <span>200</span>
                                   <span>0</span>
                                 </div>
-                                <div className="relative w-4 h-[70px] bg-slate-900/80 rounded-full border border-teal-400/50 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
+                                <div className="relative w-4 h-[70px] bg-slate-950/90 rounded-full border border-sky-400/40 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
                                   <div
-                                    className="w-full bg-linear-to-t from-emerald-500 to-green-300 rounded-full transition-all duration-500 shadow-sm"
+                                    className="w-full bg-linear-to-t from-sky-600 via-emerald-500 to-teal-300 rounded-full transition-all duration-500 shadow-sm"
                                     style={{ height: `${pct}%` }}
                                   />
                                 </div>
@@ -6549,7 +6549,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                               </span>
                             </div>
                             {/* Bulbo com valor atual */}
-                            <div className="mt-1.5 px-2 py-0.5 rounded-full bg-teal-950 border border-teal-400/40 text-[9px] font-mono font-bold text-teal-200">
+                            <div className="mt-1.5 px-2 py-0.5 rounded-full bg-[#0a192f] border border-sky-400/40 text-[9px] font-mono font-bold text-sky-200">
                               {atual.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                             </div>
                           </div>
@@ -6562,21 +6562,21 @@ export const PcpJsMartinsPage: React.FC = () => {
                         const atual = opRows[1]?.consolidado.vol || 0
                         const pct = Math.min(100, Math.max(0, (atual / (cap * 1.5)) * 100))
                         return (
-                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#071f28]/60 border border-teal-500/20 w-full min-h-[145px]">
+                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#0f243a]/70 border border-sky-500/20 w-full min-h-[145px]">
                             <span className="text-[8.5px] font-black text-amber-300 tracking-wider text-center uppercase mb-1">
                               CAPACIDADE VENDA M³
                             </span>
                             <div className="flex items-center justify-center gap-2">
                               <div className="flex items-center gap-1">
-                                <div className="flex flex-col justify-between h-[68px] text-[6.5px] font-mono text-teal-300/70 py-0.5">
+                                <div className="flex flex-col justify-between h-[68px] text-[6.5px] font-mono text-sky-300/70 py-0.5">
                                   <span>800</span>
                                   <span>500</span>
                                   <span>200</span>
                                   <span>0</span>
                                 </div>
-                                <div className="relative w-4 h-[70px] bg-slate-900/80 rounded-full border border-teal-400/50 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
+                                <div className="relative w-4 h-[70px] bg-slate-950/90 rounded-full border border-sky-400/40 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
                                   <div
-                                    className="w-full bg-linear-to-t from-emerald-500 to-green-300 rounded-full transition-all duration-500 shadow-sm"
+                                    className="w-full bg-linear-to-t from-sky-600 via-emerald-500 to-teal-300 rounded-full transition-all duration-500 shadow-sm"
                                     style={{ height: `${pct}%` }}
                                   />
                                 </div>
@@ -6585,7 +6585,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 {cap}m³
                               </span>
                             </div>
-                            <div className="mt-1.5 px-2 py-0.5 rounded-full bg-teal-950 border border-teal-400/40 text-[9px] font-mono font-bold text-teal-200">
+                            <div className="mt-1.5 px-2 py-0.5 rounded-full bg-[#0a192f] border border-sky-400/40 text-[9px] font-mono font-bold text-sky-200">
                               {atual.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                             </div>
                           </div>
@@ -6598,21 +6598,21 @@ export const PcpJsMartinsPage: React.FC = () => {
                         const atual = opRows[2]?.consolidado.pedidos || 0
                         const pct = Math.min(100, Math.max(0, (atual / (cap * 1.5)) * 100))
                         return (
-                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#071f28]/60 border border-teal-500/20 w-full min-h-[145px]">
+                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#0f243a]/70 border border-sky-500/20 w-full min-h-[145px]">
                             <span className="text-[8px] font-black text-amber-300 tracking-wider text-center uppercase mb-1">
                               CAPACIDADE COURRIER PEDIDOS
                             </span>
                             <div className="flex items-center justify-center gap-2">
                               <div className="flex items-center gap-1">
-                                <div className="flex flex-col justify-between h-[68px] text-[6.5px] font-mono text-teal-300/70 py-0.5">
+                                <div className="flex flex-col justify-between h-[68px] text-[6.5px] font-mono text-sky-300/70 py-0.5">
                                   <span>1000</span>
                                   <span>600</span>
                                   <span>300</span>
                                   <span>0</span>
                                 </div>
-                                <div className="relative w-4 h-[70px] bg-slate-900/80 rounded-full border border-teal-400/50 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
+                                <div className="relative w-4 h-[70px] bg-slate-950/90 rounded-full border border-sky-400/40 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
                                   <div
-                                    className="w-full bg-linear-to-t from-emerald-500 to-green-300 rounded-full transition-all duration-500 shadow-sm"
+                                    className="w-full bg-linear-to-t from-sky-600 via-emerald-500 to-teal-300 rounded-full transition-all duration-500 shadow-sm"
                                     style={{ height: `${pct}%` }}
                                   />
                                 </div>
@@ -6621,7 +6621,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 {cap}P
                               </span>
                             </div>
-                            <div className="mt-1.5 px-2 py-0.5 rounded-full bg-teal-950 border border-teal-400/40 text-[9px] font-mono font-bold text-teal-200">
+                            <div className="mt-1.5 px-2 py-0.5 rounded-full bg-[#0a192f] border border-sky-400/40 text-[9px] font-mono font-bold text-sky-200">
                               {atual}
                             </div>
                           </div>
@@ -6637,10 +6637,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                         const x2 = 50 + 28 * Math.cos(rad)
                         const y2 = 50 + 28 * Math.sin(rad)
                         return (
-                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#071f28]/60 border border-teal-500/20 w-full min-h-[145px]">
+                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#0f243a]/70 border border-sky-500/20 w-full min-h-[145px]">
                             <svg viewBox="0 0 100 65" className="w-24 h-16 overflow-visible">
                               {/* Fundo do velocímetro */}
-                              <path d="M 12 50 A 38 38 0 0 1 88 50" fill="none" stroke="#e2e8f0" strokeWidth="18" />
+                              <path d="M 12 50 A 38 38 0 0 1 88 50" fill="none" stroke="#334155" strokeWidth="18" />
                               {/* Faixa Verde: Bom */}
                               <path d="M 12 50 A 38 38 0 0 1 32 23" fill="none" stroke="#22c55e" strokeWidth="16" />
                               {/* Faixa Amarela: Regular */}
@@ -6652,14 +6652,14 @@ export const PcpJsMartinsPage: React.FC = () => {
                               <text x="44" y="24" fontSize="4.5" fill="#ffffff" fontWeight="bold">Regular</text>
                               <text x="71" y="38" fontSize="4.5" fill="#ffffff" fontWeight="bold">Ruim</text>
                               {/* Ponteiro */}
-                              <line x1="50" y1="50" x2={x2} y2={y2} stroke="#0f172a" strokeWidth="2.5" strokeLinecap="round" />
-                              <circle cx="50" cy="50" r="4.5" fill="#0f172a" />
+                              <line x1="50" y1="50" x2={x2} y2={y2} stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" />
+                              <circle cx="50" cy="50" r="4.5" fill="#38bdf8" />
                               {/* Valor */}
-                              <text x="50" y="47" fontSize="11" fontWeight="bold" fill="#0f172a" textAnchor="middle" fontFamily="monospace">
+                              <text x="50" y="47" fontSize="11" fontWeight="bold" fill="#ffffff" textAnchor="middle" fontFamily="monospace">
                                 {atrasos}
                               </text>
                             </svg>
-                            <span className="text-[8.5px] italic text-slate-200 mt-1 text-center">
+                            <span className="text-[8.5px] italic text-slate-300 mt-1 text-center">
                               Atraso fat venda
                             </span>
                           </div>
@@ -6675,22 +6675,22 @@ export const PcpJsMartinsPage: React.FC = () => {
                         const x2 = 50 + 28 * Math.cos(rad)
                         const y2 = 50 + 28 * Math.sin(rad)
                         return (
-                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#071f28]/60 border border-teal-500/20 w-full min-h-[145px]">
+                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#0f243a]/70 border border-sky-500/20 w-full min-h-[145px]">
                             <svg viewBox="0 0 100 65" className="w-24 h-16 overflow-visible">
-                              <path d="M 12 50 A 38 38 0 0 1 88 50" fill="none" stroke="#e2e8f0" strokeWidth="18" />
+                              <path d="M 12 50 A 38 38 0 0 1 88 50" fill="none" stroke="#334155" strokeWidth="18" />
                               <path d="M 12 50 A 38 38 0 0 1 32 23" fill="none" stroke="#22c55e" strokeWidth="16" />
                               <path d="M 32 23 A 38 38 0 0 1 68 23" fill="none" stroke="#f59e0b" strokeWidth="16" />
                               <path d="M 68 23 A 38 38 0 0 1 88 50" fill="none" stroke="#ef4444" strokeWidth="16" />
                               <text x="21" y="38" fontSize="4.5" fill="#ffffff" fontWeight="bold">Bom</text>
                               <text x="44" y="24" fontSize="4.5" fill="#ffffff" fontWeight="bold">Regular</text>
                               <text x="71" y="38" fontSize="4.5" fill="#ffffff" fontWeight="bold">Ruim</text>
-                              <line x1="50" y1="50" x2={x2} y2={y2} stroke="#0f172a" strokeWidth="2.5" strokeLinecap="round" />
-                              <circle cx="50" cy="50" r="4.5" fill="#0f172a" />
-                              <text x="50" y="47" fontSize="10" fontWeight="bold" fill="#0f172a" textAnchor="middle" fontFamily="monospace">
+                              <line x1="50" y1="50" x2={x2} y2={y2} stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" />
+                              <circle cx="50" cy="50" r="4.5" fill="#38bdf8" />
+                              <text x="50" y="47" fontSize="10" fontWeight="bold" fill="#ffffff" textAnchor="middle" fontFamily="monospace">
                                 {atrasos}
                               </text>
                             </svg>
-                            <span className="text-[8.5px] italic text-slate-200 mt-1 text-center">
+                            <span className="text-[8.5px] italic text-slate-300 mt-1 text-center">
                               Atraso fat ABA (peças)
                             </span>
                           </div>
@@ -6700,100 +6700,90 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                     {/* Linha Central: Tabela Operacional Completa Conforme Layout Original */}
                     <div className="w-full select-text pt-2">
-                      <div className="bg-[#071f28] p-3 rounded-2xl border border-teal-500/30 shadow-2xl flex items-stretch gap-2 w-full">
-                        {/* 1. Colunas de Dias / Giro (Extremo Esquerdo) */}
-                        <div className="flex gap-1 items-stretch shrink-0">
-                          {/* Coluna Dias Geral */}
-                          <div className="flex flex-col items-center justify-between space-y-1">
-                            <span className="text-[8px] font-black tracking-tighter text-teal-200/90 whitespace-nowrap h-4 flex items-center">
-                              Dias Geral
-                            </span>
-                            {opRows.map(r => (
-                              <div
-                                key={r.categoria}
-                                className="w-8 sm:w-9 h-7 bg-linear-to-b from-slate-200 to-slate-300 text-slate-800 text-[9px] sm:text-[9.5px] font-mono font-black rounded flex items-center justify-center border border-slate-400 shadow-2xs"
-                              >
+                      <div className="bg-[#0c213a] p-3 rounded-2xl border border-sky-500/25 shadow-2xl flex items-stretch gap-2.5 w-full">
+                        {/* 1. Colunas de Dias / Giro (Extremo Esquerdo - Perfeitamente Alinhado Linha a Linha) */}
+                        <div className="flex flex-col space-y-1 shrink-0">
+                          {/* Título Superior Nível 1 (h-4 exato como o título das tabelas vizinhas) */}
+                          <span className="text-[8.5px] font-black tracking-wider text-sky-300 uppercase text-center h-4 flex items-center justify-center">
+                            GIRO (DIAS)
+                          </span>
+                          {/* Cabeçalho Nível 2 (py-1 exato como o cabeçalho das tabelas) */}
+                          <div className="grid grid-cols-3 gap-1 text-[8px] font-black uppercase text-center">
+                            <div className="py-1 px-1 rounded bg-[#132c4a] text-sky-200 w-8 sm:w-9 truncate">
+                              GERAL
+                            </div>
+                            <div className="py-1 px-1 rounded bg-[#132c4a] text-sky-200 w-8 sm:w-9 truncate">
+                              CART
+                            </div>
+                            <div className="py-1 px-1 rounded bg-[#132c4a] text-sky-200 w-8 sm:w-9 truncate">
+                              PROC
+                            </div>
+                          </div>
+                          {/* Linhas 1 a 4 por Categoria (h-7 exato, alinhado 1 a 1 com cada linha da tabela) */}
+                          {opRows.map(r => (
+                            <div key={r.categoria} className="grid grid-cols-3 gap-1 text-[9px] sm:text-[9.5px] font-mono font-bold text-center">
+                              <div className="w-8 sm:w-9 h-7 bg-[#173252] text-slate-100 rounded flex items-center justify-center border border-sky-400/20 shadow-2xs">
                                 {r.dias.geral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                               </div>
-                            ))}
-                            {/* Total Dias Geral */}
-                            <div className="w-8 sm:w-9 h-7 bg-linear-to-b from-slate-400 to-slate-500 text-slate-950 text-[10px] sm:text-[10.5px] font-mono font-black rounded flex items-center justify-center border border-slate-600 shadow-sm mt-0.5">
-                              {opTotalDiasGeral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                            </div>
-                          </div>
-
-                          {/* Coluna Carteira */}
-                          <div className="flex flex-col items-center justify-between space-y-1">
-                            <span className="text-[8px] font-black tracking-tighter text-teal-200/90 whitespace-nowrap h-4 flex items-center">
-                              Carteira
-                            </span>
-                            {opRows.map(r => (
-                              <div
-                                key={r.categoria}
-                                className="w-8 sm:w-9 h-7 bg-linear-to-b from-slate-200 to-slate-300 text-slate-800 text-[9px] sm:text-[9.5px] font-mono font-black rounded flex items-center justify-center border border-slate-400 shadow-2xs"
-                              >
+                              <div className="w-8 sm:w-9 h-7 bg-[#173252] text-slate-100 rounded flex items-center justify-center border border-sky-400/20 shadow-2xs">
                                 {r.dias.carteira.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                               </div>
-                            ))}
-                            {/* Total Dias Carteira */}
-                            <div className="w-8 sm:w-9 h-7 bg-linear-to-b from-slate-400 to-slate-500 text-slate-950 text-[10px] sm:text-[10.5px] font-mono font-black rounded flex items-center justify-center border border-slate-600 shadow-sm mt-0.5">
-                              {opTotalDiasCarteira.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                            </div>
-                          </div>
-
-                          {/* Coluna Processo */}
-                          <div className="flex flex-col items-center justify-between space-y-1">
-                            <span className="text-[8px] font-black tracking-tighter text-teal-200/90 whitespace-nowrap h-4 flex items-center">
-                              Processo
-                            </span>
-                            {opRows.map(r => (
-                              <div
-                                key={r.categoria}
-                                className="w-8 sm:w-9 h-7 bg-linear-to-b from-slate-200 to-slate-300 text-slate-800 text-[9px] sm:text-[9.5px] font-mono font-black rounded flex items-center justify-center border border-slate-400 shadow-2xs"
-                              >
+                              <div className="w-8 sm:w-9 h-7 bg-[#173252] text-slate-100 rounded flex items-center justify-center border border-sky-400/20 shadow-2xs">
                                 {r.dias.processo.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                               </div>
-                            ))}
-                            {/* Total Dias Processo */}
-                            <div className="w-8 sm:w-9 h-7 bg-linear-to-b from-slate-400 to-slate-500 text-slate-950 text-[10px] sm:text-[10.5px] font-mono font-black rounded flex items-center justify-center border border-slate-600 shadow-sm mt-0.5">
+                            </div>
+                          ))}
+                          {/* Linha 5: Total Geral de Dias (h-7 mt-0.5 exato, alinhado ao Total Geral da tabela) */}
+                          <div className="grid grid-cols-3 gap-1 text-[10px] sm:text-[10.5px] font-mono font-black text-center mt-0.5">
+                            <div className="w-8 sm:w-9 h-7 bg-[#0369a1] text-white rounded flex items-center justify-center border border-sky-500/40 shadow-xs">
+                              {opTotalDiasGeral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </div>
+                            <div className="w-8 sm:w-9 h-7 bg-[#0369a1] text-white rounded flex items-center justify-center border border-sky-500/40 shadow-xs">
+                              {opTotalDiasCarteira.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </div>
+                            <div className="w-8 sm:w-9 h-7 bg-[#0369a1] text-white rounded flex items-center justify-center border border-sky-500/40 shadow-xs">
                               {opTotalDiasProcesso.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                             </div>
+                          </div>
+                          {/* Espaçador invisível de rodapé para alinhar perfeitamente com os botões de faturamento */}
+                          <div className="flex gap-1 pt-1 invisible pointer-events-none" aria-hidden="true">
+                            <div className="py-1 px-1 h-[27px] w-full"></div>
                           </div>
                         </div>
 
                         {/* 2. Bloco EM CARTEIRA */}
                         <div className="flex-1 min-w-0 flex flex-col space-y-1">
-                          <span className="text-[8.5px] font-black tracking-wider text-sky-200 uppercase text-center h-4 flex items-center justify-center">
+                          <span className="text-[8.5px] font-black tracking-wider text-sky-300 uppercase text-center h-4 flex items-center justify-center">
                             EM CARTEIRA
                           </span>
                           {/* Cabeçalho da Tabela Carteira */}
                           <div className="grid grid-cols-4 gap-1 text-[8px] font-black uppercase text-center w-full">
-                            <div className="py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center truncate px-0.5">
+                            <div className="py-1 rounded bg-[#132c4a] text-sky-100 flex items-center justify-center truncate px-0.5">
                               EM CARTEIRA
                             </div>
-                            <div className="py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center truncate px-0.5">
+                            <div className="py-1 rounded bg-[#132c4a] text-sky-100 flex items-center justify-center truncate px-0.5">
                               PEDIDO
                             </div>
-                            <div className="py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center truncate px-0.5">
+                            <div className="py-1 rounded bg-[#132c4a] text-sky-100 flex items-center justify-center truncate px-0.5">
                               PEÇAS
                             </div>
-                            <div className="py-1 rounded bg-[#124e78] text-sky-100 flex items-center justify-center truncate px-0.5">
+                            <div className="py-1 rounded bg-[#132c4a] text-sky-100 flex items-center justify-center truncate px-0.5">
                               Vol M³
                             </div>
                           </div>
                           {/* Linhas */}
                           {opRows.map(r => (
                             <div key={r.categoria} className="grid grid-cols-4 gap-1 text-[9px] font-mono font-bold text-center w-full">
-                              <div className="h-7 rounded bg-slate-300 text-slate-900 font-sans font-extrabold flex items-center justify-center uppercase text-[8px] sm:text-[8.5px] truncate px-0.5">
+                              <div className="h-7 rounded bg-[#173252] text-sky-100 font-sans font-extrabold flex items-center justify-center uppercase text-[8px] sm:text-[8.5px] truncate px-0.5 border border-sky-400/20">
                                 {r.categoria}
                               </div>
-                              <div className="h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#d97706]/90 hover:bg-[#d97706] text-white flex items-center justify-center shadow-2xs">
                                 {r.carteira.pedidos}
                               </div>
-                              <div className="h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#d97706]/90 hover:bg-[#d97706] text-white flex items-center justify-center shadow-2xs">
                                 {r.carteira.pecas}
                               </div>
-                              <div className="h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#d97706]/90 hover:bg-[#d97706] text-white flex items-center justify-center shadow-2xs">
                                 {r.carteira.vol.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                               </div>
                             </div>
@@ -6831,48 +6821,48 @@ export const PcpJsMartinsPage: React.FC = () => {
                           </span>
                           {/* Cabeçalho Processo */}
                           <div className="grid grid-cols-4 gap-1 text-[8px] font-black uppercase text-center w-full">
-                            <div className="py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center truncate px-0.5">
+                            <div className="py-1 rounded bg-[#064e3b] text-emerald-100 flex items-center justify-center truncate px-0.5">
                               EM PROCESSO
                             </div>
-                            <div className="py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center truncate px-0.5">
+                            <div className="py-1 rounded bg-[#064e3b] text-emerald-100 flex items-center justify-center truncate px-0.5">
                               PEDIDO
                             </div>
-                            <div className="py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center truncate px-0.5">
+                            <div className="py-1 rounded bg-[#064e3b] text-emerald-100 flex items-center justify-center truncate px-0.5">
                               PEÇAS
                             </div>
-                            <div className="py-1 rounded bg-[#0f766e] text-emerald-100 flex items-center justify-center truncate px-0.5">
+                            <div className="py-1 rounded bg-[#064e3b] text-emerald-100 flex items-center justify-center truncate px-0.5">
                               Vol M³
                             </div>
                           </div>
                           {/* Linhas */}
                           {opRows.map(r => (
                             <div key={r.categoria} className="grid grid-cols-4 gap-1 text-[9px] font-mono font-bold text-center w-full">
-                              <div className="h-7 rounded bg-slate-300 text-slate-900 font-sans font-extrabold flex items-center justify-center uppercase text-[8px] sm:text-[8.5px] truncate px-0.5">
+                              <div className="h-7 rounded bg-[#173252] text-sky-100 font-sans font-extrabold flex items-center justify-center uppercase text-[8px] sm:text-[8.5px] truncate px-0.5 border border-sky-400/20">
                                 {r.categoria}
                               </div>
-                              <div className="h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#059669]/90 hover:bg-[#059669] text-white flex items-center justify-center shadow-2xs">
                                 {r.processo.pedidos}
                               </div>
-                              <div className="h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#059669]/90 hover:bg-[#059669] text-white flex items-center justify-center shadow-2xs">
                                 {r.processo.pecas}
                               </div>
-                              <div className="h-7 rounded bg-[#e85d04] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#059669]/90 hover:bg-[#059669] text-white flex items-center justify-center shadow-2xs">
                                 {r.processo.vol.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                               </div>
                             </div>
                           ))}
                           {/* Linha Total Geral Processo */}
                           <div className="grid grid-cols-4 gap-1 text-[9px] font-mono font-black text-center mt-0.5 w-full">
-                            <div className="h-7 rounded bg-[#059669] text-white font-sans uppercase text-[8.5px] flex items-center justify-center shadow-xs truncate px-0.5">
+                            <div className="h-7 rounded bg-[#047857] text-white font-sans uppercase text-[8.5px] flex items-center justify-center shadow-xs truncate px-0.5">
                               Total geral
                             </div>
-                            <div className="h-7 rounded bg-[#059669] text-white flex items-center justify-center shadow-xs">
+                            <div className="h-7 rounded bg-[#047857] text-white flex items-center justify-center shadow-xs">
                               {opProcPedsTotal.size}
                             </div>
-                            <div className="h-7 rounded bg-[#059669] text-white flex items-center justify-center shadow-xs">
+                            <div className="h-7 rounded bg-[#047857] text-white flex items-center justify-center shadow-xs">
                               {opTotalProcPecas}
                             </div>
-                            <div className="h-7 rounded bg-[#059669] text-white flex items-center justify-center shadow-xs">
+                            <div className="h-7 rounded bg-[#047857] text-white flex items-center justify-center shadow-xs">
                               {opTotalProcVol.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                             </div>
                           </div>
@@ -6889,50 +6879,50 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                         {/* 4. Bloco EM CARTEIRA + EM PROCESSO (CONSOLIDADO) */}
                         <div className="flex-1 min-w-0 flex flex-col space-y-1">
-                          <span className="text-[8.5px] font-black tracking-wider text-teal-200 uppercase text-center h-4 flex items-center justify-center">
+                          <span className="text-[8.5px] font-black tracking-wider text-sky-200 uppercase text-center h-4 flex items-center justify-center">
                             EM CARTEIRA + EM PROCESSO
                           </span>
                           {/* Cabeçalho Consolidado */}
                           <div className="grid grid-cols-3 gap-1 text-[8px] font-black uppercase text-center w-full">
-                            <div className="py-1 rounded bg-[#093c4c] text-teal-100 flex items-center justify-center truncate px-0.5">
+                            <div className="py-1 rounded bg-[#0f2e4a] text-sky-100 flex items-center justify-center truncate px-0.5">
                               Pedidos
                             </div>
-                            <div className="py-1 rounded bg-[#093c4c] text-teal-100 flex items-center justify-center truncate px-0.5">
+                            <div className="py-1 rounded bg-[#0f2e4a] text-sky-100 flex items-center justify-center truncate px-0.5">
                               Peças
                             </div>
-                            <div className="py-1 rounded bg-[#093c4c] text-teal-100 flex items-center justify-center truncate px-0.5">
+                            <div className="py-1 rounded bg-[#0f2e4a] text-sky-100 flex items-center justify-center truncate px-0.5">
                               Cubagem
                             </div>
                           </div>
                           {/* Linhas */}
                           {opRows.map(r => (
                             <div key={r.categoria} className="grid grid-cols-3 gap-1 text-[9px] font-mono font-bold text-center w-full">
-                              <div className="h-7 rounded bg-[#0c4a5c] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#163b60] text-sky-100 flex items-center justify-center shadow-2xs border border-sky-500/20">
                                 {r.consolidado.pedidos}
                               </div>
-                              <div className="h-7 rounded bg-[#0c4a5c] text-white flex items-center justify-center shadow-2xs">
+                              <div className="h-7 rounded bg-[#163b60] text-sky-100 flex items-center justify-center shadow-2xs border border-sky-500/20">
                                 {r.consolidado.pecas}
                               </div>
-                              <div className="h-7 rounded bg-[#0c4a5c] text-white flex items-center justify-center shadow-2xs font-black">
+                              <div className="h-7 rounded bg-[#163b60] text-sky-100 flex items-center justify-center shadow-2xs font-black border border-sky-500/20">
                                 {Math.round(r.consolidado.vol)} m³
                               </div>
                             </div>
                           ))}
                           {/* Linha Total Geral Consolidado */}
                           <div className="grid grid-cols-3 gap-1 text-[9px] font-mono font-black text-center mt-0.5 w-full">
-                            <div className="h-7 rounded bg-[#063340] text-teal-200 flex items-center justify-center shadow-xs">
+                            <div className="h-7 rounded bg-[#0e2a47] text-sky-200 flex items-center justify-center shadow-xs border border-sky-400/30">
                               {opConsPedsTotal.size}
                             </div>
-                            <div className="h-7 rounded bg-[#063340] text-teal-200 flex items-center justify-center shadow-xs">
+                            <div className="h-7 rounded bg-[#0e2a47] text-sky-200 flex items-center justify-center shadow-xs border border-sky-400/30">
                               {opTotalConsPecas}
                             </div>
-                            <div className="h-7 rounded bg-[#063340] text-white flex items-center justify-center shadow-xs">
+                            <div className="h-7 rounded bg-[#0e2a47] text-white flex items-center justify-center shadow-xs border border-sky-400/30">
                               {Math.round(opTotalConsVol)} m³
                             </div>
                           </div>
                           {/* Rodapé Faturamento Geral, Meta & Atingimento */}
                           <div className="flex items-center gap-1 pt-1 flex-wrap w-full">
-                            <div className="flex-1 py-1 px-1 rounded-lg bg-[#063340] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black shadow-xs whitespace-nowrap text-center truncate">
+                            <div className="flex-1 py-1 px-1 rounded-lg bg-[#0e2a47] text-white text-[8.5px] sm:text-[9.5px] font-mono font-black shadow-xs whitespace-nowrap text-center truncate border border-sky-500/30">
                               R$ {opTotalConsValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                             <div className="py-1 px-1 rounded-lg bg-[#b45309] text-amber-100 text-[8px] sm:text-[9px] font-mono font-black shadow-xs whitespace-nowrap">
@@ -6953,24 +6943,24 @@ export const PcpJsMartinsPage: React.FC = () => {
                           <span className="text-[8.5px] font-black tracking-wider text-rose-300 uppercase text-center h-4 flex items-center justify-center">
                             CAPACIDADE
                           </span>
-                          <div className="w-full py-1 rounded bg-[#701a28] text-rose-100 text-[7.5px] sm:text-[8px] font-black uppercase text-center truncate px-0.5">
+                          <div className="w-full py-1 rounded bg-[#4c0519] text-rose-200 text-[7.5px] sm:text-[8px] font-black uppercase text-center truncate px-0.5 border border-rose-500/30">
                             CAP {opCapacidadeSoma}M³
                           </div>
                           {/* Capacidades Individuais */}
-                          <div className="w-full h-7 rounded bg-[#831843] text-rose-100 text-[8.5px] sm:text-[9px] font-mono font-black flex items-center justify-center shadow-2xs">
+                          <div className="w-full h-7 rounded bg-[#831843]/85 text-rose-100 text-[8.5px] sm:text-[9px] font-mono font-black flex items-center justify-center shadow-2xs border border-rose-500/30">
                             {capacidadeAbaM3} M³
                           </div>
-                          <div className="w-full h-7 rounded bg-[#831843] text-rose-100 text-[8.5px] sm:text-[9px] font-mono font-black flex items-center justify-center shadow-2xs">
+                          <div className="w-full h-7 rounded bg-[#831843]/85 text-rose-100 text-[8.5px] sm:text-[9px] font-mono font-black flex items-center justify-center shadow-2xs border border-rose-500/30">
                             {capacidadeVendaM3} M³
                           </div>
-                          <div className="w-full h-7 rounded bg-[#831843] text-rose-100 text-[8.5px] sm:text-[9px] font-mono font-black flex items-center justify-center shadow-2xs">
+                          <div className="w-full h-7 rounded bg-[#831843]/85 text-rose-100 text-[8.5px] sm:text-[9px] font-mono font-black flex items-center justify-center shadow-2xs border border-rose-500/30">
                             {capacidadeCourrierPed} P
                           </div>
-                          <div className="w-full h-7 rounded bg-[#831843] text-rose-100 text-[9px] font-mono font-bold flex items-center justify-center shadow-2xs">
+                          <div className="w-full h-7 rounded bg-[#831843]/85 text-rose-100 text-[9px] font-mono font-bold flex items-center justify-center shadow-2xs border border-rose-500/30">
                             -
                           </div>
                           {/* Volume Extra */}
-                          <div className="w-full py-1 px-1 rounded bg-[#854d0e] text-amber-200 text-center flex flex-col justify-center shadow-xs mt-0.5">
+                          <div className="w-full py-1 px-1 rounded bg-[#78350f] text-amber-200 text-center flex flex-col justify-center shadow-xs mt-0.5 border border-amber-500/30">
                             <span className="text-[7px] font-black tracking-tight text-amber-300 uppercase">Vol. Extra</span>
                             <span className="text-[9.5px] sm:text-[10px] font-mono font-black text-white">
                               {Math.round(opVolumeExtra)}M³
@@ -6979,7 +6969,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                         </div>
 
                         {/* 6. Extremo Direito: RODO DIAS, COURRIER DIAS & ASSINATURA MAGALU */}
-                        <div className="flex flex-col justify-between items-center pl-1 border-l border-teal-500/20 shrink-0 space-y-1">
+                        <div className="flex flex-col justify-between items-center pl-1 border-l border-sky-500/20 shrink-0 space-y-1">
                           <div className="flex items-center gap-1.5">
                             {/* Card RODO */}
                             <div className="flex flex-col items-center">
@@ -6989,7 +6979,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                               <div className="mt-1 w-10 h-7 rounded bg-[#0284c7] text-white text-[11px] font-mono font-black flex items-center justify-center shadow-xs">
                                 {opRows[1]?.dias.geral.toFixed(1)}
                               </div>
-                              <div className="mt-1 w-10 h-5 rounded bg-slate-300 text-slate-900 text-[9.5px] font-mono font-black flex items-center justify-center">
+                              <div className="mt-1 w-10 h-5 rounded bg-slate-800 text-sky-200 border border-sky-400/20 text-[9.5px] font-mono font-black flex items-center justify-center">
                                 {opRows[1]?.dias.carteira.toFixed(1)}
                               </div>
                             </div>
@@ -6998,13 +6988,13 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                             {/* Card COURRIER */}
                             <div className="flex flex-col items-center">
-                              <div className="px-2 py-0.5 rounded bg-[#0f766e] text-white text-[7.5px] font-black uppercase tracking-tight text-center">
+                              <div className="px-2 py-0.5 rounded bg-[#0d9488] text-white text-[7.5px] font-black uppercase tracking-tight text-center">
                                 COURRIER (RDP)<br />DIAS EM CARTEIRA
                               </div>
-                              <div className="mt-1 w-10 h-7 rounded bg-[#0f766e] text-white text-[11px] font-mono font-black flex items-center justify-center shadow-xs">
+                              <div className="mt-1 w-10 h-7 rounded bg-[#0d9488] text-white text-[11px] font-mono font-black flex items-center justify-center shadow-xs">
                                 {opRows[2]?.dias.geral.toFixed(1)}
                               </div>
-                              <div className="mt-1 w-10 h-5 rounded bg-slate-300 text-slate-900 text-[9.5px] font-mono font-black flex items-center justify-center">
+                              <div className="mt-1 w-10 h-5 rounded bg-slate-800 text-sky-200 border border-sky-400/20 text-[9.5px] font-mono font-black flex items-center justify-center">
                                 {opRows[2]?.dias.carteira.toFixed(1)}
                               </div>
                             </div>
@@ -7012,10 +7002,10 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                           {/* Estrela de 4 pontas e Marca Magalu */}
                           <div className="flex flex-col items-center justify-center pt-1 space-y-0.5">
-                            <svg viewBox="0 0 40 40" className="w-8 h-8 fill-slate-300 drop-shadow-sm">
+                            <svg viewBox="0 0 40 40" className="w-8 h-8 fill-sky-200 drop-shadow-sm">
                               <polygon points="20,2 24,16 38,20 24,24 20,38 16,24 2,20 16,16" />
                             </svg>
-                            <span className="text-[7px] text-slate-300 italic tracking-tight font-sans whitespace-nowrap">
+                            <span className="text-[7px] text-sky-200/80 italic tracking-tight font-sans whitespace-nowrap">
                               Johansson Martins de Meneses Gomes
                             </span>
                             <div className="flex flex-col items-center">
@@ -7032,11 +7022,11 @@ export const PcpJsMartinsPage: React.FC = () => {
                     {/* Modal de Configuração de Metas e Capacidades */}
                     {showConfigOperacional && (
                       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-                        <div className="bg-[#0b2834] border border-teal-500/40 rounded-2xl p-5 shadow-2xl max-w-sm w-full space-y-4 text-white">
-                          <div className="flex items-center justify-between border-b border-teal-500/30 pb-2">
+                        <div className="bg-[#0a192f] border border-sky-500/40 rounded-2xl p-5 shadow-2xl max-w-sm w-full space-y-4 text-white">
+                          <div className="flex items-center justify-between border-b border-sky-500/30 pb-2">
                             <div className="flex items-center gap-2">
-                              <Settings2 size={16} className="text-teal-300" />
-                              <h3 className="text-sm font-black uppercase text-teal-100">
+                              <Settings2 size={16} className="text-sky-300" />
+                              <h3 className="text-sm font-black uppercase text-sky-100">
                                 Parâmetros Operacionais
                               </h3>
                             </div>
@@ -7051,55 +7041,55 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                           <div className="space-y-3 text-xs">
                             <div>
-                              <label className="block text-[11px] font-bold text-teal-200 mb-1">
+                              <label className="block text-[11px] font-bold text-sky-200 mb-1">
                                 Meta de Faturamento (R$)
                               </label>
                               <input
                                 type="number"
                                 value={tempMetaFaturamento}
                                 onChange={e => setTempMetaFaturamento(Number(e.target.value) || 0)}
-                                className="w-full px-2.5 py-1.5 rounded-lg bg-[#071f28] border border-teal-500/40 text-white font-mono font-bold focus:outline-none focus:ring-1 focus:ring-teal-400"
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-[#0c213a] border border-sky-500/40 text-white font-mono font-bold focus:outline-none focus:ring-1 focus:ring-sky-400"
                               />
                             </div>
 
                             <div>
-                              <label className="block text-[11px] font-bold text-teal-200 mb-1">
+                              <label className="block text-[11px] font-bold text-sky-200 mb-1">
                                 Capacidade ABA (M³)
                               </label>
                               <input
                                 type="number"
                                 value={tempCapAba}
                                 onChange={e => setTempCapAba(Number(e.target.value) || 0)}
-                                className="w-full px-2.5 py-1.5 rounded-lg bg-[#071f28] border border-teal-500/40 text-white font-mono font-bold focus:outline-none focus:ring-1 focus:ring-teal-400"
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-[#0c213a] border border-sky-500/40 text-white font-mono font-bold focus:outline-none focus:ring-1 focus:ring-sky-400"
                               />
                             </div>
 
                             <div>
-                              <label className="block text-[11px] font-bold text-teal-200 mb-1">
+                              <label className="block text-[11px] font-bold text-sky-200 mb-1">
                                 Capacidade Venda (M³)
                               </label>
                               <input
                                 type="number"
                                 value={tempCapVenda}
                                 onChange={e => setTempCapVenda(Number(e.target.value) || 0)}
-                                className="w-full px-2.5 py-1.5 rounded-lg bg-[#071f28] border border-teal-500/40 text-white font-mono font-bold focus:outline-none focus:ring-1 focus:ring-teal-400"
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-[#0c213a] border border-sky-500/40 text-white font-mono font-bold focus:outline-none focus:ring-1 focus:ring-sky-400"
                               />
                             </div>
 
                             <div>
-                              <label className="block text-[11px] font-bold text-teal-200 mb-1">
+                              <label className="block text-[11px] font-bold text-sky-200 mb-1">
                                 Capacidade Courrier (Pedidos)
                               </label>
                               <input
                                 type="number"
                                 value={tempCapCourrier}
                                 onChange={e => setTempCapCourrier(Number(e.target.value) || 0)}
-                                className="w-full px-2.5 py-1.5 rounded-lg bg-[#071f28] border border-teal-500/40 text-white font-mono font-bold focus:outline-none focus:ring-1 focus:ring-teal-400"
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-[#0c213a] border border-sky-500/40 text-white font-mono font-bold focus:outline-none focus:ring-1 focus:ring-sky-400"
                               />
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-end gap-2 pt-2 border-t border-teal-500/30">
+                          <div className="flex items-center justify-end gap-2 pt-2 border-t border-sky-500/30">
                             <button
                               type="button"
                               onClick={() => setShowConfigOperacional(false)}
@@ -7110,7 +7100,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={handleSaveConfigOperacional}
-                              className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-xs font-bold text-white transition-colors cursor-pointer shadow-xs"
+                              className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white transition-colors cursor-pointer shadow-xs"
                             >
                               Salvar Parâmetros
                             </button>
