@@ -6596,40 +6596,57 @@ export const PcpJsMartinsPage: React.FC = () => {
                     </div>
 
                     {/* Linha Superior: 3 Termômetros de Capacidade + 2 Velocímetros de Atraso */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 py-1 items-center justify-items-center">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 py-1 items-stretch justify-items-center w-full">
                       {/* Termômetro 1: CAPACIDADE ABA */}
                       {(() => {
                         const cap = capacidadeAbaM3 > 0 ? capacidadeAbaM3 : 440
                         const atual = opRows[0]?.consolidado.vol || 0
-                        const pct = Math.min(100, Math.max(0, (atual / (cap * 1.3)) * 100))
+                        const isOver = atual > cap
+                        const pct = Math.min(100, Math.max(8, (atual / cap) * 100))
                         return (
-                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#0f243a]/70 border border-sky-500/20 w-full min-h-[145px]">
-                            <span className="text-[8.5px] font-black text-amber-300 tracking-wider text-center uppercase mb-1">
-                              CAPACIDADE ABA M³
+                          <div className="flex flex-col items-center justify-between p-2.5 rounded-xl bg-[#0c213a] border border-sky-500/25 w-full min-h-[160px] shadow-lg">
+                            <span className="text-[9.5px] font-black text-amber-300 tracking-wider text-center uppercase">
+                              Capacidade ABA M³
                             </span>
-                            <div className="flex items-center justify-center gap-2">
+                            <div className="flex items-center justify-center gap-2.5 my-1">
                               {/* Tubo do Termômetro */}
-                              <div className="flex items-center gap-1">
-                                <div className="flex flex-col justify-between h-[68px] text-[6.5px] font-mono text-sky-300/70 py-0.5">
-                                  <span>600</span>
-                                  <span>400</span>
-                                  <span>200</span>
+                              <div className="flex items-center gap-1.5">
+                                <div className="flex flex-col justify-between h-[80px] text-[7px] font-mono text-sky-300/80 font-bold py-0.5 text-right">
+                                  <span>{cap}</span>
+                                  <span>{Math.round(cap * 0.66)}</span>
+                                  <span>{Math.round(cap * 0.33)}</span>
                                   <span>0</span>
                                 </div>
-                                <div className="relative w-4 h-[70px] bg-slate-950/90 rounded-full border border-sky-400/40 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
+                                <div className="relative w-5 h-[82px] bg-[#071526] rounded-full border-2 border-sky-400/40 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
                                   <div
-                                    className="w-full bg-linear-to-t from-sky-600 via-emerald-500 to-teal-300 rounded-full transition-all duration-500 shadow-sm"
+                                    className={`w-full rounded-full transition-all duration-500 ${
+                                      isOver
+                                        ? 'bg-gradient-to-t from-red-600 via-rose-500 to-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.7)]'
+                                        : 'bg-gradient-to-t from-emerald-600 via-emerald-500 to-teal-400 shadow-[0_0_10px_rgba(16,185,129,0.7)]'
+                                    }`}
                                     style={{ height: `${pct}%` }}
                                   />
                                 </div>
                               </div>
-                              <span className="text-[17px] font-black text-white font-mono drop-shadow-sm">
-                                {cap}m³
-                              </span>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[19px] sm:text-[20px] font-black text-white font-mono drop-shadow-sm">
+                                  {cap}m³
+                                </span>
+                                <span className={`text-[8.5px] font-extrabold uppercase px-1.5 py-0.2 rounded-full border mt-0.5 ${
+                                  isOver
+                                    ? 'bg-rose-950/80 text-rose-300 border-rose-500/40'
+                                    : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
+                                }`}>
+                                  {isOver ? 'Acima' : 'Dentro'}
+                                </span>
+                              </div>
                             </div>
                             {/* Bulbo com valor atual */}
-                            <div className="mt-1.5 px-2 py-0.5 rounded-full bg-[#0a192f] border border-sky-400/40 text-[9px] font-mono font-bold text-sky-200">
-                              {atual.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            <div className="px-2.5 py-0.5 rounded-full bg-[#071d37] border border-sky-400/40 text-[9.5px] font-mono font-bold text-sky-100 flex items-center gap-1 shadow-xs">
+                              <span className="text-[8px] text-sky-300 font-sans font-bold">ATUAL:</span>
+                              <span className={isOver ? 'text-rose-400 font-black' : 'text-emerald-400 font-black'}>
+                                {atual.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                              </span>
                             </div>
                           </div>
                         )
@@ -6639,33 +6656,50 @@ export const PcpJsMartinsPage: React.FC = () => {
                       {(() => {
                         const cap = capacidadeVendaM3 > 0 ? capacidadeVendaM3 : 400
                         const atual = opRows[1]?.consolidado.vol || 0
-                        const pct = Math.min(100, Math.max(0, (atual / (cap * 1.5)) * 100))
+                        const isOver = atual > cap
+                        const pct = Math.min(100, Math.max(8, (atual / cap) * 100))
                         return (
-                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#0f243a]/70 border border-sky-500/20 w-full min-h-[145px]">
-                            <span className="text-[8.5px] font-black text-amber-300 tracking-wider text-center uppercase mb-1">
-                              CAPACIDADE VENDA M³
+                          <div className="flex flex-col items-center justify-between p-2.5 rounded-xl bg-[#0c213a] border border-sky-500/25 w-full min-h-[160px] shadow-lg">
+                            <span className="text-[9.5px] font-black text-amber-300 tracking-wider text-center uppercase">
+                              Capacidade Venda M³
                             </span>
-                            <div className="flex items-center justify-center gap-2">
-                              <div className="flex items-center gap-1">
-                                <div className="flex flex-col justify-between h-[68px] text-[6.5px] font-mono text-sky-300/70 py-0.5">
-                                  <span>800</span>
-                                  <span>500</span>
-                                  <span>200</span>
+                            <div className="flex items-center justify-center gap-2.5 my-1">
+                              <div className="flex items-center gap-1.5">
+                                <div className="flex flex-col justify-between h-[80px] text-[7px] font-mono text-sky-300/80 font-bold py-0.5 text-right">
+                                  <span>{cap}</span>
+                                  <span>{Math.round(cap * 0.66)}</span>
+                                  <span>{Math.round(cap * 0.33)}</span>
                                   <span>0</span>
                                 </div>
-                                <div className="relative w-4 h-[70px] bg-slate-950/90 rounded-full border border-sky-400/40 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
+                                <div className="relative w-5 h-[82px] bg-[#071526] rounded-full border-2 border-sky-400/40 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
                                   <div
-                                    className="w-full bg-linear-to-t from-sky-600 via-emerald-500 to-teal-300 rounded-full transition-all duration-500 shadow-sm"
+                                    className={`w-full rounded-full transition-all duration-500 ${
+                                      isOver
+                                        ? 'bg-gradient-to-t from-red-600 via-rose-500 to-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.7)]'
+                                        : 'bg-gradient-to-t from-emerald-600 via-emerald-500 to-teal-400 shadow-[0_0_10px_rgba(16,185,129,0.7)]'
+                                    }`}
                                     style={{ height: `${pct}%` }}
                                   />
                                 </div>
                               </div>
-                              <span className="text-[17px] font-black text-white font-mono drop-shadow-sm">
-                                {cap}m³
-                              </span>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[19px] sm:text-[20px] font-black text-white font-mono drop-shadow-sm">
+                                  {cap}m³
+                                </span>
+                                <span className={`text-[8.5px] font-extrabold uppercase px-1.5 py-0.2 rounded-full border mt-0.5 ${
+                                  isOver
+                                    ? 'bg-rose-950/80 text-rose-300 border-rose-500/40'
+                                    : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
+                                }`}>
+                                  {isOver ? 'Acima' : 'Dentro'}
+                                </span>
+                              </div>
                             </div>
-                            <div className="mt-1.5 px-2 py-0.5 rounded-full bg-[#0a192f] border border-sky-400/40 text-[9px] font-mono font-bold text-sky-200">
-                              {atual.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            <div className="px-2.5 py-0.5 rounded-full bg-[#071d37] border border-sky-400/40 text-[9.5px] font-mono font-bold text-sky-100 flex items-center gap-1 shadow-xs">
+                              <span className="text-[8px] text-sky-300 font-sans font-bold">ATUAL:</span>
+                              <span className={isOver ? 'text-rose-400 font-black' : 'text-emerald-400 font-black'}>
+                                {atual.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                              </span>
                             </div>
                           </div>
                         )
@@ -6675,33 +6709,50 @@ export const PcpJsMartinsPage: React.FC = () => {
                       {(() => {
                         const cap = capacidadeCourrierPed > 0 ? capacidadeCourrierPed : 600
                         const atual = opRows[2]?.consolidado.pedidos || 0
-                        const pct = Math.min(100, Math.max(0, (atual / (cap * 1.5)) * 100))
+                        const isOver = atual > cap
+                        const pct = Math.min(100, Math.max(8, (atual / cap) * 100))
                         return (
-                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#0f243a]/70 border border-sky-500/20 w-full min-h-[145px]">
-                            <span className="text-[8px] font-black text-amber-300 tracking-wider text-center uppercase mb-1">
-                              CAPACIDADE COURRIER PEDIDOS
+                          <div className="flex flex-col items-center justify-between p-2.5 rounded-xl bg-[#0c213a] border border-sky-500/25 w-full min-h-[160px] shadow-lg">
+                            <span className="text-[9px] font-black text-amber-300 tracking-wider text-center uppercase">
+                              Capacidade Courrier Pedidos
                             </span>
-                            <div className="flex items-center justify-center gap-2">
-                              <div className="flex items-center gap-1">
-                                <div className="flex flex-col justify-between h-[68px] text-[6.5px] font-mono text-sky-300/70 py-0.5">
-                                  <span>1000</span>
-                                  <span>600</span>
-                                  <span>300</span>
+                            <div className="flex items-center justify-center gap-2.5 my-1">
+                              <div className="flex items-center gap-1.5">
+                                <div className="flex flex-col justify-between h-[80px] text-[7px] font-mono text-sky-300/80 font-bold py-0.5 text-right">
+                                  <span>{cap}</span>
+                                  <span>{Math.round(cap * 0.66)}</span>
+                                  <span>{Math.round(cap * 0.33)}</span>
                                   <span>0</span>
                                 </div>
-                                <div className="relative w-4 h-[70px] bg-slate-950/90 rounded-full border border-sky-400/40 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
+                                <div className="relative w-5 h-[82px] bg-[#071526] rounded-full border-2 border-sky-400/40 p-0.5 flex flex-col justify-end overflow-hidden shadow-inner">
                                   <div
-                                    className="w-full bg-linear-to-t from-sky-600 via-emerald-500 to-teal-300 rounded-full transition-all duration-500 shadow-sm"
+                                    className={`w-full rounded-full transition-all duration-500 ${
+                                      isOver
+                                        ? 'bg-gradient-to-t from-red-600 via-rose-500 to-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.7)]'
+                                        : 'bg-gradient-to-t from-emerald-600 via-emerald-500 to-teal-400 shadow-[0_0_10px_rgba(16,185,129,0.7)]'
+                                    }`}
                                     style={{ height: `${pct}%` }}
                                   />
                                 </div>
                               </div>
-                              <span className="text-[17px] font-black text-white font-mono drop-shadow-sm">
-                                {cap}P
-                              </span>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[19px] sm:text-[20px] font-black text-white font-mono drop-shadow-sm">
+                                  {cap}P
+                                </span>
+                                <span className={`text-[8.5px] font-extrabold uppercase px-1.5 py-0.2 rounded-full border mt-0.5 ${
+                                  isOver
+                                    ? 'bg-rose-950/80 text-rose-300 border-rose-500/40'
+                                    : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
+                                }`}>
+                                  {isOver ? 'Acima' : 'Dentro'}
+                                </span>
+                              </div>
                             </div>
-                            <div className="mt-1.5 px-2 py-0.5 rounded-full bg-[#0a192f] border border-sky-400/40 text-[9px] font-mono font-bold text-sky-200">
-                              {atual}
+                            <div className="px-2.5 py-0.5 rounded-full bg-[#071d37] border border-sky-400/40 text-[9.5px] font-mono font-bold text-sky-100 flex items-center gap-1 shadow-xs">
+                              <span className="text-[8px] text-sky-300 font-sans font-bold">ATUAL:</span>
+                              <span className={isOver ? 'text-rose-400 font-black' : 'text-emerald-400 font-black'}>
+                                {atual}
+                              </span>
                             </div>
                           </div>
                         )
@@ -6710,36 +6761,41 @@ export const PcpJsMartinsPage: React.FC = () => {
                       {/* Velocímetro 1: Atraso fat venda */}
                       {(() => {
                         const atrasos = opAtrasoVendaPedidosSet.size
-                        // Ângulo do ponteiro: 0 -> 180° (verde/esquerda), 1-5 -> 270° (amarelo/centro), >5 -> 350° (vermelho/direita)
+                        // Ângulo do ponteiro: 0 -> 195° (verde/esquerda), 1-5 -> 270° (amarelo/centro), >5 -> 345° (vermelho/direita)
                         const angle = atrasos === 0 ? 195 : atrasos <= 5 ? 270 : 345
                         const rad = (angle * Math.PI) / 180
-                        const x2 = 50 + 28 * Math.cos(rad)
-                        const y2 = 50 + 28 * Math.sin(rad)
+                        const x2 = 50 + 29 * Math.cos(rad)
+                        const y2 = 50 + 29 * Math.sin(rad)
                         return (
-                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#0f243a]/70 border border-sky-500/20 w-full min-h-[145px]">
-                            <svg viewBox="0 0 100 65" className="w-24 h-16 overflow-visible">
-                              {/* Fundo do velocímetro */}
-                              <path d="M 12 50 A 38 38 0 0 1 88 50" fill="none" stroke="#334155" strokeWidth="18" />
-                              {/* Faixa Verde: Bom */}
-                              <path d="M 12 50 A 38 38 0 0 1 32 23" fill="none" stroke="#22c55e" strokeWidth="16" />
-                              {/* Faixa Amarela: Regular */}
-                              <path d="M 32 23 A 38 38 0 0 1 68 23" fill="none" stroke="#f59e0b" strokeWidth="16" />
-                              {/* Faixa Vermelha: Ruim */}
-                              <path d="M 68 23 A 38 38 0 0 1 88 50" fill="none" stroke="#ef4444" strokeWidth="16" />
-                              {/* Textos no arco */}
-                              <text x="21" y="38" fontSize="4.5" fill="#ffffff" fontWeight="bold">Bom</text>
-                              <text x="44" y="24" fontSize="4.5" fill="#ffffff" fontWeight="bold">Regular</text>
-                              <text x="71" y="38" fontSize="4.5" fill="#ffffff" fontWeight="bold">Ruim</text>
-                              {/* Ponteiro */}
-                              <line x1="50" y1="50" x2={x2} y2={y2} stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" />
-                              <circle cx="50" cy="50" r="4.5" fill="#38bdf8" />
-                              {/* Valor */}
-                              <text x="50" y="47" fontSize="11" fontWeight="bold" fill="#ffffff" textAnchor="middle" fontFamily="monospace">
-                                {atrasos}
-                              </text>
-                            </svg>
-                            <span className="text-[8.5px] italic text-slate-300 mt-1 text-center">
-                              Atraso fat venda
+                          <div className="flex flex-col items-center justify-between p-2.5 rounded-xl bg-[#0c213a] border border-sky-500/25 w-full min-h-[160px] shadow-lg">
+                            <span className="text-[9.5px] sm:text-[10px] font-black tracking-wider text-amber-300 uppercase text-center">
+                              Atraso Fat Venda
+                            </span>
+                            <div className="flex items-center justify-center my-auto">
+                              <svg viewBox="0 0 100 62" className="w-36 h-22 sm:w-42 sm:h-24 overflow-visible drop-shadow-md">
+                                {/* Fundo do velocímetro */}
+                                <path d="M 12 50 A 38 38 0 0 1 88 50" fill="none" stroke="#1e293b" strokeWidth="17" />
+                                {/* Faixa Verde: Bom */}
+                                <path d="M 12 50 A 38 38 0 0 1 32 23" fill="none" stroke="#22c55e" strokeWidth="15" />
+                                {/* Faixa Amarela: Regular */}
+                                <path d="M 32 23 A 38 38 0 0 1 68 23" fill="none" stroke="#f59e0b" strokeWidth="15" />
+                                {/* Faixa Vermelha: Ruim */}
+                                <path d="M 68 23 A 38 38 0 0 1 88 50" fill="none" stroke="#ef4444" strokeWidth="15" />
+                                {/* Textos no arco em tamanho ampliado e bem nítidos */}
+                                <text x="18" y="37" fontSize="6" fill="#ffffff" fontWeight="900" textAnchor="middle">Bom</text>
+                                <text x="50" y="21" fontSize="6" fill="#ffffff" fontWeight="900" textAnchor="middle">Regular</text>
+                                <text x="82" y="37" fontSize="6" fill="#ffffff" fontWeight="900" textAnchor="middle">Ruim</text>
+                                {/* Ponteiro */}
+                                <line x1="50" y1="50" x2={x2} y2={y2} stroke="#38bdf8" strokeWidth="3.5" strokeLinecap="round" />
+                                <circle cx="50" cy="50" r="5" fill="#38bdf8" stroke="#ffffff" strokeWidth="1" />
+                                {/* Valor Central Ampliado */}
+                                <text x="50" y="47" fontSize="15" fontWeight="900" fill="#ffffff" textAnchor="middle" fontFamily="monospace">
+                                  {atrasos}
+                                </text>
+                              </svg>
+                            </div>
+                            <span className="text-[9.5px] font-extrabold text-sky-200/90 text-center uppercase tracking-wide px-2.5 py-0.5 rounded-full bg-[#071d37] border border-sky-400/30">
+                              {atrasos} {atrasos === 1 ? 'pedido' : 'pedidos'}
                             </span>
                           </div>
                         )
@@ -6751,26 +6807,31 @@ export const PcpJsMartinsPage: React.FC = () => {
                         // Ângulo do ponteiro: 0 -> 195° (verde), 1-100 -> 270° (amarelo), >100 -> 345° (vermelho)
                         const angle = atrasos === 0 ? 195 : atrasos <= 100 ? 270 : 345
                         const rad = (angle * Math.PI) / 180
-                        const x2 = 50 + 28 * Math.cos(rad)
-                        const y2 = 50 + 28 * Math.sin(rad)
+                        const x2 = 50 + 29 * Math.cos(rad)
+                        const y2 = 50 + 29 * Math.sin(rad)
                         return (
-                          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#0f243a]/70 border border-sky-500/20 w-full min-h-[145px]">
-                            <svg viewBox="0 0 100 65" className="w-24 h-16 overflow-visible">
-                              <path d="M 12 50 A 38 38 0 0 1 88 50" fill="none" stroke="#334155" strokeWidth="18" />
-                              <path d="M 12 50 A 38 38 0 0 1 32 23" fill="none" stroke="#22c55e" strokeWidth="16" />
-                              <path d="M 32 23 A 38 38 0 0 1 68 23" fill="none" stroke="#f59e0b" strokeWidth="16" />
-                              <path d="M 68 23 A 38 38 0 0 1 88 50" fill="none" stroke="#ef4444" strokeWidth="16" />
-                              <text x="21" y="38" fontSize="4.5" fill="#ffffff" fontWeight="bold">Bom</text>
-                              <text x="44" y="24" fontSize="4.5" fill="#ffffff" fontWeight="bold">Regular</text>
-                              <text x="71" y="38" fontSize="4.5" fill="#ffffff" fontWeight="bold">Ruim</text>
-                              <line x1="50" y1="50" x2={x2} y2={y2} stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" />
-                              <circle cx="50" cy="50" r="4.5" fill="#38bdf8" />
-                              <text x="50" y="47" fontSize="10" fontWeight="bold" fill="#ffffff" textAnchor="middle" fontFamily="monospace">
-                                {atrasos}
-                              </text>
-                            </svg>
-                            <span className="text-[8.5px] italic text-slate-300 mt-1 text-center">
-                              Atraso fat ABA (peças)
+                          <div className="flex flex-col items-center justify-between p-2.5 rounded-xl bg-[#0c213a] border border-sky-500/25 w-full min-h-[160px] shadow-lg">
+                            <span className="text-[9.5px] sm:text-[10px] font-black tracking-wider text-amber-300 uppercase text-center">
+                              Atraso Fat ABA (Peças)
+                            </span>
+                            <div className="flex items-center justify-center my-auto">
+                              <svg viewBox="0 0 100 62" className="w-36 h-22 sm:w-42 sm:h-24 overflow-visible drop-shadow-md">
+                                <path d="M 12 50 A 38 38 0 0 1 88 50" fill="none" stroke="#1e293b" strokeWidth="17" />
+                                <path d="M 12 50 A 38 38 0 0 1 32 23" fill="none" stroke="#22c55e" strokeWidth="15" />
+                                <path d="M 32 23 A 38 38 0 0 1 68 23" fill="none" stroke="#f59e0b" strokeWidth="15" />
+                                <path d="M 68 23 A 38 38 0 0 1 88 50" fill="none" stroke="#ef4444" strokeWidth="15" />
+                                <text x="18" y="37" fontSize="6" fill="#ffffff" fontWeight="900" textAnchor="middle">Bom</text>
+                                <text x="50" y="21" fontSize="6" fill="#ffffff" fontWeight="900" textAnchor="middle">Regular</text>
+                                <text x="82" y="37" fontSize="6" fill="#ffffff" fontWeight="900" textAnchor="middle">Ruim</text>
+                                <line x1="50" y1="50" x2={x2} y2={y2} stroke="#38bdf8" strokeWidth="3.5" strokeLinecap="round" />
+                                <circle cx="50" cy="50" r="5" fill="#38bdf8" stroke="#ffffff" strokeWidth="1" />
+                                <text x="50" y="47" fontSize="14" fontWeight="900" fill="#ffffff" textAnchor="middle" fontFamily="monospace">
+                                  {atrasos}
+                                </text>
+                              </svg>
+                            </div>
+                            <span className="text-[9.5px] font-extrabold text-sky-200/90 text-center uppercase tracking-wide px-2.5 py-0.5 rounded-full bg-[#071d37] border border-sky-400/30">
+                              {atrasos.toLocaleString('pt-BR')} peças
                             </span>
                           </div>
                         )
