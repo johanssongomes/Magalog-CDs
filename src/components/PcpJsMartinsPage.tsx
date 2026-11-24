@@ -4833,7 +4833,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             {/* ------------------------------------------------------------ */}
             <div className="flex flex-col xl:flex-row gap-5 items-start w-full">
               {/* CANTO ESQUERDO (TABELA COM O TEMA MODERNO BLUE/SLATE CLEAN - ESPAÇO AMPLIADO) */}
-              <div className="w-full xl:w-auto xl:min-w-[820px] xl:max-w-[1050px] 2xl:min-w-[900px] 2xl:max-w-[1180px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
+              <div className="w-full xl:w-auto xl:min-w-[860px] xl:max-w-[1100px] 2xl:min-w-[940px] 2xl:max-w-[1240px] bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
                 <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d] gap-2 flex-wrap sm:flex-nowrap">
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet size={15} className="text-sky-300 shrink-0" />
@@ -5119,7 +5119,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                           <tr className="bg-[#0e3b66] text-white font-bold text-[8.5px] uppercase tracking-wider divide-x divide-white/10">
                                                             <th className="py-1.5 px-1 text-center w-[84px] min-w-[84px] whitespace-nowrap">STATUS</th>
                                                             <th className="py-1.5 px-1 text-center w-[48px] min-w-[48px]">MODAL</th>
-                                                            <th className="py-1.5 px-1 text-center w-[82px] min-w-[82px]">LINHA</th>
+                                                            <th className="py-1.5 px-1 text-center w-[150px] min-w-[150px]">LINHA</th>
                                                             <th className="py-1.5 px-0.5 text-center w-[34px] min-w-[34px]">COD</th>
                                                             <th className="py-1.5 px-1 text-center w-[72px] min-w-[72px]">PREV. ENT.</th>
                                                             <th className="py-1.5 px-0.5 text-center w-[46px] min-w-[46px]">LOTE</th>
@@ -5146,7 +5146,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                                   {det.modalidade}
                                                                 </span>
                                                               </td>
-                                                              <td className="py-1 px-1 text-center text-slate-700 font-medium truncate w-[82px] min-w-[82px] max-w-[82px]" title={det.linha}>
+                                                              <td className="py-1 px-1.5 text-center text-slate-700 font-medium truncate w-[150px] min-w-[150px] max-w-[150px]" title={det.linha}>
                                                                 {det.linha || '-'}
                                                               </td>
                                                               <td className="py-1 px-0.5 text-center font-mono font-bold text-slate-800 w-[34px] min-w-[34px]">
@@ -5655,7 +5655,7 @@ export const PcpJsMartinsPage: React.FC = () => {
               </div>
 
               {/* LADO DIREITO: ÁREA RESERVADA PARA TABELAS/VISÕES DO PAINEL LATERAL */}
-              <div className={`space-y-4 w-full min-w-0 ${planRightTab === 'visao3' ? 'flex-1' : 'flex-1 xl:max-w-[740px] 2xl:max-w-[780px]'}`}>
+              <div className={`space-y-4 w-full min-w-0 ${planRightTab === 'visao3' ? 'flex-1' : 'flex-1 xl:max-w-[700px] 2xl:max-w-[740px]'}`}>
                 {/* 3 BOTÕES DE VISÃO DO PAINEL LATERAL (CONFORME SOLICITADO) */}
                 <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/90 shadow-2xs">
                   <button
