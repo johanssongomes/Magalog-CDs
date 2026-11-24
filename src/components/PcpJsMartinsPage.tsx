@@ -4353,10 +4353,10 @@ export const PcpJsMartinsPage: React.FC = () => {
             cap = 100
           }
 
-          // Cálculo dos Dias: Volume Atual / Capacidade Diária (ou Pedidos / Capacidade no Courrier)
+          // Cálculo dos Dias: Cart = Vol em carteira / Cap | Proc = Vol em processo / Cap | Geral = Cart + Proc (ou Pedidos no Courrier)
           const diasCarteira = isPedCap ? (cart.pedidosSet.size / cap) : (cart.vol / cap)
           const diasProcesso = isPedCap ? (proc.pedidosSet.size / cap) : (proc.vol / cap)
-          const diasGeral = isPedCap ? (allPeds.size / cap) : (totalVol / cap)
+          const diasGeral = diasCarteira + diasProcesso
 
           return {
             categoria: cat,
@@ -4417,9 +4417,9 @@ export const PcpJsMartinsPage: React.FC = () => {
         const opPctMeta = metaFaturamento > 0 ? (opTotalConsValor / metaFaturamento) * 100 : 0
         const opSaldoMeta = opTotalConsValor - metaFaturamento
 
-        const opTotalDiasGeral = opRows.reduce((acc, r) => acc + r.dias.geral, 0)
         const opTotalDiasCarteira = opRows.reduce((acc, r) => acc + r.dias.carteira, 0)
         const opTotalDiasProcesso = opRows.reduce((acc, r) => acc + r.dias.processo, 0)
+        const opTotalDiasGeral = opTotalDiasCarteira + opTotalDiasProcesso
 
         const opCapacidadeSoma = (capacidadeAbaM3 || 440) + (capacidadeVendaM3 || 400)
         const opVolumeExtra = Math.max(0, opTotalConsVol - opCapacidadeSoma)
