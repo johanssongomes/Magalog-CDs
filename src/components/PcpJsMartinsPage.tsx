@@ -5260,8 +5260,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                             <th className="py-1.5 px-1 text-center w-[84px] min-w-[84px] whitespace-nowrap">STATUS</th>
                                                             <th className="py-1.5 px-1 text-center w-[78px] min-w-[78px]">MODAL</th>
                                                             <th className="py-1.5 px-1 text-center w-[150px] min-w-[150px]">LINHA</th>
-                                                            <th className="py-1.5 px-0.5 text-center w-[34px] min-w-[34px]">COD</th>
-                                                            <th className="py-1.5 px-1 text-center w-[72px] min-w-[72px]">PREV. ENT.</th>
+                                                            <th className="py-1.5 px-1 text-center w-[44px] min-w-[44px]">COD</th>
+                                                            <th className="py-1.5 px-1.5 text-center w-[110px] min-w-[110px]">PREV. ENT.</th>
                                                             <th className="py-1.5 px-0.5 text-center w-[46px] min-w-[46px]">LOTE</th>
                                                             <th className="py-1.5 px-1 text-center w-[66px] min-w-[66px]">PEDIDO</th>
                                                             <th className="py-1.5 px-1 text-center w-[48px] min-w-[48px]">ITEM</th>
@@ -5289,14 +5289,14 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                               <td className="py-1 px-1.5 text-center text-slate-700 font-medium truncate w-[150px] min-w-[150px] max-w-[150px]" title={det.linha}>
                                                                 {det.linha || '-'}
                                                               </td>
-                                                              <td className="py-1 px-0.5 text-center font-mono font-bold text-slate-800 w-[34px] min-w-[34px]">
+                                                              <td className="py-1 px-1 text-center font-mono font-bold text-slate-800 w-[44px] min-w-[44px]">
                                                                 {det.codmodal || '-'}
                                                               </td>
-                                                              <td className="py-1 px-1 text-center font-mono font-medium text-slate-700 whitespace-nowrap w-[72px] min-w-[72px]">
-                                                                <div className="flex items-center justify-center gap-0.5">
+                                                              <td className="py-1 px-1.5 text-center font-mono font-medium text-slate-700 whitespace-nowrap w-[110px] min-w-[110px]">
+                                                                <div className="flex items-center justify-center gap-1.5">
                                                                   <span>{formatDateBR(det.preventrega)}</span>
                                                                   {det.prazo && (
-                                                                    <span className={`text-[8px] font-extrabold px-0.5 rounded ${det.prazo === 'Vencido'
+                                                                    <span className={`text-[8px] font-extrabold px-1 py-0.5 rounded ${det.prazo === 'Vencido'
                                                                       ? 'bg-rose-100 text-rose-800 border border-rose-200'
                                                                       : det.prazo === 'D0'
                                                                         ? 'bg-blue-100 text-blue-800 border border-blue-200'
