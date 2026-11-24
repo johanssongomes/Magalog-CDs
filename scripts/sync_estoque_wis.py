@@ -182,6 +182,50 @@ def run_sync():
             except:
                 pass
 
+    # Se mapa de custos estiver vazio ou incompleto, busca automaticamente do Supabase (base_valores)
+    distinct_codes = set()
+    for r in rows:
+        row_dict = dict(zip(cols, r))
+        c_cod = str(row_dict.get("CODIGO") or "").strip()
+        c_gem = str(row_dict.get("COD_GEMCO") or "").strip()
+        c_mast = c_gem or (c_cod.split("/")[0] if c_cod else "")
+        if c_mast:
+            distinct_codes.add(c_mast)
+        if c_cod:
+            distinct_codes.add(c_cod)
+
+    missing_codes = [c for c in distinct_codes if c not in mapa_custos]
+    if missing_codes:
+        print(f"[WIS] Buscando custos de {len(missing_codes):,} produtos no Supabase (tabela base_valores)...")
+        update_sync_status("running", f"Buscando custos de {len(missing_codes):,} produtos no Supabase...", 60)
+        batch_size = 300
+        for i in range(0, len(missing_codes), batch_size):
+            batch = missing_codes[i : i + batch_size]
+            in_clause = ",".join(batch)
+            try:
+                url = f"{SUPABASE_URL}/rest/v1/base_valores?select=codigo,custo_inv&codigo=in.({in_clause})"
+                headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+                res = requests.get(url, headers=headers, verify=False, timeout=15)
+                if res.status_code == 200:
+                    for item in res.json():
+                        c_code = str(item.get("codigo") or "").strip()
+                        c_val = float(item.get("custo_inv") or 0.0)
+                        if c_code:
+                            mapa_custos[c_code] = c_val
+            except Exception as e:
+                print(f"[WIS AVISO] Erro ao buscar lote de custos: {e}")
+
+        # Salva em cache local para as próximas consultas
+        try:
+            cache_file = os.path.join(os.path.dirname(__file__), "..", "src", "data", "base_valores_custos.json")
+            if not os.path.exists(os.path.dirname(cache_file)):
+                cache_file = "base_valores_custos.json"
+            with open(cache_file, "w", encoding="utf-8") as f:
+                json.dump(mapa_custos, f, ensure_ascii=False)
+            print(f"[WIS] Cache local de custos salvo ({len(mapa_custos):,} produtos)!")
+        except Exception:
+            pass
+
     def summarize_dataset(filter_bom=False):
         cat_totals = {}
         total_cub = 0.0
