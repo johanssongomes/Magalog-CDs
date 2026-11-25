@@ -800,10 +800,11 @@ LEFT JOIN (
     FROM WIS50.T_DET_SEPARACAO
     WHERE CD_EMPRESA in (1994)
       AND SUBSTR(CD_ENDERECO, 1, 1) <> 'T'
+      AND DT_SEPARACAO >= SYSDATE - 130
     GROUP BY CD_EMPRESA, CD_PRODUTO
 ) DET ON L.CD_EMPRESA = DET.CD_EMPRESA AND L.CD_PRODUTO = DET.CD_PRODUTO
 WHERE A.CD_EMPRESA IN (1994)
-ORDER BY TRIM(L.QT_ESTOQUE), TRIM(A.CD_ENDERECO)
+ORDER BY L.QT_ESTOQUE, A.CD_ENDERECO
 """
 
 def update_estoque_status(status, message, progress=0, total=0, elapsed_seconds=0):
@@ -863,9 +864,10 @@ def sync_estoque():
         if p.exists():
             try:
                 with open(p, "r", encoding="utf-8") as f:
-                    mapa_custos = json.load(f)
-                print(f"[WIS] Base de custos carregada de '{p.name}' ({len(mapa_custos):,} produtos)!")
-                break
+                    candidato = json.load(f)
+                if isinstance(candidato, dict) and len(candidato) > len(mapa_custos):
+                    mapa_custos = candidato
+                    print(f"[WIS] Base de custos carregada de '{p.name}' ({len(mapa_custos):,} produtos)!")
             except Exception:
                 pass
 
@@ -962,12 +964,22 @@ def sync_estoque():
             except Exception as e:
                 print(f"[WIS AVISO] Erro ao buscar lote de custos: {e}")
 
-        # Salva em cache local para as próximas consultas
+        # Salva em cache local para as próximas consultas apenas se tiver mais produtos
         try:
             cache_file = base_dir / "base_valores_custos.json"
-            with open(cache_file, "w", encoding="utf-8") as f:
-                json.dump(mapa_custos, f, ensure_ascii=False)
-            print(f"[WIS] Cache local de custos salvo ({len(mapa_custos):,} produtos)!")
+            deve_salvar = True
+            if cache_file.exists():
+                try:
+                    with open(cache_file, "r", encoding="utf-8") as f_old:
+                        old_map = json.load(f_old)
+                    if isinstance(old_map, dict) and len(old_map) >= len(mapa_custos):
+                        deve_salvar = False
+                except Exception:
+                    pass
+            if deve_salvar:
+                with open(cache_file, "w", encoding="utf-8") as f:
+                    json.dump(mapa_custos, f, ensure_ascii=False)
+                print(f"[WIS] Cache local de custos salvo ({len(mapa_custos):,} produtos)!")
         except Exception:
             pass
 

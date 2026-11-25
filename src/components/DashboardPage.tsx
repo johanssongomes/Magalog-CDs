@@ -3377,10 +3377,10 @@ export const DashboardPage: React.FC = () => {
         localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(newBaseSummary))
       } catch { }
 
-      // Grava no Supabase para sincronizar entre todos os usuários
+      // Grava no Supabase para sincronizar entre todos os usuários (chave única oficial)
       try {
         await supabase.from('performance_metrics').upsert({
-          cell_key: 'estoque_categoria_summary_994_v2',
+          cell_key: 'estoque_categoria_summary',
           value: JSON.stringify(newBaseSummary),
           updated_at: new Date().toISOString()
         }, { onConflict: 'cell_key' })
@@ -3393,30 +3393,6 @@ export const DashboardPage: React.FC = () => {
       e.target.value = ''
     }
   }
-
-  // Tenta carregar dados sincronizados do Supabase ao montar
-  useEffect(() => {
-    const loadCloudEstoque = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('performance_metrics')
-          .select('value')
-          .eq('cell_key', 'estoque_categoria_summary_994_v2')
-          .maybeSingle()
-
-        if (!error && data?.value) {
-          const parsed = JSON.parse(data.value)
-          if (parsed && parsed.bomOnly && parsed.todos) {
-            setEstoqueBaseSummary(parsed)
-            try {
-              localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(parsed))
-            } catch { }
-          }
-        }
-      } catch { }
-    }
-    loadCloudEstoque()
-  }, [])
 
   // Estado integrado para Banco de Horas (Total Crédito e Total Débito com indicador de evolução vs. dia anterior)
   const [bankHoursStats, setBankHoursStats] = useState<{
