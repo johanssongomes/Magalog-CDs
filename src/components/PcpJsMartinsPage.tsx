@@ -1489,6 +1489,9 @@ export const PcpJsMartinsPage: React.FC = () => {
 
   // Timestamp oficial da última sincronização central da Carteira (Supabase / Nuvem)
   const [lastSyncDateStr, setLastSyncDateStr] = useState<string>('2026-11-20T12:22:19')
+  const [realtimeToast, setRealtimeToast] = useState<string | null>(null)
+  const isSyncingOracleRef = useRef<boolean>(false)
+  isSyncingOracleRef.current = isSyncingOracle
 
   const refreshLastSyncTimestamp = useCallback(async () => {
     try {
@@ -1496,12 +1499,18 @@ export const PcpJsMartinsPage: React.FC = () => {
       if (status && status.updated_at) {
         setLastSyncDateStr(status.updated_at)
 
-        // Se detectar que houve uma nova sincronização na nuvem diferente da versão carregada na tela,
+        // Se detectar que houve uma nova sincronização CONCLUÍDA com sucesso na nuvem diferente da versão carregada na tela,
         // atualiza os dados automaticamente para todos os usuários sem precisar de F5!
-        if (lastLoadedSyncVersionRef.current && status.updated_at !== lastLoadedSyncVersionRef.current) {
-          console.log('⚡ Detectada nova sincronização na nuvem por outro usuário/servidor. Atualizando tela automaticamente...', status.updated_at)
-          lastLoadedSyncVersionRef.current = status.updated_at
-          await loadPlanningData(true)
+        if (status.status === 'success') {
+          if (!lastLoadedSyncVersionRef.current) {
+            lastLoadedSyncVersionRef.current = status.updated_at
+          } else if (status.updated_at !== lastLoadedSyncVersionRef.current && !isSyncingOracleRef.current) {
+            console.log('⚡ Detectada nova sincronização na nuvem por outro usuário/servidor. Atualizando tela automaticamente...', status.updated_at)
+            lastLoadedSyncVersionRef.current = status.updated_at
+            setRealtimeToast('A Carteira foi atualizada por outro usuário! Painel sincronizado.')
+            await loadPlanningData(true)
+            setTimeout(() => setRealtimeToast(null), 4000)
+          }
         }
         return
       }
@@ -1521,13 +1530,13 @@ export const PcpJsMartinsPage: React.FC = () => {
 
   useEffect(() => {
     refreshLastSyncTimestamp()
-    // Polling a cada 20 segundos para captar atualizações feitas por qualquer outro usuário
-    const interval = window.setInterval(refreshLastSyncTimestamp, 20000)
+    // Polling a cada 8 segundos para contingência rápida em redes corporativas com proxy
+    const interval = window.setInterval(refreshLastSyncTimestamp, 8000)
     return () => window.clearInterval(interval)
   }, [refreshLastSyncTimestamp])
 
   // Ouvinte em tempo real via Supabase Realtime (WebSocket):
-  // Quando qualquer usuário ou o servidor corporativo rodar a sincronização,
+  // Quando qualquer usuário ou o servidor corporativo finalizar a sincronização (status === 'success'),
   // TODOS os navegadores abertos no Magalog recebem o evento e atualizam automaticamente na hora!
   useEffect(() => {
     const channel = supabase
@@ -1540,10 +1549,27 @@ export const PcpJsMartinsPage: React.FC = () => {
           table: 'performance_metrics',
           filter: 'cell_key=eq.pcp_sync_command'
         },
-        () => {
-          console.log('⚡ Evento Realtime recebido: Carteira atualizada no servidor! Recarregando dados para todos...')
-          refreshLastSyncTimestamp()
-          loadPlanningData(true)
+        async (payload: any) => {
+          try {
+            const rawVal = payload.new?.value
+            if (rawVal) {
+              const parsed = typeof rawVal === 'string' ? JSON.parse(rawVal) : rawVal
+              // Apenas quando o status for 'success' (sincronização 100% finalizada no banco)
+              if (parsed && parsed.status === 'success') {
+                const newVersion = parsed.updated_at || payload.new?.updated_at
+                if (newVersion && newVersion !== lastLoadedSyncVersionRef.current && !isSyncingOracleRef.current) {
+                  console.log('⚡ Evento Realtime recebido: Carteira atualizada com sucesso! Recarregando dados para todos...')
+                  lastLoadedSyncVersionRef.current = newVersion
+                  setLastSyncDateStr(newVersion)
+                  setRealtimeToast('A Carteira foi atualizada por outro usuário! Painel sincronizado.')
+                  await loadPlanningData(true)
+                  setTimeout(() => setRealtimeToast(null), 4000)
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('[REALTIME] Erro no processamento do evento:', e)
+          }
         }
       )
       .subscribe()
@@ -1551,7 +1577,7 @@ export const PcpJsMartinsPage: React.FC = () => {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [loadPlanningData, refreshLastSyncTimestamp])
+  }, [loadPlanningData])
 
   const handleSyncOracleCarteira = async () => {
     setIsSyncModalOpen(true)
@@ -7680,6 +7706,26 @@ export const PcpJsMartinsPage: React.FC = () => {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Toast Flutuante de Atualização em Tempo Real Multiusuário */}
+      {realtimeToast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#0a192f]/95 text-white text-xs font-semibold shadow-2xl border border-sky-400/50 backdrop-blur-md animate-in slide-in-from-bottom-4 duration-300">
+          <div className="p-2 rounded-xl bg-sky-500/20 text-sky-400 shrink-0">
+            <RefreshCw size={15} className="animate-spin text-sky-400" />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-bold text-sky-100">{realtimeToast}</span>
+            <span className="text-[10px] text-sky-300/70">Dados mais recentes sincronizados automaticamente</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRealtimeToast(null)}
+            className="ml-2 p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer transition-colors"
+          >
+            ✕
+          </button>
         </div>
       )}
     </div>
