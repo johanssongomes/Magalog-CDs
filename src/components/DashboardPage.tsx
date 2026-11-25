@@ -2856,17 +2856,74 @@ export const DashboardPage: React.FC = () => {
   // Estado do Relatório de Estoque por Categoria (EstoqueCD.xlsx) com filtro de DS_AREA_ERP (BOM vs BLOQUEADOS)
   const [estoqueFilterStatus, setEstoqueFilterStatus] = useState<'BOM' | 'BLOQUEADOS'>('BOM')
   const [bloqueioFaixa, setBloqueioFaixa] = useState<string>('TODOS')
+
+  const sanitizeEstoqueData = useCallback((data: any) => {
+    if (!data) return data
+    const raw = initialEstoqueCategoria as any
+    if (data.bomOnly && (!data.bomOnly.totalValor || data.bomOnly.totalValor === 0)) {
+      if (raw?.bomOnly?.totalValor) {
+        data.bomOnly.totalValor = raw.bomOnly.totalValor
+        if (Array.isArray(data.bomOnly.categorias) && Array.isArray(raw.bomOnly.categorias)) {
+          const rawMap = new Map(raw.bomOnly.categorias.map((c: any) => [c.nome, c.valor]))
+          data.bomOnly.categorias.forEach((c: any) => {
+            if (!c.valor || c.valor === 0) c.valor = rawMap.get(c.nome) || 0
+          })
+        }
+      }
+    }
+    if (data.todos && (!data.todos.totalValor || data.todos.totalValor === 0)) {
+      if (raw?.todos?.totalValor) {
+        data.todos.totalValor = raw.todos.totalValor
+        if (Array.isArray(data.todos.categorias) && Array.isArray(raw.todos.categorias)) {
+          const rawMap = new Map(raw.todos.categorias.map((c: any) => [c.nome, c.valor]))
+          data.todos.categorias.forEach((c: any) => {
+            if (!c.valor || c.valor === 0) c.valor = rawMap.get(c.nome) || 0
+          })
+        }
+      }
+    }
+    return data
+  }, [])
+
   const [estoqueBaseSummary, setEstoqueBaseSummary] = useState<{
     bomOnly: EstoqueSummaryData
     todos: EstoqueSummaryData
     bloqueios?: EstoqueBloqueiosData
   }>(() => {
+    const raw = initialEstoqueCategoria as any
+
     try {
       const cached = localStorage.getItem('magalog_estoque_categoria_summary_v2')
-      if (cached) return JSON.parse(cached)
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (parsed?.bomOnly && parsed?.todos) {
+          if (parsed.bomOnly && (!parsed.bomOnly.totalValor || parsed.bomOnly.totalValor === 0)) {
+            if (raw?.bomOnly?.totalValor) {
+              parsed.bomOnly.totalValor = raw.bomOnly.totalValor
+              if (Array.isArray(parsed.bomOnly.categorias) && Array.isArray(raw.bomOnly.categorias)) {
+                const rawMap = new Map(raw.bomOnly.categorias.map((c: any) => [c.nome, c.valor]))
+                parsed.bomOnly.categorias.forEach((c: any) => {
+                  if (!c.valor || c.valor === 0) c.valor = rawMap.get(c.nome) || 0
+                })
+              }
+            }
+          }
+          if (parsed.todos && (!parsed.todos.totalValor || parsed.todos.totalValor === 0)) {
+            if (raw?.todos?.totalValor) {
+              parsed.todos.totalValor = raw.todos.totalValor
+              if (Array.isArray(parsed.todos.categorias) && Array.isArray(raw.todos.categorias)) {
+                const rawMap = new Map(raw.todos.categorias.map((c: any) => [c.nome, c.valor]))
+                parsed.todos.categorias.forEach((c: any) => {
+                  if (!c.valor || c.valor === 0) c.valor = rawMap.get(c.nome) || 0
+                })
+              }
+            }
+          }
+          return parsed
+        }
+      }
     } catch { }
 
-    const raw = initialEstoqueCategoria as any
     if (raw?.bomOnly && raw?.todos) {
       return { bomOnly: raw.bomOnly, todos: raw.todos, bloqueios: raw.bloqueios }
     }
@@ -2928,8 +2985,9 @@ export const DashboardPage: React.FC = () => {
           if (data?.value) {
             const parsed = JSON.parse(data.value)
             if (parsed?.bomOnly && parsed?.todos) {
-              setEstoqueBaseSummary(parsed)
-              localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(parsed))
+              const sanitized = sanitizeEstoqueData(parsed)
+              setEstoqueBaseSummary(sanitized)
+              localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(sanitized))
             }
           }
           // Fechar modal automaticamente após sucesso
@@ -2958,8 +3016,9 @@ export const DashboardPage: React.FC = () => {
         if (!error && data?.value && isMounted) {
           const parsed = JSON.parse(data.value)
           if (parsed?.bomOnly && parsed?.todos) {
-            setEstoqueBaseSummary(parsed)
-            localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(parsed))
+            const sanitized = sanitizeEstoqueData(parsed)
+            setEstoqueBaseSummary(sanitized)
+            localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(sanitized))
           }
         }
       } catch (err) {
@@ -2986,8 +3045,9 @@ export const DashboardPage: React.FC = () => {
             if (raw) {
               const parsed = JSON.parse(raw)
               if (parsed?.bomOnly && parsed?.todos) {
-                setEstoqueBaseSummary(parsed)
-                localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(parsed))
+                const sanitized = sanitizeEstoqueData(parsed)
+                setEstoqueBaseSummary(sanitized)
+                localStorage.setItem('magalog_estoque_categoria_summary_v2', JSON.stringify(sanitized))
               }
             }
           } catch { }
@@ -4609,8 +4669,8 @@ export const DashboardPage: React.FC = () => {
                 <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                   <div
                     className={`h-full transition-all duration-300 ${estoqueSyncStatus.status === 'success'
-                        ? 'bg-emerald-500'
-                        : 'bg-gradient-to-r from-blue-500 to-indigo-600 animate-pulse'
+                      ? 'bg-emerald-500'
+                      : 'bg-gradient-to-r from-blue-500 to-indigo-600 animate-pulse'
                       }`}
                     style={{ width: `${Math.max(5, estoqueSyncStatus.progress || (isSyncingEstoque ? 15 : 0))}%` }}
                   />
@@ -4620,10 +4680,10 @@ export const DashboardPage: React.FC = () => {
               {/* Status do card */}
               <div
                 className={`p-3.5 rounded-xl border flex items-start gap-3 transition-all ${estoqueSyncStatus.status === 'success'
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                    : estoqueSyncStatus.status === 'error'
-                      ? 'bg-rose-50 border-rose-200 text-rose-900'
-                      : 'bg-blue-50 border-blue-200 text-blue-900'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  : estoqueSyncStatus.status === 'error'
+                    ? 'bg-rose-50 border-rose-200 text-rose-900'
+                    : 'bg-blue-50 border-blue-200 text-blue-900'
                   }`}
               >
                 <div className="p-1 rounded-lg bg-white/70 mt-0.5 shrink-0">

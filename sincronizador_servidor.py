@@ -133,20 +133,35 @@ select
  order by n desc
 """
 
-# Query Supply Lojas
+# Query Supply Lojas Otimizada (Filtra CD 994 primeiro para evitar full scan no DBLink @PRODUCAO)
 SUPPLY_QUERY = """
-SELECT
-    A.CODFIL,
-    A.CODITPROD || B.DIGITPROD AS CODIGO_PRODUTO,
+WITH PRODUTOS_994 AS (
+    SELECT /*+ MATERIALIZE */
+        A.CODFIL,
+        A.CODITPROD,
+        NVL(A.FISICO, 0) AS FISICO_994,
+        NVL(A.TECNICO, 0) AS TECNICO_994,
+        NVL(A.RESFIS, 0) AS RESFIS_994,
+        NVL(A.RESLOG, 0) AS RESLOG_994,
+        NVL(A.LOGICO, 0) AS LOGICO_994,
+        NVL(A.TRANSITO, 0) AS TRANSITO_994,
+        (NVL(A.FISICO, 0) + NVL(A.TECNICO, 0)) AS ESTOQUE_994
+    FROM GEMCO.CAD_PRODLOC@PRODUCAO A
+    WHERE A.CODFIL = 994
+      AND (NVL(A.FISICO, 0) + NVL(A.TECNICO, 0) > 0)
+)
+SELECT /*+ LEADING(P) */
+    P.CODFIL,
+    P.CODITPROD || B.DIGITPROD AS CODIGO_PRODUTO,
     B.CODPRODDF,
     C.DESCRICAO,
-    NVL(A.FISICO, 0) AS FISICO_994,
-    NVL(A.TECNICO, 0) AS TECNICO_994,
-    NVL(A.RESFIS, 0) AS RESFIS_994,
-    NVL(A.RESLOG, 0) AS RESLOG_994,
-    NVL(A.LOGICO, 0) AS LOGICO_994,
-    NVL(A.TRANSITO, 0) AS TRANSITO_994,
-    NVL(A.FISICO, 0) + NVL(A.TECNICO, 0) AS ESTOQUE_994,
+    P.FISICO_994,
+    P.TECNICO_994,
+    P.RESFIS_994,
+    P.RESLOG_994,
+    P.LOGICO_994,
+    P.TRANSITO_994,
+    P.ESTOQUE_994,
     L.CODFIL AS FILIAL,
     NVL(L.FISICO, 0) AS FISICO,
     NVL(L.TECNICO, 0) AS TECNICO,
@@ -156,12 +171,12 @@ SELECT
     NVL(L.TRANSITO, 0) AS TRANSITO,
     NVL(L.FISICO, 0) + NVL(L.TECNICO, 0) AS ESTOQUE_LOJA,
     D.CMUP,
-    (NVL(A.FISICO, 0) + NVL(A.TECNICO, 0)) * NVL(D.CMUP, 0) AS VALOR_ESTOQUE_994,
+    (P.ESTOQUE_994 * NVL(D.CMUP, 0)) AS VALOR_ESTOQUE_994,
     CASE WHEN NVL(L.FISICO, 0) > 0 THEN 'LOJA COM FISICO' ELSE 'LOJA SEM FISICO' END AS STATUS_ESTOQUE,
     D.DESCLINHA
-FROM GEMCO.CAD_PRODLOC@PRODUCAO A
+FROM PRODUTOS_994 P
 LEFT JOIN GEMCO.CAD_PRODLOC@PRODUCAO L
-    ON L.CODITPROD = A.CODITPROD
+    ON L.CODITPROD = P.CODITPROD
     AND L.CODFIL IN (
         727, 742, 743, 745, 755, 757, 873,
         1345, 1347, 1207, 1386, 1363, 1344,
@@ -171,12 +186,10 @@ LEFT JOIN GEMCO.CAD_PRODLOC@PRODUCAO L
         871, 872, 1206, 1217, 1349, 1223,
         1376, 761, 765, 847, 1411
     )
-LEFT JOIN GEMCO.CAD_ITPROD@PRODUCAO B ON B.CODITPROD = A.CODITPROD
+LEFT JOIN GEMCO.CAD_ITPROD@PRODUCAO B ON B.CODITPROD = P.CODITPROD
 LEFT JOIN GEMCO.CAD_PROD@PRODUCAO C ON C.CODPROD = B.CODPROD
-LEFT JOIN ADM.MAG_T_ARVORE_PRODUTO D ON D.CODITPROD = A.CODITPROD
-WHERE A.CODFIL = 994
-  AND (NVL(A.FISICO, 0) + NVL(A.TECNICO, 0) > 0)
-ORDER BY A.CODITPROD, L.CODFIL
+LEFT JOIN ADM.MAG_T_ARVORE_PRODUTO D ON D.CODITPROD = P.CODITPROD
+ORDER BY P.CODITPROD, L.CODFIL
 """
 
 def write_status(data):
@@ -838,15 +851,20 @@ def sync_estoque():
 
     mapa_custos = {}
     base_dir = Path(__file__).resolve().parent
-    for p in [
+    possiveis_caminhos_custos = [
         base_dir / "src" / "data" / "base_valores_custos.json",
         base_dir.parent / "src" / "data" / "base_valores_custos.json",
+        base_dir / "Magalog CDs" / "src" / "data" / "base_valores_custos.json",
+        Path.home() / "Desktop" / "Magalog CDs" / "src" / "data" / "base_valores_custos.json",
+        Path(r"C:\Users\joh_gomes\Desktop\Magalog CDs\src\data\base_valores_custos.json"),
         base_dir / "base_valores_custos.json"
-    ]:
+    ]
+    for p in possiveis_caminhos_custos:
         if p.exists():
             try:
                 with open(p, "r", encoding="utf-8") as f:
                     mapa_custos = json.load(f)
+                print(f"[WIS] Base de custos carregada de '{p.name}' ({len(mapa_custos):,} produtos)!")
                 break
             except Exception:
                 pass
@@ -976,7 +994,13 @@ def sync_estoque():
             cub = float(row_dict.get("CUB_TOTAL") or 0.0)
             qnts = int(row_dict.get("QNTS") or 0)
 
-            custo_master = float(mapa_custos.get(master) or mapa_custos.get(codigo) or 0.0)
+            custo_master = float(
+                mapa_custos.get(master)
+                or mapa_custos.get(master.lstrip("0"))
+                or mapa_custos.get(codigo)
+                or mapa_custos.get(codigo.lstrip("0"))
+                or 0.0
+            )
             num_vols = master_volumes_count.get(master, 1)
             custo_unit_vol = (custo_master / num_vols) if num_vols > 1 else custo_master
             valor_item = qnts * custo_unit_vol
@@ -1055,7 +1079,13 @@ def sync_estoque():
             dias = int(r.get("DIAS_ARMAZENAGEM") or 0)
             faixa = get_faixa_dias(dias)
 
-            custo_master = float(mapa_custos.get(master) or mapa_custos.get(codigo) or 0.0)
+            custo_master = float(
+                mapa_custos.get(master)
+                or mapa_custos.get(master.lstrip("0"))
+                or mapa_custos.get(codigo)
+                or mapa_custos.get(codigo.lstrip("0"))
+                or 0.0
+            )
             num_vols = master_volumes_count.get(master, 1)
             custo_unit_vol = (custo_master / num_vols) if num_vols > 1 else custo_master
             valor_item = qnts * custo_unit_vol
