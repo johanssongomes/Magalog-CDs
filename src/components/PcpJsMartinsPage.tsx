@@ -7259,10 +7259,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 RODO<br />DIAS EM CARTEIRA
                               </div>
                               <div className="mt-1 w-13 sm:w-14 h-8 rounded-lg bg-[#0284c7] text-white text-[13px] font-mono font-black flex items-center justify-center shadow-xs border border-sky-300/30">
-                                {opRows[1]?.dias.geral.toFixed(1)}
+                                {opTotalDiasGeral.toFixed(1)}
                               </div>
                               <div className="mt-1 w-13 sm:w-14 h-6 rounded-md bg-[#071d37] text-sky-200 border border-sky-400/30 text-[10.5px] font-mono font-black flex items-center justify-center shadow-xs">
-                                {opRows[1]?.dias.carteira.toFixed(1)}
+                                {opTotalDiasCarteira.toFixed(1)}
                               </div>
                             </div>
 
@@ -7274,10 +7274,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 COURRIER (RDP)<br />DIAS EM CARTEIRA
                               </div>
                               <div className="mt-1 w-13 sm:w-14 h-8 rounded-lg bg-[#0d9488] text-white text-[13px] font-mono font-black flex items-center justify-center shadow-xs border border-teal-300/30">
-                                {opRows[2]?.dias.geral.toFixed(1)}
+                                {(opRows.find(r => r.categoria === 'COURRIER')?.dias.geral ?? opRows[2]?.dias.geral ?? 0).toFixed(1)}
                               </div>
                               <div className="mt-1 w-13 sm:w-14 h-6 rounded-md bg-[#071d37] text-teal-200 border border-teal-400/30 text-[10.5px] font-mono font-black flex items-center justify-center shadow-xs">
-                                {opRows[2]?.dias.carteira.toFixed(1)}
+                                {(opRows.find(r => r.categoria === 'COURRIER')?.dias.carteira ?? opRows[2]?.dias.carteira ?? 0).toFixed(1)}
                               </div>
                             </div>
                           </div>
