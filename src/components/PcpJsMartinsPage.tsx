@@ -1403,15 +1403,20 @@ export const PcpJsMartinsPage: React.FC = () => {
     return (initialSampleRows as any[]) || []
   }
 
-  // Base completa de registros para o Planejamento (inicia com cache rápido sem dados estáticos antigos)
-  const [fullPlanningData, setFullPlanningData] = useState<PcpItem[]>([])
-  const [isLoadingPlanning, setIsLoadingPlanning] = useState<boolean>(true)
+  // Base completa de registros para o Planejamento (inicializa com dados estáveis)
+  const [fullPlanningData, setFullPlanningData] = useState<PcpItem[]>(() => {
+    return (initialPlanningSummary as any[]) || []
+  })
+  const [isLoadingPlanning, setIsLoadingPlanning] = useState<boolean>(false)
 
   // Referência da versão de sincronização atualmente carregada em tela
   const lastLoadedSyncVersionRef = useRef<string | null>(null)
+  const isFetchingPlanningRef = useRef<boolean>(false)
 
   // Carregar todos os dados completos para o planejamento (com cache inteligente e atualização em segundo plano)
   const loadPlanningData = useCallback(async (forceRefresh: boolean = false) => {
+    if (isFetchingPlanningRef.current) return
+    isFetchingPlanningRef.current = true
     setIsLoadingPlanning(true)
     try {
       // 1. Se não for forceRefresh, recupera dados do cache local IndexedDB imediatamente
@@ -1433,31 +1438,19 @@ export const PcpJsMartinsPage: React.FC = () => {
         setLastSyncDateStr(remoteVersion)
       }
 
-      const dbRows = await getAllPcpSummaryItems(forceRefresh, (fresh) => {
-        if (fresh && fresh.length > 0) {
-          setFullPlanningData(fresh)
-        }
-      }, remoteVersion)
+      const dbRows = await getAllPcpSummaryItems(forceRefresh, undefined, remoteVersion)
 
       if (dbRows && dbRows.length > 0) {
         setFullPlanningData(dbRows)
         if (remoteVersion) {
           lastLoadedSyncVersionRef.current = remoteVersion
         }
-      } else {
-        const local = getLocalData()
-        if (local && local.length > 0) {
-          setFullPlanningData(local)
-        }
       }
     } catch (e) {
       console.warn('Erro ao carregar dados consolidados do planejamento:', e)
-      const local = getLocalData()
-      if (local && local.length > 0) {
-        setFullPlanningData(local)
-      }
     } finally {
       setIsLoadingPlanning(false)
+      isFetchingPlanningRef.current = false
     }
   }, [])
 
@@ -1512,21 +1505,9 @@ export const PcpJsMartinsPage: React.FC = () => {
             setTimeout(() => setRealtimeToast(null), 4000)
           }
         }
-        return
       }
     } catch { }
-
-    // Fallback: se não encontrar no status, busca a data de alteração mais recente da base
-    if (fullPlanningData && fullPlanningData.length > 0) {
-      const dates = fullPlanningData
-        .map(r => r.dtalter || (r as any).DTALTER)
-        .filter(Boolean)
-      if (dates.length > 0) {
-        dates.sort().reverse()
-        setLastSyncDateStr(dates[0])
-      }
-    }
-  }, [fullPlanningData, loadPlanningData])
+  }, [loadPlanningData])
 
   useEffect(() => {
     refreshLastSyncTimestamp()
@@ -3280,22 +3261,6 @@ export const PcpJsMartinsPage: React.FC = () => {
       {/* ABA 1: PLANEJAMENTO (VISÃO RESUMO DESTINOS & REGIÕES COM FILTROS)   */}
       {/* ------------------------------------------------------------------ */}
       {activeTab === 'planejamento' && (() => {
-        if (fullPlanningData.length === 0 && isLoadingPlanning) {
-          return (
-            <div className="space-y-4 p-12 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200/90 shadow-2xs min-h-[420px]">
-              <div className="p-3.5 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 shadow-sm animate-pulse mb-3">
-                <RefreshCw size={28} className="animate-spin text-blue-600" />
-              </div>
-              <h3 className="text-sm font-black uppercase tracking-wider text-slate-800">
-                Carregando Planejamento Operacional...
-              </h3>
-              <p className="text-xs text-slate-500 font-medium">
-                Conectando ao banco de dados e buscando a Carteira atualizada do CD 994
-              </p>
-            </div>
-          )
-        }
-
         // Obter toda a base consolidada de registros (do Supabase ou cache local)
         const allRows = fullPlanningData.length > 0 ? fullPlanningData : getLocalData()
 
@@ -6746,6 +6711,12 @@ export const PcpJsMartinsPage: React.FC = () => {
                         <span className="text-[9.5px] px-2 py-0.5 rounded-full bg-sky-950/80 text-sky-300 border border-sky-500/30 font-bold">
                           Capacidade & Giro Diário
                         </span>
+                        {isLoadingPlanning && (
+                          <span className="flex items-center gap-1 text-[9.5px] px-2 py-0.5 rounded-full bg-sky-950/80 text-sky-300 border border-sky-400/30 font-bold animate-pulse">
+                            <RefreshCw size={10} className="animate-spin text-sky-400" />
+                            <span>Sincronizando...</span>
+                          </span>
+                        )}
 
                         {/* Segmentação dos Valores em R$: Vendas e ABA (podendo marcar um ou ambos) */}
                         <div className="flex items-center gap-1 bg-[#06192e] p-0.5 rounded-lg border border-sky-500/30 shadow-xs ml-1">
@@ -6802,21 +6773,6 @@ export const PcpJsMartinsPage: React.FC = () => {
                         <span>Metas & Capacidades</span>
                       </button>
                     </div>
-
-                    {/* Banner discreto de Sincronização Híbrida em Tempo Real */}
-                    {isLoadingPlanning && (
-                      <div className="flex items-center justify-between px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-950/90 via-[#0e2a47]/90 to-sky-950/90 border border-sky-400/40 text-sky-200 text-xs shadow-md animate-pulse">
-                        <div className="flex items-center gap-2">
-                          <RefreshCw size={13} className="animate-spin text-sky-400 shrink-0" />
-                          <span className="font-semibold text-sky-100 text-[11px] sm:text-xs">
-                            Sincronizando Carteira com a nuvem em tempo real...
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-sky-300/80 font-medium hidden sm:inline">
-                          Validando números oficiais da filial 994
-                        </span>
-                      </div>
-                    )}
 
                     {/* Linha Superior: 3 Termômetros de Capacidade + 2 Velocímetros de Atraso */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 py-1 items-stretch justify-items-center w-full">
