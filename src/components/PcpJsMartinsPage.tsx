@@ -4072,6 +4072,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           prevEntrega: string
           prevEntregaRaw: any
           prevEntregaTimestamp: number
+          prazo: string
           carteiraPedidosSet: Set<string>
           carteiraQtd: number
           carteiraCub: number
@@ -4144,6 +4145,7 @@ export const PcpJsMartinsPage: React.FC = () => {
               prevEntrega: prevEntStr,
               prevEntregaRaw: rawPrevEnt,
               prevEntregaTimestamp: parseDateOrPrazoToTimestamp(rawPrevEnt),
+              prazo: String(r.calc_prazo || ''),
               carteiraPedidosSet: new Set(),
               carteiraQtd: 0,
               carteiraCub: 0,
@@ -4157,6 +4159,9 @@ export const PcpJsMartinsPage: React.FC = () => {
           }
 
           const itm = grp.itensMap.get(prevEntStr)!
+          if (!itm.prazo && r.calc_prazo) {
+            itm.prazo = String(r.calc_prazo)
+          }
           const rawSt = String(r.calc_status_op || '').toUpperCase()
           const isProcesso = rawSt.includes('PROCESSO')
 
@@ -4194,6 +4199,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           prevEntrega: string
           prevEntregaRaw: any
           prevEntregaTimestamp: number
+          prazo: string
           carteiraPedidosCount: number
           carteiraQtd: number
           carteiraCub: number
@@ -4260,6 +4266,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             prevEntrega: it.prevEntrega,
             prevEntregaRaw: it.prevEntregaRaw,
             prevEntregaTimestamp: it.prevEntregaTimestamp,
+            prazo: it.prazo,
             carteiraPedidosCount: it.carteiraPedidosSet.size,
             carteiraQtd: it.carteiraQtd,
             carteiraCub: it.carteiraCub,
@@ -6380,7 +6387,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                             <th
                               onClick={() => handleDateSort('prevEntrega')}
                               title="Clique para classificar por Previsão de Entrega"
-                              className="py-1.5 px-2 font-bold w-[75px] min-w-[75px] bg-[#0c3359] cursor-pointer hover:bg-[#14487a] transition-colors"
+                              className="py-1.5 px-2 font-bold w-[110px] min-w-[110px] bg-[#0c3359] cursor-pointer hover:bg-[#14487a] transition-colors"
                             >
                               <div className="flex items-center justify-center gap-0.5">
                                 <span>PREV. ENTREGA</span>
@@ -6544,8 +6551,24 @@ export const PcpJsMartinsPage: React.FC = () => {
                                     </td>
 
                                     {/* PREV. ENTREGA */}
-                                    <td className="py-1.5 px-2 text-center font-mono font-bold text-blue-800 bg-blue-50/20 w-[75px] min-w-[75px]">
-                                      {group.itens.length === 1 ? group.itens[0].prevEntrega : '-'}
+                                    <td className="py-1.5 px-2 text-center font-mono font-bold text-blue-800 bg-blue-50/20 w-[110px] min-w-[110px]">
+                                      {group.itens.length === 1 ? (
+                                        <div className="flex items-center justify-center gap-1.5">
+                                          <span>{group.itens[0].prevEntrega}</span>
+                                          {group.itens[0].prazo && (
+                                            <span className={`text-[8px] font-extrabold px-1 py-0.5 rounded ${group.itens[0].prazo === 'Vencido'
+                                              ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                              : group.itens[0].prazo === 'D0'
+                                                ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                                : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                              }`}>
+                                              {group.itens[0].prazo}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <span className="text-slate-400 font-normal text-[10px]">Várias ({group.itens.length})</span>
+                                      )}
                                     </td>
                                     {/* Carteira */}
                                     {showCarteira && (
@@ -6597,7 +6620,19 @@ export const PcpJsMartinsPage: React.FC = () => {
                                         ↳
                                       </td>
                                       <td className="py-1 px-2 text-blue-800 font-bold bg-blue-50/20">
-                                        {item.prevEntrega}
+                                        <div className="flex items-center justify-center gap-1.5">
+                                          <span>{item.prevEntrega}</span>
+                                          {item.prazo && (
+                                            <span className={`text-[8px] font-extrabold px-1 py-0.5 rounded ${item.prazo === 'Vencido'
+                                              ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                              : item.prazo === 'D0'
+                                                ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                                : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                              }`}>
+                                              {item.prazo}
+                                            </span>
+                                          )}
+                                        </div>
                                       </td>
                                       {/* Carteira */}
                                       {showCarteira && (
