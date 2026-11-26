@@ -920,11 +920,11 @@ export const PcpJsMartinsPage: React.FC = () => {
     return false
   }, [planFilterTipoModal, planFilterModalidades])
 
-  // Alternância de visualização do painel lateral direito: 'linha' (Por Linha & Itens) | 'datas' (Dt. Pedido x Prev. Entrega) | 'visao3' (A definir)
-  const [planRightTab, setPlanRightTab] = useState<'linha' | 'datas' | 'visao3'>(() => {
+  // Alternância de visualização do painel lateral direito: 'linha' (Por Linha & Itens) | 'datas' (Dt. Pedido x Prev. Entrega) | 'visao3' (Painel Operacional) | 'agingModal' (Aging x Modalidade)
+  const [planRightTab, setPlanRightTab] = useState<'linha' | 'datas' | 'visao3' | 'agingModal'>(() => {
     try {
       const saved = localStorage.getItem('magalog_pcp_plan_right_tab')
-      return (saved === 'datas' || saved === 'visao3') ? saved : 'linha'
+      return (saved === 'datas' || saved === 'visao3' || saved === 'agingModal') ? saved : 'linha'
     } catch {
       return 'linha'
     }
@@ -936,6 +936,24 @@ export const PcpJsMartinsPage: React.FC = () => {
       localStorage.setItem('magalog_pcp_plan_right_tab', planRightTab)
     } catch { }
   }, [planRightTab])
+
+  // Métrica ativa para o painel de Aging x Modalidade: 'pecas' (PÇS) | 'cubagem' (CUB m³)
+  const [agingMetric, setAgingMetric] = useState<'pecas' | 'cubagem'>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_pcp_aging_metric')
+      return (saved === 'cubagem') ? 'cubagem' : 'pecas'
+    } catch {
+      return 'pecas'
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('magalog_pcp_aging_metric', agingMetric)
+    } catch { }
+  }, [agingMetric])
+
+  const [agingSearch, setAgingSearch] = useState<string>('')
 
   // Estado para recolher/expandir o painel esquerdo (Quadro por Destino & Região)
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState<boolean>(() => {
@@ -4407,6 +4425,121 @@ export const PcpJsMartinsPage: React.FC = () => {
           : sortedDateGroups
 
         // ------------------------------------------------------------
+        // CÁLCULOS DA VISÃO 4: AGING X MODALIDADE (CARTEIRA X PROCESSO)
+        // Alternância Dinâmica entre PÇS (Peças) e Cubagem (m³)
+        // ------------------------------------------------------------
+        interface AgingItemAccumulator {
+          codModal: string
+          descModal: string
+          values: Map<number, number>
+          total: number
+        }
+
+        const agingCarteiraMap = new Map<string, AgingItemAccumulator>()
+        const agingProcessoMap = new Map<string, AgingItemAccumulator>()
+        const agingAllSet = new Set<number>()
+
+        enrichedForComparative.forEach(r => {
+          const codModal = String(r.codmodal || r.CODMODAL || '-').trim()
+          const descModal = String(r.descricaomodal || r.DESCRICAOMODAL || r.calc_modalidade || r.modalidade || 'OUTROS').trim()
+          const codModalUpper = codModal.toUpperCase()
+          const descModalUpper = descModal.toUpperCase()
+
+          // Se o usuário não filtrou modalidade explicitamente, ignorar RET, LEN e RLE para alinhamento com a matriz
+          if (
+            planFilterModalidades.length === 0 && (
+              codModalUpper === 'RET' || codModalUpper === 'LEN' || codModalUpper === 'RLE' ||
+              descModalUpper === 'RET' || descModalUpper === 'LEN' || descModalUpper === 'RLE' ||
+              descModalUpper.startsWith('RET ') || descModalUpper.startsWith('LEN ') || descModalUpper.startsWith('RLE ')
+            )
+          ) {
+            return
+          }
+
+          // Cálculo do Aging em dias (dias corridos a partir da DTPEDIDO em relação à data operacional)
+          const rawDtPed = r.dtpedido || r.DTPEDIDO
+          const dtPed = rawDtPed ? parseDateOnly(rawDtPed) : null
+          let aging = 0
+          if (dtPed && !isNaN(dtPed.getTime())) {
+            const diffDays = Math.floor((opRefDate.getTime() - dtPed.getTime()) / (1000 * 60 * 60 * 24))
+            aging = Math.max(0, diffDays)
+          }
+          agingAllSet.add(aging)
+
+          const rawSt = String(r.calc_status_op || r.status_operacao || r.STATUS_OPERACAO || '').toUpperCase().trim()
+          const isProcesso = rawSt.includes('PROCESSO')
+          const targetMap = isProcesso ? agingProcessoMap : agingCarteiraMap
+          const modalKey = `${descModal}__${codModal}`
+
+          if (!targetMap.has(modalKey)) {
+            targetMap.set(modalKey, {
+              codModal,
+              descModal,
+              values: new Map<number, number>(),
+              total: 0
+            })
+          }
+
+          const acc = targetMap.get(modalKey)!
+          const metricVal = agingMetric === 'pecas' ? (Number(r.calc_qtd) || 0) : (Number(r.calc_cub) || 0)
+          acc.values.set(aging, (acc.values.get(aging) || 0) + metricVal)
+          acc.total += metricVal
+        })
+
+        // Lista ordenada de colunas de Aging (0 até o maior encontrado, ou pelo menos 0..9)
+        const maxFoundAging = agingAllSet.size > 0 ? Math.max(...Array.from(agingAllSet)) : 0
+        const agingCols: number[] = []
+        for (let i = 0; i <= Math.max(maxFoundAging, 9); i++) {
+          agingCols.push(i)
+        }
+        if (agingCols.length === 0) agingCols.push(0)
+
+        // Filtro de busca interna
+        const termAging = agingSearch.trim().toLowerCase()
+        const filterAgingRow = (item: AgingItemAccumulator) => {
+          if (!termAging) return true
+          return item.descModal.toLowerCase().includes(termAging) || item.codModal.toLowerCase().includes(termAging)
+        }
+
+        // Listas ordenadas
+        const agingCarteiraList = Array.from(agingCarteiraMap.values())
+          .filter(filterAgingRow)
+          .sort((a, b) => b.total - a.total)
+
+        const agingProcessoList = Array.from(agingProcessoMap.values())
+          .filter(filterAgingRow)
+          .sort((a, b) => b.total - a.total)
+
+        // Subtotais por aging
+        const agingCarteiraSubtotals = new Map<number, number>()
+        let agingCarteiraGrandTotal = 0
+        agingCarteiraList.forEach(item => {
+          agingCols.forEach(col => {
+            const v = item.values.get(col) || 0
+            agingCarteiraSubtotals.set(col, (agingCarteiraSubtotals.get(col) || 0) + v)
+          })
+          agingCarteiraGrandTotal += item.total
+        })
+
+        const agingProcessoSubtotals = new Map<number, number>()
+        let agingProcessoGrandTotal = 0
+        agingProcessoList.forEach(item => {
+          agingCols.forEach(col => {
+            const v = item.values.get(col) || 0
+            agingProcessoSubtotals.set(col, (agingProcessoSubtotals.get(col) || 0) + v)
+          })
+          agingProcessoGrandTotal += item.total
+        })
+
+        const agingTotalGeralPorCol = new Map<number, number>()
+        agingCols.forEach(col => {
+          const cVal = agingCarteiraSubtotals.get(col) || 0
+          const pVal = agingProcessoSubtotals.get(col) || 0
+          agingTotalGeralPorCol.set(col, cVal + pVal)
+        })
+        const agingTotalConsolidadoGeral = agingCarteiraGrandTotal + agingProcessoGrandTotal
+
+        // ------------------------------------------------------------
         // CÁLCULOS DA VISÃO 3: PAINEL OPERACIONAL POR MODALIDADE
         // ------------------------------------------------------------
         type OpModalKey = 'ABA' | 'VENDAS' | 'COURRIER' | 'TRANSFERENCIA'
@@ -5972,7 +6105,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             )}
 
               {/* LADO DIREITO: ÁREA RESERVADA PARA TABELAS/VISÕES DO PAINEL LATERAL */}
-              <div className={`space-y-4 w-full min-w-0 ${planRightTab === 'visao3' || isLeftPanelCollapsed ? 'flex-1' : 'flex-1 xl:max-w-[700px] 2xl:max-w-[740px]'}`}>
+              <div className={`space-y-4 w-full min-w-0 ${planRightTab === 'visao3' || planRightTab === 'agingModal' || isLeftPanelCollapsed ? 'flex-1' : 'flex-1 xl:max-w-[700px] 2xl:max-w-[740px]'}`}>
                 {/* BOTÃO EXPANDIR MOBILE SE ESTIVER RECOLHIDO */}
                 {isLeftPanelCollapsed && (
                   <div className="xl:hidden flex items-center justify-between p-2.5 bg-[#0e3b66] text-white rounded-xl shadow-xs">
@@ -5987,12 +6120,12 @@ export const PcpJsMartinsPage: React.FC = () => {
                     </button>
                   </div>
                 )}
-                {/* 3 BOTÕES DE VISÃO DO PAINEL LATERAL (CONFORME SOLICITADO) */}
-                <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/90 shadow-2xs">
+                {/* 4 BOTÕES DE VISÃO DO PAINEL LATERAL */}
+                <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/90 shadow-2xs flex-wrap">
                   <button
                     type="button"
                     onClick={() => setPlanRightTab('linha')}
-                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    className={`flex-1 min-w-[110px] py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                       planRightTab === 'linha'
                         ? 'bg-[#0e3b66] text-white shadow-xs'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
@@ -6005,7 +6138,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPlanRightTab('datas')}
-                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    className={`flex-1 min-w-[125px] py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                       planRightTab === 'datas'
                         ? 'bg-[#0e3b66] text-white shadow-xs'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
@@ -6018,7 +6151,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPlanRightTab('visao3')}
-                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    className={`flex-1 min-w-[115px] py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                       planRightTab === 'visao3'
                         ? 'bg-[#0e3b66] text-white shadow-xs'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
@@ -6026,6 +6159,19 @@ export const PcpJsMartinsPage: React.FC = () => {
                   >
                     <Activity size={14} className={planRightTab === 'visao3' ? 'text-sky-300' : 'text-slate-400'} />
                     <span>Painel Operacional</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPlanRightTab('agingModal')}
+                    className={`flex-1 min-w-[125px] py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      planRightTab === 'agingModal'
+                        ? 'bg-[#0e3b66] text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
+                    }`}
+                  >
+                    <Layers size={14} className={planRightTab === 'agingModal' ? 'text-sky-300' : 'text-slate-400'} />
+                    <span>Aging x Modalidade</span>
                   </button>
                 </div>
 
@@ -7482,6 +7628,388 @@ export const PcpJsMartinsPage: React.FC = () => {
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ------------------------------------------------------------ */}
+                {/* VISÃO 4: AGING X MODALIDADE (CARTEIRA X PROCESSO)            */}
+                {/* Alternância em Peças e Cubagem                              */}
+                {/* ------------------------------------------------------------ */}
+                {planRightTab === 'agingModal' && (
+                  <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col select-text">
+                    {/* Barra de Título e Controles */}
+                    <div className="px-3.5 py-2.5 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d] gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <Layers size={16} className="text-sky-300 shrink-0" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                              Aging por Modalidade (Carteira x Processo)
+                            </h3>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#123e6b] text-sky-200 border border-sky-400/30">
+                              {agingCarteiraList.length + agingProcessoList.length} modais
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-sky-200/80">
+                            Cruzamento de dias corridos (Aging) com modalidades operacionais
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Controles: Alternância PÇS/CUB, Busca e Exportação */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Toggle Métrica: PÇS vs CUBAGEM */}
+                        <div className="flex items-center bg-[#072440] p-0.5 rounded-lg border border-sky-400/30">
+                          <button
+                            type="button"
+                            onClick={() => setAgingMetric('pecas')}
+                            title="Visualizar em Volume de Peças"
+                            className={`px-2.5 py-1 text-[10px] font-black rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                              agingMetric === 'pecas'
+                                ? 'bg-amber-400 text-slate-950 shadow-xs'
+                                : 'text-sky-200 hover:text-white hover:bg-white/10'
+                            }`}
+                          >
+                            <span>PÇS</span>
+                            <span className="text-[8px] font-normal opacity-80">(Peças)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAgingMetric('cubagem')}
+                            title="Visualizar em Cubagem (m³)"
+                            className={`px-2.5 py-1 text-[10px] font-black rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                              agingMetric === 'cubagem'
+                                ? 'bg-amber-400 text-slate-950 shadow-xs'
+                                : 'text-sky-200 hover:text-white hover:bg-white/10'
+                            }`}
+                          >
+                            <span>CUB</span>
+                            <span className="text-[8px] font-normal opacity-80">(m³)</span>
+                          </button>
+                        </div>
+
+                        {/* Busca Rápida de Modalidade */}
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
+                          <input
+                            type="text"
+                            value={agingSearch}
+                            onChange={e => setAgingSearch(e.target.value)}
+                            placeholder="Buscar modal..."
+                            className="pl-6 pr-2 py-0.5 text-[10.5px] rounded-md bg-[#0a2c4d] text-white placeholder-slate-400 border border-sky-500/30 focus:outline-none focus:ring-1 focus:ring-sky-400 w-32 sm:w-40 transition-all"
+                          />
+                          {agingSearch && (
+                            <button
+                              type="button"
+                              onClick={() => setAgingSearch('')}
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                              title="Limpar busca"
+                            >
+                              <X size={10} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Botão Exportar Excel */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            try {
+                              const headers = ['STATUS_', 'DESCRICAOMODAL', 'CODMODAL', ...agingCols.map(a => `AGING ${a}`), 'Total Geral']
+                              const dataRows: any[][] = []
+
+                              agingCarteiraList.forEach(m => {
+                                dataRows.push([
+                                  'EM CARTEIRA',
+                                  m.descModal,
+                                  m.codModal,
+                                  ...agingCols.map(a => m.values.get(a) || 0),
+                                  m.total
+                                ])
+                              })
+                              dataRows.push([
+                                'EM CARTEIRA Total',
+                                '',
+                                '',
+                                ...agingCols.map(a => agingCarteiraSubtotals.get(a) || 0),
+                                agingCarteiraGrandTotal
+                              ])
+
+                              agingProcessoList.forEach(m => {
+                                dataRows.push([
+                                  'EM PROCESSO',
+                                  m.descModal,
+                                  m.codModal,
+                                  ...agingCols.map(a => m.values.get(a) || 0),
+                                  m.total
+                                ])
+                              })
+                              dataRows.push([
+                                'EM PROCESSO Total',
+                                '',
+                                '',
+                                ...agingCols.map(a => agingProcessoSubtotals.get(a) || 0),
+                                agingProcessoGrandTotal
+                              ])
+
+                              dataRows.push([
+                                'Total Geral',
+                                '',
+                                '',
+                                ...agingCols.map(a => agingTotalGeralPorCol.get(a) || 0),
+                                agingTotalConsolidadoGeral
+                              ])
+
+                              const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows])
+                              const wb = XLSX.utils.book_new()
+                              XLSX.utils.book_append_sheet(wb, ws, `Aging_${agingMetric.toUpperCase()}`)
+                              XLSX.writeFile(wb, `Aging_Modalidade_${agingMetric}_${new Date().toISOString().slice(0, 10)}.xlsx`)
+                            } catch (err) {
+                              console.error('Erro ao exportar Aging:', err)
+                            }
+                          }}
+                          title="Exportar esta matriz para Excel"
+                          className="px-2 py-1 rounded-md text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                        >
+                          <FileSpreadsheet size={11} />
+                          <span className="hidden sm:inline">Exportar Excel</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Tabela Matriz Aging x Modalidade */}
+                    <div className="w-full overflow-x-auto select-text">
+                      <table className="w-full border-collapse font-sans text-slate-800 text-[10px] table-auto">
+                        <thead className="sticky top-0 z-20 select-none shadow-2xs">
+                          {/* Super-Header */}
+                          <tr className="bg-[#0e3b66] text-white text-[9px] uppercase font-black tracking-wider border-b border-[#0a2c4d]">
+                            <th className="py-1 px-2.5 text-center bg-[#0a2c4d] text-amber-300 font-black border-r border-white/10 w-[95px] min-w-[95px]">
+                              {agingMetric === 'pecas' ? 'PÇS' : 'CUB (m³)'}
+                            </th>
+                            <th className="py-1 px-2 text-left border-r border-white/10 min-w-[160px]">
+                              DESCRICAOMODAL
+                            </th>
+                            <th className="py-1 px-1.5 text-center border-r border-white/10 w-[70px] min-w-[70px]">
+                              CODMODAL
+                            </th>
+                            <th
+                              colSpan={agingCols.length}
+                              className="py-1 px-2 text-center bg-[#facc15] text-slate-950 font-black tracking-widest border-r border-amber-600"
+                            >
+                              AGING
+                            </th>
+                            <th className="py-1 px-2 text-right bg-[#0a2c4d] text-white font-black w-[80px] min-w-[80px]">
+                              Total Geral
+                            </th>
+                          </tr>
+
+                          {/* Header das Colunas e Números de Aging */}
+                          <tr className="bg-[#123e6b] text-white text-[8.5px] uppercase font-bold border-b border-[#0a2c4d]">
+                            <th className="py-1 px-2 text-center border-r border-white/10 text-sky-200">
+                              STATUS_
+                            </th>
+                            <th className="py-1 px-2 text-left border-r border-white/10 text-sky-200">
+                              Modalidade
+                            </th>
+                            <th className="py-1 px-1 text-center border-r border-white/10 text-sky-200">
+                              Cód.
+                            </th>
+                            {agingCols.map(col => (
+                              <th
+                                key={col}
+                                className="py-1 px-1.5 text-center font-mono font-black border-r border-white/10 bg-[#0e3b66] text-sky-100 min-w-[36px]"
+                              >
+                                {col}
+                              </th>
+                            ))}
+                            <th className="py-1 px-2 text-right font-black border-l border-white/10 bg-[#0a2c4d] text-sky-100">
+                              Total
+                            </th>
+                          </tr>
+                        </thead>
+
+                        <tbody className="divide-y divide-slate-200 text-[10px]">
+                          {/* SEÇÃO 1: EM CARTEIRA */}
+                          {agingCarteiraList.length === 0 ? (
+                            <tr>
+                              <td colSpan={agingCols.length + 4} className="py-3 px-4 text-center text-slate-400 italic bg-slate-50">
+                                Nenhuma modalidade em carteira encontrada.
+                              </td>
+                            </tr>
+                          ) : (
+                            agingCarteiraList.map((item, idx) => (
+                              <tr key={`cart_${item.codModal}_${item.descModal}`} className="hover:bg-sky-50/50 transition-colors">
+                                {idx === 0 && (
+                                  <td
+                                    rowSpan={agingCarteiraList.length}
+                                    className="px-2 py-1.5 bg-[#e0f2fe] text-[#0369a1] font-black text-center align-middle border-r border-slate-300 uppercase tracking-tight text-[9px]"
+                                  >
+                                    EM CARTEIRA
+                                  </td>
+                                )}
+                                <td className="px-2.5 py-1 text-left font-semibold text-slate-800 border-r border-slate-200 truncate max-w-[200px]" title={item.descModal}>
+                                  {item.descModal}
+                                </td>
+                                <td className="px-1.5 py-1 text-center font-mono font-bold text-slate-600 border-r border-slate-200">
+                                  {item.codModal}
+                                </td>
+                                {agingCols.map(col => {
+                                  const val = item.values.get(col)
+                                  return (
+                                    <td
+                                      key={col}
+                                      className="px-1.5 py-1 text-right font-mono text-slate-700 border-r border-slate-100"
+                                    >
+                                      {val && val > 0 ? (
+                                        agingMetric === 'pecas'
+                                          ? Math.round(val).toLocaleString('pt-BR')
+                                          : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                      ) : ''}
+                                    </td>
+                                  )
+                                })}
+                                <td className="px-2 py-1 text-right font-mono font-bold text-slate-900 bg-slate-50 border-l border-slate-300">
+                                  {agingMetric === 'pecas'
+                                    ? Math.round(item.total).toLocaleString('pt-BR')
+                                    : item.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+
+                          {/* SUBTOTAL: EM CARTEIRA Total */}
+                          <tr className="bg-slate-300 font-bold text-slate-900 border-y border-slate-400">
+                            <td colSpan={3} className="px-3 py-1.5 text-left font-black uppercase tracking-wider text-[9.5px]">
+                              EM CARTEIRA Total
+                            </td>
+                            {agingCols.map(col => {
+                              const val = agingCarteiraSubtotals.get(col)
+                              return (
+                                <td
+                                  key={col}
+                                  className="px-1.5 py-1.5 text-right font-mono font-black border-l border-slate-400/50"
+                                >
+                                  {val && val > 0 ? (
+                                    agingMetric === 'pecas'
+                                      ? Math.round(val).toLocaleString('pt-BR')
+                                      : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                  ) : ''}
+                                </td>
+                              )
+                            })}
+                            <td className="px-2 py-1.5 text-right font-mono font-black text-slate-950 bg-slate-400/50 border-l border-slate-400">
+                              {agingMetric === 'pecas'
+                                ? Math.round(agingCarteiraGrandTotal).toLocaleString('pt-BR')
+                                : agingCarteiraGrandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </td>
+                          </tr>
+
+                          {/* SEÇÃO 2: EM PROCESSO */}
+                          {agingProcessoList.length === 0 ? (
+                            <tr>
+                              <td colSpan={agingCols.length + 4} className="py-3 px-4 text-center text-slate-400 italic bg-[#f0fdf4]">
+                                Nenhuma modalidade em processo encontrada.
+                              </td>
+                            </tr>
+                          ) : (
+                            agingProcessoList.map((item, idx) => (
+                              <tr key={`proc_${item.codModal}_${item.descModal}`} className="bg-[#f0fdf4] hover:bg-emerald-100/60 transition-colors">
+                                {idx === 0 && (
+                                  <td
+                                    rowSpan={agingProcessoList.length}
+                                    className="px-2 py-1.5 bg-[#dcfce7] text-[#15803d] font-black text-center align-middle border-r border-emerald-300 uppercase tracking-tight text-[9px]"
+                                  >
+                                    EM PROCESSO
+                                  </td>
+                                )}
+                                <td className="px-2.5 py-1 text-left font-semibold text-slate-800 border-r border-emerald-100 truncate max-w-[200px]" title={item.descModal}>
+                                  {item.descModal}
+                                </td>
+                                <td className="px-1.5 py-1 text-center font-mono font-bold text-emerald-800 border-r border-emerald-100">
+                                  {item.codModal}
+                                </td>
+                                {agingCols.map(col => {
+                                  const val = item.values.get(col)
+                                  return (
+                                    <td
+                                      key={col}
+                                      className="px-1.5 py-1 text-right font-mono text-emerald-900 border-r border-emerald-100/60"
+                                    >
+                                      {val && val > 0 ? (
+                                        agingMetric === 'pecas'
+                                          ? Math.round(val).toLocaleString('pt-BR')
+                                          : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                      ) : ''}
+                                    </td>
+                                  )
+                                })}
+                                <td className="px-2 py-1 text-right font-mono font-bold text-emerald-950 bg-emerald-100/70 border-l border-emerald-300">
+                                  {agingMetric === 'pecas'
+                                    ? Math.round(item.total).toLocaleString('pt-BR')
+                                    : item.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+
+                          {/* SUBTOTAL: EM PROCESSO Total */}
+                          <tr className="bg-[#bbf7d0] font-bold text-emerald-950 border-y border-emerald-400">
+                            <td colSpan={3} className="px-3 py-1.5 text-left font-black uppercase tracking-wider text-[9.5px]">
+                              EM PROCESSO Total
+                            </td>
+                            {agingCols.map(col => {
+                              const val = agingProcessoSubtotals.get(col)
+                              return (
+                                <td
+                                  key={col}
+                                  className="px-1.5 py-1.5 text-right font-mono font-black border-l border-emerald-300"
+                                >
+                                  {val && val > 0 ? (
+                                    agingMetric === 'pecas'
+                                      ? Math.round(val).toLocaleString('pt-BR')
+                                      : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                  ) : ''}
+                                </td>
+                              )
+                            })}
+                            <td className="px-2 py-1.5 text-right font-mono font-black text-emerald-950 bg-emerald-300/60 border-l border-emerald-400">
+                              {agingMetric === 'pecas'
+                                ? Math.round(agingProcessoGrandTotal).toLocaleString('pt-BR')
+                                : agingProcessoGrandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </td>
+                          </tr>
+                        </tbody>
+
+                        {/* RODAPÉ: TOTAL GERAL */}
+                        <tfoot className="sticky bottom-0 z-20 shadow-lg">
+                          <tr className="bg-[#0e3b66] text-white border-t-2 border-[#0a2c4d]">
+                            <td colSpan={3} className="py-2 px-3 text-left font-black uppercase tracking-wider text-xs bg-[#0a2c4d]">
+                              Total Geral
+                            </td>
+                            {agingCols.map(col => {
+                              const val = agingTotalGeralPorCol.get(col)
+                              return (
+                                <td
+                                  key={col}
+                                  className="py-2 px-1.5 text-right font-mono font-black text-white border-l border-sky-800"
+                                >
+                                  {val && val > 0 ? (
+                                    agingMetric === 'pecas'
+                                      ? Math.round(val).toLocaleString('pt-BR')
+                                      : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                  ) : '0'}
+                                </td>
+                              )
+                            })}
+                            <td className="py-2 px-2.5 text-right font-mono font-black text-amber-300 bg-[#071d37] border-l-2 border-amber-400 text-[11px]">
+                              {agingMetric === 'pecas'
+                                ? Math.round(agingTotalConsolidadoGeral).toLocaleString('pt-BR')
+                                : agingTotalConsolidadoGeral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
                   </div>
                 )}
               </div>
