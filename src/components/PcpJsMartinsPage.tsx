@@ -5134,10 +5134,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                 />
               </div>
 
-              {/* Linha 3: Segmentação por Prazos & Cards de KPIs Rápidos */}
-              <div className="pt-2 border-t border-slate-100 flex flex-col xl:flex-row gap-5 items-center w-full">
-                {/* Lado Esquerdo: Segmentação por Prazos / SLA (Alinhado com a largura da tabela da esquerda) */}
-                <div className="w-full xl:w-auto xl:min-w-[780px] 2xl:min-w-[840px] shrink-0 flex flex-wrap items-center gap-1">
+              {/* Linha 3: Segmentação por Prazos / SLA */}
+              <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 w-full">
+                <div className="flex flex-wrap items-center gap-1">
                   <div className="flex items-center gap-1 mr-0.5 text-slate-500 shrink-0">
                     <Clock size={11} className="text-blue-600" />
                     <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-slate-600">Prazos:</span>
@@ -5209,44 +5208,6 @@ export const PcpJsMartinsPage: React.FC = () => {
                       Limpar
                     </button>
                   )}
-                </div>
-
-                {/* Lado Direito: Cards Rápidos de Visão Geral (Alinhado exatamente com o painel lateral direito) */}
-                <div className={`w-full min-w-0 ${planRightTab === 'visao3' || isLeftPanelCollapsed ? 'flex-1' : 'flex-1 xl:max-w-[800px] 2xl:max-w-[840px]'}`}>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
-                    <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Pedidos</span>
-                      <span className="text-base font-black text-slate-800 leading-tight block">
-                        {(planViewMode === 'comparativo' ? compTotals.totalPedidos : geralPedidos).toLocaleString('pt-BR')}
-                      </span>
-                      <span className="text-[9.5px] text-slate-400 block mt-0.5">
-                        {planViewMode === 'comparativo' ? 'Carteira + Processo' : 'Backlog filtrado'}
-                      </span>
-                    </div>
-                    <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Volume Peças</span>
-                      <span className="text-base font-black text-blue-600 leading-tight block">
-                        {Math.round(planViewMode === 'comparativo' ? compTotals.totalQtd : geralQtd).toLocaleString('pt-BR')}
-                      </span>
-                      <span className="text-[9.5px] text-slate-400 block mt-0.5">Total de unidades</span>
-                    </div>
-                    <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cubagem (m³)</span>
-                      <span className="text-base font-black text-purple-600 leading-tight block">
-                        {(planViewMode === 'comparativo' ? compTotals.totalCub : geralCub).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                      </span>
-                      <span className="text-[9.5px] text-slate-400 block mt-0.5">Espaço cúbico</span>
-                    </div>
-                    <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Faturamento</span>
-                      <span className="text-base font-black text-emerald-600 leading-tight block">
-                        {(planViewMode === 'comparativo' ? compTotals.totalValor : geralValor).toLocaleString('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' })}
-                      </span>
-                      <span className="text-[9.5px] text-slate-400 block mt-0.5">
-                        {planViewMode === 'comparativo' ? 'Valor consolidado' : 'Valor em carteira'}
-                      </span>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -6111,7 +6072,43 @@ export const PcpJsMartinsPage: React.FC = () => {
             )}
 
               {/* LADO DIREITO: ÁREA RESERVADA PARA TABELAS/VISÕES DO PAINEL LATERAL */}
-              <div className={`space-y-4 w-full min-w-0 ${planRightTab === 'visao3' || planRightTab === 'agingModal' || isLeftPanelCollapsed ? 'flex-1' : 'flex-1 xl:max-w-[700px] 2xl:max-w-[740px]'}`}>
+              <div className={`space-y-3 w-full min-w-0 ${planRightTab === 'visao3' || planRightTab === 'agingModal' || isLeftPanelCollapsed ? 'flex-1' : 'flex-1 xl:max-w-[700px] 2xl:max-w-[740px]'}`}>
+                {/* CARDS RÁPIDOS DE VISÃO GERAL (ALINHADO EXATAMENTE COM O PAINEL DA DIREITA, NUNCA INVADE A ESQUERDA) */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Pedidos</span>
+                    <span className="text-base font-black text-slate-800 leading-tight block">
+                      {(planViewMode === 'comparativo' ? compTotals.totalPedidos : geralPedidos).toLocaleString('pt-BR')}
+                    </span>
+                    <span className="text-[9.5px] text-slate-400 block mt-0.5">
+                      {planViewMode === 'comparativo' ? 'Carteira + Processo' : 'Backlog filtrado'}
+                    </span>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Volume Peças</span>
+                    <span className="text-base font-black text-blue-600 leading-tight block">
+                      {Math.round(planViewMode === 'comparativo' ? compTotals.totalQtd : geralQtd).toLocaleString('pt-BR')}
+                    </span>
+                    <span className="text-[9.5px] text-slate-400 block mt-0.5">Total de unidades</span>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cubagem (m³)</span>
+                    <span className="text-base font-black text-purple-600 leading-tight block">
+                      {(planViewMode === 'comparativo' ? compTotals.totalCub : geralCub).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                    </span>
+                    <span className="text-[9.5px] text-slate-400 block mt-0.5">Espaço cúbico</span>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Faturamento</span>
+                    <span className="text-base font-black text-emerald-600 leading-tight block">
+                      {(planViewMode === 'comparativo' ? compTotals.totalValor : geralValor).toLocaleString('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' })}
+                    </span>
+                    <span className="text-[9.5px] text-slate-400 block mt-0.5">
+                      {planViewMode === 'comparativo' ? 'Valor consolidado' : 'Valor em carteira'}
+                    </span>
+                  </div>
+                </div>
+
                 {/* BOTÃO EXPANDIR MOBILE SE ESTIVER RECOLHIDO */}
                 {isLeftPanelCollapsed && (
                   <div className="xl:hidden flex items-center justify-between p-2.5 bg-[#0e3b66] text-white rounded-xl shadow-xs">
