@@ -4427,17 +4427,31 @@ export const PcpJsMartinsPage: React.FC = () => {
         // ------------------------------------------------------------
         // CÁLCULOS DA VISÃO 4: AGING X MODALIDADE (CARTEIRA X PROCESSO)
         // Alternância Dinâmica entre PÇS (Peças) e Cubagem (m³)
+        // Colunas no formato operacional: D0, D1, D2, D3, D4, D5, D6, D7, D+
         // ------------------------------------------------------------
+        const agingCols = ['D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D+']
+
+        const getAgingColKey = (agingDays: number): string => {
+          if (agingDays <= 0) return 'D0'
+          if (agingDays === 1) return 'D1'
+          if (agingDays === 2) return 'D2'
+          if (agingDays === 3) return 'D3'
+          if (agingDays === 4) return 'D4'
+          if (agingDays === 5) return 'D5'
+          if (agingDays === 6) return 'D6'
+          if (agingDays === 7) return 'D7'
+          return 'D+'
+        }
+
         interface AgingItemAccumulator {
           codModal: string
           descModal: string
-          values: Map<number, number>
+          values: Map<string, number>
           total: number
         }
 
         const agingCarteiraMap = new Map<string, AgingItemAccumulator>()
         const agingProcessoMap = new Map<string, AgingItemAccumulator>()
-        const agingAllSet = new Set<number>()
 
         enrichedForComparative.forEach(r => {
           const codModal = String(r.codmodal || r.CODMODAL || '-').trim()
@@ -4464,7 +4478,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             const diffDays = Math.floor((opRefDate.getTime() - dtPed.getTime()) / (1000 * 60 * 60 * 24))
             aging = Math.max(0, diffDays)
           }
-          agingAllSet.add(aging)
+          const colKey = getAgingColKey(aging)
 
           const rawSt = String(r.calc_status_op || r.status_operacao || r.STATUS_OPERACAO || '').toUpperCase().trim()
           const isProcesso = rawSt.includes('PROCESSO')
@@ -4475,24 +4489,16 @@ export const PcpJsMartinsPage: React.FC = () => {
             targetMap.set(modalKey, {
               codModal,
               descModal,
-              values: new Map<number, number>(),
+              values: new Map<string, number>(),
               total: 0
             })
           }
 
           const acc = targetMap.get(modalKey)!
           const metricVal = agingMetric === 'pecas' ? (Number(r.calc_qtd) || 0) : (Number(r.calc_cub) || 0)
-          acc.values.set(aging, (acc.values.get(aging) || 0) + metricVal)
+          acc.values.set(colKey, (acc.values.get(colKey) || 0) + metricVal)
           acc.total += metricVal
         })
-
-        // Lista ordenada de colunas de Aging (0 até o maior encontrado, ou pelo menos 0..9)
-        const maxFoundAging = agingAllSet.size > 0 ? Math.max(...Array.from(agingAllSet)) : 0
-        const agingCols: number[] = []
-        for (let i = 0; i <= Math.max(maxFoundAging, 9); i++) {
-          agingCols.push(i)
-        }
-        if (agingCols.length === 0) agingCols.push(0)
 
         // Filtro de busca interna
         const termAging = agingSearch.trim().toLowerCase()
@@ -4511,7 +4517,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           .sort((a, b) => b.total - a.total)
 
         // Subtotais por aging
-        const agingCarteiraSubtotals = new Map<number, number>()
+        const agingCarteiraSubtotals = new Map<string, number>()
         let agingCarteiraGrandTotal = 0
         agingCarteiraList.forEach(item => {
           agingCols.forEach(col => {
@@ -4521,7 +4527,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           agingCarteiraGrandTotal += item.total
         })
 
-        const agingProcessoSubtotals = new Map<number, number>()
+        const agingProcessoSubtotals = new Map<string, number>()
         let agingProcessoGrandTotal = 0
         agingProcessoList.forEach(item => {
           agingCols.forEach(col => {
@@ -4531,7 +4537,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           agingProcessoGrandTotal += item.total
         })
 
-        const agingTotalGeralPorCol = new Map<number, number>()
+        const agingTotalGeralPorCol = new Map<string, number>()
         agingCols.forEach(col => {
           const cVal = agingCarteiraSubtotals.get(col) || 0
           const pVal = agingProcessoSubtotals.get(col) || 0
