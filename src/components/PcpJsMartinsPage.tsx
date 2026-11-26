@@ -7779,10 +7779,10 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                     {/* Tabela Matriz Aging x Modalidade */}
                     <div className="w-full overflow-x-auto select-text">
-                      <table className="w-full border-collapse font-sans text-slate-800 text-[10px] table-auto">
+                      <table className="w-full border-collapse font-sans text-slate-800 text-[11px] sm:text-[11.5px] table-auto">
                         <thead className="sticky top-0 z-20 select-none shadow-2xs">
                           {/* Super-Header */}
-                          <tr className="bg-[#0e3b66] text-white text-[9px] uppercase font-black tracking-wider border-b border-[#0a2c4d]">
+                          <tr className="bg-[#0e3b66] text-white text-[9.5px] uppercase font-black tracking-wider border-b border-[#0a2c4d]">
                             <th className="py-1 px-2.5 text-center bg-[#0a2c4d] text-amber-300 font-black border-r border-white/10 w-[95px] min-w-[95px]">
                               {agingMetric === 'pecas' ? 'PÇS' : 'CUB (m³)'}
                             </th>
@@ -7794,17 +7794,17 @@ export const PcpJsMartinsPage: React.FC = () => {
                             </th>
                             <th
                               colSpan={agingCols.length}
-                              className="py-1 px-2 text-center bg-[#facc15] text-slate-950 font-black tracking-widest border-r border-amber-600"
+                              className="py-1 px-2 text-center bg-[#facc15] text-slate-950 font-black tracking-widest text-[11px] border-r border-amber-600"
                             >
                               AGING
                             </th>
-                            <th className="py-1 px-2 text-right bg-[#0a2c4d] text-white font-black w-[80px] min-w-[80px]">
+                            <th className="py-1 px-2 text-center bg-[#0a2c4d] text-white font-black w-[90px] min-w-[90px] text-[10.5px]">
                               Total Geral
                             </th>
                           </tr>
 
                           {/* Header das Colunas e Números de Aging */}
-                          <tr className="bg-[#123e6b] text-white text-[8.5px] uppercase font-bold border-b border-[#0a2c4d]">
+                          <tr className="bg-[#123e6b] text-white text-[9px] uppercase font-bold border-b border-[#0a2c4d]">
                             <th className="py-1 px-2 text-center border-r border-white/10 text-sky-200">
                               STATUS_
                             </th>
@@ -7817,18 +7817,18 @@ export const PcpJsMartinsPage: React.FC = () => {
                             {agingCols.map(col => (
                               <th
                                 key={col}
-                                className="py-1 px-1.5 text-center font-mono font-black border-r border-white/10 bg-[#0e3b66] text-sky-100 min-w-[36px]"
+                                className="py-1.5 px-1.5 text-center font-mono font-black border-r border-white/10 bg-[#0e3b66] text-sky-100 min-w-[44px] text-[11px]"
                               >
                                 {col}
                               </th>
                             ))}
-                            <th className="py-1 px-2 text-right font-black border-l border-white/10 bg-[#0a2c4d] text-sky-100">
+                            <th className="py-1.5 px-2 text-center font-black border-l border-white/10 bg-[#0a2c4d] text-sky-100 text-[10.5px]">
                               Total
                             </th>
                           </tr>
                         </thead>
 
-                        <tbody className="divide-y divide-slate-200 text-[10px]">
+                        <tbody className="divide-y divide-slate-200 text-[11px]">
                           {/* SEÇÃO 1: EM CARTEIRA */}
                           {agingCarteiraList.length === 0 ? (
                             <tr>
@@ -7842,15 +7842,15 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 {idx === 0 && (
                                   <td
                                     rowSpan={agingCarteiraList.length}
-                                    className="px-2 py-1.5 bg-[#e0f2fe] text-[#0369a1] font-black text-center align-middle border-r border-slate-300 uppercase tracking-tight text-[9px]"
+                                    className="px-2 py-1.5 bg-[#e0f2fe] text-[#0369a1] font-black text-center align-middle border-r border-slate-300 uppercase tracking-tight text-[9.5px]"
                                   >
                                     EM CARTEIRA
                                   </td>
                                 )}
-                                <td className="px-2.5 py-1 text-left font-semibold text-slate-800 border-r border-slate-200 truncate max-w-[200px]" title={item.descModal}>
+                                <td className="px-2.5 py-1.5 text-left font-semibold text-slate-800 border-r border-slate-200 truncate max-w-[200px]" title={item.descModal}>
                                   {item.descModal}
                                 </td>
-                                <td className="px-1.5 py-1 text-center font-mono font-bold text-slate-600 border-r border-slate-200">
+                                <td className="px-1.5 py-1.5 text-center font-mono font-bold text-slate-600 border-r border-slate-200">
                                   {item.codModal}
                                 </td>
                                 {agingCols.map(col => {
@@ -7858,7 +7858,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                   return (
                                     <td
                                       key={col}
-                                      className="px-1.5 py-1 text-right font-mono text-slate-700 border-r border-slate-100"
+                                      className="px-1.5 py-1.5 text-center font-mono font-semibold text-[11.5px] text-slate-800 border-r border-slate-100"
                                     >
                                       {val && val > 0 ? (
                                         agingMetric === 'pecas'
@@ -7868,7 +7868,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                     </td>
                                   )
                                 })}
-                                <td className="px-2 py-1 text-right font-mono font-bold text-slate-900 bg-slate-50 border-l border-slate-300">
+                                <td className="px-2 py-1.5 text-center font-mono font-bold text-[11.5px] text-slate-950 bg-slate-100/80 border-l border-slate-300">
                                   {agingMetric === 'pecas'
                                     ? Math.round(item.total).toLocaleString('pt-BR')
                                     : item.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
@@ -7879,7 +7879,7 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                           {/* SUBTOTAL: EM CARTEIRA Total */}
                           <tr className="bg-slate-300 font-bold text-slate-900 border-y border-slate-400">
-                            <td colSpan={3} className="px-3 py-1.5 text-left font-black uppercase tracking-wider text-[9.5px]">
+                            <td colSpan={3} className="px-3 py-1.5 text-left font-black uppercase tracking-wider text-[10px]">
                               EM CARTEIRA Total
                             </td>
                             {agingCols.map(col => {
@@ -7887,7 +7887,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                               return (
                                 <td
                                   key={col}
-                                  className="px-1.5 py-1.5 text-right font-mono font-black border-l border-slate-400/50"
+                                  className="px-1.5 py-1.5 text-center font-mono font-black text-[11.5px] border-l border-slate-400/50"
                                 >
                                   {val && val > 0 ? (
                                     agingMetric === 'pecas'
@@ -7897,7 +7897,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 </td>
                               )
                             })}
-                            <td className="px-2 py-1.5 text-right font-mono font-black text-slate-950 bg-slate-400/50 border-l border-slate-400">
+                            <td className="px-2 py-1.5 text-center font-mono font-black text-[12px] text-slate-950 bg-slate-400/50 border-l border-slate-400">
                               {agingMetric === 'pecas'
                                 ? Math.round(agingCarteiraGrandTotal).toLocaleString('pt-BR')
                                 : agingCarteiraGrandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
@@ -7917,15 +7917,15 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 {idx === 0 && (
                                   <td
                                     rowSpan={agingProcessoList.length}
-                                    className="px-2 py-1.5 bg-[#dcfce7] text-[#15803d] font-black text-center align-middle border-r border-emerald-300 uppercase tracking-tight text-[9px]"
+                                    className="px-2 py-1.5 bg-[#dcfce7] text-[#15803d] font-black text-center align-middle border-r border-emerald-300 uppercase tracking-tight text-[9.5px]"
                                   >
                                     EM PROCESSO
                                   </td>
                                 )}
-                                <td className="px-2.5 py-1 text-left font-semibold text-slate-800 border-r border-emerald-100 truncate max-w-[200px]" title={item.descModal}>
+                                <td className="px-2.5 py-1.5 text-left font-semibold text-slate-800 border-r border-emerald-100 truncate max-w-[200px]" title={item.descModal}>
                                   {item.descModal}
                                 </td>
-                                <td className="px-1.5 py-1 text-center font-mono font-bold text-emerald-800 border-r border-emerald-100">
+                                <td className="px-1.5 py-1.5 text-center font-mono font-bold text-emerald-800 border-r border-emerald-100">
                                   {item.codModal}
                                 </td>
                                 {agingCols.map(col => {
@@ -7933,7 +7933,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                   return (
                                     <td
                                       key={col}
-                                      className="px-1.5 py-1 text-right font-mono text-emerald-900 border-r border-emerald-100/60"
+                                      className="px-1.5 py-1.5 text-center font-mono font-semibold text-[11.5px] text-emerald-950 border-r border-emerald-100/60"
                                     >
                                       {val && val > 0 ? (
                                         agingMetric === 'pecas'
@@ -7943,7 +7943,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                     </td>
                                   )
                                 })}
-                                <td className="px-2 py-1 text-right font-mono font-bold text-emerald-950 bg-emerald-100/70 border-l border-emerald-300">
+                                <td className="px-2 py-1.5 text-center font-mono font-bold text-[11.5px] text-emerald-950 bg-emerald-100/70 border-l border-emerald-300">
                                   {agingMetric === 'pecas'
                                     ? Math.round(item.total).toLocaleString('pt-BR')
                                     : item.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
@@ -7954,7 +7954,7 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                           {/* SUBTOTAL: EM PROCESSO Total */}
                           <tr className="bg-[#bbf7d0] font-bold text-emerald-950 border-y border-emerald-400">
-                            <td colSpan={3} className="px-3 py-1.5 text-left font-black uppercase tracking-wider text-[9.5px]">
+                            <td colSpan={3} className="px-3 py-1.5 text-left font-black uppercase tracking-wider text-[10px]">
                               EM PROCESSO Total
                             </td>
                             {agingCols.map(col => {
@@ -7962,7 +7962,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                               return (
                                 <td
                                   key={col}
-                                  className="px-1.5 py-1.5 text-right font-mono font-black border-l border-emerald-300"
+                                  className="px-1.5 py-1.5 text-center font-mono font-black text-[11.5px] border-l border-emerald-300"
                                 >
                                   {val && val > 0 ? (
                                     agingMetric === 'pecas'
@@ -7972,7 +7972,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 </td>
                               )
                             })}
-                            <td className="px-2 py-1.5 text-right font-mono font-black text-emerald-950 bg-emerald-300/60 border-l border-emerald-400">
+                            <td className="px-2 py-1.5 text-center font-mono font-black text-[12px] text-emerald-950 bg-emerald-300/60 border-l border-emerald-400">
                               {agingMetric === 'pecas'
                                 ? Math.round(agingProcessoGrandTotal).toLocaleString('pt-BR')
                                 : agingProcessoGrandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
@@ -7991,7 +7991,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                               return (
                                 <td
                                   key={col}
-                                  className="py-2 px-1.5 text-right font-mono font-black text-white border-l border-sky-800"
+                                  className="py-2 px-1.5 text-center font-mono font-black text-[12px] text-white border-l border-sky-800"
                                 >
                                   {val && val > 0 ? (
                                     agingMetric === 'pecas'
@@ -8001,7 +8001,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 </td>
                               )
                             })}
-                            <td className="py-2 px-2.5 text-right font-mono font-black text-amber-300 bg-[#071d37] border-l-2 border-amber-400 text-[11px]">
+                            <td className="py-2 px-2.5 text-center font-mono font-black text-amber-300 bg-[#071d37] border-l-2 border-amber-400 text-[12.5px]">
                               {agingMetric === 'pecas'
                                 ? Math.round(agingTotalConsolidadoGeral).toLocaleString('pt-BR')
                                 : agingTotalConsolidadoGeral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
