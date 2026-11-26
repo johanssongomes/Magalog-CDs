@@ -909,6 +909,17 @@ export const PcpJsMartinsPage: React.FC = () => {
     } catch { }
   }, [planViewMode])
 
+  // Flag que identifica se o filtro ativo está exclusivamente em Abastecimento
+  const isAbaFiltered = useMemo(() => {
+    if (planFilterTipoModal.length > 0 && planFilterTipoModal.includes('Abastecimento') && !planFilterTipoModal.includes('Venda') && !planFilterTipoModal.includes('Tranfs')) {
+      return true
+    }
+    if (planFilterModalidades.length > 0 && planFilterModalidades.every(m => m.toUpperCase().includes('ABA') || m.toUpperCase().includes('ABASTECIMENTO'))) {
+      return true
+    }
+    return false
+  }, [planFilterTipoModal, planFilterModalidades])
+
   // Alternância de visualização do painel lateral direito: 'linha' (Por Linha & Itens) | 'datas' (Dt. Pedido x Prev. Entrega) | 'visao3' (A definir)
   const [planRightTab, setPlanRightTab] = useState<'linha' | 'datas' | 'visao3'>(() => {
     try {
@@ -5426,7 +5437,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                             <th className="py-1.5 px-1 text-center w-[78px] min-w-[78px]">MODAL</th>
                                                             <th className="py-1.5 px-1 text-center w-[150px] min-w-[150px]">LINHA</th>
                                                             <th className="py-1.5 px-1 text-center w-[44px] min-w-[44px]">COD</th>
-                                                            <th className="py-1.5 px-1.5 text-center w-[110px] min-w-[110px]">PREV. ENT.</th>
+                                                            <th className="py-1.5 px-1.5 text-center w-[110px] min-w-[110px]">{isAbaFiltered ? 'DTPedido' : 'PREV. ENT.'}</th>
                                                             <th className="py-1.5 px-0.5 text-center w-[46px] min-w-[46px]">LOTE</th>
                                                             <th className="py-1.5 px-1 text-center w-[66px] min-w-[66px]">PEDIDO</th>
                                                             <th className="py-1.5 px-1 text-center w-[48px] min-w-[48px]">ITEM</th>
@@ -6288,7 +6299,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <CalendarDays size={15} className="text-sky-300 shrink-0" />
                         <span className="text-[11px] font-black tracking-wide uppercase">
-                          Cruzamento Dt. Pedido x Previsão Entrega (Carteira vs Processo)
+                          {isAbaFiltered ? 'Cruzamento Dt. Pedido x DTPedido (Carteira vs Processo)' : 'Cruzamento Dt. Pedido x Previsão Entrega (Carteira vs Processo)'}
                         </span>
                         <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#164e85] text-sky-100 border border-sky-500/30 font-bold whitespace-nowrap">
                           {sortedDateGroups.length} datas
@@ -6386,11 +6397,11 @@ export const PcpJsMartinsPage: React.FC = () => {
                             </th>
                             <th
                               onClick={() => handleDateSort('prevEntrega')}
-                              title="Clique para classificar por Previsão de Entrega"
+                              title={isAbaFiltered ? "Clique para classificar por Data do Pedido" : "Clique para classificar por Previsão de Entrega"}
                               className="py-1.5 px-2 font-bold w-[110px] min-w-[110px] bg-[#0c3359] cursor-pointer hover:bg-[#14487a] transition-colors"
                             >
                               <div className="flex items-center justify-center gap-0.5">
-                                <span>PREV. ENTREGA</span>
+                                <span>{isAbaFiltered ? 'DTPedido' : 'PREV. ENTREGA'}</span>
                                 <span className="text-[7.5px] text-sky-300 font-mono">
                                   {dateSortKey === 'prevEntrega' ? (dateSortAsc ? '▲' : '▼') : '↕'}
                                 </span>
