@@ -5202,216 +5202,257 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Segmentações Rápidas por Botões Interativos (Slicers) - Empilhadas com ícones escuros */}
-              <div className="flex flex-col gap-2 pt-1 pb-1 relative z-10">
-                {/* 1ª Linha: Liberação de Faturamento (FLLIBFAT) */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-2 w-[165px] shrink-0">
-                    <div className="w-6 h-6 rounded-lg bg-[#071739] text-cyan-400 flex items-center justify-center shrink-0 shadow-xs">
-                      <FileText size={13} />
+              {/* Linha com Slicers na Esquerda e os 4 Cards Rápidos na Direita (Alinhados com o Painel de Baixo) */}
+              <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 pt-1 pb-1 relative z-10">
+                {/* Lado Esquerdo: Segmentações Rápidas por Botões Interativos (Slicers) */}
+                <div className="flex flex-col gap-2 flex-1">
+                  {/* 1ª Linha: Liberação de Faturamento (FLLIBFAT) */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-2 w-[165px] shrink-0">
+                      <div className="w-6 h-6 rounded-lg bg-[#071739] text-cyan-400 flex items-center justify-center shrink-0 shadow-xs">
+                        <FileText size={13} />
+                      </div>
+                      <span className="text-[10.5px] font-extrabold text-slate-800 uppercase tracking-wider">
+                        Lib. Faturamento:
+                      </span>
+                      {planFilterFllibfat.length > 0 && (
+                        <span className="text-[9.5px] text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded font-extrabold">
+                          {planFilterFllibfat.length}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-[10.5px] font-extrabold text-slate-800 uppercase tracking-wider">
-                      Lib. Faturamento:
-                    </span>
+
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setPlanFilterFllibfat([])}
+                        className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${planFilterFllibfat.length === 0
+                          ? 'bg-[#0066ff] text-white shadow-md ring-2 ring-blue-300'
+                          : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200'
+                          }`}
+                      >
+                        Todos
+                      </button>
+
+                      {[
+                        { id: 'S', label: 'S', desc: 'Liberado', activeColor: 'bg-[#0066ff] text-white shadow-md' },
+                        { id: 'N', label: 'N', desc: 'Bloqueado', activeColor: 'bg-amber-600 text-white shadow-md' }
+                      ].map(item => {
+                        const isSelected = planFilterFllibfat.includes(item.id)
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setPlanFilterFllibfat(prev =>
+                                prev.includes(item.id)
+                                  ? prev.filter(t => t !== item.id)
+                                  : [...prev, item.id]
+                              )
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer select-none ${isSelected
+                              ? `${item.activeColor} border-transparent`
+                              : 'bg-white border-slate-200/90 text-slate-700 hover:bg-slate-50'
+                              }`}
+                          >
+                            <span className="font-extrabold">{item.label}</span>
+                            <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-sans ${isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'
+                              }`}>
+                              {item.desc}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+
                     {planFilterFllibfat.length > 0 && (
-                      <span className="text-[9.5px] text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded font-extrabold">
-                        {planFilterFllibfat.length}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPlanFilterFllibfat([])}
+                        className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
+                      >
+                        Limpar
+                      </button>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => setPlanFilterFllibfat([])}
-                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${planFilterFllibfat.length === 0
-                        ? 'bg-[#0066ff] text-white shadow-md ring-2 ring-blue-300'
-                        : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200'
-                        }`}
-                    >
-                      Todos
-                    </button>
-
-                    {[
-                      { id: 'S', label: 'S', desc: 'Liberado', activeColor: 'bg-[#0066ff] text-white shadow-md' },
-                      { id: 'N', label: 'N', desc: 'Bloqueado', activeColor: 'bg-amber-600 text-white shadow-md' }
-                    ].map(item => {
-                      const isSelected = planFilterFllibfat.includes(item.id)
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            setPlanFilterFllibfat(prev =>
-                              prev.includes(item.id)
-                                ? prev.filter(t => t !== item.id)
-                                : [...prev, item.id]
-                            )
-                          }}
-                          className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer select-none ${isSelected
-                            ? `${item.activeColor} border-transparent`
-                            : 'bg-white border-slate-200/90 text-slate-700 hover:bg-slate-50'
-                            }`}
-                        >
-                          <span className="font-extrabold">{item.label}</span>
-                          <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-sans ${isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'
-                            }`}>
-                            {item.desc}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  {planFilterFllibfat.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setPlanFilterFllibfat([])}
-                      className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
-                    >
-                      Limpar
-                    </button>
-                  )}
-                </div>
-
-                {/* 2ª Linha: Status Operação */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-2 w-[165px] shrink-0">
-                    <div className="w-6 h-6 rounded-lg bg-[#071739] text-cyan-400 flex items-center justify-center shrink-0 shadow-xs">
-                      <CalendarDays size={13} />
+                  {/* 2ª Linha: Status Operação */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-2 w-[165px] shrink-0">
+                      <div className="w-6 h-6 rounded-lg bg-[#071739] text-cyan-400 flex items-center justify-center shrink-0 shadow-xs">
+                        <CalendarDays size={13} />
+                      </div>
+                      <span className="text-[10.5px] font-extrabold text-slate-800 uppercase tracking-wider">
+                        Status Operação:
+                      </span>
+                      {planFilterStatusOp.length > 0 && (
+                        <span className="text-[9.5px] text-sky-700 bg-sky-100 px-1.5 py-0.2 rounded font-extrabold">
+                          {planFilterStatusOp.length}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-[10.5px] font-extrabold text-slate-800 uppercase tracking-wider">
-                      Status Operação:
-                    </span>
+
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setPlanFilterStatusOp([])}
+                        className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${planFilterStatusOp.length === 0
+                          ? 'bg-[#0066ff] text-white shadow-md ring-2 ring-blue-300'
+                          : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200'
+                          }`}
+                      >
+                        Todos
+                      </button>
+
+                      {[
+                        { id: 'EM CARTEIRA', prefix: 'E', label: 'Em Carteira', activeColor: 'bg-[#0066ff] text-white shadow-md' },
+                        { id: 'EM PROCESSO', prefix: 'E', label: 'Em Processo', activeColor: 'bg-amber-600 text-white shadow-md' }
+                      ].map(item => {
+                        const isSelected = planFilterStatusOp.includes(item.id)
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setPlanFilterStatusOp(prev =>
+                                prev.includes(item.id)
+                                  ? prev.filter(t => t !== item.id)
+                                  : [...prev, item.id]
+                              )
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer select-none ${isSelected
+                              ? `${item.activeColor} border-transparent`
+                              : 'bg-white border-slate-200/90 text-slate-700 hover:bg-slate-50'
+                              }`}
+                          >
+                            <span className="font-extrabold">{item.prefix}</span>
+                            <span>{item.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+
                     {planFilterStatusOp.length > 0 && (
-                      <span className="text-[9.5px] text-sky-700 bg-sky-100 px-1.5 py-0.2 rounded font-extrabold">
-                        {planFilterStatusOp.length}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPlanFilterStatusOp([])}
+                        className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
+                      >
+                        Limpar
+                      </button>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => setPlanFilterStatusOp([])}
-                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${planFilterStatusOp.length === 0
-                        ? 'bg-[#0066ff] text-white shadow-md ring-2 ring-blue-300'
-                        : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200'
-                        }`}
-                    >
-                      Todos
-                    </button>
+                  {/* 3ª Linha: Tipo Modal */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-2 w-[165px] shrink-0">
+                      <div className="w-6 h-6 rounded-lg bg-[#071739] text-cyan-400 flex items-center justify-center shrink-0 shadow-xs">
+                        <Tag size={13} />
+                      </div>
+                      <span className="text-[10.5px] font-extrabold text-slate-800 uppercase tracking-wider">
+                        Tipo Modal:
+                      </span>
+                      <HelpCircle size={11} className="text-slate-400 cursor-help" title="Filtro rápido por perfil logístico do modal" />
+                      {planFilterTipoModal.length > 0 && (
+                        <span className="text-[9.5px] text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded font-extrabold">
+                          {planFilterTipoModal.length}
+                        </span>
+                      )}
+                    </div>
 
-                    {[
-                      { id: 'EM CARTEIRA', prefix: 'E', label: 'Em Carteira', activeColor: 'bg-[#0066ff] text-white shadow-md' },
-                      { id: 'EM PROCESSO', prefix: 'E', label: 'Em Processo', activeColor: 'bg-amber-600 text-white shadow-md' }
-                    ].map(item => {
-                      const isSelected = planFilterStatusOp.includes(item.id)
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            setPlanFilterStatusOp(prev =>
-                              prev.includes(item.id)
-                                ? prev.filter(t => t !== item.id)
-                                : [...prev, item.id]
-                            )
-                          }}
-                          className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer select-none ${isSelected
-                            ? `${item.activeColor} border-transparent`
-                            : 'bg-white border-slate-200/90 text-slate-700 hover:bg-slate-50'
-                            }`}
-                        >
-                          <span className="font-extrabold">{item.prefix}</span>
-                          <span>{item.label}</span>
-                        </button>
-                      )
-                    })}
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setPlanFilterTipoModal([])}
+                        className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${planFilterTipoModal.length === 0
+                          ? 'bg-[#0066ff] text-white shadow-md ring-2 ring-blue-300'
+                          : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200'
+                          }`}
+                      >
+                        Todos
+                      </button>
+
+                      {[
+                        { id: 'Venda', label: 'Venda', badge: 'RO/COU', activeColor: 'bg-[#0066ff] text-white shadow-md' },
+                        { id: 'Abastecimento', label: 'Abastecimento', badge: 'ABI', activeColor: 'bg-emerald-600 text-white shadow-md' },
+                        { id: 'Tranfs', label: 'Tranfs', badge: 'TRF', activeColor: 'bg-purple-600 text-white shadow-md' }
+                      ].map(item => {
+                        const isSelected = planFilterTipoModal.includes(item.id)
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setPlanFilterTipoModal(prev =>
+                                prev.includes(item.id)
+                                  ? prev.filter(t => t !== item.id)
+                                  : [...prev, item.id]
+                              )
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer select-none ${isSelected
+                              ? `${item.activeColor} border-transparent`
+                              : 'bg-white border-slate-200/90 text-slate-700 hover:bg-slate-50'
+                              }`}
+                          >
+                            <span>{item.label}</span>
+                            <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'
+                              }`}>
+                              {item.badge}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {planFilterTipoModal.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPlanFilterTipoModal([])}
+                        className="inline-flex items-center gap-1 text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer ml-1"
+                      >
+                        <Trash2 size={11} />
+                        <span>Limpar</span>
+                      </button>
+                    )}
                   </div>
-
-                  {planFilterStatusOp.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setPlanFilterStatusOp([])}
-                      className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
-                    >
-                      Limpar
-                    </button>
-                  )}
                 </div>
 
-                {/* 3ª Linha: Tipo Modal */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-2 w-[165px] shrink-0">
-                    <div className="w-6 h-6 rounded-lg bg-[#071739] text-cyan-400 flex items-center justify-center shrink-0 shadow-xs">
-                      <Tag size={13} />
-                    </div>
-                    <span className="text-[10.5px] font-extrabold text-slate-800 uppercase tracking-wider">
-                      Tipo Modal:
-                    </span>
-                    <HelpCircle size={11} className="text-slate-400 cursor-help" title="Filtro rápido por perfil logístico do modal" />
-                    {planFilterTipoModal.length > 0 && (
-                      <span className="text-[9.5px] text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded font-extrabold">
-                        {planFilterTipoModal.length}
+                {/* Lado Direito: Cards Rápidos de Visão Geral (Alinhados com o Painel de Baixo) */}
+                <div className="w-full xl:w-auto xl:min-w-[580px] xl:max-w-[700px] 2xl:max-w-[740px] shrink-0">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
+                    <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200/90 shadow-2xs hover:bg-white transition-colors">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Pedidos</span>
+                      <span className="text-base font-black text-slate-800 leading-tight block">
+                        {(planViewMode === 'comparativo' ? compTotals.totalPedidos : geralPedidos).toLocaleString('pt-BR')}
                       </span>
-                    )}
+                      <span className="text-[9.5px] text-slate-400 block mt-0.5">
+                        {planViewMode === 'comparativo' ? 'Carteira + Processo' : 'Backlog filtrado'}
+                      </span>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200/90 shadow-2xs hover:bg-white transition-colors">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Volume Peças</span>
+                      <span className="text-base font-black text-blue-600 leading-tight block">
+                        {Math.round(planViewMode === 'comparativo' ? compTotals.totalQtd : geralQtd).toLocaleString('pt-BR')}
+                      </span>
+                      <span className="text-[9.5px] text-slate-400 block mt-0.5">Total de unidades</span>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200/90 shadow-2xs hover:bg-white transition-colors">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cubagem (m³)</span>
+                      <span className="text-base font-black text-purple-600 leading-tight block">
+                        {(planViewMode === 'comparativo' ? compTotals.totalCub : geralCub).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                      </span>
+                      <span className="text-[9.5px] text-slate-400 block mt-0.5">Espaço cúbico</span>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200/90 shadow-2xs hover:bg-white transition-colors">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Faturamento</span>
+                      <span className="text-base font-black text-emerald-600 leading-tight block">
+                        {(planViewMode === 'comparativo' ? compTotals.totalValor : geralValor).toLocaleString('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' })}
+                      </span>
+                      <span className="text-[9.5px] text-slate-400 block mt-0.5">
+                        {planViewMode === 'comparativo' ? 'Valor consolidado' : 'Valor em carteira'}
+                      </span>
+                    </div>
                   </div>
-
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => setPlanFilterTipoModal([])}
-                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${planFilterTipoModal.length === 0
-                        ? 'bg-[#0066ff] text-white shadow-md ring-2 ring-blue-300'
-                        : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200'
-                        }`}
-                    >
-                      Todos
-                    </button>
-
-                    {[
-                      { id: 'Venda', label: 'Venda', badge: 'RO/COU', activeColor: 'bg-[#0066ff] text-white shadow-md' },
-                      { id: 'Abastecimento', label: 'Abastecimento', badge: 'ABI', activeColor: 'bg-emerald-600 text-white shadow-md' },
-                      { id: 'Tranfs', label: 'Tranfs', badge: 'TRF', activeColor: 'bg-purple-600 text-white shadow-md' }
-                    ].map(item => {
-                      const isSelected = planFilterTipoModal.includes(item.id)
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            setPlanFilterTipoModal(prev =>
-                              prev.includes(item.id)
-                                ? prev.filter(t => t !== item.id)
-                                : [...prev, item.id]
-                            )
-                          }}
-                          className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer select-none ${isSelected
-                            ? `${item.activeColor} border-transparent`
-                            : 'bg-white border-slate-200/90 text-slate-700 hover:bg-slate-50'
-                            }`}
-                        >
-                          <span>{item.label}</span>
-                          <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'
-                            }`}>
-                            {item.badge}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  {planFilterTipoModal.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setPlanFilterTipoModal([])}
-                      className="inline-flex items-center gap-1 text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer ml-1"
-                    >
-                      <Trash2 size={11} />
-                      <span>Limpar</span>
-                    </button>
-                  )}
                 </div>
               </div>
 
@@ -6441,42 +6482,6 @@ export const PcpJsMartinsPage: React.FC = () => {
 
               {/* LADO DIREITO: ÁREA RESERVADA PARA TABELAS/VISÕES DO PAINEL LATERAL */}
               <div className={`space-y-3 w-full min-w-0 ${planRightTab === 'visao3' || planRightTab === 'agingModal' || isLeftPanelCollapsed ? 'flex-1' : 'flex-1 xl:max-w-[700px] 2xl:max-w-[740px]'}`}>
-                {/* CARDS RÁPIDOS DE VISÃO GERAL (ALINHADO EXATAMENTE COM O PAINEL DA DIREITA, NUNCA INVADE A ESQUERDA) */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
-                  <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Pedidos</span>
-                    <span className="text-base font-black text-slate-800 leading-tight block">
-                      {(planViewMode === 'comparativo' ? compTotals.totalPedidos : geralPedidos).toLocaleString('pt-BR')}
-                    </span>
-                    <span className="text-[9.5px] text-slate-400 block mt-0.5">
-                      {planViewMode === 'comparativo' ? 'Carteira + Processo' : 'Backlog filtrado'}
-                    </span>
-                  </div>
-                  <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Volume Peças</span>
-                    <span className="text-base font-black text-blue-600 leading-tight block">
-                      {Math.round(planViewMode === 'comparativo' ? compTotals.totalQtd : geralQtd).toLocaleString('pt-BR')}
-                    </span>
-                    <span className="text-[9.5px] text-slate-400 block mt-0.5">Total de unidades</span>
-                  </div>
-                  <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cubagem (m³)</span>
-                    <span className="text-base font-black text-purple-600 leading-tight block">
-                      {(planViewMode === 'comparativo' ? compTotals.totalCub : geralCub).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                    </span>
-                    <span className="text-[9.5px] text-slate-400 block mt-0.5">Espaço cúbico</span>
-                  </div>
-                  <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs hover:bg-white transition-colors">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Faturamento</span>
-                    <span className="text-base font-black text-emerald-600 leading-tight block">
-                      {(planViewMode === 'comparativo' ? compTotals.totalValor : geralValor).toLocaleString('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' })}
-                    </span>
-                    <span className="text-[9.5px] text-slate-400 block mt-0.5">
-                      {planViewMode === 'comparativo' ? 'Valor consolidado' : 'Valor em carteira'}
-                    </span>
-                  </div>
-                </div>
-
                 {/* BOTÃO EXPANDIR MOBILE SE ESTIVER RECOLHIDO */}
                 {isLeftPanelCollapsed && (
                   <div className="xl:hidden flex items-center justify-between p-2.5 bg-[#0e3b66] text-white rounded-xl shadow-xs">
