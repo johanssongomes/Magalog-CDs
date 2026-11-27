@@ -7499,8 +7499,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                               </div>
                             </div>
                             {/* Bulbo com valor atual */}
-                            <div className="px-2.5 py-0.5 rounded-full bg-[#071d37] border border-sky-400/40 text-[9.5px] font-mono font-bold text-sky-100 flex items-center gap-1 shadow-xs">
-                              <span className="text-[8px] text-sky-300 font-sans font-bold">ATUAL:</span>
+                            <div className="px-3 py-1 rounded-full bg-[#071d37] border border-sky-400/50 text-[12px] sm:text-[13px] font-mono font-bold text-sky-100 flex items-center gap-1.5 shadow-md">
+                              <span className="text-[10px] text-sky-300 font-sans font-bold tracking-wider">ATUAL:</span>
                               <span className={isOver ? 'text-rose-400 font-black' : 'text-emerald-400 font-black'}>
                                 {atual.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                               </span>
@@ -7552,8 +7552,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 </span>
                               </div>
                             </div>
-                            <div className="px-2.5 py-0.5 rounded-full bg-[#071d37] border border-sky-400/40 text-[9.5px] font-mono font-bold text-sky-100 flex items-center gap-1 shadow-xs">
-                              <span className="text-[8px] text-sky-300 font-sans font-bold">ATUAL:</span>
+                            <div className="px-3 py-1 rounded-full bg-[#071d37] border border-sky-400/50 text-[12px] sm:text-[13px] font-mono font-bold text-sky-100 flex items-center gap-1.5 shadow-md">
+                              <span className="text-[10px] text-sky-300 font-sans font-bold tracking-wider">ATUAL:</span>
                               <span className={isOver ? 'text-rose-400 font-black' : 'text-emerald-400 font-black'}>
                                 {atual.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                               </span>
@@ -7605,8 +7605,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 </span>
                               </div>
                             </div>
-                            <div className="px-2.5 py-0.5 rounded-full bg-[#071d37] border border-sky-400/40 text-[9.5px] font-mono font-bold text-sky-100 flex items-center gap-1 shadow-xs">
-                              <span className="text-[8px] text-sky-300 font-sans font-bold">ATUAL:</span>
+                            <div className="px-3 py-1 rounded-full bg-[#071d37] border border-sky-400/50 text-[12px] sm:text-[13px] font-mono font-bold text-sky-100 flex items-center gap-1.5 shadow-md">
+                              <span className="text-[10px] text-sky-300 font-sans font-bold tracking-wider">ATUAL:</span>
                               <span className={isOver ? 'text-rose-400 font-black' : 'text-emerald-400 font-black'}>
                                 {atual}
                               </span>
@@ -7651,7 +7651,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 </text>
                               </svg>
                             </div>
-                            <span className="text-[9.5px] font-extrabold text-sky-200/90 text-center uppercase tracking-wide px-2.5 py-0.5 rounded-full bg-[#071d37] border border-sky-400/30">
+                            <span className="text-[12px] sm:text-[13px] font-black text-sky-100 text-center uppercase tracking-wide px-3.5 py-1 rounded-full bg-[#071d37] border border-sky-400/50 shadow-md">
                               {atrasos} {atrasos === 1 ? 'pedido' : 'pedidos'}
                             </span>
                           </div>
@@ -7687,7 +7687,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 </text>
                               </svg>
                             </div>
-                            <span className="text-[9.5px] font-extrabold text-sky-200/90 text-center uppercase tracking-wide px-2.5 py-0.5 rounded-full bg-[#071d37] border border-sky-400/30">
+                            <span className="text-[12px] sm:text-[13px] font-black text-sky-100 text-center uppercase tracking-wide px-3.5 py-1 rounded-full bg-[#071d37] border border-sky-400/50 shadow-md">
                               {atrasos.toLocaleString('pt-BR')} peças
                             </span>
                           </div>
