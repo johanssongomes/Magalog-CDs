@@ -450,18 +450,22 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
         </span>
         <div className="flex items-center gap-1 shrink-0">
           {selected.length > 0 && (
-            <span
-              role="button"
-              tabIndex={0}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
               onClick={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
                 handleClear()
               }}
               title="Limpar seleção"
-              className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors"
+              className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors cursor-pointer"
             >
               <X size={11} />
-            </span>
+            </button>
           )}
           <ChevronDown
             size={12}
@@ -471,20 +475,36 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
       </button>
 
       {isOpen && (
-        <div className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-1 min-w-[240px] max-w-[340px] w-full bg-white rounded-xl shadow-2xl border border-slate-200 z-[999] p-2 space-y-2 text-xs`}>
+        <div className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-1.5 min-w-[240px] max-w-[340px] w-full bg-white rounded-xl shadow-2xl border border-slate-200 z-[9999] p-2 space-y-2 text-xs`}>
           {/* Ações Rápidas */}
           <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-[10.5px]">
             <button
               type="button"
-              onClick={handleSelectAll}
-              className="text-blue-600 hover:text-blue-800 font-bold cursor-pointer hover:underline"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                handleSelectAll()
+              }}
+              className="text-blue-600 hover:text-blue-800 font-bold cursor-pointer hover:underline px-1 py-0.5"
             >
               Marcar Todos ({options.length})
             </button>
             <button
               type="button"
-              onClick={handleClear}
-              className="text-rose-600 hover:text-rose-800 font-bold cursor-pointer hover:underline"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                handleClear()
+              }}
+              className="text-rose-600 hover:text-rose-800 font-bold cursor-pointer hover:underline px-1 py-0.5"
             >
               Limpar
             </button>
@@ -5533,7 +5553,7 @@ export const PcpJsMartinsPage: React.FC = () => {
               </div>
 
               {/* Linha 2: Segmentações por Seleção & Busca Rápida (5 Colunas com Múltipla Seleção e Ícones) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 pt-3 border-t border-slate-100 relative z-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 pt-3 border-t border-slate-100 relative z-30">
                 {/* 1. Busca Destino / Rota / Pedido */}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
@@ -5616,7 +5636,7 @@ export const PcpJsMartinsPage: React.FC = () => {
               </div>
 
               {/* Linha 3: Segmentação por Prazos / SLA */}
-              <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 w-full relative z-10">
+              <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 w-full relative z-0">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <div className="flex items-center gap-1.5 mr-1 text-slate-700 shrink-0">
                     <Zap size={13} className="text-blue-600 fill-blue-600" />
