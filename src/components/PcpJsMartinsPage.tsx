@@ -6619,7 +6619,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                           <th
                             rowSpan={2}
                             onClick={() => handleCompSort('totalCub')}
-                            className="py-2 px-2 text-center font-extrabold cursor-pointer hover:bg-white/10 transition-colors select-none w-[82px] min-w-[82px] bg-[#0a2c4d]"
+                            className="py-2 px-2 text-center font-extrabold cursor-pointer hover:bg-white/10 transition-colors select-none w-[75px] min-w-[75px] bg-[#0a2c4d]"
                           >
                             <div className="flex items-center justify-center gap-0.5">
                               <span>Total Cub</span>
@@ -6676,7 +6676,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                               </th>
                               <th
                                 onClick={() => handleCompSort('processoCub')}
-                                className="py-1.5 px-2 font-bold cursor-pointer hover:bg-white/10 transition-colors select-none w-[82px] min-w-[82px] bg-[#184880] text-blue-100"
+                                className="py-1.5 px-2 font-bold cursor-pointer hover:bg-white/10 transition-colors select-none w-[75px] min-w-[75px] bg-[#184880] text-blue-100"
                               >
                                 <div className="flex items-center justify-center gap-0.5">
                                   <span>CUBAGEM</span>
@@ -6748,16 +6748,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                           {group.processoQtd > 0 ? Math.round(group.processoQtd).toLocaleString('pt-BR') : '-'}
                                         </td>
                                         <td className="py-1 px-2 text-center text-[10.5px] font-black text-blue-900 bg-blue-50/30 whitespace-nowrap font-mono">
-                                          {group.processoCub > 0 ? (
-                                            <div className="grid grid-cols-[16px_1fr] items-center gap-1 w-[68px] mx-auto">
-                                              <div className="flex justify-center items-center">
-                                                {renderCubSemaforo(group.processoCub)}
-                                              </div>
-                                              <span className="text-right font-black text-blue-900">
-                                                {group.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                              </span>
-                                            </div>
-                                          ) : '-'}
+                                          {group.processoCub > 0 ? group.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
                                         </td>
                                       </>
                                     )}
@@ -6765,16 +6756,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                       {group.totalQtd > 0 ? Math.round(group.totalQtd).toLocaleString('pt-BR') : '-'}
                                     </td>
                                     <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-950 bg-slate-100/40 whitespace-nowrap font-mono">
-                                      {group.totalCub > 0 ? (
-                                        <div className="grid grid-cols-[16px_1fr] items-center gap-1 w-[68px] mx-auto">
-                                          <div className="flex justify-center items-center">
-                                            {renderCubSemaforo(group.totalCub)}
-                                          </div>
-                                          <span className="text-right font-black text-slate-950">
-                                            {group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                          </span>
-                                        </div>
-                                      ) : '-'}
+                                      {group.totalCub > 0 ? group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
                                     </td>
                                   </tr>
                                 ) : (
@@ -6843,16 +6825,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                                           {row.processoQtd > 0 ? Math.round(row.processoQtd).toLocaleString('pt-BR') : '-'}
                                         </td>
                                         <td className="py-1.5 px-2 text-center text-blue-900 bg-blue-50/30 font-mono font-bold whitespace-nowrap">
-                                          {row.processoCub > 0 ? (
-                                            <div className="grid grid-cols-[16px_1fr] items-center gap-1 w-[68px] mx-auto">
-                                              <div className="flex justify-center items-center">
-                                                {renderCubSemaforo(row.processoCub)}
-                                              </div>
-                                              <span className="text-right font-bold text-blue-900">
-                                                {row.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                              </span>
-                                            </div>
-                                          ) : '-'}
+                                          {row.processoCub > 0
+                                            ? row.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                            : '-'}
                                         </td>
                                       </>
                                     )}
@@ -6864,16 +6839,9 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                                     {/* TOTAL CUB */}
                                     <td className="py-1.5 px-2 text-center text-slate-950 bg-slate-100/40 font-mono font-black whitespace-nowrap">
-                                      {row.totalCub > 0 ? (
-                                        <div className="grid grid-cols-[16px_1fr] items-center gap-1 w-[68px] mx-auto">
-                                          <div className="flex justify-center items-center">
-                                            {renderCubSemaforo(row.totalCub)}
-                                          </div>
-                                          <span className="text-right font-black text-slate-950">
-                                            {row.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                          </span>
-                                        </div>
-                                      ) : '-'}
+                                      {row.totalCub > 0
+                                        ? row.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                        : '-'}
                                     </td>
                                   </tr>
                                 ))}
@@ -6909,16 +6877,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                           {group.processoQtd > 0 ? Math.round(group.processoQtd).toLocaleString('pt-BR') : '-'}
                                         </td>
                                         <td className="py-1 px-2 text-center text-[10.5px] font-black text-blue-900 bg-blue-50/30 whitespace-nowrap font-mono">
-                                          {group.processoCub > 0 ? (
-                                            <div className="grid grid-cols-[16px_1fr] items-center gap-1 w-[68px] mx-auto">
-                                              <div className="flex justify-center items-center">
-                                                {renderCubSemaforo(group.processoCub)}
-                                              </div>
-                                              <span className="text-right font-black text-blue-900">
-                                                {group.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                              </span>
-                                            </div>
-                                          ) : '-'}
+                                          {group.processoCub > 0 ? group.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
                                         </td>
                                       </>
                                     )}
@@ -6926,16 +6885,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                       {group.totalQtd > 0 ? Math.round(group.totalQtd).toLocaleString('pt-BR') : '-'}
                                     </td>
                                     <td className="py-1 px-2 text-center text-[10.5px] font-black text-slate-950 bg-slate-100/40 whitespace-nowrap font-mono">
-                                      {group.totalCub > 0 ? (
-                                        <div className="grid grid-cols-[16px_1fr] items-center gap-1 w-[68px] mx-auto">
-                                          <div className="flex justify-center items-center">
-                                            {renderCubSemaforo(group.totalCub)}
-                                          </div>
-                                          <span className="text-right font-black text-slate-950">
-                                            {group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                          </span>
-                                        </div>
-                                      ) : '-'}
+                                      {group.totalCub > 0 ? group.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
                                     </td>
                                   </tr>
                                 )}
@@ -6975,16 +6925,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                   {Math.round(compTotals.processoQtd).toLocaleString('pt-BR')}
                                 </td>
                                 <td className="py-2.5 px-2 text-center font-mono font-black text-sky-100 bg-[#164e85]">
-                                  {compTotals.processoCub > 0 ? (
-                                    <div className="grid grid-cols-[16px_1fr] items-center gap-1 w-[68px] mx-auto">
-                                      <div className="flex justify-center items-center">
-                                        {renderCubSemaforo(compTotals.processoCub)}
-                                      </div>
-                                      <span className="text-right font-black text-sky-100">
-                                        {compTotals.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                      </span>
-                                    </div>
-                                  ) : '-'}
+                                  {compTotals.processoCub > 0 ? compTotals.processoCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
                                 </td>
                               </>
                             )}
@@ -6992,16 +6933,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                               {Math.round(compTotals.totalQtd).toLocaleString('pt-BR')}
                             </td>
                             <td className="py-2.5 px-2 text-center font-mono font-black text-white bg-[#0a2c4d]">
-                              {compTotals.totalCub > 0 ? (
-                                <div className="grid grid-cols-[16px_1fr] items-center gap-1 w-[68px] mx-auto">
-                                  <div className="flex justify-center items-center">
-                                    {renderCubSemaforo(compTotals.totalCub)}
-                                  </div>
-                                  <span className="text-right font-black text-white">
-                                    {compTotals.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                  </span>
-                                </div>
-                              ) : '-'}
+                              {compTotals.totalCub > 0 ? compTotals.totalCub.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}
                             </td>
                           </tr>
                         )}
