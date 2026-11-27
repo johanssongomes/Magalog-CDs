@@ -43,7 +43,13 @@ import {
   Minimize2,
   PanelLeftClose,
   PanelLeftOpen,
-  ArrowUpDown
+  ArrowUpDown,
+  FileText,
+  Tag,
+  Zap,
+  Globe,
+  Link,
+  LayoutGrid
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -330,6 +336,7 @@ interface MultiSelectDropdownProps {
   placeholder?: string
   searchable?: boolean
   align?: 'left' | 'right'
+  icon?: React.ReactNode
 }
 
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
@@ -339,7 +346,8 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   onChange,
   placeholder = 'Todos',
   searchable = true,
-  align = 'left'
+  align = 'left',
+  icon
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -384,8 +392,9 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   return (
     <div className="relative space-y-1" ref={dropdownRef}>
       <div className="flex items-center justify-between">
-        <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-          {label}
+        <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+          {icon && <span className="text-blue-600">{icon}</span>}
+          <span>{label}</span>
         </label>
         {selected.length > 0 && (
           <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-blue-100 text-blue-700">
@@ -397,7 +406,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
-        className={`w-full px-2.5 py-1 text-xs rounded-lg border transition-all text-left flex items-center justify-between gap-1.5 cursor-pointer shadow-2xs ${isOpen
+        className={`w-full px-2.5 py-1.5 text-xs rounded-xl border transition-all text-left flex items-center justify-between gap-1.5 cursor-pointer shadow-2xs ${isOpen
             ? 'ring-2 ring-blue-500 border-blue-500 bg-white'
             : selected.length > 0
               ? 'border-blue-400 bg-blue-50/50 text-blue-900 font-semibold'
@@ -2241,12 +2250,31 @@ export const PcpJsMartinsPage: React.FC = () => {
   return (
     <div className="w-full space-y-4 animate-in fade-in duration-300">
       {/* ------------------------------------------------------------------ */}
-      {/* BARRA DE MENUS NO CANTO ESQUERDO COM OPÇÃO DE AUTO-OCULTAR         */}
+      {/* BARRA SUPERIOR DE NAVEGAÇÃO FUTURISTA - MAGALOG (COM ABAS & IA)    */}
       {/* ------------------------------------------------------------------ */}
       {!isMenuAutoHide ? (
-        <div className="flex items-center justify-between gap-3 pb-2 border-b border-slate-200/90">
-          {/* Menus alinhados no canto esquerdo */}
-          <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs gap-0.5 flex-wrap sm:flex-nowrap">
+        <div className="bg-gradient-to-r from-[#03091e] via-[#07173b] to-[#030a24] border border-blue-500/30 rounded-2xl p-2 px-3 sm:px-4 shadow-[0_4px_25px_rgba(0,102,255,0.18)] flex items-center justify-between gap-3 text-white backdrop-blur-md">
+          {/* Logo e Marca Magalog */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 p-[1.5px] shadow-[0_0_12px_rgba(6,182,212,0.6)] flex items-center justify-center">
+              <div className="w-full h-full bg-[#040e26] rounded-[10px] flex items-center justify-center">
+                <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-cyan-400 drop-shadow-[0_0_6px_rgba(34,211,238,0.8)]" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 19V5l9 8 9-8v14" />
+                </svg>
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-base font-black tracking-wide text-white leading-tight">
+                Magalog
+              </span>
+              <span className="text-[9px] font-bold text-cyan-300 tracking-wider uppercase leading-none">
+                Serviços Logísticos
+              </span>
+            </div>
+          </div>
+
+          {/* Menus / Abas Principais em Pílulas Futuristas */}
+          <div className="flex items-center gap-1 p-1 bg-[#020716]/60 rounded-xl border border-blue-500/20 shadow-inner flex-wrap sm:flex-nowrap">
             {tabs.map(tab => {
               const isActive = activeTab === tab.id
               return (
@@ -2254,27 +2282,46 @@ export const PcpJsMartinsPage: React.FC = () => {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
-                    ? 'bg-white text-blue-700 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
+                    ? 'bg-gradient-to-r from-blue-600 to-sky-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.5)] border border-blue-400/40'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
                     }`}
                 >
-                  {tab.icon}
+                  {tab.id === 'planejamento' ? (
+                    <BarChart3 size={15} className={isActive ? 'text-cyan-200' : 'text-slate-400'} />
+                  ) : tab.id === 'controle' ? (
+                    <CheckCircle2 size={14} className={isActive ? 'text-cyan-200' : 'text-slate-400'} />
+                  ) : tab.id === 'cadastros' ? (
+                    <Sliders size={14} className={isActive ? 'text-cyan-200' : 'text-slate-400'} />
+                  ) : (
+                    tab.icon
+                  )}
                   <span>{tab.label}</span>
                 </button>
               )
             })}
           </div>
 
+          {/* Chip IA Futurista */}
+          <div className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-xl bg-cyan-950/40 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.15)]">
+            <div className="w-6 h-6 rounded-md bg-blue-900/90 border border-cyan-400/80 flex items-center justify-center text-[10px] font-black text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.6)]">
+              IA
+            </div>
+            <span className="text-[11px] font-medium text-cyan-100">
+              Dados que impulsionam uma logística mais inteligente
+            </span>
+          </div>
+
           {/* Botão para ativar modo auto-ocultar */}
           <button
             type="button"
             onClick={toggleMenuAutoHide}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/10 border border-white/10 transition-all cursor-pointer shrink-0"
             title="Ocultar menus automaticamente para ganhar mais espaço de tela (só exibe ao passar o mouse)"
           >
-            <Pin size={12} className="text-slate-400 rotate-45" />
+            <Settings2 size={13} className="text-cyan-400" />
             <span className="hidden sm:inline">Auto-ocultar menus</span>
+            <ChevronDown size={12} className="text-slate-400" />
           </button>
         </div>
       ) : (
@@ -2285,27 +2332,27 @@ export const PcpJsMartinsPage: React.FC = () => {
         >
           {/* Faixa / Gatilho fino de ativação no canto esquerdo */}
           <div className="flex items-center justify-between py-0.5">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-slate-100/80 hover:bg-blue-50 border border-slate-200/80 text-[11px] font-bold text-slate-600 hover:text-blue-700 cursor-pointer shadow-2xs transition-all">
-              <Menu size={12} className="text-blue-600" />
-              <span>Menu: <strong className="text-blue-700 capitalize">{currentTabInfo.label}</strong></span>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#07173b]/90 hover:bg-[#0c2356] border border-blue-500/30 text-[11px] font-bold text-slate-200 hover:text-white cursor-pointer shadow-2xs transition-all">
+              <Menu size={12} className="text-cyan-400" />
+              <span>Menu: <strong className="text-cyan-300 capitalize">{currentTabInfo.label}</strong></span>
               <span className="text-[9.5px] text-slate-400 font-normal ml-1">(passe o mouse aqui para navegar)</span>
             </div>
 
             <button
               type="button"
               onClick={toggleMenuAutoHide}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-medium text-slate-400 hover:text-slate-700 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-medium text-slate-400 hover:text-slate-200 hover:bg-white/10 border border-transparent hover:border-slate-700 transition-all cursor-pointer"
               title="Fixar menus permanentemente visíveis na tela"
             >
-              <PinOff size={11} className="text-amber-500" />
+              <PinOff size={11} className="text-amber-400" />
               <span className="hidden sm:inline">Fixar menu</span>
             </button>
           </div>
 
           {/* Menu Flutuante que surge sobreposto ao passar o mouse */}
           {isMenuHovered && (
-            <div className="absolute top-0 left-0 z-50 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-300 shadow-xl p-2 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150 min-w-[520px]">
-              <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs gap-0.5 flex-wrap sm:flex-nowrap">
+            <div className="absolute top-0 left-0 z-50 bg-[#07173b]/95 backdrop-blur-md rounded-2xl border border-blue-500/40 shadow-2xl p-2 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150 min-w-[520px] text-white">
+              <div className="flex items-center p-0.5 bg-[#020716]/60 rounded-xl border border-blue-500/20 shadow-inner gap-0.5 flex-wrap sm:flex-nowrap">
                 {tabs.map(tab => {
                   const isActive = activeTab === tab.id
                   return (
@@ -2317,11 +2364,15 @@ export const PcpJsMartinsPage: React.FC = () => {
                         setIsMenuHovered(false)
                       }}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
-                        ? 'bg-white text-blue-700 shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                        ? 'bg-gradient-to-r from-blue-600 to-sky-500 text-white shadow-2xs'
+                        : 'text-slate-300 hover:text-white hover:bg-white/10'
                         }`}
                     >
-                      {tab.icon}
+                      {tab.id === 'planejamento' ? (
+                        <BarChart3 size={14} className={isActive ? 'text-cyan-200' : 'text-slate-400'} />
+                      ) : (
+                        tab.icon
+                      )}
                       <span>{tab.label}</span>
                     </button>
                   )
@@ -5005,18 +5056,139 @@ export const PcpJsMartinsPage: React.FC = () => {
         return (
           <div className="space-y-4">
             {/* ------------------------------------------------------------ */}
-            {/* FAIXA HORIZONTAL AMPLA DEDICADA ÀS SEGMENTAÇÕES DE DADOS     */}
+            {/* HERO BANNER LOGÍSTICO INTELIGENTE (FUTURISTA COM IA)         */}
             {/* ------------------------------------------------------------ */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 shadow-2xs space-y-3">
+            <div className="relative overflow-hidden rounded-2xl border border-blue-500/30 bg-gradient-to-r from-[#02081a] via-[#051740] to-[#02081a] p-4 sm:p-5 text-white shadow-xl min-h-[125px] flex flex-col md:flex-row items-center justify-between gap-4">
+              {/* Glow effects de fundo */}
+              <div className="absolute -left-20 -top-20 w-64 h-64 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Lado Esquerdo: Ícone 3D Cube + Título e Subtítulo */}
+              <div className="flex items-center gap-3.5 z-10 shrink-0">
+                <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-blue-950 to-cyan-950 border border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.45)] flex items-center justify-center shrink-0">
+                  {/* 3D Isometric Wireframe Cube SVG */}
+                  <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7 sm:w-8 sm:h-8 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                    <path d="M2 17l10 5 10-5" />
+                    <path d="M2 12l10 5 10-5" />
+                    <path d="M12 22V12" />
+                    <path d="M2 7v10" />
+                    <path d="M22 7v10" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-wider text-white drop-shadow-md leading-tight">
+                    SEGMENTAÇÕES DE DADOS &amp; FILTROS DO PLANEJAMENTO
+                  </h2>
+                  <p className="text-xs sm:text-[13px] text-cyan-300 font-medium mt-0.5">
+                    Mais inteligência para decidir, mais eficiência para entregar.
+                  </p>
+                </div>
+              </div>
+
+              {/* Centro: Arte Ilustrativa de Logística & Caminhão Magalu */}
+              <div className="hidden lg:flex items-center justify-center flex-1 z-10 px-4">
+                <div className="relative w-full max-w-[320px] h-[85px] flex items-center justify-center">
+                  <svg viewBox="0 0 320 85" className="w-full h-full overflow-visible">
+                    {/* Linhas de perspectiva */}
+                    <line x1="20" y1="80" x2="150" y2="40" stroke="#0ea5e9" strokeWidth="1" strokeOpacity="0.4" strokeDasharray="3 3" />
+                    <line x1="75" y1="80" x2="160" y2="40" stroke="#0ea5e9" strokeWidth="1" strokeOpacity="0.5" />
+                    <line x1="245" y1="80" x2="180" y2="40" stroke="#0ea5e9" strokeWidth="1" strokeOpacity="0.5" />
+                    <line x1="300" y1="80" x2="190" y2="40" stroke="#0ea5e9" strokeWidth="1" strokeOpacity="0.4" strokeDasharray="3 3" />
+                    {/* Rastros de velocidade */}
+                    <line x1="35" y1="52" x2="135" y2="52" stroke="#38bdf8" strokeWidth="2" strokeOpacity="0.7" />
+                    <line x1="55" y1="59" x2="130" y2="59" stroke="#67e8f9" strokeWidth="1.5" strokeOpacity="0.5" />
+                    <line x1="75" y1="45" x2="125" y2="45" stroke="#0284c7" strokeWidth="1.5" strokeOpacity="0.4" />
+                  </svg>
+                  {/* Silhueta realista estilizada de caminhão Magalu */}
+                  <div className="absolute right-8 top-1 flex items-center">
+                    <div className="relative bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500 rounded-lg p-2 px-3.5 shadow-[0_0_20px_rgba(14,165,233,0.5)] border border-cyan-400/40 flex items-center gap-2">
+                      <Truck size={26} className="text-white drop-shadow" />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black tracking-widest text-white uppercase italic">
+                          Magalu
+                        </span>
+                        <span className="text-[7.5px] font-bold text-cyan-200 tracking-wider uppercase">
+                          Transportes
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lado Direito: IA Brain Holográfico & Checklist de Benefícios */}
+              <div className="flex items-center gap-4 z-10 shrink-0">
+                <div className="relative w-14 h-14 sm:w-15 sm:h-15 rounded-2xl bg-cyan-950/60 border border-cyan-400/60 shadow-[0_0_20px_rgba(6,182,212,0.35)] flex items-center justify-center shrink-0">
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 animate-pulse pointer-events-none" />
+                  <div className="flex flex-col items-center">
+                    <Cpu size={22} className="text-cyan-300 drop-shadow-[0_0_6px_rgba(34,211,238,0.9)]" />
+                    <span className="text-[8.5px] font-black tracking-wider text-cyan-200 mt-0.5">IA</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1 text-xs">
+                  <div className="flex items-center gap-2 text-cyan-100 font-semibold">
+                    <span className="text-cyan-400 font-black">✔</span>
+                    <span>Previsão mais precisa</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-cyan-100 font-semibold">
+                    <span className="text-amber-400 font-black">⚡</span>
+                    <span>Operação otimizada</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-cyan-100 font-semibold">
+                    <span className="text-emerald-400 font-black">📈</span>
+                    <span>Resultados ainda maiores</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ------------------------------------------------------------ */}
+            {/* FAIXA HORIZONTAL DEDICADA ÀS SEGMENTAÇÕES DE DADOS (CARD)    */}
+            {/* ------------------------------------------------------------ */}
+            <div className="bg-white rounded-3xl border border-blue-100/90 p-4 sm:p-5 shadow-[0_10px_35px_rgba(0,50,150,0.06)] space-y-3.5 relative overflow-hidden">
+              {/* Marca d'Água / Fundo Futurista: Mapa de Rotas Conectadas & Slogan */}
+              <div className="absolute top-0 right-0 bottom-0 w-[420px] pointer-events-none select-none overflow-hidden hidden xl:flex flex-col justify-between items-end p-5 pr-6 z-0">
+                <svg viewBox="0 0 400 150" className="w-full h-auto opacity-20">
+                  <g fill="#0284c7">
+                    <circle cx="80" cy="50" r="14" opacity="0.3" />
+                    <circle cx="110" cy="75" r="18" opacity="0.4" />
+                    <circle cx="160" cy="45" r="12" opacity="0.3" />
+                    <circle cx="210" cy="65" r="22" opacity="0.35" />
+                    <circle cx="270" cy="45" r="26" opacity="0.4" />
+                    <circle cx="340" cy="80" r="12" opacity="0.3" />
+                  </g>
+                  <path d="M 80 50 Q 150 10 210 65" fill="none" stroke="#0066ff" strokeWidth="1.8" strokeDasharray="4 2" />
+                  <path d="M 110 75 Q 190 20 270 45" fill="none" stroke="#06b6d4" strokeWidth="2" />
+                  <path d="M 210 65 Q 280 25 340 80" fill="none" stroke="#0066ff" strokeWidth="1.5" strokeDasharray="3 3" />
+                  <circle cx="80" cy="50" r="3" fill="#0066ff" />
+                  <circle cx="110" cy="75" r="4" fill="#06b6d4" />
+                  <circle cx="210" cy="65" r="4.5" fill="#0066ff" />
+                  <circle cx="270" cy="45" r="4" fill="#06b6d4" />
+                  <circle cx="340" cy="80" r="3" fill="#0066ff" />
+                </svg>
+
+                <div className="text-right z-10 -mt-2">
+                  <p className="text-[12px] font-black text-slate-800 leading-tight">
+                    Planejamento inteligente.
+                  </p>
+                  <p className="text-[12px] font-black text-slate-800 leading-tight">
+                    Uma logística conectada com o futuro.
+                  </p>
+                  <div className="w-48 h-1 ml-auto mt-1 rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-amber-400 shadow-xs" />
+                </div>
+              </div>
+
               {/* Barra de Título e Ações Rápidas da Faixa de Segmentações */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-100/80">
-                    <Sliders size={15} />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100 relative z-10">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 shadow-2xs">
+                    <Sliders size={16} />
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
-                      Segmentações de Dados & Filtros do Planejamento
+                      Segmentações de Dados &amp; Filtros do Planejamento
                     </h3>
                     {(planFilterTipoModal.length > 0 ||
                       planFilterStatusOp.length > 0 ||
@@ -5027,20 +5199,21 @@ export const PcpJsMartinsPage: React.FC = () => {
                       planFilterLinhas.length > 0 ||
                       planFilterPrazos.length > 0 ||
                       planSearchTerm.trim() !== '') && (
-                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                        <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 flex items-center gap-1.5 shadow-2xs">
+                          <CheckCircle2 size={12} className="text-emerald-600" />
                           Filtros ativos
                         </span>
                       )}
 
                     {/* Badge da Última Atualização Central da Carteira */}
                     <div
-                      className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] border shadow-2xs transition-all ${isSyncingOracle
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs border shadow-2xs transition-all ${isSyncingOracle
                         ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse'
                         : 'bg-slate-50 text-slate-600 border-slate-200/90'
                         }`}
                       title={lastSyncDateStr ? `Sincronizado no Supabase: ${lastSyncDateStr} (Clique no botão para recarregar da nuvem)` : 'Sincronização da Carteira'}
                     >
-                      <Clock size={11} className={isSyncingOracle ? 'animate-spin text-blue-600' : 'text-blue-500'} />
+                      <Clock size={12} className={isSyncingOracle ? 'animate-spin text-blue-600' : 'text-blue-500'} />
                       <span className="text-slate-400 font-medium hidden sm:inline">Última atualização:</span>
                       <strong className="font-mono font-bold text-slate-800">
                         {isSyncingOracle
@@ -5064,11 +5237,11 @@ export const PcpJsMartinsPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 self-end sm:self-auto">
+                <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
                   {isLoadingPlanning && (
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg animate-pulse">
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-full animate-pulse">
                       <RefreshCw size={11} className="animate-spin text-blue-600" />
-                      Sincronizando base...
+                      Sincronizando...
                     </span>
                   )}
                   <button
@@ -5095,34 +5268,38 @@ export const PcpJsMartinsPage: React.FC = () => {
                         localStorage.removeItem('magalog_pcp_plan_search')
                       } catch { }
                     }}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-full shadow-2xs hover:shadow-xs transition-all cursor-pointer"
                     title="Redefinir todas as segmentações"
                   >
-                    <RefreshCw size={11} />
-                    Limpar Segmentações
+                    <RefreshCw size={11} className="text-slate-500" />
+                    <span>Limpar Segmentações</span>
                   </button>
                   <button
                     type="button"
                     onClick={handleSyncOracleCarteira}
                     disabled={isSyncingOracle}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-2xs hover:shadow-xs rounded-lg transition-all cursor-pointer disabled:opacity-60 active:scale-95"
+                    className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold text-white bg-[#0066ff] hover:bg-blue-600 rounded-full shadow-[0_2px_10px_rgba(0,102,255,0.3)] hover:shadow-md transition-all cursor-pointer disabled:opacity-60 active:scale-95"
                     title="Consultar Carteira diretamente do Oracle MLPDW e sincronizar com Supabase"
                   >
                     <Database size={12} className={isSyncingOracle ? 'animate-spin' : ''} />
                     <span>{isSyncingOracle ? 'Atualizando...' : 'Atualizar Carteira'}</span>
                   </button>
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-100/80 text-blue-800 border border-blue-200/80">
-                    {enrichedFiltered.length.toLocaleString('pt-BR')} itens ativos
+                  <span className="text-xs font-extrabold px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 flex items-center gap-1.5">
+                    <Boxes size={12} className="text-blue-600" />
+                    <span>{enrichedFiltered.length.toLocaleString('pt-BR')} itens ativos</span>
                   </span>
                 </div>
               </div>
 
-              {/* Segmentações Rápidas por Botões Interativos (Slicers) - Empilhadas */}
-              <div className="flex flex-col gap-2 pt-1 pb-1">
+              {/* Segmentações Rápidas por Botões Interativos (Slicers) - Empilhadas com ícones escuros */}
+              <div className="flex flex-col gap-2 pt-1 pb-1 relative z-10">
                 {/* 1ª Linha: Liberação de Faturamento (FLLIBFAT) */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-1.5 w-[145px] shrink-0">
-                    <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider">
+                  <div className="flex items-center gap-2 w-[165px] shrink-0">
+                    <div className="w-6 h-6 rounded-lg bg-[#071739] text-cyan-400 flex items-center justify-center shrink-0 shadow-xs">
+                      <FileText size={13} />
+                    </div>
+                    <span className="text-[10.5px] font-extrabold text-slate-800 uppercase tracking-wider">
                       Lib. Faturamento:
                     </span>
                     {planFilterFllibfat.length > 0 && (
@@ -5132,21 +5309,21 @@ export const PcpJsMartinsPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
+                  <div className="flex items-center gap-1 flex-wrap">
                     <button
                       type="button"
                       onClick={() => setPlanFilterFllibfat([])}
-                      className={`px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${planFilterFllibfat.length === 0
-                        ? 'bg-[#0e3b66] text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${planFilterFllibfat.length === 0
+                        ? 'bg-[#0066ff] text-white shadow-md ring-2 ring-blue-300'
+                        : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200'
                         }`}
                     >
                       Todos
                     </button>
 
                     {[
-                      { id: 'S', label: 'S', desc: 'Liberado', activeColor: 'bg-emerald-600 text-white' },
-                      { id: 'N', label: 'N', desc: 'Bloqueado', activeColor: 'bg-amber-600 text-white' }
+                      { id: 'S', label: 'S', desc: 'Liberado', activeColor: 'bg-[#0066ff] text-white shadow-md' },
+                      { id: 'N', label: 'N', desc: 'Bloqueado', activeColor: 'bg-amber-600 text-white shadow-md' }
                     ].map(item => {
                       const isSelected = planFilterFllibfat.includes(item.id)
                       return (
@@ -5160,13 +5337,13 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 : [...prev, item.id]
                             )
                           }}
-                          className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer select-none ${isSelected
-                            ? `${item.activeColor} shadow-2xs`
-                            : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                          className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer select-none ${isSelected
+                            ? `${item.activeColor} border-transparent`
+                            : 'bg-white border-slate-200/90 text-slate-700 hover:bg-slate-50'
                             }`}
                         >
                           <span className="font-extrabold">{item.label}</span>
-                          <span className={`text-[8.5px] px-1 py-0.2 rounded font-sans ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                          <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-sans ${isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'
                             }`}>
                             {item.desc}
                           </span>
@@ -5179,7 +5356,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setPlanFilterFllibfat([])}
-                      className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
+                      className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
                     >
                       Limpar
                     </button>
@@ -5188,8 +5365,11 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                 {/* 2ª Linha: Status Operação */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-1.5 w-[145px] shrink-0">
-                    <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider">
+                  <div className="flex items-center gap-2 w-[165px] shrink-0">
+                    <div className="w-6 h-6 rounded-lg bg-[#071739] text-cyan-400 flex items-center justify-center shrink-0 shadow-xs">
+                      <CalendarDays size={13} />
+                    </div>
+                    <span className="text-[10.5px] font-extrabold text-slate-800 uppercase tracking-wider">
                       Status Operação:
                     </span>
                     {planFilterStatusOp.length > 0 && (
@@ -5199,21 +5379,21 @@ export const PcpJsMartinsPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
+                  <div className="flex items-center gap-1 flex-wrap">
                     <button
                       type="button"
                       onClick={() => setPlanFilterStatusOp([])}
-                      className={`px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${planFilterStatusOp.length === 0
-                        ? 'bg-[#0e3b66] text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${planFilterStatusOp.length === 0
+                        ? 'bg-[#0066ff] text-white shadow-md ring-2 ring-blue-300'
+                        : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200'
                         }`}
                     >
                       Todos
                     </button>
 
                     {[
-                      { id: 'EM CARTEIRA', label: 'Em Carteira', activeColor: 'bg-blue-600 text-white' },
-                      { id: 'EM PROCESSO', label: 'Em Processo', activeColor: 'bg-amber-600 text-white' }
+                      { id: 'EM CARTEIRA', prefix: 'E', label: 'Em Carteira', activeColor: 'bg-[#0066ff] text-white shadow-md' },
+                      { id: 'EM PROCESSO', prefix: 'E', label: 'Em Processo', activeColor: 'bg-amber-600 text-white shadow-md' }
                     ].map(item => {
                       const isSelected = planFilterStatusOp.includes(item.id)
                       return (
@@ -5227,11 +5407,12 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 : [...prev, item.id]
                             )
                           }}
-                          className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer select-none ${isSelected
-                            ? `${item.activeColor} shadow-2xs`
-                            : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                          className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer select-none ${isSelected
+                            ? `${item.activeColor} border-transparent`
+                            : 'bg-white border-slate-200/90 text-slate-700 hover:bg-slate-50'
                             }`}
                         >
+                          <span className="font-extrabold">{item.prefix}</span>
                           <span>{item.label}</span>
                         </button>
                       )
@@ -5242,7 +5423,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setPlanFilterStatusOp([])}
-                      className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
+                      className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
                     >
                       Limpar
                     </button>
@@ -5251,10 +5432,14 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                 {/* 3ª Linha: Tipo Modal */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-1.5 w-[145px] shrink-0">
-                    <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider">
+                  <div className="flex items-center gap-2 w-[165px] shrink-0">
+                    <div className="w-6 h-6 rounded-lg bg-[#071739] text-cyan-400 flex items-center justify-center shrink-0 shadow-xs">
+                      <Tag size={13} />
+                    </div>
+                    <span className="text-[10.5px] font-extrabold text-slate-800 uppercase tracking-wider">
                       Tipo Modal:
                     </span>
+                    <HelpCircle size={11} className="text-slate-400 cursor-help" title="Filtro rápido por perfil logístico do modal" />
                     {planFilterTipoModal.length > 0 && (
                       <span className="text-[9.5px] text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded font-extrabold">
                         {planFilterTipoModal.length}
@@ -5262,22 +5447,22 @@ export const PcpJsMartinsPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-0.5 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
+                  <div className="flex items-center gap-1 flex-wrap">
                     <button
                       type="button"
                       onClick={() => setPlanFilterTipoModal([])}
-                      className={`px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${planFilterTipoModal.length === 0
-                        ? 'bg-[#0e3b66] text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${planFilterTipoModal.length === 0
+                        ? 'bg-[#0066ff] text-white shadow-md ring-2 ring-blue-300'
+                        : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200'
                         }`}
                     >
                       Todos
                     </button>
 
                     {[
-                      { id: 'Venda', label: 'Venda', badge: 'RD/COU', activeColor: 'bg-blue-600 text-white' },
-                      { id: 'Abastecimento', label: 'Abastecimento', badge: 'ABA', activeColor: 'bg-emerald-600 text-white' },
-                      { id: 'Tranfs', label: 'Tranfs', badge: 'TRF', activeColor: 'bg-purple-600 text-white' }
+                      { id: 'Venda', label: 'Venda', badge: 'RO/COU', activeColor: 'bg-[#0066ff] text-white shadow-md' },
+                      { id: 'Abastecimento', label: 'Abastecimento', badge: 'ABI', activeColor: 'bg-emerald-600 text-white shadow-md' },
+                      { id: 'Tranfs', label: 'Tranfs', badge: 'TRF', activeColor: 'bg-purple-600 text-white shadow-md' }
                     ].map(item => {
                       const isSelected = planFilterTipoModal.includes(item.id)
                       return (
@@ -5291,13 +5476,13 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 : [...prev, item.id]
                             )
                           }}
-                          className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md transition-all cursor-pointer select-none ${isSelected
-                            ? `${item.activeColor} shadow-2xs`
-                            : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                          className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer select-none ${isSelected
+                            ? `${item.activeColor} border-transparent`
+                            : 'bg-white border-slate-200/90 text-slate-700 hover:bg-slate-50'
                             }`}
                         >
                           <span>{item.label}</span>
-                          <span className={`text-[8.5px] px-1 py-0.2 rounded font-mono ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                          <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'
                             }`}>
                             {item.badge}
                           </span>
@@ -5310,20 +5495,24 @@ export const PcpJsMartinsPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setPlanFilterTipoModal([])}
-                      className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1"
+                      className="inline-flex items-center gap-1 text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer ml-1"
                     >
-                      Limpar
+                      <Trash2 size={11} />
+                      <span>Limpar</span>
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Linha 2: Segmentações por Seleção & Busca Rápida (5 Colunas com Múltipla Seleção) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-2 border-t border-slate-100">
-                {/* 1. Busca Destino / Rota / Pedido (Multi-termo com separador por vírgula, espaço ou linha) */}
+              {/* Linha 2: Segmentações por Seleção & Busca Rápida (5 Colunas com Múltipla Seleção e Ícones) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 pt-3 border-t border-slate-100 relative z-10">
+                {/* 1. Busca Destino / Rota / Pedido */}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Busca Rápida</label>
+                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                      <Search size={11} className="text-blue-600" />
+                      <span>Busca Rápida</span>
+                    </label>
                     {planSearchTerm.trim() && (
                       <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-blue-100 text-blue-700">
                         {searchTokens.length > 1 ? `${searchTokens.length} itens` : 'ativo'}
@@ -5331,19 +5520,19 @@ export const PcpJsMartinsPage: React.FC = () => {
                     )}
                   </div>
                   <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
                     <input
                       type="text"
                       value={planSearchTerm}
                       onChange={e => setPlanSearchTerm(e.target.value)}
                       placeholder="Destino, pedidos (ex: 1195028929, 1195029365)..."
-                      className="w-full pl-8 pr-7 py-1 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/70 focus:bg-white transition-colors"
+                      className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/70 focus:bg-white transition-colors"
                     />
                     {planSearchTerm && (
                       <button
                         type="button"
                         onClick={() => setPlanSearchTerm('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                         title="Limpar busca"
                       >
                         <X size={12} />
@@ -5352,7 +5541,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 2. Filtro de Destino (Multi-Seleção com Busca Interna) */}
+                {/* 2. Filtro de Destino */}
                 <MultiSelectDropdown
                   label="Destino"
                   options={uniqueDestinosList}
@@ -5360,9 +5549,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                   onChange={setPlanFilterDestinos}
                   placeholder="Todos os Destinos"
                   searchable={true}
+                  icon={<MapPin size={11} />}
                 />
 
-                {/* 3. Filtro de Região (Multi-Seleção) */}
+                {/* 3. Filtro de Região */}
                 <MultiSelectDropdown
                   label="Região"
                   options={uniqueRegioesList}
@@ -5370,9 +5560,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                   onChange={setPlanFilterRegioes}
                   placeholder="Todas as Regiões"
                   searchable={false}
+                  icon={<Globe size={11} />}
                 />
 
-                {/* 4. Filtro de Modalidade (Multi-Seleção) */}
+                {/* 4. Filtro de Modalidade */}
                 <MultiSelectDropdown
                   label="Modalidade (Aux)"
                   options={uniqueModalidadesList}
@@ -5380,9 +5571,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                   onChange={setPlanFilterModalidades}
                   placeholder="Todas as Modalidades"
                   searchable={false}
+                  icon={<LayoutGrid size={11} />}
                 />
 
-                {/* 5. Filtro de Linha (Multi-Seleção com Busca Interna) */}
+                {/* 5. Filtro de Linha */}
                 <MultiSelectDropdown
                   label="Linha"
                   options={uniqueLinhasList}
@@ -5391,17 +5583,18 @@ export const PcpJsMartinsPage: React.FC = () => {
                   placeholder="Todas as Linhas"
                   searchable={true}
                   align="right"
+                  icon={<Link size={11} />}
                 />
               </div>
 
               {/* Linha 3: Segmentação por Prazos / SLA */}
-              <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 w-full">
-                <div className="flex flex-wrap items-center gap-1">
-                  <div className="flex items-center gap-1 mr-0.5 text-slate-500 shrink-0">
-                    <Clock size={11} className="text-blue-600" />
-                    <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-slate-600">Prazos:</span>
+              <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 w-full relative z-10">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 mr-1 text-slate-700 shrink-0">
+                    <Zap size={13} className="text-blue-600 fill-blue-600" />
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-800">Prazos:</span>
                     {planFilterPrazos.length > 0 && (
-                      <span className="text-[9px] text-blue-700 bg-blue-100 px-1 py-0.2 rounded font-extrabold">
+                      <span className="text-[9.5px] text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded font-extrabold">
                         {planFilterPrazos.length}
                       </span>
                     )}
@@ -5411,9 +5604,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPlanFilterPrazos([])}
-                    className={`px-1.5 py-0.5 text-[10.5px] font-bold rounded-md border transition-all cursor-pointer shrink-0 ${planFilterPrazos.length === 0
-                      ? 'bg-[#0e3b66] text-white border-[#0e3b66] shadow-xs'
-                      : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
+                    className={`px-3 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer shrink-0 ${planFilterPrazos.length === 0
+                      ? 'bg-[#071739] text-white border-[#071739] shadow-sm'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
                       }`}
                   >
                     Todos
@@ -5435,26 +5628,30 @@ export const PcpJsMartinsPage: React.FC = () => {
                               : [...prev, faixa]
                           )
                         }}
-                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10.5px] font-bold rounded-md border transition-all cursor-pointer select-none shrink-0 ${isSelected
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer select-none shrink-0 ${isSelected
                           ? isVencido
-                            ? 'bg-rose-600 text-white border-rose-600 shadow-xs ring-1 ring-rose-200'
-                            : 'bg-blue-600 text-white border-blue-600 shadow-xs ring-1 ring-blue-200'
+                            ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                            : 'bg-blue-600 text-white border-blue-600 shadow-sm'
                           : isVencido
-                            ? 'bg-rose-50/70 hover:bg-rose-100 text-rose-700 border-rose-200'
-                            : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
+                            ? 'bg-rose-100 text-rose-700 border-rose-200 hover:bg-rose-200'
+                            : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
                           }`}
                       >
                         <span>{faixa}</span>
-                        <span
-                          className={`text-[9.5px] px-1 py-0.2 rounded font-extrabold transition-colors ${isSelected
-                            ? 'bg-white/25 text-white'
-                            : isVencido
-                              ? 'bg-rose-200/80 text-rose-800'
-                              : 'bg-slate-100 text-slate-600'
-                            }`}
-                        >
-                          {count}
-                        </span>
+                        {isVencido ? (
+                          <span className="w-3.5 h-3.5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[9px] font-black">
+                            !
+                          </span>
+                        ) : (
+                          <span
+                            className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-extrabold transition-colors ${isSelected
+                              ? 'bg-white/25 text-white'
+                              : 'bg-blue-50 text-blue-700 border border-blue-100'
+                              }`}
+                          >
+                            {count}
+                          </span>
+                        )}
                       </button>
                     )
                   })}
@@ -5463,7 +5660,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setPlanFilterPrazos([])}
-                      className="text-[9.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-0.5 shrink-0"
+                      className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1 shrink-0"
                     >
                       Limpar
                     </button>
