@@ -219,8 +219,8 @@ export function getOperationalReferenceDate(rows: any[]): Date {
   return latest || today
 }
 
-// Lista das 10 faixas oficiais de prazo/SLA
-export const PRAZO_FAIXAS = ['Vencido', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D+'] as const
+// Lista das faixas oficiais de prazo/SLA (inclui Erro para agendamento em fins de semana)
+export const PRAZO_FAIXAS = ['Vencido', 'Erro', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D+'] as const
 
 // Helper para calcular dias úteis (desconsiderando Sábado e Domingo)
 export function countBusinessDays(startDate: Date, endDate: Date): number {
@@ -250,7 +250,7 @@ export function countBusinessDays(startDate: Date, endDate: Date): number {
 }
 
 // Helper para calcular a faixa de prazo (SLA) para Venda (PREVENTREGA) e Abastecimento (DTPEDIDO)
-// Regra: Para Venda, Sábado e Domingo NÃO entram como dia útil
+// Regra: Para Venda, Sábado e Domingo NÃO entram como dia útil; se o prazo cair no Sábado ou Domingo, é classificado como "Erro"
 export function getPrazoFaixa(row: any, isAba: boolean, refDate: Date): string {
   const msPerDay = 1000 * 60 * 60 * 24
   if (isAba) {
@@ -271,6 +271,13 @@ export function getPrazoFaixa(row: any, isAba: boolean, refDate: Date): string {
     // Para Venda: usa PREVENTREGA considerando apenas DIAS ÚTEIS (sem Sábado e Domingo)
     const dt = parseDateOnly(row.preventrega || row.PREVENTREGA || row.data_entrega_prevista || row.DATA_ENTREGA_PREVISTA || row.prazo_entrega || row.PRAZO_ENTREGA)
     if (!dt) return 'D+'
+
+    // Se o prazo cair no Sábado (6) ou Domingo (0), marca como "Erro"
+    const dayOfWeek = dt.getDay()
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      return 'Erro'
+    }
+
     const diffBusinessDays = countBusinessDays(refDate, dt)
     if (diffBusinessDays < 0) return 'Vencido'
     if (diffBusinessDays === 0) return 'D0'
@@ -4677,7 +4684,7 @@ export const PcpJsMartinsPage: React.FC = () => {
         // - Vendas: Prazo Cliente (PREVENTREGA) -> Vencido, D0..D7, D+
         // - Abastecimento: Aging do Pedido (DTPEDIDO) -> D0..D7, D+
         // ------------------------------------------------------------
-        const agingCols = ['Vencido', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D+']
+        const agingCols = ['Vencido', 'Erro', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D+']
 
         interface AgingItemAccumulator {
           chavePrincipal: string
@@ -5664,6 +5671,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                     const isSelected = planFilterPrazos.includes(faixa)
                     const count = prazoCounts[faixa] || 0
                     const isVencido = faixa === 'Vencido'
+                    const isErro = faixa === 'Erro'
 
                     return (
                       <button
@@ -5679,10 +5687,14 @@ export const PcpJsMartinsPage: React.FC = () => {
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer select-none shrink-0 ${isSelected
                           ? isVencido
                             ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
-                            : 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : isErro
+                              ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                              : 'bg-blue-600 text-white border-blue-600 shadow-sm'
                           : isVencido
                             ? 'bg-rose-100 text-rose-700 border-rose-200 hover:bg-rose-200'
-                            : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
+                            : isErro
+                              ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200'
+                              : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
                           }`}
                       >
                         <span>{faixa}</span>
@@ -5691,7 +5703,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                             ? 'bg-white/25 text-white'
                             : isVencido
                               ? 'bg-rose-200 text-rose-800 border border-rose-300'
-                              : 'bg-blue-50 text-blue-700 border border-blue-100'
+                              : isErro
+                                ? 'bg-amber-200 text-amber-900 border border-amber-300'
+                                : 'bg-blue-50 text-blue-700 border border-blue-100'
                             }`}
                         >
                           {count}
@@ -6075,9 +6089,11 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                                   {det.prazo && (
                                                                     <span className={`text-[8px] font-extrabold px-1 py-0.5 rounded ${det.prazo === 'Vencido'
                                                                       ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                                                      : det.prazo === 'D0'
-                                                                        ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                                                        : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                                                      : det.prazo === 'Erro'
+                                                                        ? 'bg-amber-100 text-amber-900 border border-amber-300 font-black'
+                                                                        : det.prazo === 'D0'
+                                                                          ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                                                          : 'bg-slate-100 text-slate-700 border border-slate-200'
                                                                       }`}>
                                                                       {det.prazo}
                                                                     </span>
@@ -7183,9 +7199,11 @@ export const PcpJsMartinsPage: React.FC = () => {
                                           {group.itens[0].prazo && (
                                             <span className={`text-[8px] font-extrabold px-1 py-0.5 rounded ${group.itens[0].prazo === 'Vencido'
                                               ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                              : group.itens[0].prazo === 'D0'
-                                                ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                                : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                              : group.itens[0].prazo === 'Erro'
+                                                ? 'bg-amber-100 text-amber-900 border border-amber-300 font-black'
+                                                : group.itens[0].prazo === 'D0'
+                                                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                                  : 'bg-slate-100 text-slate-700 border border-slate-200'
                                               }`}>
                                               {group.itens[0].prazo}
                                             </span>
@@ -8444,7 +8462,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 className={`py-1.5 px-1.5 text-center font-mono font-black border-r border-white/10 ${
                                   col === 'Vencido'
                                     ? 'bg-[#4c0519] text-rose-200 min-w-[50px] text-[10.5px]'
-                                    : 'bg-[#0e3b66] text-sky-100 min-w-[42px] text-[11px]'
+                                    : col === 'Erro'
+                                      ? 'bg-[#78350f] text-amber-200 min-w-[50px] text-[10.5px]'
+                                      : 'bg-[#0e3b66] text-sky-100 min-w-[42px] text-[11px]'
                                 }`}
                               >
                                 {col}
@@ -8992,7 +9012,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                 <td
                                   key={col}
                                   className={`py-2 px-1.5 text-center font-mono font-black text-[12px] border-l border-sky-800 ${
-                                    isVenc ? 'text-rose-300 bg-[#3b0713]' : 'text-white'
+                                    isVenc ? 'text-rose-300 bg-[#3b0713]' : (col === 'Erro' && val && val > 0 ? 'text-amber-300 bg-[#3b2307]' : 'text-white')
                                   }`}
                                 >
                                   {val && val > 0 ? (
