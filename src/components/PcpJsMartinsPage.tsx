@@ -249,6 +249,51 @@ export function countBusinessDays(startDate: Date, endDate: Date): number {
   return businessDays
 }
 
+// Adiciona N dias úteis a uma data base (pulando sábado e domingo)
+export function addBusinessDays(baseDate: Date, businessDaysToAdd: number): Date {
+  const result = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate())
+  if (businessDaysToAdd <= 0) return result
+  let added = 0
+  while (added < businessDaysToAdd) {
+    result.setDate(result.getDate() + 1)
+    const dow = result.getDay() // 0 = Domingo, 6 = Sábado
+    if (dow !== 0 && dow !== 6) {
+      added++
+    }
+  }
+  return result
+}
+
+const SHORT_MONTHS_BR = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+
+// Helper para obter o rótulo de data de calendário e faixa para os cards operacionais de Prazo
+export function getFaixaCalendarDate(faixa: string, refDate: Date): { dateLabel: string, isCalendarDate: boolean } {
+  if (faixa === 'Vencido') {
+    return { dateLabel: 'Passado', isCalendarDate: false }
+  }
+  if (faixa === 'Erro') {
+    return { dateLabel: 'Sáb / Dom', isCalendarDate: false }
+  }
+  if (faixa === 'D+') {
+    const d8 = addBusinessDays(refDate, 8)
+    const dia = String(d8.getDate()).padStart(2, '0')
+    const mes = SHORT_MONTHS_BR[d8.getMonth()]
+    return { dateLabel: `≥ ${dia}/${mes}`, isCalendarDate: false }
+  }
+
+  // Faixas D0 até D7
+  const match = faixa.match(/^D(\d+)$/)
+  if (match) {
+    const dNum = parseInt(match[1], 10)
+    const targetDate = addBusinessDays(refDate, dNum)
+    const dia = String(targetDate.getDate()).padStart(2, '0')
+    const mes = SHORT_MONTHS_BR[targetDate.getMonth()]
+    return { dateLabel: `${dia}/${mes}`, isCalendarDate: true }
+  }
+
+  return { dateLabel: faixa, isCalendarDate: false }
+}
+
 // Helper para calcular a faixa de prazo (SLA) para Venda (PREVENTREGA) e Abastecimento (DTPEDIDO)
 // Regra: Para Venda, Sábado e Domingo NÃO entram como dia útil; se o prazo cair no Sábado ou Domingo, é classificado como "Erro"
 export function getPrazoFaixa(row: any, isAba: boolean, refDate: Date): string {
@@ -3643,10 +3688,30 @@ export const PcpJsMartinsPage: React.FC = () => {
           })
         }
 
-        // Contagem de pedidos por Faixa de Prazo (SLA) considerando os filtros ativos (exceto o próprio filtro de prazo)
-        const prazoCounts: Record<string, number> = {}
+        // ------------------------------------------------------------
+        // Métricas e contagens para os cards de Faixa de Prazo (SLA)
+        // Considerando os filtros ativos (exceto o próprio filtro de prazo)
+        // ------------------------------------------------------------
+        interface PrazoFaixaMetrics {
+          pedidos: number
+          pecas: number
+          cubagem: number
+        }
+
+        const prazoMetrics: Record<string, PrazoFaixaMetrics> = {}
+        const totalPrazosPedsSet = new Set<string>()
+        let totalPrazosPecas = 0
+        let totalPrazosCub = 0
+        let totalPrazosItems = 0
+
+        PRAZO_FAIXAS.forEach(f => {
+          prazoMetrics[f] = { pedidos: 0, pecas: 0, cubagem: 0 }
+        })
+
         PRAZO_FAIXAS.forEach(f => {
           const pedsSet = new Set<string>()
+          let pecas = 0
+          let cubagem = 0
           let countItems = 0
           enrichedBase.forEach(r => {
             if (r.calc_prazo !== f) return
@@ -3667,9 +3732,49 @@ export const PcpJsMartinsPage: React.FC = () => {
             }
             if (!matchSearch(r)) return
             if (r.calc_ped) pedsSet.add(r.calc_ped)
+            pecas += Number(r.calc_qtd) || 0
+            cubagem += Number(r.calc_cub) || 0
             countItems++
           })
-          prazoCounts[f] = pedsSet.size || countItems
+          prazoMetrics[f] = {
+            pedidos: pedsSet.size || countItems,
+            pecas,
+            cubagem
+          }
+        })
+
+        // Métricas consolidadas para o card "Todos"
+        enrichedBase.forEach(r => {
+          if (planFilterRegioes.length > 0 && !planFilterRegioes.includes(r.calc_regiao)) return
+          if (planFilterDestinos.length > 0 && !planFilterDestinos.includes(r.calc_destino)) return
+          if (planFilterModalidades.length > 0 && !planFilterModalidades.includes(r.calc_modalidade)) return
+          if (planFilterLinhas.length > 0 && !planFilterLinhas.includes(r.calc_linha)) return
+          if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return
+          if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return
+          if (planFilterStatusOp.length > 0) {
+            const raw = String(r.calc_status_op || '').toUpperCase()
+            const matchStatus = planFilterStatusOp.some(st => {
+              if (st === 'EM CARTEIRA') return raw.includes('CARTEIRA')
+              if (st === 'EM PROCESSO') return raw.includes('PROCESSO')
+              return raw === st
+            })
+            if (!matchStatus) return
+          }
+          if (!matchSearch(r)) return
+          if (r.calc_ped) totalPrazosPedsSet.add(r.calc_ped)
+          totalPrazosPecas += Number(r.calc_qtd) || 0
+          totalPrazosCub += Number(r.calc_cub) || 0
+          totalPrazosItems++
+        })
+        const totalPrazosMetrics: PrazoFaixaMetrics = {
+          pedidos: totalPrazosPedsSet.size || totalPrazosItems,
+          pecas: totalPrazosPecas,
+          cubagem: totalPrazosCub
+        }
+
+        const prazoCounts: Record<string, number> = {}
+        PRAZO_FAIXAS.forEach(f => {
+          prazoCounts[f] = prazoMetrics[f].pedidos
         })
 
         const enrichedFiltered = enrichedBase.filter(r => {
@@ -5792,36 +5897,106 @@ export const PcpJsMartinsPage: React.FC = () => {
                 />
               </div>
 
-              {/* Linha 3: Segmentação por Prazos / SLA */}
-              <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 w-full relative z-0">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <div className="flex items-center gap-1.5 mr-1 text-slate-700 shrink-0">
-                    <Zap size={13} className="text-blue-600 fill-blue-600" />
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-800">Prazos:</span>
+              {/* Linha 3: Segmentação por Prazos / SLA em formato de Cards Operacionais */}
+              <div className="pt-2.5 border-t border-slate-100 flex flex-col gap-2 w-full relative z-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-slate-700 shrink-0">
+                    <Zap size={14} className="text-blue-600 fill-blue-600" />
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-800">Prazos & SLA:</span>
                     {planFilterPrazos.length > 0 && (
-                      <span className="text-[9.5px] text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded font-extrabold">
-                        {planFilterPrazos.length}
+                      <span className="text-[10px] text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full font-black">
+                        {planFilterPrazos.length} selecionado{planFilterPrazos.length > 1 ? 's' : ''}
                       </span>
                     )}
                   </div>
+                  {planFilterPrazos.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPlanFilterPrazos([])}
+                      className="text-[10.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline flex items-center gap-1"
+                    >
+                      Limpar filtro de prazos
+                    </button>
+                  )}
+                </div>
 
-                  {/* Botão Todos */}
+                {/* Grade de Cards com rolagem horizontal suave */}
+                <div className="flex items-stretch gap-2 overflow-x-auto pb-1.5 select-none pt-0.5 scrollbar-thin">
+                  {/* Card "Todos" */}
                   <button
                     type="button"
                     onClick={() => setPlanFilterPrazos([])}
-                    className={`px-3 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer shrink-0 ${planFilterPrazos.length === 0
-                      ? 'bg-[#071739] text-white border-[#071739] shadow-sm'
-                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
-                      }`}
+                    title="Exibir todos os prazos"
+                    className={`flex flex-col rounded-lg border transition-all cursor-pointer text-left overflow-hidden min-w-[76px] sm:min-w-[80px] shrink-0 shadow-2xs hover:shadow-xs ${
+                      planFilterPrazos.length === 0
+                        ? 'ring-2 ring-slate-800 border-slate-800 shadow-sm'
+                        : 'border-slate-200/90 hover:border-slate-300 bg-white'
+                    }`}
                   >
-                    Todos
+                    <div
+                      className={`px-1.5 py-1 text-center flex flex-col items-center justify-center leading-tight ${
+                        planFilterPrazos.length === 0
+                          ? 'bg-[#071739] text-white border-b border-[#071739]'
+                          : 'bg-slate-100 text-slate-700 border-b border-slate-200'
+                      }`}
+                    >
+                      <span className="text-[9px] font-semibold tracking-tight opacity-80">Geral</span>
+                      <span className="text-[11px] font-black uppercase tracking-wider">Todos</span>
+                    </div>
+                    <div className="px-1.5 py-1 flex flex-col gap-0.5 bg-white text-[9.5px] leading-tight">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-slate-400 font-bold text-[8.5px] uppercase">Ped</span>
+                        <span className="font-mono font-black text-slate-900 text-[10px]">
+                          {totalPrazosMetrics.pedidos.toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-slate-400 font-bold text-[8.5px] uppercase">Pçs</span>
+                        <span className="font-mono font-bold text-slate-700 text-[9.5px]">
+                          {totalPrazosMetrics.pecas.toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-slate-400 font-bold text-[8.5px] uppercase">m³</span>
+                        <span className="font-mono font-bold text-slate-700 text-[9.5px]">
+                          {totalPrazosMetrics.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                        </span>
+                      </div>
+                    </div>
                   </button>
 
+                  {/* Cards de cada Faixa de Prazo */}
                   {PRAZO_FAIXAS.map(faixa => {
                     const isSelected = planFilterPrazos.includes(faixa)
-                    const count = prazoCounts[faixa] || 0
+                    const metrics = prazoMetrics[faixa] || { pedidos: 0, pecas: 0, cubagem: 0 }
                     const isVencido = faixa === 'Vencido'
                     const isErro = faixa === 'Erro'
+                    const isDPlus = faixa === 'D+'
+                    const dateInfo = getFaixaCalendarDate(faixa, opRefDate)
+
+                    // Cores temáticas para o cabeçalho
+                    let headerStyle = 'bg-[#dbeafe] text-[#0369a1] border-b border-sky-200'
+                    let ringStyle = 'ring-2 ring-sky-600 border-sky-600'
+                    if (isSelected) {
+                      headerStyle = 'bg-[#0284c7] text-white border-b border-[#0369a1]'
+                    }
+
+                    if (isVencido) {
+                      headerStyle = isSelected
+                        ? 'bg-rose-600 text-white border-b border-rose-700'
+                        : 'bg-rose-100 text-rose-800 border-b border-rose-200'
+                      ringStyle = 'ring-2 ring-rose-600 border-rose-600'
+                    } else if (isErro) {
+                      headerStyle = isSelected
+                        ? 'bg-amber-500 text-slate-950 border-b border-amber-600'
+                        : 'bg-amber-100 text-amber-900 border-b border-amber-200'
+                      ringStyle = 'ring-2 ring-amber-500 border-amber-500'
+                    } else if (isDPlus) {
+                      headerStyle = isSelected
+                        ? 'bg-indigo-600 text-white border-b border-indigo-700'
+                        : 'bg-indigo-100 text-indigo-900 border-b border-indigo-200'
+                      ringStyle = 'ring-2 ring-indigo-600 border-indigo-600'
+                    }
 
                     return (
                       <button
@@ -5834,45 +6009,42 @@ export const PcpJsMartinsPage: React.FC = () => {
                               : [...prev, faixa]
                           )
                         }}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer select-none shrink-0 ${isSelected
-                          ? isVencido
-                            ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
-                            : isErro
-                              ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                              : 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                          : isVencido
-                            ? 'bg-rose-100 text-rose-700 border-rose-200 hover:bg-rose-200'
-                            : isErro
-                              ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200'
-                              : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
-                          }`}
+                        title={`Filtrar por prazo ${faixa}`}
+                        className={`flex flex-col rounded-lg border transition-all cursor-pointer text-left overflow-hidden min-w-[76px] sm:min-w-[80px] shrink-0 shadow-2xs hover:shadow-xs ${
+                          isSelected
+                            ? `${ringStyle} shadow-sm`
+                            : 'border-slate-200/90 hover:border-slate-300 bg-white'
+                        }`}
                       >
-                        <span>{faixa}</span>
-                        <span
-                          className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-extrabold transition-colors ${isSelected
-                            ? 'bg-white/25 text-white'
-                            : isVencido
-                              ? 'bg-rose-200 text-rose-800 border border-rose-300'
-                              : isErro
-                                ? 'bg-amber-200 text-amber-900 border border-amber-300'
-                                : 'bg-blue-50 text-blue-700 border border-blue-100'
-                            }`}
-                        >
-                          {count}
-                        </span>
+                        <div className={`px-1.5 py-1 text-center flex flex-col items-center justify-center leading-tight ${headerStyle}`}>
+                          <span className="text-[9px] font-semibold tracking-tight opacity-90">{dateInfo.dateLabel}</span>
+                          <span className="text-[11px] font-black italic tracking-wide">{faixa}</span>
+                        </div>
+                        <div className="px-1.5 py-1 flex flex-col gap-0.5 bg-white text-[9.5px] leading-tight">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-slate-400 font-bold text-[8.5px] uppercase">Ped</span>
+                            <span className={`font-mono font-black text-[10px] ${
+                              isVencido && metrics.pedidos > 0 ? 'text-rose-700' : (isErro && metrics.pedidos > 0 ? 'text-amber-800' : 'text-slate-900')
+                            }`}>
+                              {metrics.pedidos.toLocaleString('pt-BR')}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-slate-400 font-bold text-[8.5px] uppercase">Pçs</span>
+                            <span className="font-mono font-bold text-slate-700 text-[9.5px]">
+                              {metrics.pecas.toLocaleString('pt-BR')}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-slate-400 font-bold text-[8.5px] uppercase">m³</span>
+                            <span className="font-mono font-bold text-slate-700 text-[9.5px]">
+                              {metrics.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </span>
+                          </div>
+                        </div>
                       </button>
                     )
                   })}
-
-                  {planFilterPrazos.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setPlanFilterPrazos([])}
-                      className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline ml-1 shrink-0"
-                    >
-                      Limpar
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
