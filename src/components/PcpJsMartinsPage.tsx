@@ -8278,13 +8278,6 @@ export const PcpJsMartinsPage: React.FC = () => {
                           <div className="w-full h-7 rounded bg-[#831843]/85 text-rose-100 text-[11px] sm:text-[11.5px] font-mono font-bold flex items-center justify-center shadow-2xs border border-rose-500/30">
                             -
                           </div>
-                          {/* Volume Extra */}
-                          <div className="w-full py-1 px-1 rounded bg-[#78350f] text-amber-200 text-center flex flex-col justify-center shadow-xs mt-0.5 border border-amber-500/30">
-                            <span className="text-[7.5px] font-black tracking-tight text-amber-300 uppercase">Vol. Extra</span>
-                            <span className="text-[11px] sm:text-[11.5px] font-mono font-black text-white">
-                              {Math.round(opVolumeExtra)}M³
-                            </span>
-                          </div>
                         </div>
 
                         {/* 6. Extremo Direito: RODO DIAS, COURRIER DIAS & ASSINATURA MAGALU */}
