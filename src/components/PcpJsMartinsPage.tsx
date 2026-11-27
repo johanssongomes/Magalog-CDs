@@ -42,7 +42,8 @@ import {
   Maximize2,
   Minimize2,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  ArrowUpDown
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -993,10 +994,63 @@ export const PcpJsMartinsPage: React.FC = () => {
   }
 
   // Ordenação da Visão 4 (Aging)
-  type AgingSortField = 'status' | 'regiao' | 'destino' | 'total'
-  const [agingSortField, setAgingSortField] = useState<AgingSortField>('total')
+  type AgingSortField = 'padrao' | 'status' | 'regiao' | 'destino' | 'total'
+  const [agingSortField, setAgingSortField] = useState<AgingSortField>('padrao')
   const [agingSortAsc, setAgingSortAsc] = useState<boolean>(false)
   const [agingStatusOrder, setAgingStatusOrder] = useState<'carteira_first' | 'processo_first'>('carteira_first')
+
+  // Modos de ordenação das regiões: 'padrao' | 'volume' | 'alfabetica' | 'custom'
+  type AgingRegiaoSortMode = 'padrao' | 'volume' | 'alfabetica' | 'custom'
+  const [agingRegiaoSortMode, setAgingRegiaoSortMode] = useState<AgingRegiaoSortMode>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_pcp_aging_regiao_sort_mode')
+      return (saved as AgingRegiaoSortMode) || 'padrao'
+    } catch {
+      return 'padrao'
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('magalog_pcp_aging_regiao_sort_mode', agingRegiaoSortMode)
+    } catch { }
+  }, [agingRegiaoSortMode])
+
+  // Ordem personalizada das regiões
+  const defaultRegiaoPriority = ['CAPITAL', 'METROPOLITANA', 'INTERIOR', 'ABASTECIMENTO CDs', 'OUTROS']
+  const [agingCustomRegiaoOrder, setAgingCustomRegiaoOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_pcp_aging_custom_regiao_order')
+      return saved ? JSON.parse(saved) : defaultRegiaoPriority
+    } catch {
+      return defaultRegiaoPriority
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('magalog_pcp_aging_custom_regiao_order', JSON.stringify(agingCustomRegiaoOrder))
+    } catch { }
+  }, [agingCustomRegiaoOrder])
+
+  // Ordenação dos destinos dentro da região: 'volume' | 'alfabetica'
+  const [agingDestinoSortMode, setAgingDestinoSortMode] = useState<'volume' | 'alfabetica'>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_pcp_aging_destino_sort_mode')
+      return saved === 'alfabetica' ? 'alfabetica' : 'volume'
+    } catch {
+      return 'volume'
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('magalog_pcp_aging_destino_sort_mode', agingDestinoSortMode)
+    } catch { }
+  }, [agingDestinoSortMode])
+
+  // Modal para definir ordem de classificação
+  const [isAgingOrderModalOpen, setIsAgingOrderModalOpen] = useState<boolean>(false)
 
   const handleAgingSort = (field: AgingSortField) => {
     if (field === 'status') {
@@ -4636,6 +4690,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                 if (agingSortField === 'total') {
                   return agingSortAsc ? a.total - b.total : b.total - a.total
                 }
+                if (agingDestinoSortMode === 'alfabetica') {
+                  return a.destino.localeCompare(b.destino)
+                }
                 return b.total - a.total
               })
 
@@ -4665,7 +4722,30 @@ export const PcpJsMartinsPage: React.FC = () => {
             if (agingSortField === 'total') {
               return agingSortAsc ? a.total - b.total : b.total - a.total
             }
-            return b.total - a.total
+
+            if (agingRegiaoSortMode === 'volume') {
+              return b.total - a.total
+            }
+            if (agingRegiaoSortMode === 'alfabetica') {
+              return a.regiao.localeCompare(b.regiao)
+            }
+            if (agingRegiaoSortMode === 'custom') {
+              const idxA = agingCustomRegiaoOrder.indexOf(a.regiao)
+              const idxB = agingCustomRegiaoOrder.indexOf(b.regiao)
+              if (idxA !== -1 && idxB !== -1) return idxA - idxB
+              if (idxA !== -1) return -1
+              if (idxB !== -1) return 1
+              return a.regiao.localeCompare(b.regiao)
+            }
+
+            // Modo 'padrao': CAPITAL -> METROPOLITANA -> INTERIOR -> ABASTECIMENTO CDs -> OUTROS
+            const priority = ['CAPITAL', 'METROPOLITANA', 'INTERIOR', 'ABASTECIMENTO CDs', 'OUTROS']
+            const idxA = priority.indexOf(a.regiao)
+            const idxB = priority.indexOf(b.regiao)
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB
+            if (idxA !== -1) return -1
+            if (idxB !== -1) return 1
+            return a.regiao.localeCompare(b.regiao)
           })
           return groups
         }
@@ -7952,6 +8032,19 @@ export const PcpJsMartinsPage: React.FC = () => {
                           </button>
                         </div>
 
+                        {/* Botão Definir Ordem de Classificação */}
+                        {agingGroupBy === 'destino' && (
+                          <button
+                            type="button"
+                            onClick={() => setIsAgingOrderModalOpen(true)}
+                            title="Definir ordem de classificação das Regiões e Destinos"
+                            className="px-2.5 py-1 text-[10px] font-bold bg-[#072440] hover:bg-sky-600 text-sky-200 hover:text-white rounded-md border border-sky-400/30 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          >
+                            <ArrowUpDown size={11} className="text-amber-300 shrink-0" />
+                            <span>Ordem: <strong className="text-white uppercase">{agingRegiaoSortMode}</strong></span>
+                          </button>
+                        )}
+
                         {/* Botão Exportar Excel */}
                         <button
                           type="button"
@@ -8714,6 +8807,226 @@ export const PcpJsMartinsPage: React.FC = () => {
                         </tfoot>
                       </table>
                     </div>
+
+                    {/* Modal para Definir Ordem de Classificação das Regiões e Destinos */}
+                    {isAgingOrderModalOpen && (
+                      <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 select-none">
+                        <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col">
+                          {/* Modal Header */}
+                          <div className="px-4 py-3 bg-[#0e3b66] text-white flex items-center justify-between border-b border-[#0a2c4d]">
+                            <div className="flex items-center gap-2">
+                              <ArrowUpDown size={16} className="text-amber-300" />
+                              <div>
+                                <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                                  Ordem de Classificação
+                                </h3>
+                                <p className="text-[10px] text-sky-200/80">
+                                  Defina como quer ordenar as Regiões e os Destinos
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setIsAgingOrderModalOpen(false)}
+                              className="text-white/80 hover:text-white p-1 rounded-md hover:bg-white/10 transition-colors cursor-pointer"
+                            >
+                              <X size={15} />
+                            </button>
+                          </div>
+
+                          {/* Modal Body */}
+                          <div className="p-4 space-y-4 text-slate-800 text-xs max-h-[75vh] overflow-y-auto">
+                            {/* Seção 1: Critério das Regiões */}
+                            <div>
+                              <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                                1. Sequência das Regiões
+                              </label>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAgingRegiaoSortMode('padrao')
+                                    setAgingSortField('padrao')
+                                  }}
+                                  className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                                    agingRegiaoSortMode === 'padrao'
+                                      ? 'bg-blue-50 border-blue-500 text-blue-950 font-bold ring-2 ring-blue-500/40 shadow-xs'
+                                      : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                                  }`}
+                                >
+                                  <div className="font-black text-[11px] text-slate-900">Operacional Padrão</div>
+                                  <div className="text-[9.5px] text-slate-500 font-normal mt-0.5">Capital ➔ Metro ➔ Interior</div>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAgingRegiaoSortMode('volume')
+                                    setAgingSortField('padrao')
+                                  }}
+                                  className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                                    agingRegiaoSortMode === 'volume'
+                                      ? 'bg-blue-50 border-blue-500 text-blue-950 font-bold ring-2 ring-blue-500/40 shadow-xs'
+                                      : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                                  }`}
+                                >
+                                  <div className="font-black text-[11px] text-slate-900">Maior Volume</div>
+                                  <div className="text-[9.5px] text-slate-500 font-normal mt-0.5">Total decrescente de carga</div>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAgingRegiaoSortMode('alfabetica')
+                                    setAgingSortField('padrao')
+                                  }}
+                                  className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                                    agingRegiaoSortMode === 'alfabetica'
+                                      ? 'bg-blue-50 border-blue-500 text-blue-950 font-bold ring-2 ring-blue-500/40 shadow-xs'
+                                      : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                                  }`}
+                                >
+                                  <div className="font-black text-[11px] text-slate-900">Ordem Alfabética</div>
+                                  <div className="text-[9.5px] text-slate-500 font-normal mt-0.5">De A a Z</div>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAgingRegiaoSortMode('custom')
+                                    setAgingSortField('padrao')
+                                  }}
+                                  className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                                    agingRegiaoSortMode === 'custom'
+                                      ? 'bg-blue-50 border-blue-500 text-blue-950 font-bold ring-2 ring-blue-500/40 shadow-xs'
+                                      : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                                  }`}
+                                >
+                                  <div className="font-black text-[11px] text-slate-900">Personalizada</div>
+                                  <div className="text-[9.5px] text-slate-500 font-normal mt-0.5">Você define a ordem exata</div>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Reordenação Personalizada (lista interativa com setas) */}
+                            {agingRegiaoSortMode === 'custom' && (
+                              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-[10px] font-black uppercase text-slate-600">
+                                    Arraste/Mova as Regiões na ordem que preferir:
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAgingCustomRegiaoOrder(defaultRegiaoPriority)}
+                                    className="text-[9.5px] text-blue-600 hover:underline cursor-pointer font-bold"
+                                  >
+                                    Restaurar Padrão
+                                  </button>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                  {agingCustomRegiaoOrder.map((reg, idx) => (
+                                    <div
+                                      key={reg}
+                                      className="flex items-center justify-between px-3 py-1.5 bg-white rounded-lg border border-slate-200 shadow-2xs"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-800 text-[9px] font-mono font-black flex items-center justify-center">
+                                          {idx + 1}
+                                        </span>
+                                        <span className="font-bold text-[11px] text-slate-800">{reg}</span>
+                                      </div>
+
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          disabled={idx === 0}
+                                          onClick={() => {
+                                            if (idx > 0) {
+                                              const next = [...agingCustomRegiaoOrder]
+                                              const temp = next[idx]
+                                              next[idx] = next[idx - 1]
+                                              next[idx - 1] = temp
+                                              setAgingCustomRegiaoOrder(next)
+                                            }
+                                          }}
+                                          className="w-6 h-6 rounded flex items-center justify-center border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-slate-700 font-black text-[10px] transition-colors"
+                                          title="Mover para cima"
+                                        >
+                                          ▲
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={idx === agingCustomRegiaoOrder.length - 1}
+                                          onClick={() => {
+                                            if (idx < agingCustomRegiaoOrder.length - 1) {
+                                              const next = [...agingCustomRegiaoOrder]
+                                              const temp = next[idx]
+                                              next[idx] = next[idx + 1]
+                                              next[idx + 1] = temp
+                                              setAgingCustomRegiaoOrder(next)
+                                            }
+                                          }}
+                                          className="w-6 h-6 rounded flex items-center justify-center border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-slate-700 font-black text-[10px] transition-colors"
+                                          title="Mover para baixo"
+                                        >
+                                          ▼
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Seção 2: Ordenação dos Destinos dentro da Região */}
+                            <div>
+                              <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                                2. Ordenação das Rotas/Destinos (dentro da Região)
+                              </label>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setAgingDestinoSortMode('volume')}
+                                  className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                                    agingDestinoSortMode === 'volume'
+                                      ? 'bg-blue-50 border-blue-500 text-blue-950 font-bold ring-2 ring-blue-500/40 shadow-xs'
+                                      : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                                  }`}
+                                >
+                                  <div className="font-black text-[11px] text-slate-900">Maior Volume</div>
+                                  <div className="text-[9.5px] text-slate-500 font-normal mt-0.5">Destinos maiores primeiro</div>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setAgingDestinoSortMode('alfabetica')}
+                                  className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                                    agingDestinoSortMode === 'alfabetica'
+                                      ? 'bg-blue-50 border-blue-500 text-blue-950 font-bold ring-2 ring-blue-500/40 shadow-xs'
+                                      : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                                  }`}
+                                >
+                                  <div className="font-black text-[11px] text-slate-900">Ordem Alfabética</div>
+                                  <div className="text-[9.5px] text-slate-500 font-normal mt-0.5">Destinos de A a Z</div>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Modal Footer */}
+                          <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setIsAgingOrderModalOpen(false)}
+                              className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs transition-colors cursor-pointer shadow-xs"
+                            >
+                              Aplicar e Fechar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
