@@ -4891,6 +4891,25 @@ export const PcpJsMartinsPage: React.FC = () => {
         const opAtrasoVendaPedidosSet = new Set<string>()
         let opAtrasoAbaPecas = 0
 
+        // Coleta de pedidos vencidos de Venda (Opção 1: engloba VENDAS + COURRIER, respeitando filtro de faturamento se ativo)
+        enrichedBase.forEach(r => {
+          const mod = String(r.calc_modalidade || r.modalidade || '').toUpperCase()
+          const cod = String(r.codmodal || r.CODMODAL || '').toUpperCase()
+          const desc = String(r.descricaomodal || r.DESCRICAOMODAL || '').toUpperCase()
+          const raw = `${mod} ${desc} ${cod}`
+          const isAba = raw.includes('ABA')
+          const isTransf = raw.includes('TRANSF') || raw.includes('DIF') || raw.includes('MUL') || raw.includes('RTY') || raw.includes('RYR') || raw.includes('BAL')
+          const isVenda = (!isAba && !isTransf) || r.calc_tipo_modal === 'Venda'
+
+          const fllibfatVal = String(r.calc_fllibfat || r.fllibfat || '').trim().toUpperCase()
+          const matchesFllibfat = planFilterFllibfat.length === 0 || planFilterFllibfat.includes(fllibfatVal)
+
+          const ped = String(r.calc_ped || r.numpedven || r.NUMPEDVEN || '').trim()
+          if (isVenda && r.calc_prazo === 'Vencido' && ped && matchesFllibfat) {
+            opAtrasoVendaPedidosSet.add(ped)
+          }
+        })
+
         enrichedBase
           .filter(r => String(r.calc_fllibfat || r.fllibfat || '').trim().toUpperCase() === 'S')
           .forEach(r => {
@@ -4936,11 +4955,6 @@ export const PcpJsMartinsPage: React.FC = () => {
             opModalDataMap[cat].carteira.pecas += qtd
             opModalDataMap[cat].carteira.vol += vol
             opModalDataMap[cat].carteira.valor += vlr
-          }
-
-          // Atraso Fat Venda: Pedidos vencidos
-          if (cat === 'VENDAS' && r.calc_prazo === 'Vencido' && ped) {
-            opAtrasoVendaPedidosSet.add(ped)
           }
 
           // Atraso Fat ABA: Peças com pedidos de Abastecimento acima de 7 dias (calc_prazo === 'D+'), sem contar RET, LEN e RLE
