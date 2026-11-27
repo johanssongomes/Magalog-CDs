@@ -4480,33 +4480,49 @@ export const PcpJsMartinsPage: React.FC = () => {
 
           // Prazo oficial calculado pelo helper getPrazoFaixa (Vendas = Prazo Cliente PREVENTREGA, ABA = Aging DTPEDIDO)
           const colKey = (r.calc_prazo && agingCols.includes(r.calc_prazo)) ? r.calc_prazo : 'D+'
-
-          // Chave de agrupamento: por Modalidade (Desc + Cod) ou por Destino (Destino + Região)
-          const chavePrincipal = agingGroupBy === 'modalidade'
-            ? descModal
-            : String(r.calc_destino || 'OUTROS').trim()
-          const chaveSecundaria = agingGroupBy === 'modalidade'
-            ? codModal
-            : String(r.calc_regiao || '-').trim()
-
           const rawSt = String(r.calc_status_op || r.status_operacao || r.STATUS_OPERACAO || '').toUpperCase().trim()
           const isProcesso = rawSt.includes('PROCESSO')
-          const targetMap = isProcesso ? agingProcessoMap : agingCarteiraMap
-          const itemKey = `${chavePrincipal}__${chaveSecundaria}`
-
-          if (!targetMap.has(itemKey)) {
-            targetMap.set(itemKey, {
-              chavePrincipal,
-              chaveSecundaria,
-              values: new Map<string, number>(),
-              total: 0
-            })
-          }
-
-          const acc = targetMap.get(itemKey)!
           const metricVal = agingMetric === 'pecas' ? (Number(r.calc_qtd) || 0) : (Number(r.calc_cub) || 0)
-          acc.values.set(colKey, (acc.values.get(colKey) || 0) + metricVal)
-          acc.total += metricVal
+
+          if (agingGroupBy === 'modalidade') {
+            const chavePrincipal = descModal || 'OUTROS'
+            const chaveSecundaria = codModal || '-'
+            const targetMap = isProcesso ? agingProcessoMap : agingCarteiraMap
+            const itemKey = `${chavePrincipal}__${chaveSecundaria}`
+
+            if (!targetMap.has(itemKey)) {
+              targetMap.set(itemKey, {
+                chavePrincipal,
+                chaveSecundaria,
+                values: new Map<string, number>(),
+                total: 0
+              })
+            }
+
+            const acc = targetMap.get(itemKey)!
+            acc.values.set(colKey, (acc.values.get(colKey) || 0) + metricVal)
+            acc.total += metricVal
+          } else {
+            // Modo Destino: agrupamento hierárquico Região -> Destinos
+            const rawReg = String(r.calc_regiao || '').trim().toUpperCase()
+            const regiao = (rawReg && rawReg !== '-') ? rawReg : 'OUTROS'
+            const destino = String(r.calc_destino || 'OUTROS').trim() || 'OUTROS'
+            const targetDestMap = isProcesso ? agingProcessoDestinoMap : agingCarteiraDestinoMap
+
+            if (!targetDestMap.has(regiao)) {
+              targetDestMap.set(regiao, new Map())
+            }
+            const regMap = targetDestMap.get(regiao)!
+            if (!regMap.has(destino)) {
+              regMap.set(destino, {
+                values: new Map<string, number>(),
+                total: 0
+              })
+            }
+            const destAcc = regMap.get(destino)!
+            destAcc.values.set(colKey, (destAcc.values.get(colKey) || 0) + metricVal)
+            destAcc.total += metricVal
+          }
         })
 
         // Filtro de busca interna
@@ -4516,7 +4532,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           return item.chavePrincipal.toLowerCase().includes(termAging) || item.chaveSecundaria.toLowerCase().includes(termAging)
         }
 
-        // Listas ordenadas
+        // Listas ordenadas para modo Modalidade
         const agingCarteiraList = Array.from(agingCarteiraMap.values())
           .filter(filterAgingRow)
           .sort((a, b) => b.total - a.total)
@@ -4525,26 +4541,110 @@ export const PcpJsMartinsPage: React.FC = () => {
           .filter(filterAgingRow)
           .sort((a, b) => b.total - a.total)
 
+        // Agrupamentos hierárquicos para modo Destino (Região -> Destinos)
+        interface AgingDestinoItem {
+          destino: string
+          regiao: string
+          values: Map<string, number>
+          total: number
+        }
+
+        interface AgingRegiaoGroup {
+          regiao: string
+          destinos: AgingDestinoItem[]
+          subtotals: Map<string, number>
+          total: number
+        }
+
+        const buildDestinoGroups = (sourceMap: Map<string, Map<string, { values: Map<string, number>, total: number }>>): AgingRegiaoGroup[] => {
+          const groups: AgingRegiaoGroup[] = []
+          sourceMap.forEach((destMap, regiao) => {
+            const destinos: AgingDestinoItem[] = []
+            destMap.forEach((data, destino) => {
+              if (
+                !termAging ||
+                destino.toLowerCase().includes(termAging) ||
+                regiao.toLowerCase().includes(termAging)
+              ) {
+                destinos.push({
+                  destino,
+                  regiao,
+                  values: data.values,
+                  total: data.total
+                })
+              }
+            })
+
+            if (destinos.length > 0) {
+              destinos.sort((a, b) => b.total - a.total)
+              const subtotals = new Map<string, number>()
+              let groupTotal = 0
+              destinos.forEach(d => {
+                agingCols.forEach(col => {
+                  const v = d.values.get(col) || 0
+                  subtotals.set(col, (subtotals.get(col) || 0) + v)
+                })
+                groupTotal += d.total
+              })
+              groups.push({
+                regiao,
+                destinos,
+                subtotals,
+                total: groupTotal
+              })
+            }
+          })
+          // Ordena regiões por maior volume (total) decrescente
+          groups.sort((a, b) => b.total - a.total)
+          return groups
+        }
+
+        const agingCarteiraRegiaoGroups = buildDestinoGroups(agingCarteiraDestinoMap)
+        const agingProcessoRegiaoGroups = buildDestinoGroups(agingProcessoDestinoMap)
+
+        const agingCarteiraDestinosCount = agingCarteiraRegiaoGroups.reduce((acc, g) => acc + g.destinos.length, 0)
+        const agingProcessoDestinosCount = agingProcessoRegiaoGroups.reduce((acc, g) => acc + g.destinos.length, 0)
+
         // Subtotais por aging
         const agingCarteiraSubtotals = new Map<string, number>()
         let agingCarteiraGrandTotal = 0
-        agingCarteiraList.forEach(item => {
-          agingCols.forEach(col => {
-            const v = item.values.get(col) || 0
-            agingCarteiraSubtotals.set(col, (agingCarteiraSubtotals.get(col) || 0) + v)
+        if (agingGroupBy === 'modalidade') {
+          agingCarteiraList.forEach(item => {
+            agingCols.forEach(col => {
+              const v = item.values.get(col) || 0
+              agingCarteiraSubtotals.set(col, (agingCarteiraSubtotals.get(col) || 0) + v)
+            })
+            agingCarteiraGrandTotal += item.total
           })
-          agingCarteiraGrandTotal += item.total
-        })
+        } else {
+          agingCarteiraRegiaoGroups.forEach(g => {
+            agingCols.forEach(col => {
+              const v = g.subtotals.get(col) || 0
+              agingCarteiraSubtotals.set(col, (agingCarteiraSubtotals.get(col) || 0) + v)
+            })
+            agingCarteiraGrandTotal += g.total
+          })
+        }
 
         const agingProcessoSubtotals = new Map<string, number>()
         let agingProcessoGrandTotal = 0
-        agingProcessoList.forEach(item => {
-          agingCols.forEach(col => {
-            const v = item.values.get(col) || 0
-            agingProcessoSubtotals.set(col, (agingProcessoSubtotals.get(col) || 0) + v)
+        if (agingGroupBy === 'modalidade') {
+          agingProcessoList.forEach(item => {
+            agingCols.forEach(col => {
+              const v = item.values.get(col) || 0
+              agingProcessoSubtotals.set(col, (agingProcessoSubtotals.get(col) || 0) + v)
+            })
+            agingProcessoGrandTotal += item.total
           })
-          agingProcessoGrandTotal += item.total
-        })
+        } else {
+          agingProcessoRegiaoGroups.forEach(g => {
+            agingCols.forEach(col => {
+              const v = g.subtotals.get(col) || 0
+              agingProcessoSubtotals.set(col, (agingProcessoSubtotals.get(col) || 0) + v)
+            })
+            agingProcessoGrandTotal += g.total
+          })
+        }
 
         const agingTotalGeralPorCol = new Map<string, number>()
         agingCols.forEach(col => {
@@ -7659,11 +7759,14 @@ export const PcpJsMartinsPage: React.FC = () => {
                               Aging por {agingGroupBy === 'modalidade' ? 'Modalidade' : 'Destino'} (Carteira x Processo)
                             </h3>
                             <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#123e6b] text-sky-200 border border-sky-400/30">
-                              {agingCarteiraList.length + agingProcessoList.length} {agingGroupBy === 'modalidade' ? 'modais' : 'destinos'}
+                              {agingGroupBy === 'modalidade'
+                                ? (agingCarteiraList.length + agingProcessoList.length)
+                                : (agingCarteiraDestinosCount + agingProcessoDestinosCount)}{' '}
+                              {agingGroupBy === 'modalidade' ? 'modais' : 'destinos'}
                             </span>
                           </div>
                           <p className="text-[10px] text-sky-200/80">
-                            Cruzamento de prazos ({agingGroupBy === 'modalidade' ? 'Modalidade' : 'Destino'} x Prazo Cliente/Aging)
+                            Cruzamento de prazos ({agingGroupBy === 'modalidade' ? 'Modalidade' : 'Região & Destino'} x Prazo Cliente/Aging)
                           </p>
                         </div>
                       </div>
@@ -7687,7 +7790,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setAgingGroupBy('destino')}
-                            title="Agrupar linhas por Destino de Entrega (Rotas/Cidades)"
+                            title="Agrupar linhas por Região e Destino de Entrega"
                             className={`px-2.5 py-1 text-[10px] font-black rounded-md transition-all cursor-pointer flex items-center gap-1 ${
                               agingGroupBy === 'destino'
                                 ? 'bg-sky-500 text-white shadow-xs'
@@ -7735,7 +7838,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                             type="text"
                             value={agingSearch}
                             onChange={e => setAgingSearch(e.target.value)}
-                            placeholder={agingGroupBy === 'modalidade' ? 'Buscar modal...' : 'Buscar destino...'}
+                            placeholder={agingGroupBy === 'modalidade' ? 'Buscar modal...' : 'Buscar região/destino...'}
                             className="pl-6 pr-2 py-0.5 text-[10.5px] rounded-md bg-[#0a2c4d] text-white placeholder-slate-400 border border-sky-500/30 focus:outline-none focus:ring-1 focus:ring-sky-400 w-32 sm:w-40 transition-all"
                           />
                           {agingSearch && (
@@ -7755,44 +7858,99 @@ export const PcpJsMartinsPage: React.FC = () => {
                           type="button"
                           onClick={() => {
                             try {
-                              const colChave1 = agingGroupBy === 'modalidade' ? 'DESCRICAOMODAL' : 'DESTINO'
-                              const colChave2 = agingGroupBy === 'modalidade' ? 'CODMODAL' : 'REGIAO'
+                              const colChave1 = agingGroupBy === 'modalidade' ? 'DESCRICAOMODAL' : 'REGIAO'
+                              const colChave2 = agingGroupBy === 'modalidade' ? 'CODMODAL' : 'DESTINO'
                               const headers = ['STATUS_', colChave1, colChave2, ...agingCols.map(a => `PRAZO ${a}`), 'Total Geral']
                               const dataRows: any[][] = []
 
-                              agingCarteiraList.forEach(m => {
+                              if (agingGroupBy === 'modalidade') {
+                                agingCarteiraList.forEach(m => {
+                                  dataRows.push([
+                                    'EM CARTEIRA',
+                                    m.chavePrincipal,
+                                    m.chaveSecundaria,
+                                    ...agingCols.map(a => m.values.get(a) || 0),
+                                    m.total
+                                  ])
+                                })
                                 dataRows.push([
-                                  'EM CARTEIRA',
-                                  m.chavePrincipal,
-                                  m.chaveSecundaria,
-                                  ...agingCols.map(a => m.values.get(a) || 0),
-                                  m.total
+                                  'EM CARTEIRA Total',
+                                  '',
+                                  '',
+                                  ...agingCols.map(a => agingCarteiraSubtotals.get(a) || 0),
+                                  agingCarteiraGrandTotal
                                 ])
-                              })
-                              dataRows.push([
-                                'EM CARTEIRA Total',
-                                '',
-                                '',
-                                ...agingCols.map(a => agingCarteiraSubtotals.get(a) || 0),
-                                agingCarteiraGrandTotal
-                              ])
 
-                              agingProcessoList.forEach(m => {
+                                agingProcessoList.forEach(m => {
+                                  dataRows.push([
+                                    'EM PROCESSO',
+                                    m.chavePrincipal,
+                                    m.chaveSecundaria,
+                                    ...agingCols.map(a => m.values.get(a) || 0),
+                                    m.total
+                                  ])
+                                })
                                 dataRows.push([
-                                  'EM PROCESSO',
-                                  m.chavePrincipal,
-                                  m.chaveSecundaria,
-                                  ...agingCols.map(a => m.values.get(a) || 0),
-                                  m.total
+                                  'EM PROCESSO Total',
+                                  '',
+                                  '',
+                                  ...agingCols.map(a => agingProcessoSubtotals.get(a) || 0),
+                                  agingProcessoGrandTotal
                                 ])
-                              })
-                              dataRows.push([
-                                'EM PROCESSO Total',
-                                '',
-                                '',
-                                ...agingCols.map(a => agingProcessoSubtotals.get(a) || 0),
-                                agingProcessoGrandTotal
-                              ])
+                              } else {
+                                // MODO DESTINO: agrupado hierarquicamente por Região
+                                agingCarteiraRegiaoGroups.forEach(g => {
+                                  g.destinos.forEach(d => {
+                                    dataRows.push([
+                                      'EM CARTEIRA',
+                                      g.regiao,
+                                      d.destino,
+                                      ...agingCols.map(a => d.values.get(a) || 0),
+                                      d.total
+                                    ])
+                                  })
+                                  dataRows.push([
+                                    'EM CARTEIRA',
+                                    `${g.regiao} Subtotal`,
+                                    '',
+                                    ...agingCols.map(a => g.subtotals.get(a) || 0),
+                                    g.total
+                                  ])
+                                })
+                                dataRows.push([
+                                  'EM CARTEIRA Total',
+                                  '',
+                                  '',
+                                  ...agingCols.map(a => agingCarteiraSubtotals.get(a) || 0),
+                                  agingCarteiraGrandTotal
+                                ])
+
+                                agingProcessoRegiaoGroups.forEach(g => {
+                                  g.destinos.forEach(d => {
+                                    dataRows.push([
+                                      'EM PROCESSO',
+                                      g.regiao,
+                                      d.destino,
+                                      ...agingCols.map(a => d.values.get(a) || 0),
+                                      d.total
+                                    ])
+                                  })
+                                  dataRows.push([
+                                    'EM PROCESSO',
+                                    `${g.regiao} Subtotal`,
+                                    '',
+                                    ...agingCols.map(a => g.subtotals.get(a) || 0),
+                                    g.total
+                                  ])
+                                })
+                                dataRows.push([
+                                  'EM PROCESSO Total',
+                                  '',
+                                  '',
+                                  ...agingCols.map(a => agingProcessoSubtotals.get(a) || 0),
+                                  agingProcessoGrandTotal
+                                ])
+                              }
 
                               dataRows.push([
                                 'Total Geral',
@@ -7828,11 +7986,11 @@ export const PcpJsMartinsPage: React.FC = () => {
                             <th className="py-1 px-2.5 text-center bg-[#0a2c4d] text-amber-300 font-black border-r border-white/10 w-[95px] min-w-[95px]">
                               {agingMetric === 'pecas' ? 'PÇS' : 'CUB (m³)'}
                             </th>
-                            <th className="py-1 px-2 text-left border-r border-white/10 min-w-[160px]">
-                              {agingGroupBy === 'modalidade' ? 'DESCRICAOMODAL' : 'DESTINO'}
+                            <th className="py-1 px-2 text-left border-r border-white/10 min-w-[130px]">
+                              {agingGroupBy === 'modalidade' ? 'DESCRICAOMODAL' : 'REGIÃO'}
                             </th>
-                            <th className="py-1 px-1.5 text-center border-r border-white/10 w-[70px] min-w-[70px]">
-                              {agingGroupBy === 'modalidade' ? 'CODMODAL' : 'REGIÃO'}
+                            <th className="py-1 px-1.5 text-center border-r border-white/10 min-w-[160px]">
+                              {agingGroupBy === 'modalidade' ? 'CODMODAL' : 'DESTINO'}
                             </th>
                             <th
                               colSpan={agingCols.length}
@@ -7851,10 +8009,10 @@ export const PcpJsMartinsPage: React.FC = () => {
                               STATUS_
                             </th>
                             <th className="py-1 px-2 text-left border-r border-white/10 text-sky-200">
-                              {agingGroupBy === 'modalidade' ? 'Modalidade' : 'Destino'}
+                              {agingGroupBy === 'modalidade' ? 'Modalidade' : 'Região'}
                             </th>
                             <th className="py-1 px-1 text-center border-r border-white/10 text-sky-200">
-                              {agingGroupBy === 'modalidade' ? 'Cód.' : 'Região'}
+                              {agingGroupBy === 'modalidade' ? 'Cód.' : 'Destino'}
                             </th>
                             {agingCols.map(col => (
                               <th
@@ -7875,40 +8033,116 @@ export const PcpJsMartinsPage: React.FC = () => {
                         </thead>
 
                         <tbody className="divide-y divide-slate-200 text-[11px]">
-                          {/* SEÇÃO 1: EM CARTEIRA */}
-                          {agingCarteiraList.length === 0 ? (
-                            <tr>
-                              <td colSpan={agingCols.length + 4} className="py-3 px-4 text-center text-slate-400 italic bg-slate-50">
-                                Nenhum registro em carteira encontrado.
-                              </td>
-                            </tr>
-                          ) : (
-                            agingCarteiraList.map((item, idx) => (
-                              <tr key={`cart_${item.chavePrincipal}_${item.chaveSecundaria}`} className="hover:bg-sky-50/50 transition-colors">
-                                {idx === 0 && (
-                                  <td
-                                    rowSpan={agingCarteiraList.length}
-                                    className="px-2 py-1.5 bg-[#e0f2fe] text-[#0369a1] font-black text-center align-middle border-r border-slate-300 uppercase tracking-tight text-[9.5px]"
-                                  >
-                                    EM CARTEIRA
+                          {agingGroupBy === 'destino' ? (
+                            // MODO DESTINO: HIERARQUIA STATUS -> REGIÃO -> DESTINO COM SUBTOTAL
+                            <>
+                              {/* SEÇÃO 1: EM CARTEIRA */}
+                              {agingCarteiraRegiaoGroups.length === 0 ? (
+                                <tr>
+                                  <td colSpan={agingCols.length + 4} className="py-3 px-4 text-center text-slate-400 italic bg-slate-50">
+                                    Nenhum registro em carteira encontrado.
                                   </td>
-                                )}
-                                <td className="px-2.5 py-1.5 text-left font-semibold text-slate-800 border-r border-slate-200 truncate max-w-[200px]" title={item.chavePrincipal}>
-                                  {item.chavePrincipal}
-                                </td>
-                                <td className="px-1.5 py-1.5 text-center font-mono font-bold text-slate-600 border-r border-slate-200">
-                                  {item.chaveSecundaria}
+                                </tr>
+                              ) : (
+                                agingCarteiraRegiaoGroups.map((g, gIdx) => {
+                                  const isFirstGroup = gIdx === 0
+                                  const totalRowsInCarteira = agingCarteiraRegiaoGroups.reduce((acc, grp) => acc + grp.destinos.length + 1, 0)
+                                  return (
+                                    <React.Fragment key={`cart_grp_${g.regiao}`}>
+                                      {g.destinos.map((dest, dIdx) => (
+                                        <tr key={`cart_${g.regiao}_${dest.destino}`} className="hover:bg-sky-50/50 transition-colors">
+                                          {isFirstGroup && dIdx === 0 && (
+                                            <td
+                                              rowSpan={totalRowsInCarteira}
+                                              className="px-2 py-1.5 bg-[#e0f2fe] text-[#0369a1] font-black text-center align-middle border-r border-slate-300 uppercase tracking-tight text-[9.5px]"
+                                            >
+                                              EM CARTEIRA
+                                            </td>
+                                          )}
+                                          {dIdx === 0 && (
+                                            <td
+                                              rowSpan={g.destinos.length}
+                                              className="px-2 py-1.5 font-bold text-slate-700 bg-slate-50/80 text-center align-middle border-r border-slate-200 uppercase text-[10.5px] truncate max-w-[130px]"
+                                              title={g.regiao}
+                                            >
+                                              {g.regiao}
+                                            </td>
+                                          )}
+                                          <td className="px-2.5 py-1.5 text-left font-semibold text-slate-800 border-r border-slate-200 truncate max-w-[200px]" title={dest.destino}>
+                                            {dest.destino}
+                                          </td>
+                                          {agingCols.map(col => {
+                                            const val = dest.values.get(col)
+                                            const isVenc = col === 'Vencido' && val && val > 0
+                                            return (
+                                              <td
+                                                key={col}
+                                                className={`px-1.5 py-1.5 text-center font-mono text-[11.5px] border-r border-slate-100 ${
+                                                  isVenc ? 'bg-rose-50/80 text-rose-700 font-bold' : 'text-slate-800 font-semibold'
+                                                }`}
+                                              >
+                                                {val && val > 0 ? (
+                                                  agingMetric === 'pecas'
+                                                    ? Math.round(val).toLocaleString('pt-BR')
+                                                    : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                                ) : ''}
+                                              </td>
+                                            )
+                                          })}
+                                          <td className="px-2 py-1.5 text-center font-mono font-bold text-[11.5px] text-slate-950 bg-slate-100/80 border-l border-slate-300">
+                                            {agingMetric === 'pecas'
+                                              ? Math.round(dest.total).toLocaleString('pt-BR')
+                                              : dest.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                      {/* SUB-TOTAL DA REGIÃO */}
+                                      <tr className="bg-slate-100/90 font-bold text-slate-800 border-b border-slate-300">
+                                        <td colSpan={2} className="px-2.5 py-1 text-left font-black uppercase text-[10px] text-slate-700 border-r border-slate-300 bg-slate-200/50">
+                                          {g.regiao} Subtotal
+                                        </td>
+                                        {agingCols.map(col => {
+                                          const val = g.subtotals.get(col)
+                                          const isVenc = col === 'Vencido' && val && val > 0
+                                          return (
+                                            <td
+                                              key={col}
+                                              className={`px-1.5 py-1 text-center font-mono font-bold text-[11px] border-r border-slate-200 ${
+                                                isVenc ? 'text-rose-800 bg-rose-100/60' : 'text-slate-700'
+                                              }`}
+                                            >
+                                              {val && val > 0 ? (
+                                                agingMetric === 'pecas'
+                                                  ? Math.round(val).toLocaleString('pt-BR')
+                                                  : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                              ) : ''}
+                                            </td>
+                                          );
+                                        })}
+                                        <td className="px-2 py-1 text-center font-mono font-bold text-[11px] text-slate-900 bg-slate-200/70 border-l border-slate-300">
+                                          {agingMetric === 'pecas'
+                                            ? Math.round(g.total).toLocaleString('pt-BR')
+                                            : g.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                        </td>
+                                      </tr>
+                                    </React.Fragment>
+                                  )
+                                })
+                              )}
+
+                              {/* SUBTOTAL: EM CARTEIRA Total */}
+                              <tr className="bg-slate-300 font-bold text-slate-900 border-y border-slate-400">
+                                <td colSpan={3} className="px-3 py-1.5 text-left font-black uppercase tracking-wider text-[10px]">
+                                  EM CARTEIRA Total
                                 </td>
                                 {agingCols.map(col => {
-                                  const val = item.values.get(col)
+                                  const val = agingCarteiraSubtotals.get(col)
                                   const isVenc = col === 'Vencido' && val && val > 0
                                   return (
                                     <td
                                       key={col}
-                                      className={`px-1.5 py-1.5 text-center font-mono text-[11.5px] border-r border-slate-100 ${
-                                        isVenc
-                                          ? 'bg-rose-50/80 text-rose-700 font-bold'
-                                          : 'text-slate-800 font-semibold'
+                                      className={`px-1.5 py-1.5 text-center font-mono font-black text-[11.5px] border-l border-slate-400/50 ${
+                                        isVenc ? 'text-rose-900 bg-rose-200/50' : ''
                                       }`}
                                     >
                                       {val && val > 0 ? (
@@ -7919,79 +8153,120 @@ export const PcpJsMartinsPage: React.FC = () => {
                                     </td>
                                   )
                                 })}
-                                <td className="px-2 py-1.5 text-center font-mono font-bold text-[11.5px] text-slate-950 bg-slate-100/80 border-l border-slate-300">
+                                <td className="px-2 py-1.5 text-center font-mono font-black text-[12px] text-slate-950 bg-slate-400/50 border-l border-slate-400">
                                   {agingMetric === 'pecas'
-                                    ? Math.round(item.total).toLocaleString('pt-BR')
-                                    : item.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                    ? Math.round(agingCarteiraGrandTotal).toLocaleString('pt-BR')
+                                    : agingCarteiraGrandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                 </td>
                               </tr>
-                            ))
-                          )}
 
-                          {/* SUBTOTAL: EM CARTEIRA Total */}
-                          <tr className="bg-slate-300 font-bold text-slate-900 border-y border-slate-400">
-                            <td colSpan={3} className="px-3 py-1.5 text-left font-black uppercase tracking-wider text-[10px]">
-                              EM CARTEIRA Total
-                            </td>
-                            {agingCols.map(col => {
-                              const val = agingCarteiraSubtotals.get(col)
-                              const isVenc = col === 'Vencido' && val && val > 0
-                              return (
-                                <td
-                                  key={col}
-                                  className={`px-1.5 py-1.5 text-center font-mono font-black text-[11.5px] border-l border-slate-400/50 ${
-                                    isVenc ? 'text-rose-900 bg-rose-200/50' : ''
-                                  }`}
-                                >
-                                  {val && val > 0 ? (
-                                    agingMetric === 'pecas'
-                                      ? Math.round(val).toLocaleString('pt-BR')
-                                      : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-                                  ) : ''}
-                                </td>
-                              )
-                            })}
-                            <td className="px-2 py-1.5 text-center font-mono font-black text-[12px] text-slate-950 bg-slate-400/50 border-l border-slate-400">
-                              {agingMetric === 'pecas'
-                                ? Math.round(agingCarteiraGrandTotal).toLocaleString('pt-BR')
-                                : agingCarteiraGrandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                            </td>
-                          </tr>
-
-                          {/* SEÇÃO 2: EM PROCESSO */}
-                          {agingProcessoList.length === 0 ? (
-                            <tr>
-                              <td colSpan={agingCols.length + 4} className="py-3 px-4 text-center text-slate-400 italic bg-[#f0fdf4]">
-                                Nenhum registro em processo encontrado.
-                              </td>
-                            </tr>
-                          ) : (
-                            agingProcessoList.map((item, idx) => (
-                              <tr key={`proc_${item.chavePrincipal}_${item.chaveSecundaria}`} className="bg-[#f0fdf4] hover:bg-emerald-100/60 transition-colors">
-                                {idx === 0 && (
-                                  <td
-                                    rowSpan={agingProcessoList.length}
-                                    className="px-2 py-1.5 bg-[#dcfce7] text-[#15803d] font-black text-center align-middle border-r border-emerald-300 uppercase tracking-tight text-[9.5px]"
-                                  >
-                                    EM PROCESSO
+                              {/* SEÇÃO 2: EM PROCESSO */}
+                              {agingProcessoRegiaoGroups.length === 0 ? (
+                                <tr>
+                                  <td colSpan={agingCols.length + 4} className="py-3 px-4 text-center text-slate-400 italic bg-[#f0fdf4]">
+                                    Nenhum registro em processo encontrado.
                                   </td>
-                                )}
-                                <td className="px-2.5 py-1.5 text-left font-semibold text-slate-800 border-r border-emerald-100 truncate max-w-[200px]" title={item.chavePrincipal}>
-                                  {item.chavePrincipal}
-                                </td>
-                                <td className="px-1.5 py-1.5 text-center font-mono font-bold text-emerald-800 border-r border-emerald-100">
-                                  {item.chaveSecundaria}
+                                </tr>
+                              ) : (
+                                agingProcessoRegiaoGroups.map((g, gIdx) => {
+                                  const isFirstGroup = gIdx === 0
+                                  const totalRowsInProcesso = agingProcessoRegiaoGroups.reduce((acc, grp) => acc + grp.destinos.length + 1, 0)
+                                  return (
+                                    <React.Fragment key={`proc_grp_${g.regiao}`}>
+                                      {g.destinos.map((dest, dIdx) => (
+                                        <tr key={`proc_${g.regiao}_${dest.destino}`} className="bg-[#f0fdf4] hover:bg-emerald-100/60 transition-colors">
+                                          {isFirstGroup && dIdx === 0 && (
+                                            <td
+                                              rowSpan={totalRowsInProcesso}
+                                              className="px-2 py-1.5 bg-[#dcfce7] text-[#15803d] font-black text-center align-middle border-r border-emerald-300 uppercase tracking-tight text-[9.5px]"
+                                            >
+                                              EM PROCESSO
+                                            </td>
+                                          )}
+                                          {dIdx === 0 && (
+                                            <td
+                                              rowSpan={g.destinos.length}
+                                              className="px-2 py-1.5 font-bold text-emerald-800 bg-emerald-50/80 text-center align-middle border-r border-emerald-200 uppercase text-[10.5px] truncate max-w-[130px]"
+                                              title={g.regiao}
+                                            >
+                                              {g.regiao}
+                                            </td>
+                                          )}
+                                          <td className="px-2.5 py-1.5 text-left font-semibold text-slate-800 border-r border-emerald-100 truncate max-w-[200px]" title={dest.destino}>
+                                            {dest.destino}
+                                          </td>
+                                          {agingCols.map(col => {
+                                            const val = dest.values.get(col)
+                                            const isVenc = col === 'Vencido' && val && val > 0
+                                            return (
+                                              <td
+                                                key={col}
+                                                className={`px-1.5 py-1.5 text-center font-mono text-[11.5px] border-r border-emerald-100/60 ${
+                                                  isVenc ? 'bg-rose-100/70 text-rose-800 font-bold' : 'text-emerald-950 font-semibold'
+                                                }`}
+                                              >
+                                                {val && val > 0 ? (
+                                                  agingMetric === 'pecas'
+                                                    ? Math.round(val).toLocaleString('pt-BR')
+                                                    : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                                ) : ''}
+                                              </td>
+                                            )
+                                          })}
+                                          <td className="px-2 py-1.5 text-center font-mono font-bold text-[11.5px] text-emerald-950 bg-emerald-100/70 border-l border-emerald-300">
+                                            {agingMetric === 'pecas'
+                                              ? Math.round(dest.total).toLocaleString('pt-BR')
+                                              : dest.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                      {/* SUB-TOTAL DA REGIÃO (PROCESSO) */}
+                                      <tr className="bg-emerald-50 font-bold text-emerald-900 border-b border-emerald-200">
+                                        <td colSpan={2} className="px-2.5 py-1 text-left font-black uppercase text-[10px] text-emerald-800 border-r border-emerald-200 bg-emerald-100/60">
+                                          {g.regiao} Subtotal
+                                        </td>
+                                        {agingCols.map(col => {
+                                          const val = g.subtotals.get(col)
+                                          const isVenc = col === 'Vencido' && val && val > 0
+                                          return (
+                                            <td
+                                              key={col}
+                                              className={`px-1.5 py-1 text-center font-mono font-bold text-[11px] border-r border-emerald-200 ${
+                                                isVenc ? 'text-rose-800 bg-rose-100/70' : 'text-emerald-900'
+                                              }`}
+                                            >
+                                              {val && val > 0 ? (
+                                                agingMetric === 'pecas'
+                                                  ? Math.round(val).toLocaleString('pt-BR')
+                                                  : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                              ) : ''}
+                                            </td>
+                                          )
+                                        })}
+                                        <td className="px-2 py-1 text-center font-mono font-bold text-[11px] text-emerald-950 bg-emerald-200/60 border-l border-emerald-300">
+                                          {agingMetric === 'pecas'
+                                            ? Math.round(g.total).toLocaleString('pt-BR')
+                                            : g.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                        </td>
+                                      </tr>
+                                    </React.Fragment>
+                                  )
+                                })
+                              )}
+
+                              {/* SUBTOTAL: EM PROCESSO Total */}
+                              <tr className="bg-[#bbf7d0] font-bold text-emerald-950 border-y border-emerald-400">
+                                <td colSpan={3} className="px-3 py-1.5 text-left font-black uppercase tracking-wider text-[10px]">
+                                  EM PROCESSO Total
                                 </td>
                                 {agingCols.map(col => {
-                                  const val = item.values.get(col)
+                                  const val = agingProcessoSubtotals.get(col)
                                   const isVenc = col === 'Vencido' && val && val > 0
                                   return (
                                     <td
                                       key={col}
-                                      className={`px-1.5 py-1.5 text-center font-mono text-[11.5px] border-r border-emerald-100/60 ${
-                                        isVenc
-                                          ? 'bg-rose-100/70 text-rose-800 font-bold'
-                                          : 'text-emerald-950 font-semibold'
+                                      className={`px-1.5 py-1.5 text-center font-mono font-black text-[11.5px] border-l border-emerald-300 ${
+                                        isVenc ? 'text-rose-900 bg-rose-200/50' : ''
                                       }`}
                                     >
                                       {val && val > 0 ? (
@@ -8002,44 +8277,183 @@ export const PcpJsMartinsPage: React.FC = () => {
                                     </td>
                                   )
                                 })}
-                                <td className="px-2 py-1.5 text-center font-mono font-bold text-[11.5px] text-emerald-950 bg-emerald-100/70 border-l border-emerald-300">
+                                <td className="px-2 py-1.5 text-center font-mono font-black text-[12px] text-emerald-950 bg-emerald-300/60 border-l border-emerald-400">
                                   {agingMetric === 'pecas'
-                                    ? Math.round(item.total).toLocaleString('pt-BR')
-                                    : item.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                    ? Math.round(agingProcessoGrandTotal).toLocaleString('pt-BR')
+                                    : agingProcessoGrandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                 </td>
                               </tr>
-                            ))
-                          )}
+                            </>
+                          ) : (
+                            // MODO MODALIDADE
+                            <>
+                              {/* SEÇÃO 1: EM CARTEIRA */}
+                              {agingCarteiraList.length === 0 ? (
+                                <tr>
+                                  <td colSpan={agingCols.length + 4} className="py-3 px-4 text-center text-slate-400 italic bg-slate-50">
+                                    Nenhum registro em carteira encontrado.
+                                  </td>
+                                </tr>
+                              ) : (
+                                agingCarteiraList.map((item, idx) => (
+                                  <tr key={`cart_${item.chavePrincipal}_${item.chaveSecundaria}`} className="hover:bg-sky-50/50 transition-colors">
+                                    {idx === 0 && (
+                                      <td
+                                        rowSpan={agingCarteiraList.length}
+                                        className="px-2 py-1.5 bg-[#e0f2fe] text-[#0369a1] font-black text-center align-middle border-r border-slate-300 uppercase tracking-tight text-[9.5px]"
+                                      >
+                                        EM CARTEIRA
+                                      </td>
+                                    )}
+                                    <td className="px-2.5 py-1.5 text-left font-semibold text-slate-800 border-r border-slate-200 truncate max-w-[200px]" title={item.chavePrincipal}>
+                                      {item.chavePrincipal}
+                                    </td>
+                                    <td className="px-1.5 py-1.5 text-center font-mono font-bold text-slate-600 border-r border-slate-200">
+                                      {item.chaveSecundaria}
+                                    </td>
+                                    {agingCols.map(col => {
+                                      const val = item.values.get(col)
+                                      const isVenc = col === 'Vencido' && val && val > 0
+                                      return (
+                                        <td
+                                          key={col}
+                                          className={`px-1.5 py-1.5 text-center font-mono text-[11.5px] border-r border-slate-100 ${
+                                            isVenc
+                                              ? 'bg-rose-50/80 text-rose-700 font-bold'
+                                              : 'text-slate-800 font-semibold'
+                                          }`}
+                                        >
+                                          {val && val > 0 ? (
+                                            agingMetric === 'pecas'
+                                              ? Math.round(val).toLocaleString('pt-BR')
+                                              : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                          ) : ''}
+                                        </td>
+                                      )
+                                    })}
+                                    <td className="px-2 py-1.5 text-center font-mono font-bold text-[11.5px] text-slate-950 bg-slate-100/80 border-l border-slate-300">
+                                      {agingMetric === 'pecas'
+                                        ? Math.round(item.total).toLocaleString('pt-BR')
+                                        : item.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
 
-                          {/* SUBTOTAL: EM PROCESSO Total */}
-                          <tr className="bg-[#bbf7d0] font-bold text-emerald-950 border-y border-emerald-400">
-                            <td colSpan={3} className="px-3 py-1.5 text-left font-black uppercase tracking-wider text-[10px]">
-                              EM PROCESSO Total
-                            </td>
-                            {agingCols.map(col => {
-                              const val = agingProcessoSubtotals.get(col)
-                              const isVenc = col === 'Vencido' && val && val > 0
-                              return (
-                                <td
-                                  key={col}
-                                  className={`px-1.5 py-1.5 text-center font-mono font-black text-[11.5px] border-l border-emerald-300 ${
-                                    isVenc ? 'text-rose-900 bg-rose-200/50' : ''
-                                  }`}
-                                >
-                                  {val && val > 0 ? (
-                                    agingMetric === 'pecas'
-                                      ? Math.round(val).toLocaleString('pt-BR')
-                                      : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-                                  ) : ''}
+                              {/* SUBTOTAL: EM CARTEIRA Total */}
+                              <tr className="bg-slate-300 font-bold text-slate-900 border-y border-slate-400">
+                                <td colSpan={3} className="px-3 py-1.5 text-left font-black uppercase tracking-wider text-[10px]">
+                                  EM CARTEIRA Total
                                 </td>
-                              )
-                            })}
-                            <td className="px-2 py-1.5 text-center font-mono font-black text-[12px] text-emerald-950 bg-emerald-300/60 border-l border-emerald-400">
-                              {agingMetric === 'pecas'
-                                ? Math.round(agingProcessoGrandTotal).toLocaleString('pt-BR')
-                                : agingProcessoGrandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                            </td>
-                          </tr>
+                                {agingCols.map(col => {
+                                  const val = agingCarteiraSubtotals.get(col)
+                                  const isVenc = col === 'Vencido' && val && val > 0
+                                  return (
+                                    <td
+                                      key={col}
+                                      className={`px-1.5 py-1.5 text-center font-mono font-black text-[11.5px] border-l border-slate-400/50 ${
+                                        isVenc ? 'text-rose-900 bg-rose-200/50' : ''
+                                      }`}
+                                    >
+                                      {val && val > 0 ? (
+                                        agingMetric === 'pecas'
+                                          ? Math.round(val).toLocaleString('pt-BR')
+                                          : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                      ) : ''}
+                                    </td>
+                                  )
+                                })}
+                                <td className="px-2 py-1.5 text-center font-mono font-black text-[12px] text-slate-950 bg-slate-400/50 border-l border-slate-400">
+                                  {agingMetric === 'pecas'
+                                    ? Math.round(agingCarteiraGrandTotal).toLocaleString('pt-BR')
+                                    : agingCarteiraGrandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                </td>
+                              </tr>
+
+                              {/* SEÇÃO 2: EM PROCESSO */}
+                              {agingProcessoList.length === 0 ? (
+                                <tr>
+                                  <td colSpan={agingCols.length + 4} className="py-3 px-4 text-center text-slate-400 italic bg-[#f0fdf4]">
+                                    Nenhum registro em processo encontrado.
+                                  </td>
+                                </tr>
+                              ) : (
+                                agingProcessoList.map((item, idx) => (
+                                  <tr key={`proc_${item.chavePrincipal}_${item.chaveSecundaria}`} className="bg-[#f0fdf4] hover:bg-emerald-100/60 transition-colors">
+                                    {idx === 0 && (
+                                      <td
+                                        rowSpan={agingProcessoList.length}
+                                        className="px-2 py-1.5 bg-[#dcfce7] text-[#15803d] font-black text-center align-middle border-r border-emerald-300 uppercase tracking-tight text-[9.5px]"
+                                      >
+                                        EM PROCESSO
+                                      </td>
+                                    )}
+                                    <td className="px-2.5 py-1.5 text-left font-semibold text-slate-800 border-r border-emerald-100 truncate max-w-[200px]" title={item.chavePrincipal}>
+                                      {item.chavePrincipal}
+                                    </td>
+                                    <td className="px-1.5 py-1.5 text-center font-mono font-bold text-emerald-800 border-r border-emerald-100">
+                                      {item.chaveSecundaria}
+                                    </td>
+                                    {agingCols.map(col => {
+                                      const val = item.values.get(col)
+                                      const isVenc = col === 'Vencido' && val && val > 0
+                                      return (
+                                        <td
+                                          key={col}
+                                          className={`px-1.5 py-1.5 text-center font-mono text-[11.5px] border-r border-emerald-100/60 ${
+                                            isVenc
+                                              ? 'bg-rose-100/70 text-rose-800 font-bold'
+                                              : 'text-emerald-950 font-semibold'
+                                          }`}
+                                        >
+                                          {val && val > 0 ? (
+                                            agingMetric === 'pecas'
+                                              ? Math.round(val).toLocaleString('pt-BR')
+                                              : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                          ) : ''}
+                                        </td>
+                                      )
+                                    })}
+                                    <td className="px-2 py-1.5 text-center font-mono font-bold text-[11.5px] text-emerald-950 bg-emerald-100/70 border-l border-emerald-300">
+                                      {agingMetric === 'pecas'
+                                        ? Math.round(item.total).toLocaleString('pt-BR')
+                                        : item.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+
+                              {/* SUBTOTAL: EM PROCESSO Total */}
+                              <tr className="bg-[#bbf7d0] font-bold text-emerald-950 border-y border-emerald-400">
+                                <td colSpan={3} className="px-3 py-1.5 text-left font-black uppercase tracking-wider text-[10px]">
+                                  EM PROCESSO Total
+                                </td>
+                                {agingCols.map(col => {
+                                  const val = agingProcessoSubtotals.get(col)
+                                  const isVenc = col === 'Vencido' && val && val > 0
+                                  return (
+                                    <td
+                                      key={col}
+                                      className={`px-1.5 py-1.5 text-center font-mono font-black text-[11.5px] border-l border-emerald-300 ${
+                                        isVenc ? 'text-rose-900 bg-rose-200/50' : ''
+                                      }`}
+                                    >
+                                      {val && val > 0 ? (
+                                        agingMetric === 'pecas'
+                                          ? Math.round(val).toLocaleString('pt-BR')
+                                          : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                                      ) : ''}
+                                    </td>
+                                  )
+                                })}
+                                <td className="px-2 py-1.5 text-center font-mono font-black text-[12px] text-emerald-950 bg-emerald-300/60 border-l border-emerald-400">
+                                  {agingMetric === 'pecas'
+                                    ? Math.round(agingProcessoGrandTotal).toLocaleString('pt-BR')
+                                    : agingProcessoGrandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                </td>
+                              </tr>
+                            </>
+                          )}
                         </tbody>
 
                         {/* RODAPÉ: TOTAL GERAL */}
