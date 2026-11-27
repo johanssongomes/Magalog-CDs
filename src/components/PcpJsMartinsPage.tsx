@@ -1002,11 +1002,11 @@ export const PcpJsMartinsPage: React.FC = () => {
     } catch { }
   }, [planRightTab])
 
-  // Métrica ativa para o painel de Aging x Modalidade: 'pecas' (PÇS) | 'cubagem' (CUB m³)
-  const [agingMetric, setAgingMetric] = useState<'pecas' | 'cubagem'>(() => {
+  // Métrica ativa para o painel de Aging x Modalidade: 'pedidos' (PED) | 'pecas' (PÇS) | 'cubagem' (CUB m³)
+  const [agingMetric, setAgingMetric] = useState<'pedidos' | 'pecas' | 'cubagem'>(() => {
     try {
       const saved = localStorage.getItem('magalog_pcp_aging_metric')
-      return (saved === 'cubagem') ? 'cubagem' : 'pecas'
+      return (saved === 'cubagem' || saved === 'pedidos') ? saved : 'pecas'
     } catch {
       return 'pecas'
     }
@@ -4677,11 +4677,14 @@ export const PcpJsMartinsPage: React.FC = () => {
 
         // ------------------------------------------------------------
         // CÁLCULOS DA VISÃO 4: AGING X MODALIDADE / DESTINO (CARTEIRA X PROCESSO)
-        // Alternância Dinâmica entre PÇS (Peças) e Cubagem (m³)
+        // ------------------------------------------------------------
+        // CÁLCULOS DA VISÃO 2: AGING X MODALIDADE / AGING POR DESTINO
+        // Matriz Completa de Aging: Cruzamento de Prazos x Categorias
+        // Alternância Dinâmica entre Pedidos (PED), Peças (PÇS) e Cubagem (m³)
         // Alternância Dinâmica entre Modalidade e Destino
-        // Colunas no formato operacional oficial: Vencido, D0, D1, D2, D3, D4, D5, D6, D7, D+
+        // Colunas no formato operacional oficial: Vencido, Erro, D0, D1, D2, D3, D4, D5, D6, D7, D+
         // Regra de Prazo:
-        // - Vendas: Prazo Cliente (PREVENTREGA) -> Vencido, D0..D7, D+
+        // - Vendas: Prazo Cliente (PREVENTREGA) -> Vencido, Erro, D0..D7, D+
         // - Abastecimento: Aging do Pedido (DTPEDIDO) -> D0..D7, D+
         // ------------------------------------------------------------
         const agingCols = ['Vencido', 'Erro', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D+']
@@ -4691,12 +4694,14 @@ export const PcpJsMartinsPage: React.FC = () => {
           chaveSecundaria: string
           values: Map<string, number>
           total: number
+          pedsSets: Map<string, Set<string>>
+          totalPeds: Set<string>
         }
 
         const agingCarteiraMap = new Map<string, AgingItemAccumulator>()
         const agingProcessoMap = new Map<string, AgingItemAccumulator>()
-        const agingCarteiraDestinoMap = new Map<string, Map<string, { values: Map<string, number>, total: number }>>()
-        const agingProcessoDestinoMap = new Map<string, Map<string, { values: Map<string, number>, total: number }>>()
+        const agingCarteiraDestinoMap = new Map<string, Map<string, { values: Map<string, number>, total: number, pedsSets: Map<string, Set<string>>, totalPeds: Set<string> }>>()
+        const agingProcessoDestinoMap = new Map<string, Map<string, { values: Map<string, number>, total: number, pedsSets: Map<string, Set<string>>, totalPeds: Set<string> }>>()
 
         enrichedForComparative.forEach(r => {
           const codModal = String(r.codmodal || r.CODMODAL || '-').trim()
@@ -4719,7 +4724,8 @@ export const PcpJsMartinsPage: React.FC = () => {
           const colKey = (r.calc_prazo && agingCols.includes(r.calc_prazo)) ? r.calc_prazo : 'D+'
           const rawSt = String(r.calc_status_op || r.status_operacao || r.STATUS_OPERACAO || '').toUpperCase().trim()
           const isProcesso = rawSt.includes('PROCESSO')
-          const metricVal = agingMetric === 'pecas' ? (Number(r.calc_qtd) || 0) : (Number(r.calc_cub) || 0)
+          const metricVal = agingMetric === 'cubagem' ? (Number(r.calc_cub) || 0) : (Number(r.calc_qtd) || 0)
+          const pedId = String(r.calc_ped || r.numpedven || r.NUMPEDVEN || r.pedido || r.PEDIDO || '').trim()
 
           if (agingGroupBy === 'modalidade') {
             const chavePrincipal = descModal || 'OUTROS'
@@ -4732,13 +4738,20 @@ export const PcpJsMartinsPage: React.FC = () => {
                 chavePrincipal,
                 chaveSecundaria,
                 values: new Map<string, number>(),
-                total: 0
+                total: 0,
+                pedsSets: new Map<string, Set<string>>(),
+                totalPeds: new Set<string>()
               })
             }
 
             const acc = targetMap.get(itemKey)!
             acc.values.set(colKey, (acc.values.get(colKey) || 0) + metricVal)
             acc.total += metricVal
+            if (pedId) {
+              if (!acc.pedsSets.has(colKey)) acc.pedsSets.set(colKey, new Set())
+              acc.pedsSets.get(colKey)!.add(pedId)
+              acc.totalPeds.add(pedId)
+            }
           } else {
             // Modo Destino: agrupamento hierárquico Região -> Destinos
             const rawReg = String(r.calc_regiao || '').trim().toUpperCase()
@@ -4753,14 +4766,53 @@ export const PcpJsMartinsPage: React.FC = () => {
             if (!regMap.has(destino)) {
               regMap.set(destino, {
                 values: new Map<string, number>(),
-                total: 0
+                total: 0,
+                pedsSets: new Map<string, Set<string>>(),
+                totalPeds: new Set<string>()
               })
             }
             const destAcc = regMap.get(destino)!
             destAcc.values.set(colKey, (destAcc.values.get(colKey) || 0) + metricVal)
             destAcc.total += metricVal
+            if (pedId) {
+              if (!destAcc.pedsSets.has(colKey)) destAcc.pedsSets.set(colKey, new Set())
+              destAcc.pedsSets.get(colKey)!.add(pedId)
+              destAcc.totalPeds.add(pedId)
+            }
           }
         })
+
+        // Se a métrica selecionada for PEDIDOS, substitui os valores pelo tamanho dos conjuntos de pedidos únicos
+        if (agingMetric === 'pedidos') {
+          agingCarteiraMap.forEach(acc => {
+            acc.total = acc.totalPeds.size
+            agingCols.forEach(col => {
+              acc.values.set(col, acc.pedsSets.get(col)?.size || 0)
+            })
+          })
+          agingProcessoMap.forEach(acc => {
+            acc.total = acc.totalPeds.size
+            agingCols.forEach(col => {
+              acc.values.set(col, acc.pedsSets.get(col)?.size || 0)
+            })
+          })
+          agingCarteiraDestinoMap.forEach(destMap => {
+            destMap.forEach(destAcc => {
+              destAcc.total = destAcc.totalPeds.size
+              agingCols.forEach(col => {
+                destAcc.values.set(col, destAcc.pedsSets.get(col)?.size || 0)
+              })
+            })
+          })
+          agingProcessoDestinoMap.forEach(destMap => {
+            destMap.forEach(destAcc => {
+              destAcc.total = destAcc.totalPeds.size
+              agingCols.forEach(col => {
+                destAcc.values.set(col, destAcc.pedsSets.get(col)?.size || 0)
+              })
+            })
+          })
+        }
 
         // Filtro de busca interna
         const termAging = agingSearch.trim().toLowerCase()
@@ -4794,6 +4846,8 @@ export const PcpJsMartinsPage: React.FC = () => {
           regiao: string
           values: Map<string, number>
           total: number
+          pedsSets?: Map<string, Set<string>>
+          totalPeds?: Set<string>
         }
 
         interface AgingRegiaoGroup {
@@ -4803,7 +4857,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           total: number
         }
 
-        const buildDestinoGroups = (sourceMap: Map<string, Map<string, { values: Map<string, number>, total: number }>>): AgingRegiaoGroup[] => {
+        const buildDestinoGroups = (sourceMap: Map<string, Map<string, { values: Map<string, number>, total: number, pedsSets: Map<string, Set<string>>, totalPeds: Set<string> }>>): AgingRegiaoGroup[] => {
           const groups: AgingRegiaoGroup[] = []
           sourceMap.forEach((destMap, regiao) => {
             const destinos: AgingDestinoItem[] = []
@@ -4817,7 +4871,9 @@ export const PcpJsMartinsPage: React.FC = () => {
                   destino,
                   regiao,
                   values: data.values,
-                  total: data.total
+                  total: data.total,
+                  pedsSets: data.pedsSets,
+                  totalPeds: data.totalPeds
                 })
               }
             })
@@ -4839,13 +4895,31 @@ export const PcpJsMartinsPage: React.FC = () => {
 
               const subtotals = new Map<string, number>()
               let groupTotal = 0
-              destinos.forEach(d => {
-                agingCols.forEach(col => {
-                  const v = d.values.get(col) || 0
-                  subtotals.set(col, (subtotals.get(col) || 0) + v)
+              if (agingMetric === 'pedidos') {
+                const regColPeds = new Map<string, Set<string>>()
+                const regAllPeds = new Set<string>()
+                destinos.forEach(d => {
+                  if (d.totalPeds) d.totalPeds.forEach(p => regAllPeds.add(p))
+                  if (d.pedsSets) {
+                    d.pedsSets.forEach((set, col) => {
+                      if (!regColPeds.has(col)) regColPeds.set(col, new Set())
+                      set.forEach(p => regColPeds.get(col)!.add(p))
+                    })
+                  }
                 })
-                groupTotal += d.total
-              })
+                agingCols.forEach(col => {
+                  subtotals.set(col, regColPeds.get(col)?.size || 0)
+                })
+                groupTotal = regAllPeds.size
+              } else {
+                destinos.forEach(d => {
+                  agingCols.forEach(col => {
+                    const v = d.values.get(col) || 0
+                    subtotals.set(col, (subtotals.get(col) || 0) + v)
+                  })
+                  groupTotal += d.total
+                })
+              }
               groups.push({
                 regiao,
                 destinos,
@@ -4900,51 +4974,127 @@ export const PcpJsMartinsPage: React.FC = () => {
         // Subtotais por aging
         const agingCarteiraSubtotals = new Map<string, number>()
         let agingCarteiraGrandTotal = 0
-        if (agingGroupBy === 'modalidade') {
-          agingCarteiraList.forEach(item => {
-            agingCols.forEach(col => {
-              const v = item.values.get(col) || 0
-              agingCarteiraSubtotals.set(col, (agingCarteiraSubtotals.get(col) || 0) + v)
+        if (agingMetric === 'pedidos') {
+          const cartColPeds = new Map<string, Set<string>>()
+          const cartAllPeds = new Set<string>()
+          if (agingGroupBy === 'modalidade') {
+            agingCarteiraList.forEach(item => {
+              item.totalPeds?.forEach(p => cartAllPeds.add(p))
+              item.pedsSets?.forEach((set, col) => {
+                if (!cartColPeds.has(col)) cartColPeds.set(col, new Set())
+                set.forEach(p => cartColPeds.get(col)!.add(p))
+              })
             })
-            agingCarteiraGrandTotal += item.total
+          } else {
+            agingCarteiraRegiaoGroups.forEach(g => {
+              g.destinos.forEach(d => {
+                d.totalPeds?.forEach(p => cartAllPeds.add(p))
+                d.pedsSets?.forEach((set, col) => {
+                  if (!cartColPeds.has(col)) cartColPeds.set(col, new Set())
+                  set.forEach(p => cartColPeds.get(col)!.add(p))
+                })
+              })
+            })
+          }
+          agingCols.forEach(col => {
+            agingCarteiraSubtotals.set(col, cartColPeds.get(col)?.size || 0)
           })
+          agingCarteiraGrandTotal = cartAllPeds.size
         } else {
-          agingCarteiraRegiaoGroups.forEach(g => {
-            agingCols.forEach(col => {
-              const v = g.subtotals.get(col) || 0
-              agingCarteiraSubtotals.set(col, (agingCarteiraSubtotals.get(col) || 0) + v)
+          if (agingGroupBy === 'modalidade') {
+            agingCarteiraList.forEach(item => {
+              agingCols.forEach(col => {
+                const v = item.values.get(col) || 0
+                agingCarteiraSubtotals.set(col, (agingCarteiraSubtotals.get(col) || 0) + v)
+              })
+              agingCarteiraGrandTotal += item.total
             })
-            agingCarteiraGrandTotal += g.total
-          })
+          } else {
+            agingCarteiraRegiaoGroups.forEach(g => {
+              agingCols.forEach(col => {
+                const v = g.subtotals.get(col) || 0
+                agingCarteiraSubtotals.set(col, (agingCarteiraSubtotals.get(col) || 0) + v)
+              })
+              agingCarteiraGrandTotal += g.total
+            })
+          }
         }
 
         const agingProcessoSubtotals = new Map<string, number>()
         let agingProcessoGrandTotal = 0
-        if (agingGroupBy === 'modalidade') {
-          agingProcessoList.forEach(item => {
-            agingCols.forEach(col => {
-              const v = item.values.get(col) || 0
-              agingProcessoSubtotals.set(col, (agingProcessoSubtotals.get(col) || 0) + v)
+        if (agingMetric === 'pedidos') {
+          const procColPeds = new Map<string, Set<string>>()
+          const procAllPeds = new Set<string>()
+          if (agingGroupBy === 'modalidade') {
+            agingProcessoList.forEach(item => {
+              item.totalPeds?.forEach(p => procAllPeds.add(p))
+              item.pedsSets?.forEach((set, col) => {
+                if (!procColPeds.has(col)) procColPeds.set(col, new Set())
+                set.forEach(p => procColPeds.get(col)!.add(p))
+              })
             })
-            agingProcessoGrandTotal += item.total
+          } else {
+            agingProcessoRegiaoGroups.forEach(g => {
+              g.destinos.forEach(d => {
+                d.totalPeds?.forEach(p => procAllPeds.add(p))
+                d.pedsSets?.forEach((set, col) => {
+                  if (!procColPeds.has(col)) procColPeds.set(col, new Set())
+                  set.forEach(p => procColPeds.get(col)!.add(p))
+                })
+              })
+            })
+          }
+          agingCols.forEach(col => {
+            agingProcessoSubtotals.set(col, procColPeds.get(col)?.size || 0)
           })
+          agingProcessoGrandTotal = procAllPeds.size
         } else {
-          agingProcessoRegiaoGroups.forEach(g => {
-            agingCols.forEach(col => {
-              const v = g.subtotals.get(col) || 0
-              agingProcessoSubtotals.set(col, (agingProcessoSubtotals.get(col) || 0) + v)
+          if (agingGroupBy === 'modalidade') {
+            agingProcessoList.forEach(item => {
+              agingCols.forEach(col => {
+                const v = item.values.get(col) || 0
+                agingProcessoSubtotals.set(col, (agingProcessoSubtotals.get(col) || 0) + v)
+              })
+              agingProcessoGrandTotal += item.total
             })
-            agingProcessoGrandTotal += g.total
-          })
+          } else {
+            agingProcessoRegiaoGroups.forEach(g => {
+              agingCols.forEach(col => {
+                const v = g.subtotals.get(col) || 0
+                agingProcessoSubtotals.set(col, (agingProcessoSubtotals.get(col) || 0) + v)
+              })
+              agingProcessoGrandTotal += g.total
+            })
+          }
         }
 
         const agingTotalGeralPorCol = new Map<string, number>()
-        agingCols.forEach(col => {
-          const cVal = agingCarteiraSubtotals.get(col) || 0
-          const pVal = agingProcessoSubtotals.get(col) || 0
-          agingTotalGeralPorCol.set(col, cVal + pVal)
-        })
-        const agingTotalConsolidadoGeral = agingCarteiraGrandTotal + agingProcessoGrandTotal
+        let agingTotalConsolidadoGeral = 0
+        if (agingMetric === 'pedidos') {
+          const allColPeds = new Map<string, Set<string>>()
+          const allPeds = new Set<string>()
+          const allItems = agingGroupBy === 'modalidade'
+            ? [...agingCarteiraList, ...agingProcessoList]
+            : [...agingCarteiraRegiaoGroups.flatMap(g => g.destinos), ...agingProcessoRegiaoGroups.flatMap(g => g.destinos)]
+          allItems.forEach(item => {
+            item.totalPeds?.forEach(p => allPeds.add(p))
+            item.pedsSets?.forEach((set, col) => {
+              if (!allColPeds.has(col)) allColPeds.set(col, new Set())
+              set.forEach(p => allColPeds.get(col)!.add(p))
+            })
+          })
+          agingCols.forEach(col => {
+            agingTotalGeralPorCol.set(col, allColPeds.get(col)?.size || 0)
+          })
+          agingTotalConsolidadoGeral = allPeds.size
+        } else {
+          agingCols.forEach(col => {
+            const cVal = agingCarteiraSubtotals.get(col) || 0
+            const pVal = agingProcessoSubtotals.get(col) || 0
+            agingTotalGeralPorCol.set(col, cVal + pVal)
+          })
+          agingTotalConsolidadoGeral = agingCarteiraGrandTotal + agingProcessoGrandTotal
+        }
 
         // ------------------------------------------------------------
         // CÁLCULOS DA VISÃO 3: PAINEL OPERACIONAL POR MODALIDADE
@@ -8175,8 +8325,21 @@ export const PcpJsMartinsPage: React.FC = () => {
                           </button>
                         </div>
 
-                        {/* Toggle Métrica: PÇS vs CUBAGEM */}
+                        {/* Toggle Métrica: PEDIDOS vs PÇS vs CUBAGEM */}
                         <div className="flex items-center bg-[#072440] p-0.5 rounded-lg border border-sky-400/30">
+                          <button
+                            type="button"
+                            onClick={() => setAgingMetric('pedidos')}
+                            title="Visualizar em Quantidade de Pedidos"
+                            className={`px-2.5 py-1 text-[10px] font-black rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                              agingMetric === 'pedidos'
+                                ? 'bg-amber-400 text-slate-950 shadow-xs'
+                                : 'text-sky-200 hover:text-white hover:bg-white/10'
+                            }`}
+                          >
+                            <span>PED</span>
+                            <span className="text-[8px] font-normal opacity-80">(Pedidos)</span>
+                          </button>
                           <button
                             type="button"
                             onClick={() => setAgingMetric('pecas')}
@@ -8399,7 +8562,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                           {/* Super-Header */}
                           <tr className="bg-[#0e3b66] text-white text-[9.5px] uppercase font-black tracking-wider border-b border-[#0a2c4d]">
                             <th className="py-1 px-2.5 text-center bg-[#0a2c4d] text-amber-300 font-black border-r border-white/10 w-[95px] min-w-[95px]">
-                              {agingMetric === 'pecas' ? 'PÇS' : 'CUB (m³)'}
+                              {agingMetric === 'pedidos' ? 'PEDIDOS' : (agingMetric === 'pecas' ? 'PÇS' : 'CUB (m³)')}
                             </th>
                             <th className="py-1 px-2 text-left border-r border-white/10 min-w-[130px]">
                               {agingGroupBy === 'modalidade' ? 'DESCRICAOMODAL' : 'REGIÃO'}
@@ -8555,7 +8718,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                             }`}
                                           >
                                             {val && val > 0 ? (
-                                              agingMetric === 'pecas'
+                                              agingMetric !== 'cubagem'
                                                 ? Math.round(val).toLocaleString('pt-BR')
                                                 : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
                                             ) : ''}
@@ -8563,7 +8726,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                         )
                                       })}
                                       <td className={`px-2 py-1.5 text-center font-mono font-black text-[12px] text-slate-950 ${statusTheme.grandTotalBg} border-l ${statusTheme.totalBorder}`}>
-                                        {agingMetric === 'pecas'
+                                        {agingMetric !== 'cubagem'
                                           ? Math.round(grandTotal).toLocaleString('pt-BR')
                                           : grandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                       </td>
@@ -8646,7 +8809,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                   }`}
                                                 >
                                                   {val && val > 0 ? (
-                                                    agingMetric === 'pecas'
+                                                    agingMetric !== 'cubagem'
                                                       ? Math.round(val).toLocaleString('pt-BR')
                                                       : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
                                                   ) : ''}
@@ -8654,7 +8817,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                               )
                                             })}
                                             <td className="px-2 py-1.5 text-center font-mono font-bold text-[11px] text-slate-900 bg-slate-200/70 border-l border-slate-300">
-                                              {agingMetric === 'pecas'
+                                              {agingMetric !== 'cubagem'
                                                 ? Math.round(g.total).toLocaleString('pt-BR')
                                                 : g.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                             </td>
@@ -8718,7 +8881,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                     }`}
                                                   >
                                                     {val && val > 0 ? (
-                                                      agingMetric === 'pecas'
+                                                      agingMetric !== 'cubagem'
                                                         ? Math.round(val).toLocaleString('pt-BR')
                                                         : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
                                                     ) : ''}
@@ -8726,7 +8889,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                 )
                                               })}
                                               <td className="px-2 py-1.5 text-center font-mono font-bold text-[11.5px] text-slate-950 bg-slate-100/80 border-l border-slate-300">
-                                                {agingMetric === 'pecas'
+                                                {agingMetric !== 'cubagem'
                                                   ? Math.round(dest.total).toLocaleString('pt-BR')
                                                   : dest.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                               </td>
@@ -8749,7 +8912,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                                   }`}
                                                 >
                                                   {val && val > 0 ? (
-                                                    agingMetric === 'pecas'
+                                                    agingMetric !== 'cubagem'
                                                       ? Math.round(val).toLocaleString('pt-BR')
                                                       : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
                                                   ) : ''}
@@ -8757,7 +8920,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                               )
                                             })}
                                             <td className="px-2 py-1 text-center font-mono font-bold text-[11px] text-slate-900 bg-slate-200/70 border-l border-slate-300">
-                                              {agingMetric === 'pecas'
+                                              {agingMetric !== 'cubagem'
                                                 ? Math.round(g.total).toLocaleString('pt-BR')
                                                 : g.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                             </td>
@@ -8792,7 +8955,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                             }`}
                                           >
                                             {val && val > 0 ? (
-                                              agingMetric === 'pecas'
+                                              agingMetric !== 'cubagem'
                                                 ? Math.round(val).toLocaleString('pt-BR')
                                                 : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
                                             ) : ''}
@@ -8800,7 +8963,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                         )
                                       })}
                                       <td className={`px-2 py-1.5 text-center font-mono font-black text-[12px] text-slate-950 ${statusTheme.grandTotalBg} border-l ${statusTheme.totalBorder}`}>
-                                        {agingMetric === 'pecas'
+                                        {agingMetric !== 'cubagem'
                                           ? Math.round(grandTotal).toLocaleString('pt-BR')
                                           : grandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                       </td>
@@ -8872,7 +9035,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                             }`}
                                           >
                                             {val && val > 0 ? (
-                                              agingMetric === 'pecas'
+                                              agingMetric !== 'cubagem'
                                                 ? Math.round(val).toLocaleString('pt-BR')
                                                 : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
                                             ) : ''}
@@ -8880,7 +9043,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                         )
                                       })}
                                       <td className={`px-2 py-1.5 text-center font-mono font-black text-[12px] text-slate-950 ${statusTheme.grandTotalBg} border-l ${statusTheme.totalBorder}`}>
-                                        {agingMetric === 'pecas'
+                                        {agingMetric !== 'cubagem'
                                           ? Math.round(grandTotal).toLocaleString('pt-BR')
                                           : grandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                       </td>
@@ -8939,7 +9102,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                               }`}
                                             >
                                               {val && val > 0 ? (
-                                                agingMetric === 'pecas'
+                                                agingMetric !== 'cubagem'
                                                   ? Math.round(val).toLocaleString('pt-BR')
                                                   : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
                                               ) : ''}
@@ -8947,7 +9110,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                           )
                                         })}
                                         <td className="px-2 py-1.5 text-center font-mono font-bold text-[11.5px] text-slate-950 bg-slate-100/80 border-l border-slate-300">
-                                          {agingMetric === 'pecas'
+                                          {agingMetric !== 'cubagem'
                                             ? Math.round(item.total).toLocaleString('pt-BR')
                                             : item.total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                         </td>
@@ -8979,7 +9142,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                             }`}
                                           >
                                             {val && val > 0 ? (
-                                              agingMetric === 'pecas'
+                                              agingMetric !== 'cubagem'
                                                 ? Math.round(val).toLocaleString('pt-BR')
                                                 : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
                                             ) : ''}
@@ -8987,7 +9150,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                         )
                                       })}
                                       <td className={`px-2 py-1.5 text-center font-mono font-black text-[12px] text-slate-950 ${statusTheme.grandTotalBg} border-l ${statusTheme.totalBorder}`}>
-                                        {agingMetric === 'pecas'
+                                        {agingMetric !== 'cubagem'
                                           ? Math.round(grandTotal).toLocaleString('pt-BR')
                                           : grandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                       </td>
@@ -9016,7 +9179,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                                   }`}
                                 >
                                   {val && val > 0 ? (
-                                    agingMetric === 'pecas'
+                                    agingMetric !== 'cubagem'
                                       ? Math.round(val).toLocaleString('pt-BR')
                                       : val.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
                                   ) : '0'}
@@ -9024,7 +9187,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                               )
                             })}
                             <td className="py-2 px-2.5 text-center font-mono font-black text-amber-300 bg-[#071d37] border-l-2 border-amber-400 text-[12.5px]">
-                              {agingMetric === 'pecas'
+                              {agingMetric !== 'cubagem'
                                 ? Math.round(agingTotalConsolidadoGeral).toLocaleString('pt-BR')
                                 : agingTotalConsolidadoGeral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                             </td>
