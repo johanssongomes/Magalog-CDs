@@ -5495,37 +5495,44 @@ export const PcpJsMartinsPage: React.FC = () => {
                 </div>
 
                 {/* Lado Direito: Cards Rápidos de Visão Geral (Alinhados com o Painel de Baixo) */}
-                <div className="w-full xl:w-auto xl:min-w-[580px] xl:max-w-[700px] 2xl:max-w-[740px] shrink-0">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
-                    <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200/90 shadow-2xs hover:bg-white transition-colors">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Pedidos</span>
-                      <span className="text-base font-black text-slate-800 leading-tight block">
+                <div className="w-full xl:w-auto xl:min-w-[620px] xl:max-w-[760px] 2xl:min-w-[680px] 2xl:max-w-[820px] shrink-0">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 w-full">
+                    {/* Card 1: Total Pedidos */}
+                    <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl bg-gradient-to-b from-white to-slate-50/90 border border-slate-200/90 shadow-2xs hover:shadow-md hover:border-blue-200 transition-all flex flex-col justify-between min-h-[78px]">
+                      <span className="text-[10.5px] sm:text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Total Pedidos</span>
+                      <span className="text-xl sm:text-2xl font-black text-slate-900 leading-tight block my-0.5">
                         {(planViewMode === 'comparativo' ? compTotals.totalPedidos : geralPedidos).toLocaleString('pt-BR')}
                       </span>
-                      <span className="text-[9.5px] text-slate-400 block mt-0.5">
+                      <span className="text-[10px] sm:text-[10.5px] text-slate-400 block font-medium">
                         {planViewMode === 'comparativo' ? 'Carteira + Processo' : 'Backlog filtrado'}
                       </span>
                     </div>
-                    <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200/90 shadow-2xs hover:bg-white transition-colors">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Volume Peças</span>
-                      <span className="text-base font-black text-blue-600 leading-tight block">
+
+                    {/* Card 2: Volume Peças */}
+                    <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl bg-gradient-to-b from-white to-slate-50/90 border border-slate-200/90 shadow-2xs hover:shadow-md hover:border-blue-300 transition-all flex flex-col justify-between min-h-[78px]">
+                      <span className="text-[10.5px] sm:text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Volume Peças</span>
+                      <span className="text-xl sm:text-2xl font-black text-blue-600 leading-tight block my-0.5">
                         {Math.round(planViewMode === 'comparativo' ? compTotals.totalQtd : geralQtd).toLocaleString('pt-BR')}
                       </span>
-                      <span className="text-[9.5px] text-slate-400 block mt-0.5">Total de unidades</span>
+                      <span className="text-[10px] sm:text-[10.5px] text-slate-400 block font-medium">Total de unidades</span>
                     </div>
-                    <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200/90 shadow-2xs hover:bg-white transition-colors">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cubagem (m³)</span>
-                      <span className="text-base font-black text-purple-600 leading-tight block">
+
+                    {/* Card 3: Cubagem (m³) */}
+                    <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl bg-gradient-to-b from-white to-slate-50/90 border border-slate-200/90 shadow-2xs hover:shadow-md hover:border-purple-300 transition-all flex flex-col justify-between min-h-[78px]">
+                      <span className="text-[10.5px] sm:text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Cubagem (m³)</span>
+                      <span className="text-xl sm:text-2xl font-black text-purple-600 leading-tight block my-0.5">
                         {(planViewMode === 'comparativo' ? compTotals.totalCub : geralCub).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                       </span>
-                      <span className="text-[9.5px] text-slate-400 block mt-0.5">Espaço cúbico</span>
+                      <span className="text-[10px] sm:text-[10.5px] text-slate-400 block font-medium">Espaço cúbico</span>
                     </div>
-                    <div className="px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200/90 shadow-2xs hover:bg-white transition-colors">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Faturamento</span>
-                      <span className="text-base font-black text-emerald-600 leading-tight block">
+
+                    {/* Card 4: Faturamento */}
+                    <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl bg-gradient-to-b from-white to-slate-50/90 border border-slate-200/90 shadow-2xs hover:shadow-md hover:border-emerald-300 transition-all flex flex-col justify-between min-h-[78px]">
+                      <span className="text-[10.5px] sm:text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Faturamento</span>
+                      <span className="text-xl sm:text-2xl font-black text-emerald-600 leading-tight block my-0.5">
                         {(planViewMode === 'comparativo' ? compTotals.totalValor : geralValor).toLocaleString('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' })}
                       </span>
-                      <span className="text-[9.5px] text-slate-400 block mt-0.5">
+                      <span className="text-[10px] sm:text-[10.5px] text-slate-400 block font-medium">
                         {planViewMode === 'comparativo' ? 'Valor consolidado' : 'Valor em carteira'}
                       </span>
                     </div>
