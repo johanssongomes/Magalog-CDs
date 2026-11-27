@@ -5590,20 +5590,16 @@ export const PcpJsMartinsPage: React.FC = () => {
                           }`}
                       >
                         <span>{faixa}</span>
-                        {isVencido ? (
-                          <span className="w-3.5 h-3.5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[9px] font-black">
-                            !
-                          </span>
-                        ) : (
-                          <span
-                            className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-extrabold transition-colors ${isSelected
-                              ? 'bg-white/25 text-white'
+                        <span
+                          className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-extrabold transition-colors ${isSelected
+                            ? 'bg-white/25 text-white'
+                            : isVencido
+                              ? 'bg-rose-200 text-rose-800 border border-rose-300'
                               : 'bg-blue-50 text-blue-700 border border-blue-100'
-                              }`}
-                          >
-                            {count}
-                          </span>
-                        )}
+                            }`}
+                        >
+                          {count}
+                        </span>
                       </button>
                     )
                   })}
