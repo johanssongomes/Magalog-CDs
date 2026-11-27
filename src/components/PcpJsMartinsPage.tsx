@@ -222,7 +222,35 @@ export function getOperationalReferenceDate(rows: any[]): Date {
 // Lista das 10 faixas oficiais de prazo/SLA
 export const PRAZO_FAIXAS = ['Vencido', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D+'] as const
 
+// Helper para calcular dias úteis (desconsiderando Sábado e Domingo)
+export function countBusinessDays(startDate: Date, endDate: Date): number {
+  const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+  const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+
+  if (end.getTime() < start.getTime()) {
+    return -1 // Data no passado / Vencido
+  }
+  if (end.getTime() === start.getTime()) {
+    return 0 // Mesmo dia (D0)
+  }
+
+  let businessDays = 0
+  const cur = new Date(start)
+  cur.setDate(cur.getDate() + 1)
+
+  while (cur.getTime() <= end.getTime()) {
+    const dayOfWeek = cur.getDay() // 0 = Domingo, 6 = Sábado
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      businessDays++
+    }
+    cur.setDate(cur.getDate() + 1)
+  }
+
+  return businessDays
+}
+
 // Helper para calcular a faixa de prazo (SLA) para Venda (PREVENTREGA) e Abastecimento (DTPEDIDO)
+// Regra: Para Venda, Sábado e Domingo NÃO entram como dia útil
 export function getPrazoFaixa(row: any, isAba: boolean, refDate: Date): string {
   const msPerDay = 1000 * 60 * 60 * 24
   if (isAba) {
@@ -240,19 +268,19 @@ export function getPrazoFaixa(row: any, isAba: boolean, refDate: Date): string {
     if (diffDays === 7) return 'D7'
     return 'D+'
   } else {
-    // Para Venda: usa PREVENTREGA
+    // Para Venda: usa PREVENTREGA considerando apenas DIAS ÚTEIS (sem Sábado e Domingo)
     const dt = parseDateOnly(row.preventrega || row.PREVENTREGA || row.data_entrega_prevista || row.DATA_ENTREGA_PREVISTA || row.prazo_entrega || row.PRAZO_ENTREGA)
     if (!dt) return 'D+'
-    const diffDays = Math.round((dt.getTime() - refDate.getTime()) / msPerDay)
-    if (diffDays < 0) return 'Vencido'
-    if (diffDays === 0) return 'D0'
-    if (diffDays === 1) return 'D1'
-    if (diffDays === 2) return 'D2'
-    if (diffDays === 3) return 'D3'
-    if (diffDays === 4) return 'D4'
-    if (diffDays === 5) return 'D5'
-    if (diffDays === 6) return 'D6'
-    if (diffDays === 7) return 'D7'
+    const diffBusinessDays = countBusinessDays(refDate, dt)
+    if (diffBusinessDays < 0) return 'Vencido'
+    if (diffBusinessDays === 0) return 'D0'
+    if (diffBusinessDays === 1) return 'D1'
+    if (diffBusinessDays === 2) return 'D2'
+    if (diffBusinessDays === 3) return 'D3'
+    if (diffBusinessDays === 4) return 'D4'
+    if (diffBusinessDays === 5) return 'D5'
+    if (diffBusinessDays === 6) return 'D6'
+    if (diffBusinessDays === 7) return 'D7'
     return 'D+'
   }
 }
