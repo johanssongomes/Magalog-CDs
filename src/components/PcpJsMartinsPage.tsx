@@ -4460,6 +4460,8 @@ export const PcpJsMartinsPage: React.FC = () => {
 
         const agingCarteiraMap = new Map<string, AgingItemAccumulator>()
         const agingProcessoMap = new Map<string, AgingItemAccumulator>()
+        const agingCarteiraDestinoMap = new Map<string, Map<string, { values: Map<string, number>, total: number }>>()
+        const agingProcessoDestinoMap = new Map<string, Map<string, { values: Map<string, number>, total: number }>>()
 
         enrichedForComparative.forEach(r => {
           const codModal = String(r.codmodal || r.CODMODAL || '-').trim()
