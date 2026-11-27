@@ -5162,7 +5162,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             {/* ------------------------------------------------------------ */}
             {/* FAIXA HORIZONTAL DEDICADA ÀS SEGMENTAÇÕES DE DADOS (CARD)    */}
             {/* ------------------------------------------------------------ */}
-            <div className="bg-white rounded-3xl border border-blue-100/90 p-4 sm:p-5 shadow-[0_10px_35px_rgba(0,50,150,0.06)] space-y-3.5 relative overflow-visible z-20">
+            <div className="bg-white rounded-3xl border border-blue-100/90 p-4 sm:p-5 shadow-[0_10px_35px_rgba(0,50,150,0.06)] space-y-3.5 relative overflow-visible z-40">
               {/* Marca d'Água / Fundo Futurista: Mapa de Rotas Conectadas & Slogan */}
               <div className="absolute top-0 right-0 bottom-0 w-[420px] pointer-events-none select-none overflow-hidden rounded-r-3xl hidden xl:flex flex-col justify-between items-end p-5 pr-6 z-0">
                 <svg viewBox="0 0 400 150" className="w-full h-auto opacity-20">
@@ -5730,7 +5730,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             {/* ------------------------------------------------------------ */}
             {/* CORPO: CANTO ESQUERDO (TABELA FORMATO OFICIAL) + LADO DIREITO */}
             {/* ------------------------------------------------------------ */}
-            <div className="flex flex-col xl:flex-row gap-5 items-start w-full">
+            <div className="flex flex-col xl:flex-row gap-5 items-start w-full relative z-0">
               {/* CANTO ESQUERDO RECOLHIDO: BARRA RETRÁTIL DISCRETA */}
               {isLeftPanelCollapsed ? (
                 <div className="hidden xl:flex flex-col items-center bg-[#0e3b66] text-white rounded-2xl border border-slate-200/90 shadow-2xs py-4 px-2.5 shrink-0 transition-all select-none">
