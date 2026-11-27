@@ -953,6 +953,22 @@ export const PcpJsMartinsPage: React.FC = () => {
     } catch { }
   }, [agingMetric])
 
+  // Agrupamento da Visão 4 (Aging): 'modalidade' | 'destino'
+  const [agingGroupBy, setAgingGroupBy] = useState<'modalidade' | 'destino'>(() => {
+    try {
+      const saved = localStorage.getItem('magalog_pcp_aging_group_by')
+      return saved === 'destino' ? 'destino' : 'modalidade'
+    } catch {
+      return 'modalidade'
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('magalog_pcp_aging_group_by', agingGroupBy)
+    } catch { }
+  }, [agingGroupBy])
+
   const [agingSearch, setAgingSearch] = useState<string>('')
 
   // Estado para recolher/expandir o painel esquerdo (Quadro por Destino & Região)
@@ -4425,27 +4441,19 @@ export const PcpJsMartinsPage: React.FC = () => {
           : sortedDateGroups
 
         // ------------------------------------------------------------
-        // CÁLCULOS DA VISÃO 4: AGING X MODALIDADE (CARTEIRA X PROCESSO)
+        // CÁLCULOS DA VISÃO 4: AGING X MODALIDADE / DESTINO (CARTEIRA X PROCESSO)
         // Alternância Dinâmica entre PÇS (Peças) e Cubagem (m³)
-        // Colunas no formato operacional: D0, D1, D2, D3, D4, D5, D6, D7, D+
+        // Alternância Dinâmica entre Modalidade e Destino
+        // Colunas no formato operacional oficial: Vencido, D0, D1, D2, D3, D4, D5, D6, D7, D+
+        // Regra de Prazo:
+        // - Vendas: Prazo Cliente (PREVENTREGA) -> Vencido, D0..D7, D+
+        // - Abastecimento: Aging do Pedido (DTPEDIDO) -> D0..D7, D+
         // ------------------------------------------------------------
-        const agingCols = ['D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D+']
-
-        const getAgingColKey = (agingDays: number): string => {
-          if (agingDays <= 0) return 'D0'
-          if (agingDays === 1) return 'D1'
-          if (agingDays === 2) return 'D2'
-          if (agingDays === 3) return 'D3'
-          if (agingDays === 4) return 'D4'
-          if (agingDays === 5) return 'D5'
-          if (agingDays === 6) return 'D6'
-          if (agingDays === 7) return 'D7'
-          return 'D+'
-        }
+        const agingCols = ['Vencido', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D+']
 
         interface AgingItemAccumulator {
-          codModal: string
-          descModal: string
+          chavePrincipal: string
+          chaveSecundaria: string
           values: Map<string, number>
           total: number
         }
@@ -4470,31 +4478,32 @@ export const PcpJsMartinsPage: React.FC = () => {
             return
           }
 
-          // Cálculo do Aging em dias (dias corridos a partir da DTPEDIDO em relação à data operacional)
-          const rawDtPed = r.dtpedido || r.DTPEDIDO
-          const dtPed = rawDtPed ? parseDateOnly(rawDtPed) : null
-          let aging = 0
-          if (dtPed && !isNaN(dtPed.getTime())) {
-            const diffDays = Math.floor((opRefDate.getTime() - dtPed.getTime()) / (1000 * 60 * 60 * 24))
-            aging = Math.max(0, diffDays)
-          }
-          const colKey = getAgingColKey(aging)
+          // Prazo oficial calculado pelo helper getPrazoFaixa (Vendas = Prazo Cliente PREVENTREGA, ABA = Aging DTPEDIDO)
+          const colKey = (r.calc_prazo && agingCols.includes(r.calc_prazo)) ? r.calc_prazo : 'D+'
+
+          // Chave de agrupamento: por Modalidade (Desc + Cod) ou por Destino (Destino + Região)
+          const chavePrincipal = agingGroupBy === 'modalidade'
+            ? descModal
+            : String(r.calc_destino || 'OUTROS').trim()
+          const chaveSecundaria = agingGroupBy === 'modalidade'
+            ? codModal
+            : String(r.calc_regiao || '-').trim()
 
           const rawSt = String(r.calc_status_op || r.status_operacao || r.STATUS_OPERACAO || '').toUpperCase().trim()
           const isProcesso = rawSt.includes('PROCESSO')
           const targetMap = isProcesso ? agingProcessoMap : agingCarteiraMap
-          const modalKey = `${descModal}__${codModal}`
+          const itemKey = `${chavePrincipal}__${chaveSecundaria}`
 
-          if (!targetMap.has(modalKey)) {
-            targetMap.set(modalKey, {
-              codModal,
-              descModal,
+          if (!targetMap.has(itemKey)) {
+            targetMap.set(itemKey, {
+              chavePrincipal,
+              chaveSecundaria,
               values: new Map<string, number>(),
               total: 0
             })
           }
 
-          const acc = targetMap.get(modalKey)!
+          const acc = targetMap.get(itemKey)!
           const metricVal = agingMetric === 'pecas' ? (Number(r.calc_qtd) || 0) : (Number(r.calc_cub) || 0)
           acc.values.set(colKey, (acc.values.get(colKey) || 0) + metricVal)
           acc.total += metricVal
@@ -4504,7 +4513,7 @@ export const PcpJsMartinsPage: React.FC = () => {
         const termAging = agingSearch.trim().toLowerCase()
         const filterAgingRow = (item: AgingItemAccumulator) => {
           if (!termAging) return true
-          return item.descModal.toLowerCase().includes(termAging) || item.codModal.toLowerCase().includes(termAging)
+          return item.chavePrincipal.toLowerCase().includes(termAging) || item.chaveSecundaria.toLowerCase().includes(termAging)
         }
 
         // Listas ordenadas
@@ -7635,8 +7644,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                 )}
 
                 {/* ------------------------------------------------------------ */}
-                {/* VISÃO 4: AGING X MODALIDADE (CARTEIRA X PROCESSO)            */}
-                {/* Alternância em Peças e Cubagem                              */}
+                {/* VISÃO 4: AGING X MODALIDADE / DESTINO (CARTEIRA X PROCESSO) */}
+                {/* Alternância em Peças e Cubagem | Modalidade e Destino         */}
                 {/* ------------------------------------------------------------ */}
                 {planRightTab === 'agingModal' && (
                   <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col select-text">
@@ -7647,20 +7656,48 @@ export const PcpJsMartinsPage: React.FC = () => {
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="text-xs font-black uppercase tracking-wider text-white">
-                              Aging por Modalidade (Carteira x Processo)
+                              Aging por {agingGroupBy === 'modalidade' ? 'Modalidade' : 'Destino'} (Carteira x Processo)
                             </h3>
                             <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#123e6b] text-sky-200 border border-sky-400/30">
-                              {agingCarteiraList.length + agingProcessoList.length} modais
+                              {agingCarteiraList.length + agingProcessoList.length} {agingGroupBy === 'modalidade' ? 'modais' : 'destinos'}
                             </span>
                           </div>
                           <p className="text-[10px] text-sky-200/80">
-                            Cruzamento de dias corridos (Aging) com modalidades operacionais
+                            Cruzamento de prazos ({agingGroupBy === 'modalidade' ? 'Modalidade' : 'Destino'} x Prazo Cliente/Aging)
                           </p>
                         </div>
                       </div>
 
-                      {/* Controles: Alternância PÇS/CUB, Busca e Exportação */}
+                      {/* Controles: Alternância Modalidade/Destino, PÇS/CUB, Busca e Exportação */}
                       <div className="flex items-center gap-2 flex-wrap">
+                        {/* Toggle Agrupamento: Modalidade vs Destino */}
+                        <div className="flex items-center bg-[#072440] p-0.5 rounded-lg border border-sky-400/30">
+                          <button
+                            type="button"
+                            onClick={() => setAgingGroupBy('modalidade')}
+                            title="Agrupar linhas por Modalidade Operacional"
+                            className={`px-2.5 py-1 text-[10px] font-black rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                              agingGroupBy === 'modalidade'
+                                ? 'bg-sky-500 text-white shadow-xs'
+                                : 'text-sky-200 hover:text-white hover:bg-white/10'
+                            }`}
+                          >
+                            <span>Modalidade</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAgingGroupBy('destino')}
+                            title="Agrupar linhas por Destino de Entrega (Rotas/Cidades)"
+                            className={`px-2.5 py-1 text-[10px] font-black rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                              agingGroupBy === 'destino'
+                                ? 'bg-sky-500 text-white shadow-xs'
+                                : 'text-sky-200 hover:text-white hover:bg-white/10'
+                            }`}
+                          >
+                            <span>Destino</span>
+                          </button>
+                        </div>
+
                         {/* Toggle Métrica: PÇS vs CUBAGEM */}
                         <div className="flex items-center bg-[#072440] p-0.5 rounded-lg border border-sky-400/30">
                           <button
@@ -7691,14 +7728,14 @@ export const PcpJsMartinsPage: React.FC = () => {
                           </button>
                         </div>
 
-                        {/* Busca Rápida de Modalidade */}
+                        {/* Busca Rápida */}
                         <div className="relative">
                           <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
                           <input
                             type="text"
                             value={agingSearch}
                             onChange={e => setAgingSearch(e.target.value)}
-                            placeholder="Buscar modal..."
+                            placeholder={agingGroupBy === 'modalidade' ? 'Buscar modal...' : 'Buscar destino...'}
                             className="pl-6 pr-2 py-0.5 text-[10.5px] rounded-md bg-[#0a2c4d] text-white placeholder-slate-400 border border-sky-500/30 focus:outline-none focus:ring-1 focus:ring-sky-400 w-32 sm:w-40 transition-all"
                           />
                           {agingSearch && (
@@ -7718,14 +7755,16 @@ export const PcpJsMartinsPage: React.FC = () => {
                           type="button"
                           onClick={() => {
                             try {
-                              const headers = ['STATUS_', 'DESCRICAOMODAL', 'CODMODAL', ...agingCols.map(a => `AGING ${a}`), 'Total Geral']
+                              const colChave1 = agingGroupBy === 'modalidade' ? 'DESCRICAOMODAL' : 'DESTINO'
+                              const colChave2 = agingGroupBy === 'modalidade' ? 'CODMODAL' : 'REGIAO'
+                              const headers = ['STATUS_', colChave1, colChave2, ...agingCols.map(a => `PRAZO ${a}`), 'Total Geral']
                               const dataRows: any[][] = []
 
                               agingCarteiraList.forEach(m => {
                                 dataRows.push([
                                   'EM CARTEIRA',
-                                  m.descModal,
-                                  m.codModal,
+                                  m.chavePrincipal,
+                                  m.chaveSecundaria,
                                   ...agingCols.map(a => m.values.get(a) || 0),
                                   m.total
                                 ])
@@ -7741,8 +7780,8 @@ export const PcpJsMartinsPage: React.FC = () => {
                               agingProcessoList.forEach(m => {
                                 dataRows.push([
                                   'EM PROCESSO',
-                                  m.descModal,
-                                  m.codModal,
+                                  m.chavePrincipal,
+                                  m.chaveSecundaria,
                                   ...agingCols.map(a => m.values.get(a) || 0),
                                   m.total
                                 ])
@@ -7765,8 +7804,8 @@ export const PcpJsMartinsPage: React.FC = () => {
 
                               const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows])
                               const wb = XLSX.utils.book_new()
-                              XLSX.utils.book_append_sheet(wb, ws, `Aging_${agingMetric.toUpperCase()}`)
-                              XLSX.writeFile(wb, `Aging_Modalidade_${agingMetric}_${new Date().toISOString().slice(0, 10)}.xlsx`)
+                              XLSX.utils.book_append_sheet(wb, ws, `Aging_${agingGroupBy}_${agingMetric.toUpperCase()}`)
+                              XLSX.writeFile(wb, `Aging_${agingGroupBy}_${agingMetric}_${new Date().toISOString().slice(0, 10)}.xlsx`)
                             } catch (err) {
                               console.error('Erro ao exportar Aging:', err)
                             }
@@ -7780,7 +7819,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Tabela Matriz Aging x Modalidade */}
+                    {/* Tabela Matriz Aging x Modalidade / Destino */}
                     <div className="w-full overflow-x-auto select-text">
                       <table className="w-full border-collapse font-sans text-slate-800 text-[11px] sm:text-[11.5px] table-auto">
                         <thead className="sticky top-0 z-20 select-none shadow-2xs">
@@ -7790,16 +7829,16 @@ export const PcpJsMartinsPage: React.FC = () => {
                               {agingMetric === 'pecas' ? 'PÇS' : 'CUB (m³)'}
                             </th>
                             <th className="py-1 px-2 text-left border-r border-white/10 min-w-[160px]">
-                              DESCRICAOMODAL
+                              {agingGroupBy === 'modalidade' ? 'DESCRICAOMODAL' : 'DESTINO'}
                             </th>
                             <th className="py-1 px-1.5 text-center border-r border-white/10 w-[70px] min-w-[70px]">
-                              CODMODAL
+                              {agingGroupBy === 'modalidade' ? 'CODMODAL' : 'REGIÃO'}
                             </th>
                             <th
                               colSpan={agingCols.length}
                               className="py-1 px-2 text-center bg-[#facc15] text-slate-950 font-black tracking-widest text-[11px] border-r border-amber-600"
                             >
-                              AGING
+                              AGING / PRAZO
                             </th>
                             <th className="py-1 px-2 text-center bg-[#0a2c4d] text-white font-black w-[90px] min-w-[90px] text-[10.5px]">
                               Total Geral
@@ -7812,15 +7851,19 @@ export const PcpJsMartinsPage: React.FC = () => {
                               STATUS_
                             </th>
                             <th className="py-1 px-2 text-left border-r border-white/10 text-sky-200">
-                              Modalidade
+                              {agingGroupBy === 'modalidade' ? 'Modalidade' : 'Destino'}
                             </th>
                             <th className="py-1 px-1 text-center border-r border-white/10 text-sky-200">
-                              Cód.
+                              {agingGroupBy === 'modalidade' ? 'Cód.' : 'Região'}
                             </th>
                             {agingCols.map(col => (
                               <th
                                 key={col}
-                                className="py-1.5 px-1.5 text-center font-mono font-black border-r border-white/10 bg-[#0e3b66] text-sky-100 min-w-[44px] text-[11px]"
+                                className={`py-1.5 px-1.5 text-center font-mono font-black border-r border-white/10 ${
+                                  col === 'Vencido'
+                                    ? 'bg-[#4c0519] text-rose-200 min-w-[50px] text-[10.5px]'
+                                    : 'bg-[#0e3b66] text-sky-100 min-w-[42px] text-[11px]'
+                                }`}
                               >
                                 {col}
                               </th>
@@ -7836,12 +7879,12 @@ export const PcpJsMartinsPage: React.FC = () => {
                           {agingCarteiraList.length === 0 ? (
                             <tr>
                               <td colSpan={agingCols.length + 4} className="py-3 px-4 text-center text-slate-400 italic bg-slate-50">
-                                Nenhuma modalidade em carteira encontrada.
+                                Nenhum registro em carteira encontrado.
                               </td>
                             </tr>
                           ) : (
                             agingCarteiraList.map((item, idx) => (
-                              <tr key={`cart_${item.codModal}_${item.descModal}`} className="hover:bg-sky-50/50 transition-colors">
+                              <tr key={`cart_${item.chavePrincipal}_${item.chaveSecundaria}`} className="hover:bg-sky-50/50 transition-colors">
                                 {idx === 0 && (
                                   <td
                                     rowSpan={agingCarteiraList.length}
@@ -7850,18 +7893,23 @@ export const PcpJsMartinsPage: React.FC = () => {
                                     EM CARTEIRA
                                   </td>
                                 )}
-                                <td className="px-2.5 py-1.5 text-left font-semibold text-slate-800 border-r border-slate-200 truncate max-w-[200px]" title={item.descModal}>
-                                  {item.descModal}
+                                <td className="px-2.5 py-1.5 text-left font-semibold text-slate-800 border-r border-slate-200 truncate max-w-[200px]" title={item.chavePrincipal}>
+                                  {item.chavePrincipal}
                                 </td>
                                 <td className="px-1.5 py-1.5 text-center font-mono font-bold text-slate-600 border-r border-slate-200">
-                                  {item.codModal}
+                                  {item.chaveSecundaria}
                                 </td>
                                 {agingCols.map(col => {
                                   const val = item.values.get(col)
+                                  const isVenc = col === 'Vencido' && val && val > 0
                                   return (
                                     <td
                                       key={col}
-                                      className="px-1.5 py-1.5 text-center font-mono font-semibold text-[11.5px] text-slate-800 border-r border-slate-100"
+                                      className={`px-1.5 py-1.5 text-center font-mono text-[11.5px] border-r border-slate-100 ${
+                                        isVenc
+                                          ? 'bg-rose-50/80 text-rose-700 font-bold'
+                                          : 'text-slate-800 font-semibold'
+                                      }`}
                                     >
                                       {val && val > 0 ? (
                                         agingMetric === 'pecas'
@@ -7887,10 +7935,13 @@ export const PcpJsMartinsPage: React.FC = () => {
                             </td>
                             {agingCols.map(col => {
                               const val = agingCarteiraSubtotals.get(col)
+                              const isVenc = col === 'Vencido' && val && val > 0
                               return (
                                 <td
                                   key={col}
-                                  className="px-1.5 py-1.5 text-center font-mono font-black text-[11.5px] border-l border-slate-400/50"
+                                  className={`px-1.5 py-1.5 text-center font-mono font-black text-[11.5px] border-l border-slate-400/50 ${
+                                    isVenc ? 'text-rose-900 bg-rose-200/50' : ''
+                                  }`}
                                 >
                                   {val && val > 0 ? (
                                     agingMetric === 'pecas'
@@ -7911,12 +7962,12 @@ export const PcpJsMartinsPage: React.FC = () => {
                           {agingProcessoList.length === 0 ? (
                             <tr>
                               <td colSpan={agingCols.length + 4} className="py-3 px-4 text-center text-slate-400 italic bg-[#f0fdf4]">
-                                Nenhuma modalidade em processo encontrada.
+                                Nenhum registro em processo encontrado.
                               </td>
                             </tr>
                           ) : (
                             agingProcessoList.map((item, idx) => (
-                              <tr key={`proc_${item.codModal}_${item.descModal}`} className="bg-[#f0fdf4] hover:bg-emerald-100/60 transition-colors">
+                              <tr key={`proc_${item.chavePrincipal}_${item.chaveSecundaria}`} className="bg-[#f0fdf4] hover:bg-emerald-100/60 transition-colors">
                                 {idx === 0 && (
                                   <td
                                     rowSpan={agingProcessoList.length}
@@ -7925,18 +7976,23 @@ export const PcpJsMartinsPage: React.FC = () => {
                                     EM PROCESSO
                                   </td>
                                 )}
-                                <td className="px-2.5 py-1.5 text-left font-semibold text-slate-800 border-r border-emerald-100 truncate max-w-[200px]" title={item.descModal}>
-                                  {item.descModal}
+                                <td className="px-2.5 py-1.5 text-left font-semibold text-slate-800 border-r border-emerald-100 truncate max-w-[200px]" title={item.chavePrincipal}>
+                                  {item.chavePrincipal}
                                 </td>
                                 <td className="px-1.5 py-1.5 text-center font-mono font-bold text-emerald-800 border-r border-emerald-100">
-                                  {item.codModal}
+                                  {item.chaveSecundaria}
                                 </td>
                                 {agingCols.map(col => {
                                   const val = item.values.get(col)
+                                  const isVenc = col === 'Vencido' && val && val > 0
                                   return (
                                     <td
                                       key={col}
-                                      className="px-1.5 py-1.5 text-center font-mono font-semibold text-[11.5px] text-emerald-950 border-r border-emerald-100/60"
+                                      className={`px-1.5 py-1.5 text-center font-mono text-[11.5px] border-r border-emerald-100/60 ${
+                                        isVenc
+                                          ? 'bg-rose-100/70 text-rose-800 font-bold'
+                                          : 'text-emerald-950 font-semibold'
+                                      }`}
                                     >
                                       {val && val > 0 ? (
                                         agingMetric === 'pecas'
@@ -7962,10 +8018,13 @@ export const PcpJsMartinsPage: React.FC = () => {
                             </td>
                             {agingCols.map(col => {
                               const val = agingProcessoSubtotals.get(col)
+                              const isVenc = col === 'Vencido' && val && val > 0
                               return (
                                 <td
                                   key={col}
-                                  className="px-1.5 py-1.5 text-center font-mono font-black text-[11.5px] border-l border-emerald-300"
+                                  className={`px-1.5 py-1.5 text-center font-mono font-black text-[11.5px] border-l border-emerald-300 ${
+                                    isVenc ? 'text-rose-900 bg-rose-200/50' : ''
+                                  }`}
                                 >
                                   {val && val > 0 ? (
                                     agingMetric === 'pecas'
@@ -7991,10 +8050,13 @@ export const PcpJsMartinsPage: React.FC = () => {
                             </td>
                             {agingCols.map(col => {
                               const val = agingTotalGeralPorCol.get(col)
+                              const isVenc = col === 'Vencido' && val && val > 0
                               return (
                                 <td
                                   key={col}
-                                  className="py-2 px-1.5 text-center font-mono font-black text-[12px] text-white border-l border-sky-800"
+                                  className={`py-2 px-1.5 text-center font-mono font-black text-[12px] border-l border-sky-800 ${
+                                    isVenc ? 'text-rose-300 bg-[#3b0713]' : 'text-white'
+                                  }`}
                                 >
                                   {val && val > 0 ? (
                                     agingMetric === 'pecas'
