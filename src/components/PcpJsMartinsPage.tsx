@@ -418,7 +418,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   }
 
   return (
-    <div className="relative space-y-1" ref={dropdownRef}>
+    <div className={`relative space-y-1 ${isOpen ? 'z-50' : 'z-10'}`} ref={dropdownRef}>
       <div className="flex items-center justify-between">
         <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1">
           {icon && <span className="text-blue-600">{icon}</span>}
@@ -471,7 +471,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
       </button>
 
       {isOpen && (
-        <div className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-1 min-w-[220px] max-w-[320px] w-full bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 space-y-2 text-xs`}>
+        <div className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-1 min-w-[240px] max-w-[340px] w-full bg-white rounded-xl shadow-2xl border border-slate-200 z-[999] p-2 space-y-2 text-xs`}>
           {/* Ações Rápidas */}
           <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-[10.5px]">
             <button
@@ -506,7 +506,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
           )}
 
           {/* Lista com Checkboxes */}
-          <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1 divide-y divide-slate-50">
+          <div className="max-h-56 overflow-y-auto space-y-0.5 pr-1 divide-y divide-slate-50">
             {filteredOptions.length === 0 ? (
               <div className="text-[10.5px] text-slate-400 text-center py-2">
                 Nenhuma opção encontrada
@@ -3545,13 +3545,48 @@ export const PcpJsMartinsPage: React.FC = () => {
           }
         })
 
-        // Listas únicas de opções para os filtros de multi-seleção
+        // Listas únicas de opções contextuais (cascading) para os filtros de multi-seleção
         const canonicalRegioes = ['CAPITAL', 'METROPOLITANA', 'INTERIOR', 'ABASTECIMENTO CDs']
-        const extraRegioes = Array.from(new Set(enrichedBase.map(r => r.calc_regiao))).filter(r => r && !canonicalRegioes.includes(r)).sort()
-        const uniqueRegioesList = [...canonicalRegioes, ...extraRegioes]
-        const uniqueDestinosList = Array.from(new Set(enrichedBase.map(r => r.calc_destino))).filter(Boolean).sort()
-        const uniqueModalidadesList = Array.from(new Set(enrichedBase.map(r => r.calc_modalidade))).filter(Boolean).sort()
-        const uniqueLinhasList = Array.from(new Set(enrichedBase.map(r => r.calc_linha))).filter(Boolean).sort()
+
+        // 1. Modalidades disponíveis (filtradas dinamicamente por Tipo Modal quando ativo)
+        const baseForModalidades = planFilterTipoModal.length > 0
+          ? enrichedBase.filter(r => planFilterTipoModal.includes(r.calc_tipo_modal))
+          : enrichedBase
+        const availableModalidades = Array.from(new Set(baseForModalidades.map(r => r.calc_modalidade))).filter(Boolean)
+        const uniqueModalidadesList = Array.from(new Set([...availableModalidades, ...planFilterModalidades])).sort()
+
+        // 2. Destinos disponíveis (filtrados por Tipo Modal, Modalidades e Regiões ativas)
+        const baseForDestinos = enrichedBase.filter(r => {
+          if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
+          if (planFilterModalidades.length > 0 && !planFilterModalidades.includes(r.calc_modalidade)) return false
+          if (planFilterRegioes.length > 0 && !planFilterRegioes.includes(r.calc_regiao)) return false
+          return true
+        })
+        const availableDestinos = Array.from(new Set(baseForDestinos.map(r => r.calc_destino))).filter(Boolean)
+        const uniqueDestinosList = Array.from(new Set([...availableDestinos, ...planFilterDestinos])).sort()
+
+        // 3. Regiões disponíveis (filtradas por Tipo Modal e Modalidades ativas)
+        const baseForRegioes = enrichedBase.filter(r => {
+          if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
+          if (planFilterModalidades.length > 0 && !planFilterModalidades.includes(r.calc_modalidade)) return false
+          return true
+        })
+        const availableRegioes = Array.from(new Set(baseForRegioes.map(r => r.calc_regiao))).filter(Boolean)
+        const allActiveRegioes = Array.from(new Set([...availableRegioes, ...planFilterRegioes]))
+        const presentCanonical = canonicalRegioes.filter(cr => allActiveRegioes.includes(cr))
+        const extraRegioes = allActiveRegioes.filter(r => !canonicalRegioes.includes(r)).sort()
+        const uniqueRegioesList = presentCanonical.length > 0 ? [...presentCanonical, ...extraRegioes] : [...canonicalRegioes, ...extraRegioes]
+
+        // 4. Linhas disponíveis (filtradas por Tipo Modal, Modalidades, Regiões e Destinos ativos)
+        const baseForLinhas = enrichedBase.filter(r => {
+          if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
+          if (planFilterModalidades.length > 0 && !planFilterModalidades.includes(r.calc_modalidade)) return false
+          if (planFilterRegioes.length > 0 && !planFilterRegioes.includes(r.calc_regiao)) return false
+          if (planFilterDestinos.length > 0 && !planFilterDestinos.includes(r.calc_destino)) return false
+          return true
+        })
+        const availableLinhas = Array.from(new Set(baseForLinhas.map(r => r.calc_linha))).filter(Boolean)
+        const uniqueLinhasList = Array.from(new Set([...availableLinhas, ...planFilterLinhas])).sort()
 
         // Suporte a múltiplos termos / itens na Busca Rápida (separados por vírgula, ponto e vírgula, tab, quebra de linha ou espaço numérico)
         const rawSearch = planSearchTerm.trim()
@@ -5100,9 +5135,9 @@ export const PcpJsMartinsPage: React.FC = () => {
             {/* ------------------------------------------------------------ */}
             {/* FAIXA HORIZONTAL DEDICADA ÀS SEGMENTAÇÕES DE DADOS (CARD)    */}
             {/* ------------------------------------------------------------ */}
-            <div className="bg-white rounded-3xl border border-blue-100/90 p-4 sm:p-5 shadow-[0_10px_35px_rgba(0,50,150,0.06)] space-y-3.5 relative overflow-hidden">
+            <div className="bg-white rounded-3xl border border-blue-100/90 p-4 sm:p-5 shadow-[0_10px_35px_rgba(0,50,150,0.06)] space-y-3.5 relative overflow-visible z-20">
               {/* Marca d'Água / Fundo Futurista: Mapa de Rotas Conectadas & Slogan */}
-              <div className="absolute top-0 right-0 bottom-0 w-[420px] pointer-events-none select-none overflow-hidden hidden xl:flex flex-col justify-between items-end p-5 pr-6 z-0">
+              <div className="absolute top-0 right-0 bottom-0 w-[420px] pointer-events-none select-none overflow-hidden rounded-r-3xl hidden xl:flex flex-col justify-between items-end p-5 pr-6 z-0">
                 <svg viewBox="0 0 400 150" className="w-full h-auto opacity-20">
                   <g fill="#0284c7">
                     <circle cx="80" cy="50" r="14" opacity="0.3" />
