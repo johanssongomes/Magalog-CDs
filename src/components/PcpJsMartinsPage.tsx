@@ -1686,7 +1686,8 @@ export const PcpJsMartinsPage: React.FC = () => {
   const [fullPlanningData, setFullPlanningData] = useState<PcpItem[]>(() => {
     return (initialPlanningSummary as any[]) || []
   })
-  const [isLoadingPlanning, setIsLoadingPlanning] = useState<boolean>(false)
+  const [isLoadingPlanning, setIsLoadingPlanning] = useState<boolean>(true)
+  const [isInitialPlanningLoaded, setIsInitialPlanningLoaded] = useState<boolean>(false)
 
   // Referência da versão de sincronização atualmente carregada em tela
   const lastLoadedSyncVersionRef = useRef<string | null>(null)
@@ -1721,6 +1722,7 @@ export const PcpJsMartinsPage: React.FC = () => {
 
       if (dbRows && dbRows.length > 0) {
         setFullPlanningData(dbRows)
+        setIsInitialPlanningLoaded(true)
         if (remoteVersion) {
           lastLoadedSyncVersionRef.current = remoteVersion
         }
@@ -1729,6 +1731,7 @@ export const PcpJsMartinsPage: React.FC = () => {
       console.warn('Erro ao carregar dados consolidados do planejamento:', e)
     } finally {
       setIsLoadingPlanning(false)
+      setIsInitialPlanningLoaded(true)
       isFetchingPlanningRef.current = false
     }
   }, [])
@@ -6141,7 +6144,18 @@ export const PcpJsMartinsPage: React.FC = () => {
               </div>
 
               {/* Linha 4: Segmentação por CodModal ordenada por Rodoviário -> Courrier -> ABA */}
-              {availableCodModais.length > 0 && (
+              {!isInitialPlanningLoaded ? (
+                <div className="pt-2 border-t border-slate-100/90 flex flex-wrap items-center gap-1.5 select-none animate-pulse">
+                  <div className="h-6 w-12 rounded bg-slate-200/90" />
+                  <div className="h-6 w-11 rounded bg-purple-200/70" />
+                  <div className="h-6 w-11 rounded bg-purple-200/70" />
+                  <div className="h-6 w-11 rounded bg-purple-200/70" />
+                  <div className="h-6 w-11 rounded bg-purple-200/70" />
+                  <div className="h-6 w-11 rounded bg-purple-200/70" />
+                  <div className="h-6 w-11 rounded bg-purple-200/70" />
+                  <div className="h-6 w-11 rounded bg-purple-200/70" />
+                </div>
+              ) : availableCodModais.length > 0 ? (
                 <div className="pt-2 border-t border-slate-100/90 flex flex-wrap items-center gap-1.5 select-none">
                   {/* Botão Todos os Modais */}
                   <button
@@ -6195,7 +6209,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                     </button>
                   )}
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* ------------------------------------------------------------ */}
