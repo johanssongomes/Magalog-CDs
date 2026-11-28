@@ -1019,6 +1019,20 @@ export const PcpJsMartinsPage: React.FC = () => {
     } catch { }
   }, [planFilterRegioes, planFilterDestinos, planFilterModalidades, planFilterTipoModal, planFilterFllibfat, planFilterStatusOp, planFilterLinhas, planFilterPrazos, planFilterCodModais, planSearchTerm])
 
+  // Limpeza automática de modais selecionados se o Tipo Modal ativo mudar e excluí-los
+  useEffect(() => {
+    if (planFilterTipoModal.length > 0 && planFilterCodModais.length > 0) {
+      const validCodModais = planFilterCodModais.filter(cod => {
+        const mod = modalMap[cod] || ''
+        const tipo = getTipoModal(mod)
+        return planFilterTipoModal.includes(tipo)
+      })
+      if (validCodModais.length !== planFilterCodModais.length) {
+        setPlanFilterCodModais(validCodModais)
+      }
+    }
+  }, [planFilterTipoModal, modalMap])
+
   // Alternância de visualização dos painéis: 'regiao' (Quadro por Região) | 'comparativo' (Visão Comparativa por Destino)
   const [planViewMode, setPlanViewMode] = useState<'regiao' | 'comparativo'>(() => {
     try {
@@ -3678,9 +3692,27 @@ export const PcpJsMartinsPage: React.FC = () => {
         const availableLinhas = Array.from(new Set(baseForLinhas.map(r => r.calc_linha))).filter(Boolean)
         const uniqueLinhasList = Array.from(new Set([...availableLinhas, ...planFilterLinhas])).sort()
 
-        // 5. CodModais disponíveis para a segmentação (ordenados obrigatoriamente por Rodoviário -> Courrier -> ABA)
+        // 5. CodModais disponíveis para a segmentação (filtrados dinamicamente pelos filtros superiores ativos: Tipo Modal, Status Op, Lib Fat, Regiões, Destinos)
+        const baseForCodModais = enrichedBase.filter(r => {
+          if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
+          if (planFilterStatusOp.length > 0) {
+            const raw = String(r.calc_status_op || '').toUpperCase()
+            const matchStatus = planFilterStatusOp.some(st => {
+              if (st === 'EM CARTEIRA') return raw.includes('CARTEIRA')
+              if (st === 'EM PROCESSO') return raw.includes('PROCESSO')
+              return raw === st
+            })
+            if (!matchStatus) return false
+          }
+          if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return false
+          if (planFilterRegioes.length > 0 && !planFilterRegioes.includes(r.calc_regiao)) return false
+          if (planFilterDestinos.length > 0 && !planFilterDestinos.includes(r.calc_destino)) return false
+          if (planFilterModalidades.length > 0 && !planFilterModalidades.includes(r.calc_modalidade)) return false
+          return true
+        })
+
         const codModalMap = new Map<string, { cod: string; modalidade: string; count: number }>()
-        enrichedBase.forEach(r => {
+        baseForCodModais.forEach(r => {
           const cod = r.calc_codmodal
           if (!cod) return
           if (!codModalMap.has(cod)) {
@@ -3694,11 +3726,15 @@ export const PcpJsMartinsPage: React.FC = () => {
         })
         planFilterCodModais.forEach(cod => {
           if (!codModalMap.has(cod)) {
-            codModalMap.set(cod, {
-              cod,
-              modalidade: modalMap[cod] || '',
-              count: 0
-            })
+            const mod = modalMap[cod] || ''
+            const tipo = getTipoModal(mod)
+            if (planFilterTipoModal.length === 0 || planFilterTipoModal.includes(tipo)) {
+              codModalMap.set(cod, {
+                cod,
+                modalidade: mod,
+                count: 0
+              })
+            }
           }
         })
         const availableCodModais = Array.from(codModalMap.values())
