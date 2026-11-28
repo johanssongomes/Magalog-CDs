@@ -56,6 +56,8 @@ export const INITIAL_MODAL_PARAMS: ModalParamItem[] = [
   { codmodal: 'COP', modalidade: 'COURRIER' },
   { codmodal: 'CSE', modalidade: 'COURRIER' },
   { codmodal: 'SED', modalidade: 'COURRIER' },
+  { codmodal: 'COG', modalidade: 'COURRIER' },
+  { codmodal: 'DEN', modalidade: 'COURRIER' },
   { codmodal: 'RUP', modalidade: 'TRANSFERENCIA' },
   { codmodal: 'HUB', modalidade: 'TRANSFERENCIA' },
   { codmodal: 'TEL', modalidade: 'ABA' },

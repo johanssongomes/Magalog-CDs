@@ -710,6 +710,16 @@ export const PcpJsMartinsPage: React.FC = () => {
     return map
   }, [modalParams])
 
+  // Função auxiliar para prioridade e ordenação dos modais: Rodoviário (1) -> Courrier (2) -> ABA (3) -> Outros (4)
+  const getCodModalGroupPriority = (cod: string, modalidade?: string): number => {
+    const c = (cod || '').trim().toUpperCase()
+    const m = ((modalidade || modalMap[c]) || '').trim().toUpperCase()
+    if (m.includes('RODO') || c === 'RD1' || c === 'PRO' || c === 'TRA' || c === 'ROM' || c === 'RBL' || c === 'RBK') return 1
+    if (m.includes('COUR') || m.includes('SEDEX') || m.includes('RDP') || c === 'CD0' || c === 'COU' || c === 'COP' || c === 'CSE' || c === 'COG' || c === 'DEN' || c === 'ESE' || c === 'CBK' || c === 'DTZ') return 2
+    if (m.includes('ABA') || c === 'LEN' || c === 'PRF' || c === 'PRM' || c === 'RET' || c === 'RLE' || c === 'SOA' || c === 'EAL' || c === 'SPO' || c === 'ABR' || c === 'INA' || c === 'POF' || c === 'ATV') return 3
+    return 4
+  }
+
   const rotaMap = useMemo(() => {
     const map: Record<string, { destino: string; regiao: string }> = {}
     INITIAL_FILIAL_ROTA_PARAMS.forEach(p => {
@@ -983,6 +993,12 @@ export const PcpJsMartinsPage: React.FC = () => {
       return s ? JSON.parse(s) : []
     } catch { return [] }
   })
+  const [planFilterCodModais, setPlanFilterCodModais] = useState<string[]>(() => {
+    try {
+      const s = localStorage.getItem('magalog_pcp_plan_codmodais')
+      return s ? JSON.parse(s) : []
+    } catch { return [] }
+  })
   const [planSearchTerm, setPlanSearchTerm] = useState<string>(() => {
     try { return localStorage.getItem('magalog_pcp_plan_search') || '' } catch { return '' }
   })
@@ -998,9 +1014,10 @@ export const PcpJsMartinsPage: React.FC = () => {
       localStorage.setItem('magalog_pcp_plan_status_op', JSON.stringify(planFilterStatusOp))
       localStorage.setItem('magalog_pcp_plan_linhas', JSON.stringify(planFilterLinhas))
       localStorage.setItem('magalog_pcp_plan_prazos', JSON.stringify(planFilterPrazos))
+      localStorage.setItem('magalog_pcp_plan_codmodais', JSON.stringify(planFilterCodModais))
       localStorage.setItem('magalog_pcp_plan_search', planSearchTerm)
     } catch { }
-  }, [planFilterRegioes, planFilterDestinos, planFilterModalidades, planFilterTipoModal, planFilterFllibfat, planFilterStatusOp, planFilterLinhas, planFilterPrazos, planSearchTerm])
+  }, [planFilterRegioes, planFilterDestinos, planFilterModalidades, planFilterTipoModal, planFilterFllibfat, planFilterStatusOp, planFilterLinhas, planFilterPrazos, planFilterCodModais, planSearchTerm])
 
   // Alternância de visualização dos painéis: 'regiao' (Quadro por Região) | 'comparativo' (Visão Comparativa por Destino)
   const [planViewMode, setPlanViewMode] = useState<'regiao' | 'comparativo'>(() => {
@@ -3589,6 +3606,7 @@ export const PcpJsMartinsPage: React.FC = () => {
 
           return {
             ...r,
+            calc_codmodal: cod,
             descricaorota: resolvedRota,
             calc_regiao: regiao,
             calc_destino: destino,
@@ -3660,6 +3678,37 @@ export const PcpJsMartinsPage: React.FC = () => {
         const availableLinhas = Array.from(new Set(baseForLinhas.map(r => r.calc_linha))).filter(Boolean)
         const uniqueLinhasList = Array.from(new Set([...availableLinhas, ...planFilterLinhas])).sort()
 
+        // 5. CodModais disponíveis para a segmentação (ordenados obrigatoriamente por Rodoviário -> Courrier -> ABA)
+        const codModalMap = new Map<string, { cod: string; modalidade: string; count: number }>()
+        enrichedBase.forEach(r => {
+          const cod = r.calc_codmodal
+          if (!cod) return
+          if (!codModalMap.has(cod)) {
+            codModalMap.set(cod, {
+              cod,
+              modalidade: r.calc_modalidade || modalMap[cod] || '',
+              count: 0
+            })
+          }
+          codModalMap.get(cod)!.count++
+        })
+        planFilterCodModais.forEach(cod => {
+          if (!codModalMap.has(cod)) {
+            codModalMap.set(cod, {
+              cod,
+              modalidade: modalMap[cod] || '',
+              count: 0
+            })
+          }
+        })
+        const availableCodModais = Array.from(codModalMap.values())
+        availableCodModais.sort((a, b) => {
+          const pA = getCodModalGroupPriority(a.cod, a.modalidade)
+          const pB = getCodModalGroupPriority(b.cod, b.modalidade)
+          if (pA !== pB) return pA - pB
+          return a.cod.localeCompare(b.cod)
+        })
+
         // Suporte a múltiplos termos / itens na Busca Rápida (separados por vírgula, ponto e vírgula, tab, quebra de linha ou espaço numérico)
         const rawSearch = planSearchTerm.trim()
         let searchTokens: string[] = []
@@ -3718,6 +3767,7 @@ export const PcpJsMartinsPage: React.FC = () => {
             if (planFilterRegioes.length > 0 && !planFilterRegioes.includes(r.calc_regiao)) return
             if (planFilterDestinos.length > 0 && !planFilterDestinos.includes(r.calc_destino)) return
             if (planFilterModalidades.length > 0 && !planFilterModalidades.includes(r.calc_modalidade)) return
+            if (planFilterCodModais.length > 0 && !planFilterCodModais.includes(r.calc_codmodal)) return
             if (planFilterLinhas.length > 0 && !planFilterLinhas.includes(r.calc_linha)) return
             if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return
             if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return
@@ -3748,6 +3798,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           if (planFilterRegioes.length > 0 && !planFilterRegioes.includes(r.calc_regiao)) return
           if (planFilterDestinos.length > 0 && !planFilterDestinos.includes(r.calc_destino)) return
           if (planFilterModalidades.length > 0 && !planFilterModalidades.includes(r.calc_modalidade)) return
+          if (planFilterCodModais.length > 0 && !planFilterCodModais.includes(r.calc_codmodal)) return
           if (planFilterLinhas.length > 0 && !planFilterLinhas.includes(r.calc_linha)) return
           if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return
           if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return
@@ -3781,6 +3832,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           if (planFilterRegioes.length > 0 && !planFilterRegioes.includes(r.calc_regiao)) return false
           if (planFilterDestinos.length > 0 && !planFilterDestinos.includes(r.calc_destino)) return false
           if (planFilterModalidades.length > 0 && !planFilterModalidades.includes(r.calc_modalidade)) return false
+          if (planFilterCodModais.length > 0 && !planFilterCodModais.includes(r.calc_codmodal)) return false
           if (planFilterLinhas.length > 0 && !planFilterLinhas.includes(r.calc_linha)) return false
           if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
           if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return false
@@ -3807,6 +3859,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           if (planFilterRegioes.length > 0 && !planFilterRegioes.includes(r.calc_regiao)) return false
           if (planFilterDestinos.length > 0 && !planFilterDestinos.includes(r.calc_destino)) return false
           if (planFilterModalidades.length > 0 && !planFilterModalidades.includes(r.calc_modalidade)) return false
+          if (planFilterCodModais.length > 0 && !planFilterCodModais.includes(r.calc_codmodal)) return false
           if (planFilterLinhas.length > 0 && !planFilterLinhas.includes(r.calc_linha)) return false
           if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
           if (planFilterFllibfat.length > 0 && !planFilterFllibfat.includes(r.calc_fllibfat)) return false
@@ -5466,6 +5519,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                       planFilterRegioes.length > 0 ||
                       planFilterDestinos.length > 0 ||
                       planFilterModalidades.length > 0 ||
+                      planFilterCodModais.length > 0 ||
                       planFilterLinhas.length > 0 ||
                       planFilterPrazos.length > 0 ||
                       planSearchTerm.trim() !== '') && (
@@ -5520,6 +5574,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                       setPlanFilterRegioes([])
                       setPlanFilterDestinos([])
                       setPlanFilterModalidades([])
+                      setPlanFilterCodModais([])
                       setPlanFilterLinhas([])
                       setPlanFilterTipoModal([])
                       setPlanFilterFllibfat([])
@@ -5530,6 +5585,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                         localStorage.removeItem('magalog_pcp_plan_regioes')
                         localStorage.removeItem('magalog_pcp_plan_destinos')
                         localStorage.removeItem('magalog_pcp_plan_modalidades')
+                        localStorage.removeItem('magalog_pcp_plan_codmodais')
                         localStorage.removeItem('magalog_pcp_plan_linhas')
                         localStorage.removeItem('magalog_pcp_plan_tipo_modal')
                         localStorage.removeItem('magalog_pcp_plan_fllibfat')
@@ -6047,6 +6103,49 @@ export const PcpJsMartinsPage: React.FC = () => {
                   })}
                 </div>
               </div>
+
+              {/* Linha 4: Segmentação por CodModal ordenada por Rodoviário -> Courrier -> ABA */}
+              {availableCodModais.length > 0 && (
+                <div className="pt-2 border-t border-slate-100/90 flex items-center gap-1.5 overflow-x-auto pb-1 select-none scrollbar-thin">
+                  {availableCodModais.map(item => {
+                    const isSelected = planFilterCodModais.includes(item.cod)
+                    const hasFilter = planFilterCodModais.length > 0
+                    return (
+                      <button
+                        key={item.cod}
+                        type="button"
+                        onClick={() => {
+                          setPlanFilterCodModais(prev =>
+                            prev.includes(item.cod)
+                              ? prev.filter(c => c !== item.cod)
+                              : [...prev, item.cod]
+                          )
+                        }}
+                        title={`${item.cod} (${item.modalidade || 'Modal'}) - ${item.count} itens`}
+                        className={`px-3 py-1 text-[11px] font-black italic tracking-wider uppercase rounded transition-all cursor-pointer shrink-0 shadow-2xs ${
+                          isSelected
+                            ? 'bg-[#7e22ce] text-white ring-2 ring-purple-400 border border-purple-300 shadow-sm scale-105'
+                            : hasFilter
+                              ? 'bg-[#581c87]/50 hover:bg-[#581c87] text-purple-200 opacity-40 hover:opacity-100 border border-purple-900/30'
+                              : 'bg-[#581c87] hover:bg-[#6b21a8] text-white border border-purple-900/40 hover:shadow-xs'
+                        }`}
+                      >
+                        {item.cod}
+                      </button>
+                    )
+                  })}
+
+                  {planFilterCodModais.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPlanFilterCodModais([])}
+                      className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline whitespace-nowrap ml-2 shrink-0"
+                    >
+                      Limpar modal ({planFilterCodModais.length})
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* ------------------------------------------------------------ */}
