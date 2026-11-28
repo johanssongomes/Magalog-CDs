@@ -3750,6 +3750,22 @@ export const PcpJsMartinsPage: React.FC = () => {
           return a.cod.localeCompare(b.cod)
         })
 
+        // Agrupamento dos modais para a barra de segmentação: Rodoviário, Courrier, ABA e Outros
+        const groupedCodModais: { name: string; key: 'rodo' | 'courrier' | 'aba' | 'outros'; items: typeof availableCodModais }[] = [
+          { name: 'Rodoviário', key: 'rodo', items: [] },
+          { name: 'Courrier', key: 'courrier', items: [] },
+          { name: 'ABA', key: 'aba', items: [] },
+          { name: 'Outros', key: 'outros', items: [] },
+        ]
+        availableCodModais.forEach(item => {
+          const p = getCodModalGroupPriority(item.cod, item.modalidade)
+          if (p === 1) groupedCodModais[0].items.push(item)
+          else if (p === 2) groupedCodModais[1].items.push(item)
+          else if (p === 3) groupedCodModais[2].items.push(item)
+          else groupedCodModais[3].items.push(item)
+        })
+        const activeCodModalGroups = groupedCodModais.filter(g => g.items.length > 0)
+
         // Suporte a múltiplos termos / itens na Busca Rápida (separados por vírgula, ponto e vírgula, tab, quebra de linha ou espaço numérico)
         const rawSearch = planSearchTerm.trim()
         let searchTokens: string[] = []
@@ -6132,26 +6148,25 @@ export const PcpJsMartinsPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Linha 4: Segmentação por CodModal ordenada por Rodoviário -> Courrier -> ABA */}
+              {/* Linha 4: Segmentação por CodModal agrupada por Rodoviário -> Courrier -> ABA */}
               {!isInitialPlanningLoaded ? (
                 <div className="pt-2 border-t border-slate-100/90 flex flex-wrap items-center gap-1.5 select-none animate-pulse">
                   <div className="h-6 w-12 rounded bg-slate-200/90" />
+                  <div className="h-6 w-20 rounded bg-slate-200/60" />
                   <div className="h-6 w-11 rounded bg-purple-200/70" />
                   <div className="h-6 w-11 rounded bg-purple-200/70" />
-                  <div className="h-6 w-11 rounded bg-purple-200/70" />
-                  <div className="h-6 w-11 rounded bg-purple-200/70" />
-                  <div className="h-6 w-11 rounded bg-purple-200/70" />
+                  <div className="h-6 w-20 rounded bg-slate-200/60" />
                   <div className="h-6 w-11 rounded bg-purple-200/70" />
                   <div className="h-6 w-11 rounded bg-purple-200/70" />
                 </div>
               ) : availableCodModais.length > 0 ? (
-                <div className="pt-2 border-t border-slate-100/90 flex flex-wrap items-center gap-1.5 select-none">
+                <div className="pt-2 border-t border-slate-100/90 flex flex-wrap items-center gap-2 select-none">
                   {/* Botão Todos os Modais */}
                   <button
                     type="button"
                     onClick={() => setPlanFilterCodModais([])}
                     title="Exibir todos os modais (sem filtro)"
-                    className={`px-2.5 py-1 text-[10.5px] font-black uppercase rounded transition-all cursor-pointer shadow-2xs ${
+                    className={`px-2.5 py-1 text-[10.5px] font-black uppercase rounded transition-all cursor-pointer shadow-2xs shrink-0 ${
                       planFilterCodModais.length === 0
                         ? 'bg-[#071739] text-white ring-2 ring-slate-800 shadow-sm'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
@@ -6160,39 +6175,52 @@ export const PcpJsMartinsPage: React.FC = () => {
                     Todos
                   </button>
 
-                  {availableCodModais.map(item => {
-                    const isSelected = planFilterCodModais.includes(item.cod)
-                    const hasFilter = planFilterCodModais.length > 0
-                    return (
-                      <button
-                        key={item.cod}
-                        type="button"
-                        onClick={() => {
-                          setPlanFilterCodModais(prev =>
-                            prev.includes(item.cod)
-                              ? prev.filter(c => c !== item.cod)
-                              : [...prev, item.cod]
+                  {/* Grupos de Modais (Rodoviário, Courrier, ABA) */}
+                  {activeCodModalGroups.map(group => (
+                    <div
+                      key={group.key}
+                      className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/90 px-2 py-0.5 rounded-lg shrink-0 shadow-3xs"
+                    >
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-600 select-none">
+                        {group.name}:
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {group.items.map(item => {
+                          const isSelected = planFilterCodModais.includes(item.cod)
+                          const hasFilter = planFilterCodModais.length > 0
+                          return (
+                            <button
+                              key={item.cod}
+                              type="button"
+                              onClick={() => {
+                                setPlanFilterCodModais(prev =>
+                                  prev.includes(item.cod)
+                                    ? prev.filter(c => c !== item.cod)
+                                    : [...prev, item.cod]
+                                )
+                              }}
+                              title={`${item.cod} (${item.modalidade || group.name}) - ${item.count} itens`}
+                              className={`px-2.5 py-0.5 text-[11px] font-black italic tracking-wider uppercase rounded transition-all cursor-pointer shrink-0 shadow-2xs ${
+                                isSelected
+                                  ? 'bg-[#7e22ce] text-white ring-2 ring-purple-400 border border-purple-300 shadow-sm scale-105'
+                                  : hasFilter
+                                    ? 'bg-[#581c87]/50 hover:bg-[#581c87] text-purple-200 opacity-40 hover:opacity-100 border border-purple-900/30'
+                                    : 'bg-[#581c87] hover:bg-[#6b21a8] text-white border border-purple-900/40 hover:shadow-xs'
+                              }`}
+                            >
+                              {item.cod}
+                            </button>
                           )
-                        }}
-                        title={`${item.cod} (${item.modalidade || 'Modal'}) - ${item.count} itens`}
-                        className={`px-3 py-1 text-[11px] font-black italic tracking-wider uppercase rounded transition-all cursor-pointer shrink-0 shadow-2xs ${
-                          isSelected
-                            ? 'bg-[#7e22ce] text-white ring-2 ring-purple-400 border border-purple-300 shadow-sm scale-105'
-                            : hasFilter
-                              ? 'bg-[#581c87]/50 hover:bg-[#581c87] text-purple-200 opacity-40 hover:opacity-100 border border-purple-900/30'
-                              : 'bg-[#581c87] hover:bg-[#6b21a8] text-white border border-purple-900/40 hover:shadow-xs'
-                        }`}
-                      >
-                        {item.cod}
-                      </button>
-                    )
-                  })}
+                        })}
+                      </div>
+                    </div>
+                  ))}
 
                   {planFilterCodModais.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setPlanFilterCodModais([])}
-                      className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline whitespace-nowrap ml-2 shrink-0"
+                      className="text-[10px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline whitespace-nowrap ml-1 shrink-0"
                     >
                       Limpar modal ({planFilterCodModais.length})
                     </button>
