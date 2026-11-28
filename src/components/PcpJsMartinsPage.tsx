@@ -3695,7 +3695,7 @@ export const PcpJsMartinsPage: React.FC = () => {
         const availableLinhas = Array.from(new Set(baseForLinhas.map(r => r.calc_linha))).filter(Boolean)
         const uniqueLinhasList = Array.from(new Set([...availableLinhas, ...planFilterLinhas])).sort()
 
-        // 5. CodModais disponíveis para a segmentação (filtrados dinamicamente pelos filtros superiores ativos: Tipo Modal, Status Op, Lib Fat, Regiões, Destinos)
+        // 5. CodModais disponíveis para a segmentação (filtrados dinamicamente pelos filtros superiores ativos: Tipo Modal, Status Op, Lib Fat, Regiões, Destinos, Prazos & SLA)
         const baseForCodModais = enrichedBase.filter(r => {
           if (planFilterTipoModal.length > 0 && !planFilterTipoModal.includes(r.calc_tipo_modal)) return false
           if (planFilterStatusOp.length > 0) {
@@ -3711,6 +3711,7 @@ export const PcpJsMartinsPage: React.FC = () => {
           if (planFilterRegioes.length > 0 && !planFilterRegioes.includes(r.calc_regiao)) return false
           if (planFilterDestinos.length > 0 && !planFilterDestinos.includes(r.calc_destino)) return false
           if (planFilterModalidades.length > 0 && !planFilterModalidades.includes(r.calc_modalidade)) return false
+          if (planFilterPrazos.length > 0 && !planFilterPrazos.includes(r.calc_prazo)) return false
           return true
         })
 
@@ -3729,6 +3730,7 @@ export const PcpJsMartinsPage: React.FC = () => {
         })
         planFilterCodModais.forEach(cod => {
           if (!codModalMap.has(cod)) {
+            if (planFilterPrazos.length > 0) return
             const mod = modalMap[cod] || ''
             const tipo = getTipoModal(mod)
             if (planFilterTipoModal.length === 0 || planFilterTipoModal.includes(tipo)) {
