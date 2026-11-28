@@ -5994,45 +5994,45 @@ export const PcpJsMartinsPage: React.FC = () => {
                 />
               </div>
 
-              {/* Linha 3: Segmentação por Prazos / SLA em formato de Cards Operacionais Ampliados */}
-              <div className="pt-2 border-t border-slate-100/90 flex items-stretch gap-2 overflow-x-auto pb-1 select-none scrollbar-thin w-full relative z-0">
+              {/* Linha 3: Segmentação por Prazos / SLA em formato de Cards Operacionais Compactos e Alinhados */}
+              <div className="pt-2 border-t border-slate-100/90 flex items-stretch gap-1.5 overflow-x-auto pb-1 select-none scrollbar-thin w-fit max-w-full relative z-0">
                 {/* Card "Todos" */}
                 <button
                   type="button"
                   onClick={() => setPlanFilterPrazos([])}
                   title="Exibir todos os prazos"
-                  className={`flex flex-col rounded-lg border transition-all cursor-pointer text-left overflow-hidden flex-1 min-w-[92px] sm:min-w-[98px] shrink-0 shadow-2xs hover:shadow-xs ${
+                  className={`flex flex-col rounded-lg border transition-all cursor-pointer text-left overflow-hidden w-[82px] sm:w-[85px] shrink-0 shadow-2xs hover:shadow-xs ${
                     planFilterPrazos.length === 0
                       ? 'ring-2 ring-slate-800 border-slate-800 shadow-sm'
                       : 'border-slate-200/90 hover:border-slate-300 bg-white'
                   }`}
                 >
                   <div
-                    className={`px-2 py-1.5 text-center flex flex-col items-center justify-center leading-tight ${
+                    className={`px-1.5 py-1 text-center flex flex-col items-center justify-center leading-tight ${
                       planFilterPrazos.length === 0
                         ? 'bg-[#071739] text-white border-b border-[#071739]'
                         : 'bg-slate-100 text-slate-700 border-b border-slate-200'
                     }`}
                   >
-                    <span className="text-[10px] font-bold tracking-tight opacity-80">Geral</span>
-                    <span className="text-[12.5px] font-black uppercase tracking-wider">Todos</span>
+                    <span className="text-[9px] font-semibold tracking-tight opacity-80">Geral</span>
+                    <span className="text-[11px] font-black uppercase tracking-wider">Todos</span>
                   </div>
-                  <div className="px-2 py-1.5 flex flex-col gap-1 bg-white text-[10.5px] leading-tight">
+                  <div className="px-1.5 py-1 flex flex-col gap-0.5 bg-white text-[9.5px] leading-tight">
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-slate-400 font-black text-[9.5px] uppercase tracking-wider">Ped</span>
-                      <span className="font-mono font-black text-slate-900 text-[11.5px]">
+                      <span className="text-slate-400 font-bold text-[8.5px] uppercase">Ped</span>
+                      <span className="font-mono font-black text-slate-900 text-[10px]">
                         {totalPrazosMetrics.pedidos.toLocaleString('pt-BR')}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-slate-400 font-black text-[9.5px] uppercase tracking-wider">Pçs</span>
-                      <span className="font-mono font-bold text-slate-700 text-[11px]">
+                      <span className="text-slate-400 font-bold text-[8.5px] uppercase">Pçs</span>
+                      <span className="font-mono font-bold text-slate-700 text-[9.5px]">
                         {totalPrazosMetrics.pecas.toLocaleString('pt-BR')}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-slate-400 font-black text-[9.5px] uppercase tracking-wider">m³</span>
-                      <span className="font-mono font-bold text-slate-700 text-[11px]">
+                      <span className="text-slate-400 font-bold text-[8.5px] uppercase">m³</span>
+                      <span className="font-mono font-bold text-slate-700 text-[9.5px]">
                         {totalPrazosMetrics.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                       </span>
                     </div>
@@ -6084,34 +6084,34 @@ export const PcpJsMartinsPage: React.FC = () => {
                         )
                       }}
                       title={`Filtrar por prazo ${faixa}`}
-                      className={`flex flex-col rounded-lg border transition-all cursor-pointer text-left overflow-hidden flex-1 min-w-[92px] sm:min-w-[98px] shrink-0 shadow-2xs hover:shadow-xs ${
+                      className={`flex flex-col rounded-lg border transition-all cursor-pointer text-left overflow-hidden w-[82px] sm:w-[85px] shrink-0 shadow-2xs hover:shadow-xs ${
                         isSelected
                           ? `${ringStyle} shadow-sm`
                           : 'border-slate-200/90 hover:border-slate-300 bg-white'
                       }`}
                     >
-                      <div className={`px-2 py-1.5 text-center flex flex-col items-center justify-center leading-tight ${headerStyle}`}>
-                        <span className="text-[10px] font-bold tracking-tight opacity-90">{dateInfo.dateLabel}</span>
-                        <span className="text-[12.5px] font-black italic tracking-wide">{faixa}</span>
+                      <div className={`px-1.5 py-1 text-center flex flex-col items-center justify-center leading-tight ${headerStyle}`}>
+                        <span className="text-[9px] font-semibold tracking-tight opacity-90">{dateInfo.dateLabel}</span>
+                        <span className="text-[11px] font-black italic tracking-wide">{faixa}</span>
                       </div>
-                      <div className="px-2 py-1.5 flex flex-col gap-1 bg-white text-[10.5px] leading-tight">
+                      <div className="px-1.5 py-1 flex flex-col gap-0.5 bg-white text-[9.5px] leading-tight">
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-slate-400 font-black text-[9.5px] uppercase tracking-wider">Ped</span>
-                          <span className={`font-mono font-black text-[11.5px] ${
+                          <span className="text-slate-400 font-bold text-[8.5px] uppercase">Ped</span>
+                          <span className={`font-mono font-black text-[10px] ${
                             isVencido && metrics.pedidos > 0 ? 'text-rose-700' : (isErro && metrics.pedidos > 0 ? 'text-amber-800' : 'text-slate-900')
                           }`}>
                             {metrics.pedidos.toLocaleString('pt-BR')}
                           </span>
                         </div>
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-slate-400 font-black text-[9.5px] uppercase tracking-wider">Pçs</span>
-                          <span className="font-mono font-bold text-slate-700 text-[11px]">
+                          <span className="text-slate-400 font-bold text-[8.5px] uppercase">Pçs</span>
+                          <span className="font-mono font-bold text-slate-700 text-[9.5px]">
                             {metrics.pecas.toLocaleString('pt-BR')}
                           </span>
                         </div>
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-slate-400 font-black text-[9.5px] uppercase tracking-wider">m³</span>
-                          <span className="font-mono font-bold text-slate-700 text-[11px]">
+                          <span className="text-slate-400 font-bold text-[8.5px] uppercase">m³</span>
+                          <span className="font-mono font-bold text-slate-700 text-[9.5px]">
                             {metrics.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                           </span>
                         </div>
@@ -6125,7 +6125,7 @@ export const PcpJsMartinsPage: React.FC = () => {
                     type="button"
                     onClick={() => setPlanFilterPrazos([])}
                     title="Limpar seleção de prazos"
-                    className="self-center px-2.5 py-1.5 text-[10.5px] text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg border border-rose-200 font-extrabold cursor-pointer shrink-0 transition-colors whitespace-nowrap shadow-2xs"
+                    className="self-center px-2 py-1 text-[10px] text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg border border-rose-200 font-extrabold cursor-pointer shrink-0 transition-colors whitespace-nowrap shadow-2xs"
                   >
                     Limpar prazos ({planFilterPrazos.length})
                   </button>
