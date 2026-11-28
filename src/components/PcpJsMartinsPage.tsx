@@ -5994,155 +5994,142 @@ export const PcpJsMartinsPage: React.FC = () => {
                 />
               </div>
 
-              {/* Linha 3: Segmentação por Prazos / SLA em formato de Cards Operacionais */}
-              <div className="pt-2.5 border-t border-slate-100 flex flex-col gap-2 w-full relative z-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 text-slate-700 shrink-0">
-                    <Zap size={14} className="text-blue-600 fill-blue-600" />
-                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-800">Prazos & SLA:</span>
-                    {planFilterPrazos.length > 0 && (
-                      <span className="text-[10px] text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full font-black">
-                        {planFilterPrazos.length} selecionado{planFilterPrazos.length > 1 ? 's' : ''}
-                      </span>
-                    )}
+              {/* Linha 3: Segmentação por Prazos / SLA em formato de Cards Operacionais Ampliados */}
+              <div className="pt-2 border-t border-slate-100/90 flex items-stretch gap-2 overflow-x-auto pb-1 select-none scrollbar-thin w-full relative z-0">
+                {/* Card "Todos" */}
+                <button
+                  type="button"
+                  onClick={() => setPlanFilterPrazos([])}
+                  title="Exibir todos os prazos"
+                  className={`flex flex-col rounded-lg border transition-all cursor-pointer text-left overflow-hidden flex-1 min-w-[92px] sm:min-w-[98px] shrink-0 shadow-2xs hover:shadow-xs ${
+                    planFilterPrazos.length === 0
+                      ? 'ring-2 ring-slate-800 border-slate-800 shadow-sm'
+                      : 'border-slate-200/90 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div
+                    className={`px-2 py-1.5 text-center flex flex-col items-center justify-center leading-tight ${
+                      planFilterPrazos.length === 0
+                        ? 'bg-[#071739] text-white border-b border-[#071739]'
+                        : 'bg-slate-100 text-slate-700 border-b border-slate-200'
+                    }`}
+                  >
+                    <span className="text-[10px] font-bold tracking-tight opacity-80">Geral</span>
+                    <span className="text-[12.5px] font-black uppercase tracking-wider">Todos</span>
                   </div>
-                  {planFilterPrazos.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setPlanFilterPrazos([])}
-                      className="text-[10.5px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer underline flex items-center gap-1"
-                    >
-                      Limpar filtro de prazos
-                    </button>
-                  )}
-                </div>
+                  <div className="px-2 py-1.5 flex flex-col gap-1 bg-white text-[10.5px] leading-tight">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-slate-400 font-black text-[9.5px] uppercase tracking-wider">Ped</span>
+                      <span className="font-mono font-black text-slate-900 text-[11.5px]">
+                        {totalPrazosMetrics.pedidos.toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-slate-400 font-black text-[9.5px] uppercase tracking-wider">Pçs</span>
+                      <span className="font-mono font-bold text-slate-700 text-[11px]">
+                        {totalPrazosMetrics.pecas.toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-slate-400 font-black text-[9.5px] uppercase tracking-wider">m³</span>
+                      <span className="font-mono font-bold text-slate-700 text-[11px]">
+                        {totalPrazosMetrics.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                      </span>
+                    </div>
+                  </div>
+                </button>
 
-                {/* Grade de Cards com rolagem horizontal suave */}
-                <div className="flex items-stretch gap-2 overflow-x-auto pb-1.5 select-none pt-0.5 scrollbar-thin">
-                  {/* Card "Todos" */}
+                {/* Cards de cada Faixa de Prazo */}
+                {PRAZO_FAIXAS.map(faixa => {
+                  const isSelected = planFilterPrazos.includes(faixa)
+                  const metrics = prazoMetrics[faixa] || { pedidos: 0, pecas: 0, cubagem: 0 }
+                  const isVencido = faixa === 'Vencido'
+                  const isErro = faixa === 'Erro'
+                  const isDPlus = faixa === 'D+'
+                  const dateInfo = getFaixaCalendarDate(faixa, opRefDate)
+
+                  // Cores temáticas para o cabeçalho
+                  let headerStyle = 'bg-[#dbeafe] text-[#0369a1] border-b border-sky-200'
+                  let ringStyle = 'ring-2 ring-sky-600 border-sky-600'
+                  if (isSelected) {
+                    headerStyle = 'bg-[#0284c7] text-white border-b border-[#0369a1]'
+                  }
+
+                  if (isVencido) {
+                    headerStyle = isSelected
+                      ? 'bg-rose-600 text-white border-b border-rose-700'
+                      : 'bg-rose-100 text-rose-800 border-b border-rose-200'
+                    ringStyle = 'ring-2 ring-rose-600 border-rose-600'
+                  } else if (isErro) {
+                    headerStyle = isSelected
+                      ? 'bg-amber-500 text-slate-950 border-b border-amber-600'
+                      : 'bg-amber-100 text-amber-900 border-b border-amber-200'
+                    ringStyle = 'ring-2 ring-amber-500 border-amber-500'
+                  } else if (isDPlus) {
+                    headerStyle = isSelected
+                      ? 'bg-indigo-600 text-white border-b border-indigo-700'
+                      : 'bg-indigo-100 text-indigo-900 border-b border-indigo-200'
+                    ringStyle = 'ring-2 ring-indigo-600 border-indigo-600'
+                  }
+
+                  return (
+                    <button
+                      key={faixa}
+                      type="button"
+                      onClick={() => {
+                        setPlanFilterPrazos(prev =>
+                          prev.includes(faixa)
+                            ? prev.filter(p => p !== faixa)
+                            : [...prev, faixa]
+                        )
+                      }}
+                      title={`Filtrar por prazo ${faixa}`}
+                      className={`flex flex-col rounded-lg border transition-all cursor-pointer text-left overflow-hidden flex-1 min-w-[92px] sm:min-w-[98px] shrink-0 shadow-2xs hover:shadow-xs ${
+                        isSelected
+                          ? `${ringStyle} shadow-sm`
+                          : 'border-slate-200/90 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      <div className={`px-2 py-1.5 text-center flex flex-col items-center justify-center leading-tight ${headerStyle}`}>
+                        <span className="text-[10px] font-bold tracking-tight opacity-90">{dateInfo.dateLabel}</span>
+                        <span className="text-[12.5px] font-black italic tracking-wide">{faixa}</span>
+                      </div>
+                      <div className="px-2 py-1.5 flex flex-col gap-1 bg-white text-[10.5px] leading-tight">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-slate-400 font-black text-[9.5px] uppercase tracking-wider">Ped</span>
+                          <span className={`font-mono font-black text-[11.5px] ${
+                            isVencido && metrics.pedidos > 0 ? 'text-rose-700' : (isErro && metrics.pedidos > 0 ? 'text-amber-800' : 'text-slate-900')
+                          }`}>
+                            {metrics.pedidos.toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-slate-400 font-black text-[9.5px] uppercase tracking-wider">Pçs</span>
+                          <span className="font-mono font-bold text-slate-700 text-[11px]">
+                            {metrics.pecas.toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-slate-400 font-black text-[9.5px] uppercase tracking-wider">m³</span>
+                          <span className="font-mono font-bold text-slate-700 text-[11px]">
+                            {metrics.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+
+                {planFilterPrazos.length > 0 && (
                   <button
                     type="button"
                     onClick={() => setPlanFilterPrazos([])}
-                    title="Exibir todos os prazos"
-                    className={`flex flex-col rounded-lg border transition-all cursor-pointer text-left overflow-hidden min-w-[76px] sm:min-w-[80px] shrink-0 shadow-2xs hover:shadow-xs ${
-                      planFilterPrazos.length === 0
-                        ? 'ring-2 ring-slate-800 border-slate-800 shadow-sm'
-                        : 'border-slate-200/90 hover:border-slate-300 bg-white'
-                    }`}
+                    title="Limpar seleção de prazos"
+                    className="self-center px-2.5 py-1.5 text-[10.5px] text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg border border-rose-200 font-extrabold cursor-pointer shrink-0 transition-colors whitespace-nowrap shadow-2xs"
                   >
-                    <div
-                      className={`px-1.5 py-1 text-center flex flex-col items-center justify-center leading-tight ${
-                        planFilterPrazos.length === 0
-                          ? 'bg-[#071739] text-white border-b border-[#071739]'
-                          : 'bg-slate-100 text-slate-700 border-b border-slate-200'
-                      }`}
-                    >
-                      <span className="text-[9px] font-semibold tracking-tight opacity-80">Geral</span>
-                      <span className="text-[11px] font-black uppercase tracking-wider">Todos</span>
-                    </div>
-                    <div className="px-1.5 py-1 flex flex-col gap-0.5 bg-white text-[9.5px] leading-tight">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-slate-400 font-bold text-[8.5px] uppercase">Ped</span>
-                        <span className="font-mono font-black text-slate-900 text-[10px]">
-                          {totalPrazosMetrics.pedidos.toLocaleString('pt-BR')}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-slate-400 font-bold text-[8.5px] uppercase">Pçs</span>
-                        <span className="font-mono font-bold text-slate-700 text-[9.5px]">
-                          {totalPrazosMetrics.pecas.toLocaleString('pt-BR')}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-slate-400 font-bold text-[8.5px] uppercase">m³</span>
-                        <span className="font-mono font-bold text-slate-700 text-[9.5px]">
-                          {totalPrazosMetrics.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                        </span>
-                      </div>
-                    </div>
+                    Limpar prazos ({planFilterPrazos.length})
                   </button>
-
-                  {/* Cards de cada Faixa de Prazo */}
-                  {PRAZO_FAIXAS.map(faixa => {
-                    const isSelected = planFilterPrazos.includes(faixa)
-                    const metrics = prazoMetrics[faixa] || { pedidos: 0, pecas: 0, cubagem: 0 }
-                    const isVencido = faixa === 'Vencido'
-                    const isErro = faixa === 'Erro'
-                    const isDPlus = faixa === 'D+'
-                    const dateInfo = getFaixaCalendarDate(faixa, opRefDate)
-
-                    // Cores temáticas para o cabeçalho
-                    let headerStyle = 'bg-[#dbeafe] text-[#0369a1] border-b border-sky-200'
-                    let ringStyle = 'ring-2 ring-sky-600 border-sky-600'
-                    if (isSelected) {
-                      headerStyle = 'bg-[#0284c7] text-white border-b border-[#0369a1]'
-                    }
-
-                    if (isVencido) {
-                      headerStyle = isSelected
-                        ? 'bg-rose-600 text-white border-b border-rose-700'
-                        : 'bg-rose-100 text-rose-800 border-b border-rose-200'
-                      ringStyle = 'ring-2 ring-rose-600 border-rose-600'
-                    } else if (isErro) {
-                      headerStyle = isSelected
-                        ? 'bg-amber-500 text-slate-950 border-b border-amber-600'
-                        : 'bg-amber-100 text-amber-900 border-b border-amber-200'
-                      ringStyle = 'ring-2 ring-amber-500 border-amber-500'
-                    } else if (isDPlus) {
-                      headerStyle = isSelected
-                        ? 'bg-indigo-600 text-white border-b border-indigo-700'
-                        : 'bg-indigo-100 text-indigo-900 border-b border-indigo-200'
-                      ringStyle = 'ring-2 ring-indigo-600 border-indigo-600'
-                    }
-
-                    return (
-                      <button
-                        key={faixa}
-                        type="button"
-                        onClick={() => {
-                          setPlanFilterPrazos(prev =>
-                            prev.includes(faixa)
-                              ? prev.filter(p => p !== faixa)
-                              : [...prev, faixa]
-                          )
-                        }}
-                        title={`Filtrar por prazo ${faixa}`}
-                        className={`flex flex-col rounded-lg border transition-all cursor-pointer text-left overflow-hidden min-w-[76px] sm:min-w-[80px] shrink-0 shadow-2xs hover:shadow-xs ${
-                          isSelected
-                            ? `${ringStyle} shadow-sm`
-                            : 'border-slate-200/90 hover:border-slate-300 bg-white'
-                        }`}
-                      >
-                        <div className={`px-1.5 py-1 text-center flex flex-col items-center justify-center leading-tight ${headerStyle}`}>
-                          <span className="text-[9px] font-semibold tracking-tight opacity-90">{dateInfo.dateLabel}</span>
-                          <span className="text-[11px] font-black italic tracking-wide">{faixa}</span>
-                        </div>
-                        <div className="px-1.5 py-1 flex flex-col gap-0.5 bg-white text-[9.5px] leading-tight">
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-slate-400 font-bold text-[8.5px] uppercase">Ped</span>
-                            <span className={`font-mono font-black text-[10px] ${
-                              isVencido && metrics.pedidos > 0 ? 'text-rose-700' : (isErro && metrics.pedidos > 0 ? 'text-amber-800' : 'text-slate-900')
-                            }`}>
-                              {metrics.pedidos.toLocaleString('pt-BR')}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-slate-400 font-bold text-[8.5px] uppercase">Pçs</span>
-                            <span className="font-mono font-bold text-slate-700 text-[9.5px]">
-                              {metrics.pecas.toLocaleString('pt-BR')}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-slate-400 font-bold text-[8.5px] uppercase">m³</span>
-                            <span className="font-mono font-bold text-slate-700 text-[9.5px]">
-                              {metrics.cubagem.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
+                )}
               </div>
 
               {/* Linha 4: Segmentação por CodModal ordenada por Rodoviário -> Courrier -> ABA */}
