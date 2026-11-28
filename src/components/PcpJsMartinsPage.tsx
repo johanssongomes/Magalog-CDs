@@ -6106,7 +6106,21 @@ export const PcpJsMartinsPage: React.FC = () => {
 
               {/* Linha 4: Segmentação por CodModal ordenada por Rodoviário -> Courrier -> ABA */}
               {availableCodModais.length > 0 && (
-                <div className="pt-2 border-t border-slate-100/90 flex items-center gap-1.5 overflow-x-auto pb-1 select-none scrollbar-thin">
+                <div className="pt-2 border-t border-slate-100/90 flex flex-wrap items-center gap-1.5 select-none">
+                  {/* Botão Todos os Modais */}
+                  <button
+                    type="button"
+                    onClick={() => setPlanFilterCodModais([])}
+                    title="Exibir todos os modais (sem filtro)"
+                    className={`px-2.5 py-1 text-[10.5px] font-black uppercase rounded transition-all cursor-pointer shadow-2xs ${
+                      planFilterCodModais.length === 0
+                        ? 'bg-[#071739] text-white ring-2 ring-slate-800 shadow-sm'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    Todos
+                  </button>
+
                   {availableCodModais.map(item => {
                     const isSelected = planFilterCodModais.includes(item.cod)
                     const hasFilter = planFilterCodModais.length > 0
